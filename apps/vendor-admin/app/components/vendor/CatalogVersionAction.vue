@@ -17,7 +17,7 @@ async function perform() {
 }
 </script>
 <template>
-  <SharedFormSection v-if="action" :title="t('vendor.catalog.step')" :description="t(`vendor.catalog.effects.${action}`)" data-testid="catalog-action">
+  <SharedRecordSection v-if="action" variant="action" :title="t('vendor.catalog.step')" :description="t(`vendor.catalog.effects.${action}`)" data-testid="catalog-action">
     <SharedUnsavedChanges :dirty="Boolean(reason.trim())" guard-route-updates />
     <p v-if="!can('vendor.catalog.manage')" class="text-sm text-muted" data-testid="catalog-action-blocked">{{ t('vendor.pricing.blocked.catalog') }}</p>
     <form v-else class="space-y-4" novalidate data-testid="catalog-action-form" @submit.prevent="perform">
@@ -25,5 +25,5 @@ async function perform() {
       <UFormField :label="t('vendor.pricing.fields.reason')" required :error="reasonError"><UTextarea v-model="reason" maxlength="1000" class="w-full" data-testid="catalog-action-reason" :disabled="!hydrated || busy" /></UFormField>
       <div class="flex justify-end"><UButton type="submit" data-testid="catalog-action-submit" :loading="busy" :disabled="!hydrated || busy">{{ t(`vendor.pricing.actions.${action}`) }}</UButton></div>
     </form>
-  </SharedFormSection>
+  </SharedRecordSection>
 </template>

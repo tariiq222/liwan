@@ -46,14 +46,25 @@ const features = computed<AppFeature[]>(() => {
     return { key: parsed.kind === 'opaque' ? raw : parsed.key, kind, ...(ceiling !== undefined ? { ceiling } : {}), requires: [], enforcementRefs: [], label: catalogLabel('feature', raw, t) }
   })
 })
-const facts = computed(() => (tier.value ? [
-  { key: 'features', label: t('vendor.catalog.app.features'), value: features.value.length },
-  { key: 'bundles', label: t('vendor.bundles.title'), value: usage.value ? usage.value.bundles.length : '—' },
-  { key: 'plans', label: t('vendor.plans.title'), value: usage.value ? usage.value.plans.length : '—' },
-] : []))
 const sellableBadge = computed(() => (sellable.value
   ? { tone: 'success' as const, label: t('vendor.catalog.sellable') }
-  : { tone: 'neutral' as const, label: t('vendor.catalog.app.notSellable') }))
+  : { tone: 'neutral' as const, label: t('vendor.catalog.app.base') }))
+// This application's history: for every version, the date, its state and the delta it introduced over the import before it.
+const history = computed(() => {
+  const list = versions.value ?? []
+  return list.map((entry, index) => {
+    const diff = index < list.length - 1 ? catalogDiff(entry, list[index + 1]) : null
+    const appEntry = diff?.apps.find(app => app.appId === appId.value)
+    return {
+      entry,
+      diff,
+      appChanges: !!appEntry,
+      // A one-chip delta (a bare add or rename with no feature, limit or module change) reads inline; anything else wraps below.
+      diffInline: !!appEntry && !appEntry.featuresAdded.length && !appEntry.featuresRemoved.length && !appEntry.limitChanges.length
+        && !appEntry.modulesAdded.length && !appEntry.modulesRemoved.length && appEntry.sellableFrom === appEntry.sellableTo,
+    }
+  })
+})
 // What prices this application and what includes those prices; null means the lists could not be loaded.
 const { data: usage, error: usageError, pending: usagePending, refresh: refreshUsage } = await useAsyncData(
   () => `vendor:catalog-app-usage:${appId.value}`,
@@ -65,24 +76,40 @@ const { data: usage, error: usageError, pending: usagePending, refresh: refreshU
   },
   { watch: [appId] },
 )
-// This application's history: for every version, the date, its state and the delta it introduced over the import before it.
-const history = computed(() => {
-  const list = versions.value ?? []
-  return list.map((entry, index) => ({ entry, diff: index < list.length - 1 ? catalogDiff(entry, list[index + 1]) : null }))
-})
+// What prices this application and what includes those prices; null means the lists could not be loaded.
+const hasDependencies = computed(() => !!releaseApp.value && (releaseApp.value.requires_apps.length > 0 || releaseApp.value.conflicts_with_apps.length > 0))
 const retry = () => Promise.all([refresh(), refreshUsage()])
 </script>
 <template>
   <SharedRecordPage :title="name || t('vendor.catalog.app.details')" back-to="/catalog" :back-label="t('vendor.catalog.applications')" :loading="pending || usagePending" :error="error ?? usageError" @retry="retry">
+    <template v-if="tier" #summary>
+      <SharedRecordHero :tone="sellable ? 'success' : 'neutral'" icon="i-lucide-boxes">
+        <template #title>
+          <span class="flex min-w-0 flex-wrap items-center gap-2">
+            <SharedStatusBadge size="sm" :tone="sellableBadge.tone" :label="sellableBadge.label" />
+            <span aria-hidden="true">·</span>
+            {{ name }}
+          </span>
+        </template>
+        <template #meta><span v-if="tier.description" data-testid="catalog-app-description">{{ tier.description }}</span></template>
+        <SharedMetricTile density="compact" icon="i-lucide-puzzle" :label="t('vendor.catalog.app.features')" :value="features.length" />
+        <SharedMetricTile density="compact" icon="i-lucide-package" :label="t('vendor.catalog.app.modules')" :value="modules.length" />
+      </SharedRecordHero>
+    </template>
+    <template v-if="tier" #aside>
+      <SharedPropertiesPanel :title="t('vendor.catalog.app.details')">
+        <SharedPropertyRow :label="t('vendor.catalog.app.title')" :value="name" />
+        <SharedPropertyRow :label="t('vendor.common.status')"><SharedStatusBadge size="sm" :tone="sellableBadge.tone" :label="sellableBadge.label" /></SharedPropertyRow>
+        <SharedPropertyRow data-fact="features" :label="t('vendor.catalog.app.features')" :value="features.length" />
+        <SharedPropertyRow :label="t('vendor.catalog.app.modules')" :value="modules.length" />
+        <SharedPropertyRow data-fact="bundles" :label="t('vendor.bundles.title')" :value="usage ? usage.bundles.length : null" />
+        <SharedPropertyRow data-fact="plans" :label="t('vendor.plans.title')" :value="usage ? usage.plans.length : null" />
+      </SharedPropertiesPanel>
+    </template>
     <template v-if="tier">
-      <p v-if="tier.description" class="text-sm text-muted" data-testid="catalog-app-description">{{ tier.description }}</p>
-      <VendorCatalogFacts :facts="facts" class="mt-6">
-        <template #status><SharedStatusBadge data-slot="sellable-badge" :tone="sellableBadge.tone" :label="sellableBadge.label" /></template>
-      </VendorCatalogFacts>
-      <SharedRecordSection :title="t('vendor.catalog.app.featuresTitle')" class="mt-6" data-testid="catalog-app-features">
-        <p v-if="!features.length" class="text-sm text-muted">{{ t('vendor.catalog.app.noFeatures') }}</p>
-        <ul v-else class="space-y-3">
-          <li v-for="feature in features" :key="feature.key" class="rounded-control p-3 ring ring-default" data-testid="catalog-app-feature">
+      <SharedRecordSection v-if="features.length" variant="panel" :title="t('vendor.catalog.app.featuresTitle')" data-testid="catalog-app-features">
+        <ul class="grid gap-(--liwan-gap-card)">
+          <SharedSubCard v-for="feature in features" :key="feature.key" as="li" data-testid="catalog-app-feature">
             <p class="flex flex-wrap items-center gap-2 font-medium">
               {{ feature.label }}
               <UBadge v-if="feature.kind" color="neutral" variant="subtle">{{ t(feature.kind === 'boolean' ? 'vendor.catalog.app.featureBoolean' : 'vendor.catalog.app.featureLimit') }}</UBadge>
@@ -96,58 +123,77 @@ const retry = () => Promise.all([refresh(), refreshUsage()])
               <span class="text-sm text-muted">{{ t('vendor.catalog.app.enforcement') }}</span>
               <UBadge v-for="ref in feature.enforcementRefs" :key="ref" color="neutral" variant="subtle" dir="ltr">{{ ref }}</UBadge>
             </div>
-          </li>
+          </SharedSubCard>
         </ul>
       </SharedRecordSection>
-      <SharedRecordSection :title="t('vendor.catalog.app.composition')" class="mt-6" data-testid="catalog-app-modules">
-        <div v-if="modules.length" class="flex flex-wrap gap-2"><UBadge v-for="module in modules" :key="module" color="neutral" variant="subtle">{{ catalogLabel('module', module, t) }}</UBadge></div>
-        <p v-else class="text-sm text-muted">{{ t('vendor.catalog.app.noModules') }}</p>
-        <dl v-if="releaseApp && (releaseApp.requires_apps.length || releaseApp.conflicts_with_apps.length)" class="mt-4 space-y-2 text-sm">
-          <div v-if="releaseApp.requires_apps.length">
-            <dt class="text-muted">{{ t('vendor.catalog.app.requiresApps') }}</dt>
-            <dd class="mt-1 flex flex-wrap gap-2"><UBadge v-for="id in releaseApp.requires_apps" :key="id" color="neutral" variant="subtle">{{ tierLabel(id, undefined, t, te) }}</UBadge></dd>
-          </div>
-          <div v-if="releaseApp.conflicts_with_apps.length">
-            <dt class="text-muted">{{ t('vendor.catalog.app.conflictsWithApps') }}</dt>
-            <dd class="mt-1 flex flex-wrap gap-2"><UBadge v-for="id in releaseApp.conflicts_with_apps" :key="id" color="neutral" variant="subtle">{{ tierLabel(id, undefined, t, te) }}</UBadge></dd>
-          </div>
+      <p v-else class="text-sm text-muted" data-testid="catalog-app-features">{{ t('vendor.catalog.app.noFeatures') }}</p>
+      <SharedRecordSection v-if="modules.length || hasDependencies" variant="panel" :title="t('vendor.catalog.app.composition')" data-testid="catalog-app-modules">
+        <dl class="divide-y divide-default">
+          <SharedPropertyRow v-if="modules.length" :label="t('vendor.catalog.app.modules')">
+            <span class="flex flex-wrap gap-2"><UBadge v-for="module in modules" :key="module" color="neutral" variant="subtle">{{ catalogLabel('module', module, t) }}</UBadge></span>
+          </SharedPropertyRow>
+          <SharedPropertyRow v-if="releaseApp && releaseApp.requires_apps.length" :label="t('vendor.catalog.app.requiresApps')">
+            <UBadge v-for="id in releaseApp.requires_apps" :key="id" color="neutral" variant="subtle">{{ tierLabel(id, undefined, t, te) }}</UBadge>
+          </SharedPropertyRow>
+          <SharedPropertyRow v-if="releaseApp && releaseApp.conflicts_with_apps.length" :label="t('vendor.catalog.app.conflictsWithApps')">
+            <UBadge v-for="id in releaseApp.conflicts_with_apps" :key="id" color="neutral" variant="subtle">{{ tierLabel(id, undefined, t, te) }}</UBadge>
+          </SharedPropertyRow>
         </dl>
       </SharedRecordSection>
-      <SharedRecordSection :title="t('vendor.catalog.app.pricing')" class="mt-6" data-testid="catalog-app-pricing">
-        <p v-if="!usage" class="text-sm text-muted" data-testid="catalog-app-pricing-unavailable">{{ t('vendor.catalog.app.pricingUnavailable') }}</p>
-        <template v-else>
-          <p v-if="!usage.bundles.length" class="text-sm text-muted">{{ t('vendor.catalog.app.pricingNone') }}</p>
-          <ul v-else class="grid gap-2 sm:grid-cols-2" data-testid="catalog-app-bundles">
-            <li v-for="bundle in usage.bundles" :key="bundle.id" class="rounded-control p-3 ring ring-default">
-              <p class="flex flex-wrap items-center justify-between gap-2">
-                <NuxtLink :to="{ path: `/bundles/${encodeURIComponent(bundle.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline" data-testid="catalog-app-bundle-link">{{ bundle.name }}</NuxtLink>
-                <SharedStatusBadge :tone="lifecycleBadge(bundle).tone" :label="t(lifecycleBadge(bundle).labelKey)" />
-              </p>
-            </li>
-          </ul>
-          <p v-if="!usage.plans.length" class="mt-4 text-sm text-muted">{{ t('vendor.catalog.app.plansNone') }}</p>
-          <ul v-else class="mt-4 grid gap-2 sm:grid-cols-2" data-testid="catalog-app-plans">
-            <li v-for="plan in usage.plans" :key="plan.id" class="rounded-control p-3 ring ring-default">
-              <p class="flex flex-wrap items-center justify-between gap-2">
-                <NuxtLink :to="{ path: `/plans/${encodeURIComponent(plan.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline" data-testid="catalog-app-plan-link">{{ plan.name }}</NuxtLink>
-                <SharedStatusBadge :tone="lifecycleBadge(plan).tone" :label="t(lifecycleBadge(plan).labelKey)" />
-              </p>
-            </li>
-          </ul>
-        </template>
+      <p v-else class="text-sm text-muted" data-testid="catalog-app-modules">{{ t('vendor.catalog.app.noModules') }}</p>
+      <SharedRecordSection v-if="usage && (usage.bundles.length || usage.plans.length)" variant="panel" :title="t('vendor.catalog.app.pricing')" data-testid="catalog-app-pricing">
+        <template v-if="usage.bundles.length">
+            <h3 class="text-sm font-semibold text-highlighted">{{ t('vendor.bundles.title') }}</h3>
+            <ul class="liwan-card-grid mt-3" data-testid="catalog-app-bundles">
+              <SharedSubCard v-for="bundle in usage.bundles" :key="bundle.id" as="li">
+                <p class="flex flex-wrap items-center justify-between gap-2">
+                  <NuxtLink :to="{ path: `/bundles/${encodeURIComponent(bundle.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline" data-testid="catalog-app-bundle-link">{{ bundle.name }}</NuxtLink>
+                  <SharedStatusBadge size="sm" :tone="lifecycleBadge(bundle).tone" :label="t(lifecycleBadge(bundle).labelKey)" />
+                </p>
+              </SharedSubCard>
+            </ul>
+          </template>
+          <p v-else class="text-sm text-muted">{{ t('vendor.catalog.app.pricingNone') }}</p>
+          <template v-if="usage.plans.length">
+            <h3 class="mt-4 text-sm font-semibold text-highlighted">{{ t('vendor.plans.title') }}</h3>
+            <ul class="liwan-card-grid mt-3" data-testid="catalog-app-plans">
+              <SharedSubCard v-for="plan in usage.plans" :key="plan.id" as="li">
+                <p class="flex flex-wrap items-center justify-between gap-2">
+                  <NuxtLink :to="{ path: `/plans/${encodeURIComponent(plan.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline" data-testid="catalog-app-plan-link">{{ plan.name }}</NuxtLink>
+                  <SharedStatusBadge size="sm" :tone="lifecycleBadge(plan).tone" :label="t(lifecycleBadge(plan).labelKey)" />
+                </p>
+              </SharedSubCard>
+            </ul>
+          </template>
+          <p v-else class="mt-4 text-sm text-muted">{{ t('vendor.catalog.app.plansNone') }}</p>
       </SharedRecordSection>
-      <SharedRecordSection :title="t('vendor.catalog.app.history')" class="mt-6" data-testid="catalog-app-history">
-        <ul class="space-y-3">
-          <li v-for="item in history" :key="item.entry.id" class="rounded-control p-3 ring ring-default" data-testid="catalog-app-history-item">
-            <p class="flex flex-wrap items-center gap-2">
-              <span class="font-medium">{{ formatBusinessDate(item.entry.created_at) }}</span>
-              <SharedStatusBadge :tone="lifecycleBadge(item.entry).tone" :label="t(lifecycleBadge(item.entry).labelKey)" />
-              <NuxtLink :to="`/catalog/releases/${encodeURIComponent(item.entry.id)}`" class="text-sm text-primary hover:underline" dir="ltr" data-testid="catalog-app-history-link">{{ item.entry.version }}</NuxtLink>
-            </p>
-            <p v-if="!item.diff" class="mt-2 text-sm text-muted" data-testid="catalog-app-history-first">{{ t('vendor.catalog.timeline.firstImport') }}</p>
-            <VendorCatalogDiffDetail v-else :diff="item.diff" :app-id="appId" />
-          </li>
-        </ul>
+      <p v-else-if="usage" class="text-sm text-muted" data-testid="catalog-app-pricing">{{ t('vendor.catalog.app.pricingNone') }}</p>
+      <p v-else class="text-sm text-muted" data-testid="catalog-app-pricing-unavailable">{{ t('vendor.catalog.app.pricingUnavailable') }}</p>
+      <SharedRecordSection variant="list" :title="t('vendor.catalog.app.history')" data-testid="catalog-app-history">
+        <NuxtLink
+          v-for="item in history"
+          :key="item.entry.id"
+          :to="`/catalog/releases/${encodeURIComponent(item.entry.id)}`"
+          class="flex items-center gap-3 px-(--liwan-card-pad) py-3 hover:bg-elevated/40"
+          data-testid="catalog-app-history-item"
+        >
+          <span class="grid size-8 shrink-0 place-items-center rounded-control bg-elevated text-muted" aria-hidden="true">
+            <UIcon name="i-lucide-tag" class="size-4" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span dir="ltr" class="block font-medium tabular-nums text-highlighted" data-testid="catalog-app-history-link">{{ item.entry.version }}</span>
+            <span class="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
+              <UIcon name="i-lucide-calendar" class="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{{ formatBusinessDate(item.entry.created_at) }}</span>
+              <template v-if="!item.diff"><span aria-hidden="true">·</span><span data-testid="catalog-app-history-first">{{ t('vendor.catalog.timeline.firstImport') }}</span></template>
+              <template v-else-if="!item.appChanges"><span aria-hidden="true">·</span><span>{{ t('vendor.catalog.diff.none') }}</span></template>
+              <template v-else-if="item.diffInline"><span aria-hidden="true">·</span><VendorCatalogDiffDetail :diff="item.diff" :app-id="appId" class="min-w-0" /></template>
+            </span>
+            <VendorCatalogDiffDetail v-if="item.diff && item.appChanges && !item.diffInline" :diff="item.diff" :app-id="appId" class="mt-2" />
+          </span>
+          <SharedStatusBadge size="sm" :tone="lifecycleBadge(item.entry).tone" :label="t(lifecycleBadge(item.entry).labelKey)" />
+          <UIcon name="i-lucide-chevron-left" class="size-4 shrink-0 text-muted ltr:rotate-180" aria-hidden="true" />
+        </NuxtLink>
       </SharedRecordSection>
     </template>
   </SharedRecordPage>

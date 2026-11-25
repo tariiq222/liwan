@@ -29,13 +29,13 @@ const columns = computed<TableColumn<CatalogVersionTier>[]>(() => [
       <template #description-cell="{ row: { original: tier } }"><span v-if="tier.description" class="text-muted">{{ tier.description }}</span></template>
       <template #sellable-cell="{ row: { original: tier } }">
         <UBadge v-if="sellable(tier)" color="success" variant="subtle" data-testid="catalog-app-sellable">{{ t('vendor.catalog.sellable') }}</UBadge>
-        <UBadge v-else color="neutral" variant="subtle">{{ t('vendor.catalog.app.notSellable') }}</UBadge>
+        <UBadge v-else color="neutral" variant="subtle">{{ t('vendor.catalog.app.base') }}</UBadge>
       </template>
       <template #mobile-row="{ row: tier }">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <h2 class="text-lg font-semibold"><NuxtLink :to="path(tier)" data-testid="catalog-app-row">{{ tierLabel(tier.id, tier.name, t, te) }}</NuxtLink></h2>
           <UBadge v-if="sellable(tier)" color="success" variant="subtle">{{ t('vendor.catalog.sellable') }}</UBadge>
-          <UBadge v-else color="neutral" variant="subtle">{{ t('vendor.catalog.app.notSellable') }}</UBadge>
+          <UBadge v-else color="neutral" variant="subtle">{{ t('vendor.catalog.app.base') }}</UBadge>
         </div>
         <p v-if="tier.description" class="mt-3 text-sm text-muted">{{ tier.description }}</p>
       </template>

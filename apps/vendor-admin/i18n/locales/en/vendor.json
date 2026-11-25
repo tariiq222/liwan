@@ -261,6 +261,8 @@
         "core": "Core",
         "projects": "Projects",
         "people": "People",
+        "pmo": "Projects",
+        "hr": "People",
         "messaging": "Messaging"
       },
       "tabs": "Liwan applications sections",
@@ -285,13 +287,14 @@
       "imported": "Imported on",
       "empty": "No version is imported yet. The platform operator imports one from the server with catalog-import; it then appears here to validate and publish.",
       "details": "Applications version",
+      "versionDetails": "Version details",
       "appsTitle": "Applications in this version",
       "noApps": "This version has no applications.",
       "app": {
         "title": "Application",
         "description": "Description",
         "details": "Application details",
-        "notSellable": "Not for sale",
+        "base": "Base",
         "features": "Features",
         "featuresTitle": "Application features",
         "noFeatures": "No features are recorded for this application.",
@@ -315,6 +318,9 @@
         "published": "Published on",
         "duration": "Time to publish",
         "age": "Since publish",
+        "importedAtMeta": "Imported {date}",
+        "publishedAtMeta": "Published {date}",
+        "importer": "Imported by",
         "importedBy": "Imported by {name}",
         "publishedBy": "Published by {name}",
         "approve": "Review and publish",
@@ -376,7 +382,7 @@
           "chat": "Private member conversations",
           "users": "User capacity",
           "storage": "Attachment capacity",
-          "projectLimit": "Project capacity"
+          "projectLimit": "Project limit"
         }
       }
     },
@@ -1106,7 +1112,7 @@
         "app_conflict": "Two conflicting apps cannot be in the same bundle.",
         "dependency_cycle": "App dependencies are circular.",
         "unknown_app": "App is not in the applications release.",
-        "app_not_selectable": "This app is included with the platform or is not sold in this release, so it cannot be selected as an add-on.",
+        "app_not_selectable": "This app is included with the platform or is installed and granted outside pricing in this release, so it cannot be selected as an add-on.",
         "catalog_release_mismatch": "Selected bundles come from a different bundle release.",
         "bundle_not_allowed": "Bundle is not allowed in this plan.",
         "bundle_missing": "An included bundle is missing.",

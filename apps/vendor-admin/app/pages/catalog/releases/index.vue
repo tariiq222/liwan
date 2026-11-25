@@ -25,9 +25,9 @@ const duration = (version: CatalogVersion) => span(version.published_at ? elapse
 const age = (version: CatalogVersion) => span(version.published_at && now.value ? elapsedSince(version.published_at, now.value) : null)
 const actor = (name: string | null | undefined, labelKey: string) => (name ? t(labelKey, { name }) : null)
 const columns = computed<TableColumn<CatalogVersion>[]>(() => [
-  { id: 'version', header: t('vendor.catalog.version'), meta: { class: { th: 'min-w-32', td: 'whitespace-nowrap' } } },
+  { id: 'version', header: t('vendor.catalog.version'), meta: { class: { th: 'min-w-32', td: 'min-w-32' } } },
   { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
-  { id: 'imported', header: t('vendor.catalog.imported'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
+  { id: 'imported', header: t('vendor.catalog.timeline.importer'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
   { id: 'published', header: t('vendor.catalog.timeline.published'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
   { id: 'duration', header: t('vendor.catalog.timeline.duration'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
   { id: 'age', header: t('vendor.catalog.timeline.age'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
@@ -39,11 +39,16 @@ const columns = computed<TableColumn<CatalogVersion>[]>(() => [
     <template #filters><VendorCatalogTabs class="mb-3" /></template>
     <VendorCatalogGlossary class="mb-4" />
     <SharedDataTable :rows="items" :columns="columns" row-key="id" :row-to="path" :loading="pending" :error="error" :empty-text="t('vendor.catalog.empty')" :caption="t('vendor.catalog.releases')" @retry="refresh">
-      <template #version-cell="{ row: { original: version } }"><NuxtLink :to="path(version)" data-testid="catalog-row" class="font-medium hover:underline" dir="ltr">{{ version.version }}</NuxtLink></template>
+      <template #version-cell="{ row: { original: version } }">
+        <span class="flex flex-col">
+          <NuxtLink :to="path(version)" data-testid="catalog-row" class="font-medium tabular-nums hover:underline" dir="ltr">{{ version.version }}</NuxtLink>
+          <span class="mt-0.5 text-sm text-muted">{{ formatBusinessDate(version.created_at) }}</span>
+        </span>
+      </template>
       <template #status-cell="{ row: { original: version } }"><SharedStatusBadge :tone="lifecycleBadge(version).tone" :label="t(lifecycleBadge(version).labelKey)" /></template>
       <template #imported-cell="{ row: { original: version } }">
-        <span>{{ formatBusinessDate(version.created_at) }}</span>
-        <span v-if="actor(version.imported_by, 'vendor.catalog.timeline.importedBy')" class="block text-sm text-muted">{{ actor(version.imported_by, 'vendor.catalog.timeline.importedBy') }}</span>
+        <span v-if="actor(version.imported_by, 'vendor.catalog.timeline.importedBy')">{{ actor(version.imported_by, 'vendor.catalog.timeline.importedBy') }}</span>
+        <span v-else class="text-muted">—</span>
       </template>
       <template #published-cell="{ row: { original: version } }">
         <template v-if="version.published_at">
@@ -54,7 +59,7 @@ const columns = computed<TableColumn<CatalogVersion>[]>(() => [
         <span v-else-if="legacyDraft(version.status)" class="text-sm text-muted" data-testid="catalog-legacy-draft">{{ t('vendor.catalog.legacyDraft') }}</span>
       </template>
       <template #duration-cell="{ row: { original: version } }"><span class="tabular-nums">{{ duration(version) }}</span></template>
-      <template #age-cell="{ row: { original: version } }"><span class="tabular-nums">{{ age(version) }}</span></template>
+      <template #age-cell="{ row: { original: version } }"><span class="tabular-nums" :class="{ 'text-muted': !version.published_at }">{{ age(version) }}</span></template>
       <template #changes-cell="{ row: { original: version } }"><VendorCatalogDiffChips :diff="diffOf(version)" /></template>
       <template #mobile-row="{ row: version }">
         <div class="flex flex-wrap items-start justify-between gap-4">
