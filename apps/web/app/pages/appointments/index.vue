@@ -27,6 +27,8 @@ const day = computed(() => {
   const value = route.query.day
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : localIsoDay()
 })
+// The empty state offers «اليوم» only when the shown day is not today.
+const today = computed(() => localIsoDay())
 const state = computed<AppointmentBookingState | undefined>(() => {
   const value = route.query.state
   return value === 'pending' || value === 'scheduled' || value === 'confirmed' || value === 'canceled' ? value : undefined
@@ -233,13 +235,14 @@ const bookingTo = (id: number) => ({ path: `/appointments/${id}`, query: returnT
           <NuxtLink
             :to="bookingTo(row.original.id)"
             class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            :title="row.original.requester_name"
           >{{ row.original.requester_name }}</NuxtLink>
           <div v-if="row.original.reference" class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
             <SharedRecordNumber :value="row.original.reference" />
           </div>
         </template>
         <template #type_name-cell="{ row }">
-          <span class="block truncate text-muted">{{ row.original.type_name }}</span>
+          <span class="block truncate text-muted" :title="row.original.type_name">{{ row.original.type_name }}</span>
         </template>
         <template #start-cell="{ row }">
           <span class="tabular-nums">{{ row.original.start ? formatDateTime(row.original.start) : t('appointments.list.unscheduled') }}</span>
@@ -255,10 +258,30 @@ const bookingTo = (id: number) => ({ path: `/appointments/${id}`, query: returnT
             </div>
             <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
               <SharedRecordNumber v-if="row.reference" :value="row.reference" />
-              <span class="truncate">{{ row.type_name }}</span>
+              <span class="truncate" :title="row.type_name">{{ row.type_name }}</span>
               <span class="tabular-nums">{{ row.start ? formatDateTime(row.start) : t('appointments.list.unscheduled') }}</span>
             </div>
           </NuxtLink>
+        </template>
+        <template #emptyAction>
+          <UButton
+            v-if="createTo"
+            :to="createTo"
+            icon="i-lucide-plus"
+            :label="t('appointments.list.new')"
+            :disabled="!hydrated"
+            data-testid="appointments-empty-new"
+          />
+          <UButton
+            v-if="day !== today"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-calendar-days"
+            :label="t('appointments.list.today')"
+            :disabled="!hydrated"
+            data-testid="appointments-empty-today"
+            @click="writeQuery({ day: localIsoDay() })"
+          />
         </template>
       </SharedDataTable>
 

@@ -28,6 +28,8 @@
       },
       "emptyTitle": "No payroll runs yet",
       "emptyHint": "Create the month's run to compute the employees' pay and approve it.",
+      "emptyFiltered": "No payroll runs match the filters",
+      "clearFilters": "Clear filters",
       "footer": "Showing {shown} of {total}",
       "employeeCount": "{count} employee | {count} employees",
       "columns": {

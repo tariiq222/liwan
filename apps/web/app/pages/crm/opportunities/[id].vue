@@ -318,7 +318,7 @@ const heroAmount = computed(() => {
 
 <template>
   <SharedForbiddenState v-if="!canRead" />
-  <SharedRecordPage v-else :title="record?.contact_name ?? ''" :tags="headerTags" :back-to="backTo" :back-label="t('crm.opportunities.record.back')" :loading="loading" :error="loadError" @retry="query.refetch()">
+  <SharedRecordPage v-else aside-first :title="record?.contact_name ?? ''" :tags="headerTags" :back-to="backTo" :back-label="t('crm.opportunities.record.back')" :loading="loading" :error="loadError" @retry="query.refetch()">
     <template #actions>
       <UButton v-if="canWork && !winByOrder" color="neutral" variant="outline" icon="i-lucide-badge-check" :label="t('crm.opportunities.sale.title', { term: term('package', 'one') })" :disabled="busy" data-testid="crm-open-sale" @click="open('sale')" />
       <UButton v-if="gate?.winAction" color="neutral" variant="outline" icon="i-lucide-receipt-text" :label="t('crm.opportunities.orders.winAction')" :loading="createOrder.isPending.value" :disabled="busy" data-testid="crm-open-quotation" @click="addOrder" />
