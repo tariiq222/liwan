@@ -50,7 +50,7 @@ VALUE_ALLOWLIST = frozenset({
     'LIWAN_CONTROL_EDGE_NETWORK',
     'LIWAN_CONTROL_CONFIG_DIR', 'LIWAN_CONTROL_STATE_DIR', 'LIWAN_CONTROL_PRIVATE_DIR', 'LIWAN_CONTROL_ENV_FILE',
     'LIWAN_VENDOR_ADMIN_ENV_FILE', 'LIWAN_SHARED_COMPOSE_FILE', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_AI_PLATFORM_DIR',
-    'LIWAN_RELEASE_TAG_POLICY', 'LIWAN_TENANT_STORAGE_FILES_DIR',
+    'LIWAN_RELEASE_TAG_POLICY', 'LIWAN_TENANT_STORAGE_FILES_DIR', 'LIWAN_RELEASE_PROOF_DIR',
 })
 MIN_SUBSTITUTION_LENGTH = 6  # shorter values (k1, ports) are never substituted inside other text
 # The pinned `edge` network of deploy/stack/compose.yml: its gateway is the peer Caddy sees for the host's edge.

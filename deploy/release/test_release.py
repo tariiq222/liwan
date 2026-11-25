@@ -1,9 +1,11 @@
 """Tests for deploy/release/release.py with a fake command runner: no docker, git, psql or network is used."""
 from __future__ import annotations
 
+import base64
 import contextlib
 import fcntl
 import fnmatch
+import hashlib
 import io
 import json
 import os
@@ -17,9 +19,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from deploy.release import databases, release
+from deploy.release import databases, proof, release
 from deploy.stack import render as stack_render
-from deploy.release.common import CommandFailed, Runner, make_log, read_env_file, sensitive_values
+from deploy.release.common import CommandFailed, Runner, make_log, read_env_file, sensitive_values, unsafe_shared_file
+from deploy.release.test_proof import fake_owner_lstat
 
 OLD = 'a' * 40
 NEW = 'b' * 40
@@ -255,6 +258,21 @@ class FakeRunner:
             return done.returncode, done.stdout
         if argv[0] == 'git':
             return self.git(argv)
+        if argv[0] == 'openssl':  # the proof's signer and verifier, without a real key
+            if '-sign' in argv:
+                if case.proof_sign_fails:
+                    return 1, 'signing failed\n'
+                Path(argv[argv.index('-out') + 1]).write_bytes(b'fake-signature')
+                return 0, ''
+            if '-outform' in argv:  # a key as DER: the same key in another encoding is the same bytes
+                source = Path(argv[argv.index('-in') + 1])
+                body = source.read_bytes().replace(b'\r\n', b'\n').strip()
+                pinned = body if body.startswith(b'pub:') else b'pub:' + body
+                Path(argv[argv.index('-out') + 1]).write_bytes(b'der:' + pinned)
+                return 0, ''
+            if case.proof_verify_fails:
+                return 1, 'Signature Verification Failure\n'
+            return 0, 'Signature Verified Successfully\n'
         if argv[0] == 'docker' and argv[1] in ('login', 'pull', 'create', 'cp', 'rm', 'rmi', 'image'):
             return self.docker(argv)
         if 'deploy/shared/validate_odoo_config.py' in joined:  # the candidate's own validator, run on the host's file
@@ -352,7 +370,9 @@ class FakeRunner:
         if argv[1] == 'create':
             return 0, 'container-1\n'
         if argv[1] == 'cp':
-            Path(argv[3]).write_text(json.dumps(case.document))
+            # The release document as the registry published it; `document_raw` lets a test choose the exact bytes.
+            raw = case.document_raw if case.document_raw is not None else json.dumps(case.document).encode()
+            Path(argv[3]).write_bytes(raw)
         return 0, ''
 
 
@@ -408,6 +428,7 @@ class ReleaseTest(unittest.TestCase):
         self.missing_required, self.candidate_renders, self.odoo_config_invalid = None, [], False
         self.restore_config_invalid = False
         self.document = document(NEW)
+        self.document_raw = None  # the exact bytes of the release document, when a test needs them
         self.alerts, self.sql = [], []
         self.builds = BUILDS
         self.external = ''
@@ -429,6 +450,8 @@ class ReleaseTest(unittest.TestCase):
         self.admin_password_wrong = False
         self.db_unreachable = False
         self.db_restarting = False
+        self.proof_verify_fails = False
+        self.proof_sign_fails = False
         self.postgres = FakePostgres()
         self.runner = FakeRunner(self)
         self.log_stream = io.StringIO()
@@ -633,7 +656,13 @@ class ReleaseTest(unittest.TestCase):
     tag = 'release/19.0.1.0.7'
 
     def use_production(self, commit, version):
+        """Production is `explicit`, so it always verifies a proof: its config holds the staging pair and staging answers
+        with a proof of the candidate. The body is built at fetch time, because a test may replace the document first."""
         self.use_environment('production', commit, version)
+        self.require_proof('production')
+        fetch = mock.patch.object(proof, 'https_get', side_effect=lambda url: self.proof_body())
+        fetch.start()
+        self.addCleanup(fetch.stop)
 
     # --- production candidate -------------------------------------------------------------------------------
     def test_production_applies_exactly_the_given_tag_even_when_a_higher_one_exists(self):
@@ -771,6 +800,359 @@ class ReleaseTest(unittest.TestCase):
                 self.assertEqual(self.main('run', '--environment', 'staging'), release.EXIT_REFUSED)
                 self.assertEqual(self.result(), 'refused older_candidate')
         self.assertFalse(self.compose_stops())
+
+    # --- the staging proof ---------------------------------------------------------------------------------
+    def public_key(self):
+        path = self.root / 'release-proof.pub'
+        path.write_text('the fake verifier never reads this\n', encoding='ascii')
+        path.chmod(0o644)
+        return path
+
+    def add_config(self, lines, environment='staging'):
+        config = self.paths.config_root / f'{environment}.env'
+        config.write_text(config.read_text() + lines)
+
+    def require_proof(self, environment='staging'):
+        """The verifying environment: a proof URL and the pinned public key, as production will hold them."""
+        self.add_config(f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
+                        f'{release.PROOF_PUBLIC_KEY_KEY}={self.public_key()}\n', environment)
+
+    def sign_proof(self, directory=None):
+        """The signing environment: its private key and the directory the edge serves."""
+        key = self.root / 'release-proof.key'
+        key.write_text('the fake signer never reads this\n', encoding='ascii')
+        key.chmod(0o600)
+        if directory is None:
+            directory = self.root / 'served-proof'
+            directory.mkdir()
+        self.proof_dir = Path(directory)
+        self.add_config(f'{release.PROOF_KEY_FILE_KEY}={key}\n{release.PROOF_DIR_KEY}={self.proof_dir}\n')
+
+    def proof_body(self, **changes):
+        """A proof file for the candidate, signing the document FakeRunner writes out of the document image."""
+        payload = {'tag': 'release/19.0.1.0.7', 'commit': NEW, 'environment': 'staging',
+                   'releaseDocumentDigest': proof.document_digest(json.dumps(self.document).encode()),
+                   'at': '2026-11-24T10:00:00+00:00'}
+        payload.update(changes)
+        return proof.canonical({'contract': proof.CONTRACT, 'payload': payload,
+                                'signature': base64.b64encode(b'fake-signature').decode('ascii')})
+
+    def pulls(self):
+        return [call for call in self.runner.calls if call[:2] == ['docker', 'pull']]
+
+    def test_a_missing_staging_proof_refuses_before_anything_stops_or_is_recorded(self):
+        self.require_proof()
+        with mock.patch.object(proof, 'https_get',
+                               side_effect=proof.ProofError(proof.PROOF_MISSING, 'the proof URL answers HTTP 404')):
+            self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused staging_proof_missing')
+        self.assertIn(NEW, self.log_stream.getvalue())
+        self.assertNotIn('staging.example', self.log_stream.getvalue())  # the URL is masked in the log
+        self.assertEqual(self.pulls(), [])  # before the document image and every product image
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
+        self.assertEqual(self.served(), OLD)
+
+    def test_an_invalid_staging_proof_refuses_before_anything_stops_or_is_recorded(self):
+        self.require_proof()
+        cases = {'wrong tag': (self.proof_body(tag='release/19.0.1.0.8'), False),
+                 'wrong commit': (self.proof_body(commit=OLD), False),
+                 'wrong document digest': (self.proof_body(releaseDocumentDigest='0' * 64), False),
+                 'signature no pinned key made': (self.proof_body(), True)}
+        for name, (body, verify_fails) in cases.items():
+            with self.subTest(name):
+                self.runner.calls.clear()
+                self.proof_verify_fails = verify_fails
+                with mock.patch.object(proof, 'https_get', return_value=body):
+                    self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused staging_proof_invalid')
+                self.assertEqual(self.compose_stops(), [])
+                self.assertEqual(self.commands('systemctl'), [])
+                self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
+                self.assertEqual(self.served(), OLD)
+
+    def test_a_valid_staging_proof_lets_the_release_through(self):
+        self.require_proof()
+        with mock.patch.object(proof, 'https_get', return_value=self.proof_body()) as fetch:
+            self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(fetch.call_args[0], (f'https://staging.example/_liwan/release-proof/{NEW}.json',))
+        self.assertIn('-verify', next(call for call in self.runner.calls if call[0] == 'openssl'))
+        self.assertEqual(self.served(), NEW)
+
+    def test_without_a_proof_pair_nothing_is_fetched_signed_or_checked(self):
+        with mock.patch.object(proof, 'https_get') as fetch:
+            self.assertEqual(self.main(), release.EXIT_OK)
+        fetch.assert_not_called()
+        self.assertFalse([call for call in self.runner.calls if call[0] == 'openssl'])
+        self.assertEqual(self.served(), NEW)
+        self.assertFalse((self.state / 'proof').exists())
+        # A `highest` environment may release ungated, but never silently: the run says so once.
+        log = self.log_stream.getvalue()
+        self.assertIn(f'{release.PROOF_URL_KEY} and {release.PROOF_PUBLIC_KEY_KEY} are unset', log)
+        self.assertIn('LIWAN_RELEASE_TAG_POLICY=highest', log)
+        # Without a signing key it also states explicitly that it signs nothing so no environment can pin it.
+        self.assertIn(f'{release.PROOF_KEY_FILE_KEY} is unset', log)
+        self.assertIn('signs nothing', log)
+
+    def test_an_explicit_environment_is_refused_without_the_proof_pair(self):
+        """Production's policy names one tag, so a missing pair would release with the gate silently off."""
+        config = self.paths.config_root / 'production.env'
+        base = config.read_text()
+        cases = {'no pair': '',
+                 'url only': f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n',
+                 'key only': f'{release.PROOF_PUBLIC_KEY_KEY}={self.public_key()}\n'}
+        for name, lines in cases.items():
+            with self.subTest(name):
+                self.log_stream.truncate(0)
+                self.log_stream.seek(0)
+                self.use_environment('production', OLD, [1, 0, 6])
+                self.tags = {'release/19.0.1.0.7': NEW}
+                config.write_text(base + lines)
+                with mock.patch.object(proof, 'https_get', side_effect=AssertionError('the gate ran')):
+                    self.assertEqual(self.main('run', '--environment', 'production', '--tag', self.tag),
+                                     release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused invalid_config')
+                self.assertEqual(self.pulls(), [])
+                self.assertFalse(self.compose_stops() or (self.state / 'run.json').exists())
+                self.assertIn(release.PROOF_URL_KEY, self.log_stream.getvalue())
+                self.assertIn(release.PROOF_PUBLIC_KEY_KEY, self.log_stream.getvalue())
+
+    def test_an_explicit_environment_with_the_pair_verifies_and_releases(self):
+        """The same production config with both keys is gated: the proof decides, not the environment's name."""
+        self.use_environment('production', OLD, [1, 0, 6])
+        self.require_proof('production')
+        self.tags = {'release/19.0.1.0.7': NEW}
+        with mock.patch.object(proof, 'https_get', return_value=self.proof_body()) as fetch:
+            self.assertEqual(self.main('run', '--environment', 'production', '--tag', self.tag), release.EXIT_OK)
+        self.assertEqual(fetch.call_args[0], (f'https://staging.example/_liwan/release-proof/{NEW}.json',))
+        self.assertEqual(self.served(), NEW)
+
+    def test_the_proof_configuration_is_a_pair_of_https_values(self):
+        config = self.paths.config_root / 'staging.env'
+        base = config.read_text()
+        key = self.public_key()
+        for lines in (f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n',
+                      f'{release.PROOF_PUBLIC_KEY_KEY}={key}\n',
+                      f'{release.PROOF_URL_KEY}=http://staging.example/_liwan/release-proof/\n'
+                      f'{release.PROOF_PUBLIC_KEY_KEY}={key}\n',
+                      f'{release.PROOF_URL_KEY}=/_liwan/release-proof/\n{release.PROOF_PUBLIC_KEY_KEY}={key}\n'):
+            with self.subTest(lines=lines):
+                config.write_text(base + lines)
+                self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused invalid_config')
+                self.assertEqual(self.pulls(), [])
+                self.assertFalse((self.state / 'run.json').exists())
+
+    def test_nothing_to_do_and_a_resumed_run_never_reach_the_proof_gate(self):
+        self.require_proof()
+        with mock.patch.object(proof, 'https_get', side_effect=AssertionError('the gate ran')) as fetch:
+            self.tags = {'release/19.0.1.0.7': OLD}
+            self.assertEqual(self.main(), release.EXIT_OK)
+            self.assertEqual(self.result(), f'nothing to do: serving {OLD}')
+            self.assertEqual(fetch.call_count, 0)
+            self.tags = {'release/19.0.1.0.7': NEW}
+            self.interrupted('captured')
+            self.assertEqual(self.main(), release.EXIT_OK)
+            self.assertEqual(fetch.call_count, 0)
+        self.assertEqual(self.served(), NEW)
+
+    def test_no_configuration_skips_a_required_proof(self):
+        self.require_proof()
+        self.add_config('LIWAN_RELEASE_PROOF_OPTIONAL=1\nLIWAN_RELEASE_SKIP_PROOF=true\n')
+        with mock.patch.object(proof, 'https_get', side_effect=proof.ProofError(proof.PROOF_MISSING)):
+            self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused staging_proof_missing')
+        self.assertFalse(self.compose_stops() or self.commands('systemctl'))
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            self.main('run', '--environment', 'staging', '--skip-proof')
+
+    def test_a_signing_environment_writes_the_proof_at_the_commit_step(self):
+        self.sign_proof()
+        signed_after = []
+        original = self.runner.answer
+
+        def watch(argv, stdin):
+            if argv[0] == 'openssl':
+                signed_after.append(json.loads((self.state / 'served.json').read_text())['commit'])
+            return original(argv, stdin)
+
+        self.runner.answer = watch
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(signed_after, [NEW])  # served.json is written before the signature
+        self.assertLess(self.runner.calls.index(['systemctl', 'start', release.SHARED_WORKER_UNIT]),
+                        next(i for i, call in enumerate(self.runner.calls) if call[0] == 'openssl'))
+        record = json.loads((self.proof_dir / f'{NEW}.json').read_text())
+        payload = record['payload']
+        self.assertEqual((payload['tag'], payload['commit'], payload['environment']),
+                         ('release/19.0.1.0.7', NEW, 'staging'))
+        self.assertEqual(payload['releaseDocumentDigest'], proof.document_digest(json.dumps(self.document).encode()))
+        self.assertRegex(payload['at'], r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$')
+        self.assertEqual(record, json.loads((self.state / f'proof/{NEW}.json').read_text()))
+        self.assertEqual(stat.S_IMODE((self.proof_dir / f'{NEW}.json').stat().st_mode), 0o644)
+        self.assertFalse((self.proof_dir / f'{NEW}.json.tmp').exists())
+
+    def test_a_failed_proof_signature_is_incomplete_and_the_next_run_signs_it(self):
+        self.sign_proof()
+        self.proof_sign_fails = True
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), f'incomplete {NEW} release_proof_failed')
+        self.assertEqual(json.loads((self.state / 'run.json').read_text())['phase'], 'committed')
+        self.assertFalse((self.proof_dir / f'{NEW}.json').exists())
+        self.proof_sign_fails = False
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.result(), f'committed {NEW}')
+        self.assertTrue((self.proof_dir / f'{NEW}.json').is_file())
+        self.assertFalse((self.state / 'run.json').exists())
+
+    def test_a_signing_environment_without_its_proof_directory_is_refused_in_prepare(self):
+        self.sign_proof(directory=self.root / 'absent/served-proof')
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused proof_dir_missing')
+        self.assertIn(str(self.root / 'absent/served-proof'), self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
+        self.assertEqual(self.served(), OLD)
+
+    def test_a_missing_or_invalid_signing_key_is_refused_in_prepare_before_anything_stops(self):
+        proof_dir = self.root / 'served-proof'
+        proof_dir.mkdir()
+        config = self.paths.config_root / 'staging.env'
+        base = config.read_text()
+        real_key = self.root / 'real-signing.key'
+        real_key.write_text('PRIVATE-KEY-SECRET-NEVER-LOGGED\n', encoding='ascii')
+        real_key.chmod(0o600)
+        symlink_key = self.root / 'link-signing.key'
+        symlink_key.symlink_to(real_key)
+        loose_key = self.root / 'loose-signing.key'
+        loose_key.write_text('PRIVATE-KEY-SECRET-NEVER-LOGGED\n', encoding='ascii')
+        loose_key.chmod(0o644)
+        writable_dir = self.root / 'writable-key-dir'
+        writable_dir.mkdir()
+        writable_key = writable_dir / 'signing.key'
+        writable_key.write_text('PRIVATE-KEY-SECRET-NEVER-LOGGED\n', encoding='ascii')
+        writable_key.chmod(0o600)
+        writable_dir.chmod(0o775)
+        self.addCleanup(writable_dir.chmod, 0o700)
+        cases = (
+            ('absent', self.root / 'absent-signing.key', 'cannot be read'),
+            ('symlink', symlink_key, 'symlink'),
+            ('wrong mode', loose_key, 'expected 0600'),
+            ('writable parent', writable_key, 'parent directory'),
+        )
+        for name, key_path, expected_detail in cases:
+            with self.subTest(name):
+                self.log_stream.truncate(0)
+                self.log_stream.seek(0)
+                self.runner.calls.clear()
+                config.write_text(base + f'{release.PROOF_KEY_FILE_KEY}={key_path}\n'
+                                         f'{release.PROOF_DIR_KEY}={proof_dir}\n')
+                self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused proof_key_invalid')
+                log = self.log_stream.getvalue()
+                self.assertIn(expected_detail, log)
+                self.assertNotIn('PRIVATE-KEY-SECRET', log)
+                self.assertEqual(self.compose_stops(), [])
+                self.assertEqual(self.commands('systemctl'), [])
+                self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
+                self.assertEqual(self.served(), OLD)
+        # A key owned by another user is refused in prepare too.
+        self.log_stream.truncate(0)
+        self.log_stream.seek(0)
+        config.write_text(base + f'{release.PROOF_KEY_FILE_KEY}={real_key}\n{release.PROOF_DIR_KEY}={proof_dir}\n')
+        foreign_uid = os.geteuid() + 1
+        with mock.patch.object(proof.os, 'lstat', side_effect=fake_owner_lstat({os.fspath(real_key)}, foreign_uid)):
+            self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused proof_key_invalid')
+        self.assertIn(f'owned by uid {foreign_uid}', self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.served(), OLD)
+
+    def test_an_environment_refuses_pinning_its_own_signing_public_key(self):
+        self.sign_proof()
+        own_pub = self.root / 'release-proof.key.pub'
+        own_pub.write_text('pub:the fake signer never reads this\n', encoding='ascii')
+        own_pub.chmod(0o644)
+        self.add_config(f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
+                        f'{release.PROOF_PUBLIC_KEY_KEY}={own_pub}\n')
+        with mock.patch.object(proof, 'https_get', side_effect=AssertionError('the gate ran')):
+            self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused invalid_config')
+        self.assertIn('own signing public key', self.log_stream.getvalue())
+        self.assertEqual(self.pulls(), [])
+        self.assertFalse((self.state / 'run.json').exists())
+
+    def test_a_pinned_copy_of_the_own_key_is_refused_whatever_its_encoding(self):
+        """The refusal is about the key, not the file: a copy in another encoding is still this environment's own key,
+        and it fires with no `.pub` beside the private key (which is what a deleted or renamed one leaves behind)."""
+        self.sign_proof()
+        config = self.paths.config_root / 'staging.env'
+        base = config.read_text()
+        cases = (
+            ('crlf line endings', 'pub:the fake signer never reads this\r\n'),
+            ('an extra trailing newline', 'pub:the fake signer never reads this\n\n'),
+            ('the public half alone', 'the fake signer never reads this'),
+        )
+        for name, body in cases:
+            with self.subTest(name):
+                self.log_stream.truncate(0)
+                self.log_stream.seek(0)
+                pinned = self.root / 'copied-own.pub'
+                pinned.write_text(body, encoding='ascii')
+                pinned.chmod(0o644)
+                config.write_text(base + f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
+                                         f'{release.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
+                with mock.patch.object(proof, 'https_get', side_effect=AssertionError('the gate ran')):
+                    self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused invalid_config')
+                log = self.log_stream.getvalue()
+                self.assertIn('own signing public key', log)
+                self.assertNotIn('the fake signer never reads this', log)
+                self.assertEqual(self.pulls(), [])
+
+    def test_a_signing_environment_may_pin_another_key(self):
+        """The comparison must not over-refuse: another environment's key is exactly what the gate wants pinned."""
+        self.sign_proof()
+        self.require_proof()
+        with mock.patch.object(proof, 'https_get', return_value=self.proof_body()):
+            self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.served(), NEW)
+
+    def test_a_signing_key_openssl_cannot_read_is_refused_rather_than_trusted(self):
+        """Without the derived key no pin can be shown not to be this environment's own, so the run refuses."""
+        self.sign_proof()
+        pinned = self.public_key()
+        self.add_config(f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
+                        f'{release.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
+        with mock.patch.object(proof, 'public_key_der', return_value=None):
+            self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused invalid_config')
+        log = self.log_stream.getvalue()
+        self.assertIn(release.PROOF_KEY_FILE_KEY, log)
+        self.assertNotIn('the fake signer never reads this', log)
+        self.assertEqual(self.pulls(), [])
+        self.assertFalse((self.state / 'run.json').exists())
+
+    def test_the_proof_digest_is_the_sha256_of_the_document_file(self):
+        """The contract is sha256 of the raw bytes of `/release.json`, the same value `sha256sum` prints for that file."""
+        self.sign_proof()
+        raw = json.dumps(self.document).encode()
+        self.document_raw = raw
+        self.assertEqual(self.main(), release.EXIT_OK)
+        payload = json.loads((self.proof_dir / f'{NEW}.json').read_text())['payload']
+        self.assertEqual(payload['releaseDocumentDigest'], hashlib.sha256(raw).hexdigest())
+
+    def test_a_document_with_crlf_endings_is_digested_as_stored_not_normalised(self):
+        """Decoding with universal newlines would turn CRLF into LF and sign a document the registry never published."""
+        self.sign_proof()
+        raw = json.dumps(self.document, indent=2).replace('\n', '\r\n').encode()
+        self.assertIn(b'\r\n', raw)
+        self.document_raw = raw
+        self.assertEqual(self.main(), release.EXIT_OK)
+        digest = json.loads((self.proof_dir / f'{NEW}.json').read_text())['payload']['releaseDocumentDigest']
+        self.assertEqual(digest, hashlib.sha256(raw).hexdigest())
+        self.assertNotEqual(digest, hashlib.sha256(raw.replace(b'\r\n', b'\n')).hexdigest())
 
     # --- failures and rollback -------------------------------------------------------------------------------
     def test_failed_health_check_rolls_back(self):
@@ -1835,6 +2217,19 @@ class ReleaseTest(unittest.TestCase):
         self.assertFalse(release.unreadable_by_worker(info(0, 0o640)))
         self.assertFalse(release.unreadable_by_worker(info(0, 0o644)))
         self.assertFalse(release.unreadable_by_worker(info(990, 0o600)))
+
+    def test_a_shared_env_is_unsafe_when_owned_outside_the_trust_set_or_writable_by_it(self):
+        def info(uid, mode, gid=0):
+            return os.stat_result((0o100000 | mode, 0, 0, 1, uid, gid, 0, 0, 0, 0))
+        owners = {0, 990}
+        self.assertFalse(unsafe_shared_file(info(0, 0o600), owners))
+        self.assertFalse(unsafe_shared_file(info(0, 0o640, gid=999), owners, {0, 999}))  # A4.1: 640 root:docker
+        self.assertFalse(unsafe_shared_file(info(990, 0o600), owners))
+        self.assertTrue(unsafe_shared_file(info(0, 0o640, gid=1000), owners, {0, 999}))
+        self.assertTrue(unsafe_shared_file(info(0, 0o660), owners, {0, 999}))
+        self.assertTrue(unsafe_shared_file(info(0, 0o664), owners, {0, 999}))
+        self.assertTrue(unsafe_shared_file(info(0, 0o644), owners, {0, 999}))
+        self.assertTrue(unsafe_shared_file(info(1000, 0o600), owners, {0, 999}))
 
     def test_the_temporary_file_is_removed_when_the_owner_cannot_be_applied(self):
         with mock.patch.object(release.os, 'chown', side_effect=PermissionError('chown')):

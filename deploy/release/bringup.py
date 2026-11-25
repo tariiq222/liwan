@@ -36,14 +36,15 @@ from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from deploy.release import common  # noqa: E402 - path set just above
+from deploy.release import common, proof  # noqa: E402 - path set just above
 from deploy.release.release import (  # noqa: E402
-    CONFIG_KEYS, CONTROL_DB_PORT, RELEASE_FOLDER, SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
+    CONFIG_KEYS, CONTROL_DB_PORT, PROOF_DIR_KEY, PROOF_KEY_FILE_KEY, PROOF_PUBLIC_KEY_KEY, PROOF_URL_KEY, RELEASE_FOLDER,
+    SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
 from deploy.release.tenant_postgres import (  # noqa: E402
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, runtime_role_assertion_sql)
 from deploy.release.source import (  # noqa: E402
     COMMIT as COMMIT_ID, CREDENTIAL_HELPER, ENVIRONMENT_NAME, GITHUB_TOKEN_VAR, REGISTRY as IMAGE_REGISTRY, REGISTRY_HOST,
-    RELEASE_IMAGE, REPOSITORY_URL, TOKEN_VAR, USER_VAR, highest_release_tag, parse_listing)
+    RELEASE_IMAGE, REPOSITORY_URL, TAG_POLICY_KEY, TOKEN_VAR, USER_VAR, highest_release_tag, parse_listing)
 
 EXIT_INCOMPLETE, EXIT_USAGE = 1, 2
 ROOT_UID = 0
@@ -58,6 +59,17 @@ IMAGE_DOCKER_USER = 'ubuntu'
 # A3.3: the fixed parents (the others come from the release config) and their modes.
 ETC_LIWAN = Path('/etc/liwan')
 PUBLIC_DIR_MODE, STATE_DIR_MODE, WORKER_DIR_MODE = 0o755, 0o700, 0o750
+# A4.7a: the release proof. Every environment signs what it serves with its own Ed25519 key; an environment that names the
+# signing environment's proof URL and public key file refuses a release without a valid proof (deploy/release/proof.py).
+PROOF_DIR_MODE, PROOF_KEY_MODE, PROOF_PUBLIC_KEY_MODE = 0o755, 0o600, 0o644
+PROOF_PUBLIC_KEY_SUFFIX = '.pub'
+PROOF_PROBE_MESSAGE = 'liwan'
+# A commit no release can serve: its proof must answer 404 with the route's own marker header, proving the transport and
+# the Caddy release-proof route instead of accepting any 404 from a wrong host or an older edge.
+PROOF_PROBE_COMMIT = '0' * 40
+PROOF_PROBE_SECONDS = '15'
+PROOF_ROUTE_HEADER = 'X-Liwan-Release-Proof'
+PROOF_ROUTE_HEADER_VALUE = '1'
 # A3.2: what init-host.sh creates, by the env-file key that names the directory.
 INIT_HOST_SCRIPT = ('deploy', 'control-plane', 'init-host.sh')
 SHARED_RUNTIME_FILE = 'shared-runtime.json'
@@ -195,10 +207,16 @@ class Host:
     def read_env(self, path) -> dict[str, str]:
         return common.parse_env_text(self.read_text(path))
 
-    def read_text(self, path) -> str:
+    def read_bytes(self, path) -> bytes:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
         with os.fdopen(fd, 'rb') as handle:
-            data = handle.read()
+            return handle.read()
+
+    def realpath(self, path) -> str:
+        return os.path.realpath(path)
+
+    def read_text(self, path) -> str:
+        data = self.read_bytes(path)
         try:
             return data.decode('utf-8')
         except UnicodeDecodeError:
@@ -230,6 +248,9 @@ class Host:
 
     def chown(self, path, uid: int, gid: int) -> None:
         os.chown(path, uid, gid, follow_symlinks=False)
+
+    def chmod(self, path, mode: int) -> None:
+        os.chmod(path, mode, follow_symlinks=False)
 
     def symlink(self, target: str, link) -> None:
         os.symlink(target, link)
@@ -330,10 +351,9 @@ class Context:
         info = inspect(self.host, path, REGULAR_FILE)
         if info is None:
             return None
-        worker = self.host.user(WORKER_USER)
-        owners = {ROOT_UID} | ({worker[0]} if worker else set())
-        if info.st_uid not in owners or stat.S_IMODE(info.st_mode) & 0o077:
-            raise ItemError(f'{path} must be owned by root or {WORKER_USER} with no group or other permissions')
+        problem = shared_file_problem(info, self.host.user(WORKER_USER), self.host.group(DOCKER_GROUP))
+        if problem:
+            raise ItemError(f'{path} {problem}')
         return self.host.read_env(path)
 
     def must(self, argv: list[str], env: dict | None = None, cwd=None) -> None:
@@ -360,6 +380,23 @@ def inspect(host, path, kind: str):
 
 def shape(info) -> str:
     return f'{stat.S_IMODE(info.st_mode):04o} {info.st_uid}:{info.st_gid}'
+
+
+def shared_file_problem(info, worker, docker) -> str:
+    """Why the shared env file, or the composed file rendered from it, has a shape the host may not keep: empty when it may.
+
+    One rule for both files (A4.1, A8.2a), because ``release.py`` renders the compose file with the env file's own owner,
+    group and mode: root or the worker account owns it, group and other cannot write it, other cannot read it, and only
+    the docker group may read it by group (``0640 root:docker``; ``0600`` owned by root or the worker is the narrower
+    form). The effect account reads both files through that group.
+    """
+    owners = {ROOT_UID} | ({worker[0]} if worker else set())
+    group_readers = {ROOT_UID} | ({docker[0]} if docker else set())
+    if not common.unsafe_shared_file(info, owners, group_readers):
+        return ''
+    return (f'must be owned by root or {WORKER_USER}, writable by neither group nor other, and not readable by other or by a '
+            f'group other than root or {DOCKER_GROUP} (0640 root:{DOCKER_GROUP}, or 0600 owned by root or {WORKER_USER}); '
+            f'found {shape(info)}')
 
 
 # --- A3.1 worker account ---------------------------------------------------------------------------------------------
@@ -837,6 +874,256 @@ def apply_firewall_unit(ctx: Context) -> None:
     install_unit(ctx, FIREWALL_UNIT, ctx.repo_dir / FIREWALL_UNIT, compare=True, start=True)
 
 
+# --- A4.7a the release proof -----------------------------------------------------------------------------------------
+def release_config_path(ctx: Context) -> Path:
+    return ctx.paths.config_root / f'{ctx.environment}.env'
+
+
+def proof_setting(ctx: Context, key: str) -> str | None:
+    config = ctx.config()
+    return (config or {}).get(key) or None
+
+
+def proof_dir_path(ctx: Context) -> Path | None:
+    value = proof_setting(ctx, PROOF_DIR_KEY)
+    return Path(value) if value else None
+
+
+def proof_key_path(ctx: Context) -> Path | None:
+    value = proof_setting(ctx, PROOF_KEY_FILE_KEY)
+    return Path(value) if value else None
+
+
+def proof_public_key_beside(key: Path) -> Path:
+    return key.with_name(key.name + PROOF_PUBLIC_KEY_SUFFIX)
+
+
+def proof_public_key_paths(ctx: Context) -> list[Path]:
+    value = proof_setting(ctx, PROOF_PUBLIC_KEY_KEY) or ''
+    return [Path(entry.strip()) for entry in value.split(',') if entry.strip()]
+
+
+def proof_gate_required(ctx: Context) -> bool:
+    """An environment whose tag policy is `explicit` (the production policy) releases only with a proof, so its pair is
+    required; a `highest` environment may sign without verifying one."""
+    policy = (ctx.shared_env() or {}).get(TAG_POLICY_KEY)
+    return policy == 'explicit'
+
+
+def proof_pair_missing(ctx: Context) -> str:
+    return (f'set {PROOF_URL_KEY} and {PROOF_PUBLIC_KEY_KEY} in {release_config_path(ctx)}: an environment with '
+            f'{TAG_POLICY_KEY}=explicit releases only with the proof its source environment served')
+
+
+def check_proof_openssl(ctx: Context) -> Status:
+    """A4.7a: this host's openssl signs and verifies Ed25519 (LibreSSL, and an openssl without ``pkeyutl -rawin``, cannot)."""
+    with ctx.host.scratch_dir() as work:
+        key, public, signature = (str(Path(work, name)) for name in ('probe.key', 'probe.pub', 'probe.signature'))
+        for argv in (['openssl', 'genpkey', '-algorithm', 'ED25519', '-out', key],
+                     ['openssl', 'pkey', '-in', key, '-pubout', '-out', public],
+                     ['openssl', 'pkeyutl', '-sign', '-rawin', '-inkey', key, '-out', signature],
+                     ['openssl', 'pkeyutl', '-verify', '-pubin', '-inkey', public, '-rawin', '-sigfile', signature]):
+            code, _ = ctx.host.run(argv, stdin=PROOF_PROBE_MESSAGE)
+            if code != 0:
+                return missing('openssl cannot sign and verify Ed25519: install OpenSSL 3 (A4.7a)')
+    return OK
+
+
+def check_proof_dir(ctx: Context) -> Status:
+    """A4.7a: the directory the release publishes into is the one the proxy mounts, mode 0755 and owned by root."""
+    if ctx.config() is None:
+        return NEEDS_CONFIG
+    directory = proof_dir_path(ctx)
+    if directory is None:
+        return missing(f'set {PROOF_DIR_KEY} in both {release_config_path(ctx)} and the shared env file (A4.7a): '
+                       'the release writes the proof there and the proxy mounts it')
+    shared = ctx.shared_env()
+    if shared is None:
+        return missing(f'the shared env file does not exist: set {PROOF_DIR_KEY} in both {release_config_path(ctx)} '
+                       'and the shared env file (A4.7a)')
+    named = shared.get(PROOF_DIR_KEY)
+    if not named:
+        return missing(f'{PROOF_DIR_KEY} is absent from the shared env file: set it to {directory} in both '
+                       f'{release_config_path(ctx)} and the shared env file (the proxy mounts the shared one) (A4.7a)')
+    if named != str(directory):
+        return missing(f'the shared env file names {named} as {PROOF_DIR_KEY} and {release_config_path(ctx)} writes to '
+                       f'{directory}: the proxy mounts the shared one, so both must name the same directory')
+    info = inspect(ctx.host, directory, DIRECTORY)
+    if info is None:
+        return missing(f'{directory} absent')
+    if (stat.S_IMODE(info.st_mode), info.st_uid, info.st_gid) != (PROOF_DIR_MODE, ROOT_UID, ROOT_UID):
+        return missing(f'{directory} is {shape(info)}, expected {PROOF_DIR_MODE:04o} {ROOT_UID}:{ROOT_UID}')
+    return OK
+
+
+def apply_proof_dir(ctx: Context) -> None:
+    directory = proof_dir_path(ctx)
+    shared = ctx.shared_env()
+    if directory is None or shared is None or shared.get(PROOF_DIR_KEY) != str(directory):
+        return  # the recheck reports what is still missing
+    if inspect(ctx.host, directory.parent, DIRECTORY) is None:
+        return  # the recheck reports what is still missing
+    if inspect(ctx.host, directory, DIRECTORY) is None:
+        ctx.host.make_dir(directory, PROOF_DIR_MODE, ROOT_UID, ROOT_UID)
+
+
+def check_proof_key(ctx: Context) -> Status:
+    """A4.7a: the signing key and the ``.pub`` beside it are present with their modes and hold one key.
+
+    The two are compared as DER, which names the key and not the text it is stored in, so a ``.pub`` saved with another
+    line ending or as DER is still the same key.
+    """
+    if ctx.config() is None:
+        return NEEDS_CONFIG
+    key = proof_key_path(ctx)
+    if key is None:
+        return missing(f'set {PROOF_KEY_FILE_KEY} in {release_config_path(ctx)} (A4.7a): every environment signs what it serves')
+    public = proof_public_key_beside(key)
+    problems = []
+    for path, mode in ((key, PROOF_KEY_MODE), (public, PROOF_PUBLIC_KEY_MODE)):
+        info = inspect(ctx.host, path, REGULAR_FILE)
+        if info is None:
+            problems.append(f'{path} absent')
+        elif (stat.S_IMODE(info.st_mode), info.st_uid) != (mode, ROOT_UID):
+            problems.append(f'{path} is {shape(info)}, expected {mode:04o} {ROOT_UID}')
+    if problems:
+        return missing('; '.join(problems))
+    with ctx.host.scratch_dir() as work:
+        read = ctx.host.read_bytes
+        derived = proof.public_key_der(key, Path(work, 'derived.der'), run=ctx.host.run, private=True, read_bytes=read)
+        if derived is None:
+            return missing(f'{key} cannot be read as a private key by openssl')
+        if derived != proof.public_key_der(public, Path(work, 'public.der'), run=ctx.host.run, read_bytes=read):
+            return missing(f'{public} does not match {key}')
+    return OK
+
+
+def apply_proof_key(ctx: Context) -> None:
+    """Generates what is missing and nothing else: an existing key (and its ``.pub``) is never replaced.
+
+    If the private key is missing while a ``.pub`` already sits beside it, nothing is generated: minting a new key
+    would silently mismatch the stale ``.pub`` that another environment may already pin.
+    """
+    key = proof_key_path(ctx)
+    if key is None or inspect(ctx.host, key.parent, DIRECTORY) is None:
+        return  # the recheck reports what is still missing
+    public = proof_public_key_beside(key)
+    key_info = inspect(ctx.host, key, REGULAR_FILE)
+    public_info = inspect(ctx.host, public, REGULAR_FILE)
+    if key_info is None and public_info is not None:
+        return  # never generate a new private key beside an existing .pub; the recheck reports the missing key
+    if key_info is None:
+        ctx.must(['openssl', 'genpkey', '-algorithm', 'ED25519', '-out', str(key)])
+        ctx.host.chmod(key, PROOF_KEY_MODE)
+    if public_info is None:
+        ctx.must(['openssl', 'pkey', '-in', str(key), '-pubout', '-out', str(public)])
+        ctx.host.chmod(public, PROOF_PUBLIC_KEY_MODE)
+
+
+def _is_own_public_key(ctx: Context, path: Path, own_pub: Path, own_der: bytes | None, path_info, work: Path) -> bool:
+    """Whether ``path`` resolves to, shares an inode with, or holds the same key as this environment's own signing key.
+
+    The cheap identity checks come first, before any openssl call. The key itself is then compared as DER derived from
+    the private key, so an extra trailing newline, CRLF line endings or a DER file instead of PEM cannot pass for another
+    environment's key, and the ``.pub`` beside the private key does not have to exist for the refusal to fire.
+    """
+    if ctx.host.realpath(path) == ctx.host.realpath(own_pub):
+        return True
+    if path_info is None:
+        return False
+    own_info = ctx.host.lstat(own_pub)
+    if own_info is not None and stat.S_ISREG(own_info.st_mode):
+        p_ino, o_ino = getattr(path_info, 'st_ino', 0), getattr(own_info, 'st_ino', 0)
+        p_dev, o_dev = getattr(path_info, 'st_dev', 0), getattr(own_info, 'st_dev', 0)
+        if p_ino and o_ino and (p_dev, p_ino) == (o_dev, o_ino):
+            return True
+    if own_der is None:
+        return False
+    pinned = proof.public_key_der(path, Path(work, 'pinned.der'), run=ctx.host.run, read_bytes=ctx.host.read_bytes)
+    return pinned is not None and pinned == own_der
+
+
+def check_proof_public_key(ctx: Context) -> Status:
+    """A4.7a: the pinned key files of the environment whose proof this one requires exist and nothing may write them.
+    An `explicit` environment has no ungated state, so a missing pair is MISSING here too."""
+    if ctx.config() is None:
+        return NEEDS_CONFIG
+    entries = proof_public_key_paths(ctx)
+    if bool(proof_setting(ctx, PROOF_URL_KEY)) != bool(entries):
+        return missing(f'{PROOF_URL_KEY} and {PROOF_PUBLIC_KEY_KEY} are set together or not at all (A4.7a)')
+    if not entries:
+        return missing(f'{proof_pair_missing(ctx)} (A4.7a)') if proof_gate_required(ctx) else OK
+    own_key = proof_key_path(ctx)
+    own_pub = proof_public_key_beside(own_key) if own_key is not None else None
+    problems = []
+    with ctx.host.scratch_dir() as work:
+        own_der = None
+        if own_key is not None and inspect(ctx.host, own_key, REGULAR_FILE) is not None:
+            own_der = proof.public_key_der(own_key, Path(work, 'own.der'), run=ctx.host.run, private=True,
+                                           read_bytes=ctx.host.read_bytes)
+            if own_der is None:
+                problems.append(f'{own_key} cannot be read as a private key by openssl: no pinned key can be shown not '
+                                f'to be this environment\'s own (A4.7a)')
+        for path in entries:
+            info = inspect(ctx.host, path, REGULAR_FILE)
+            if own_pub is not None and _is_own_public_key(ctx, path, own_pub, own_der, info, work):
+                problems.append(f'{path} is this environment\'s own signing public key ({own_key}): '
+                                f'pin the source environment\'s {PROOF_PUBLIC_KEY_SUFFIX} instead')
+            elif info is None:
+                problems.append(f'{path} absent: copy the signing environment\'s {PROOF_PUBLIC_KEY_SUFFIX} there, '
+                                f'mode {PROOF_PUBLIC_KEY_MODE:04o} {ROOT_UID}')
+            elif info.st_uid != ROOT_UID or stat.S_IMODE(info.st_mode) & 0o022:
+                problems.append(f'{path} is {shape(info)}, expected {PROOF_PUBLIC_KEY_MODE:04o} {ROOT_UID}')
+    return missing('; '.join(problems)) if problems else OK
+
+
+def parse_proof_probe(output: str) -> tuple[str | None, str | None]:
+    """(HTTP status code, value of ``PROOF_ROUTE_HEADER``) from ``curl -D - -o /dev/null`` output."""
+    status: str | None = None
+    marker: str | None = None
+    wanted = PROOF_ROUTE_HEADER.lower()
+    for raw in output.splitlines():
+        line = raw.rstrip('\r')
+        if status is None:
+            found = STATUS_LINE.match(line)
+            if found:
+                status = found.group(1)
+            continue
+        if not line:
+            break
+        name, sep, value = line.partition(':')
+        if sep and name.strip().lower() == wanted:
+            marker = value.strip()
+    return status, marker
+
+
+def check_proof_egress(ctx: Context) -> Status:
+    """A8.2c: the proof URL answers 404 with ``PROOF_ROUTE_HEADER`` for a commit no release served, proving both the
+    transport and the Caddy release-proof route. Messages name the config key and never the URL."""
+    if ctx.config() is None:
+        return NEEDS_CONFIG
+    url = proof_setting(ctx, PROOF_URL_KEY)
+    if url is None:
+        return missing(f'{proof_pair_missing(ctx)} (A8.2c)') if proof_gate_required(ctx) else OK
+    if not url.startswith('https://') or not url.endswith('/'):
+        return missing(f'{PROOF_URL_KEY} must be an HTTPS URL ending in / (A4.7a)')
+    probe = f'{url}{PROOF_PROBE_COMMIT}.json'
+    # An absent proof is still a request to the edge: no proxy of this host may answer it, and only HTTPS may be spoken.
+    code, output = ctx.host.run(['curl', '-sS', '--noproxy', '*', '--proto', '=https', '--max-time', PROOF_PROBE_SECONDS,
+                                 '-D', '-', '-o', '/dev/null', probe])
+    if code != 0:
+        return missing(f'{PROOF_URL_KEY} is unreachable (DNS, TLS or the edge route): '
+                       f'the absent proof must answer 404 with {PROOF_ROUTE_HEADER}: {PROOF_ROUTE_HEADER_VALUE} (A8.2c)')
+    status, marker = parse_proof_probe(output)
+    if status != '404':
+        return missing(f'the absent proof at {PROOF_URL_KEY} answered {status or "nothing"}, '
+                       f'not the 404 with {PROOF_ROUTE_HEADER}: {PROOF_ROUTE_HEADER_VALUE} it must get (A8.2c)')
+    if marker != PROOF_ROUTE_HEADER_VALUE:
+        return missing(f'the absent proof at {PROOF_URL_KEY} answered 404 without '
+                       f'{PROOF_ROUTE_HEADER}: {PROOF_ROUTE_HEADER_VALUE} (missing release-proof route or wrong host) (A8.2c)')
+    return OK
+
+
 # --- A5 read credential ----------------------------------------------------------------------------------------------
 def credential_path(ctx: Context) -> Path:
     return ctx.paths.config_root / CREDENTIAL_FILE
@@ -947,19 +1234,25 @@ def shared_values(ctx: Context, *keys: str) -> tuple[list[str] | None, Status]:
 
 
 def check_shared_file_owners(ctx: Context) -> Status:
-    values, status = shared_values(ctx, 'LIWAN_SHARED_COMPOSE_FILE')
+    """A8.2a: the shared env file, and the compose file the release rendered from it, keep the shape ``release.py`` gives
+    the render (the env file's own owner, group and mode). Both are checked by the one rule of ``shared_file_problem``."""
+    try:
+        values, status = shared_values(ctx, 'LIWAN_SHARED_COMPOSE_FILE')
+    except ItemError as error:  # the shared env file itself is in a shape the release refuses
+        return missing(str(error))
     if values is None:
         return status
     worker = ctx.host.user(WORKER_USER)
     if worker is None:
         return missing(f'account {WORKER_USER} does not exist')
+    docker = ctx.host.group(DOCKER_GROUP)
     problems = []
     for path in (values[0], ctx.config()['LIWAN_SHARED_ENV_FILE']):
         info = inspect(ctx.host, path, REGULAR_FILE)
         if info is None:
             problems.append(f'{path} does not exist')
-        elif (stat.S_IMODE(info.st_mode), info.st_uid, info.st_gid) != (PRIVATE_FILE_MODE, *worker):
-            problems.append(f'{path} is {shape(info)}, expected 0600 {worker[0]}:{worker[1]}')
+        elif problem := shared_file_problem(info, worker, docker):
+            problems.append(f'{path} {problem}')
     return missing('; '.join(problems)) if problems else OK
 
 
@@ -1190,6 +1483,16 @@ REGISTRY: list[Item] = [
     Item('swap', size_check(1, SWAP_KEY, MIN_SWAP_MIB, 'swap'), 'add the swap file of A3.5 and list it in /etc/fstab'),
     Item('firewall-rules', check_firewall_rules, 'add the three firewall rules of A3.6 as root', apply_firewall_rules),
     Item('firewall-unit', check_firewall_unit, f'install and enable {FIREWALL_UNIT} (A3.6)', apply_firewall_unit),
+    Item('release-proof-openssl', check_proof_openssl,
+         'install OpenSSL 3: it must generate an Ed25519 key and sign and verify with it (A4.7a)'),
+    Item('release-proof-dir', check_proof_dir,
+         f'set {PROOF_DIR_KEY} to the same directory in both the release config and the shared env file (A4.7a); --apply creates it 0755 root',
+         apply_proof_dir),
+    Item('release-proof-key', check_proof_key,
+         f'add {PROOF_KEY_FILE_KEY} to the release config (A4.7a); --apply generates the Ed25519 key and its matching .pub beside it, '
+         'and never replaces one', apply_proof_key),
+    Item('release-proof-public-key', check_proof_public_key,
+         f'copy the signing environment\'s .pub (never this environment\'s own) to the path {PROOF_PUBLIC_KEY_KEY} names, mode 0644 root (A4.7a)'),
     Item('read-credential-file', check_credential_file,
          f'as root: create /etc/liwan-release/{CREDENTIAL_FILE} (A5.1), mode 0600, with the read-only tokens'),
     Item('read-credential-access', check_credential_access, 'the read credential must read the repository, pull a release document and must not write (A5.2)'),
@@ -1197,9 +1500,12 @@ REGISTRY: list[Item] = [
     Item('shared-ai-usage-key', check_ai_usage_key, 'put LIWAN_AI_USAGE_KEY (64 hex) in the shared env file (A4.8)'),
     Item('shared-worker-unit', check_worker_unit, f'install and enable {SHARED_WORKER_UNIT} without starting it (A6.1)',
          apply_worker_unit),
-    Item('post-run-shared-files', check_shared_file_owners, 'shared.compose.json and shared.env must be 0600, owned by the worker (A8.2a)',
-         post_run=True),
+    Item('post-run-shared-files', check_shared_file_owners,
+         f'shared.compose.json and shared.env must be 0640 root:{DOCKER_GROUP} (or 0600 root or {WORKER_USER}), '
+         'writable by neither group nor other (A8.2a)', post_run=True),
     Item('post-run-ai-role', check_ai_role, 'the liwan_ai role and a healthy ai container (A8.2b)', post_run=True),
+    Item('release-proof-egress', check_proof_egress,
+         f'{PROOF_URL_KEY} must answer 404 with {PROOF_ROUTE_HEADER}: {PROOF_ROUTE_HEADER_VALUE} for a commit no release served (A8.2c)', post_run=True),
     Item('post-run-runtime-role', check_runtime_role, 'the odoo runtime role must be a plain login role (A4.4a)', post_run=True),
     Item('post-run-postgres-floor', check_postgres_floor, 'pg_dump and the db server must be 16.4 or later (A3.4b)', post_run=True),
     Item('post-run-release-state', check_release_state, 'a committed release that is the checkout current points to, with no run and no halt (A8.3)', post_run=True),

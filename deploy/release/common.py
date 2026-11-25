@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -107,6 +108,28 @@ def read_json(path: Path) -> dict | None:
 
 def free_bytes(path: str) -> int:
     return shutil.disk_usage(path).free
+
+
+GROUP_WRITE = stat.S_IWGRP | stat.S_IWOTH
+OTHER_READ = stat.S_IROTH
+GROUP_READ = stat.S_IRGRP
+
+
+def unreadable_by_worker(info: os.stat_result) -> bool:
+    """A root-owned file that group and others cannot read: the worker account could never read what is copied from it."""
+    return info.st_uid == 0 and not info.st_mode & (GROUP_READ | OTHER_READ)
+
+
+def unsafe_shared_file(info: os.stat_result, owners: set[int], group_readers: set[int] = frozenset()) -> bool:
+    """Whether a shared env file is unsafe to read: a stranger owns it, group or other may write it (the release and
+    init-host.sh act on the paths it names), other may read it, or a group outside ``group_readers`` may read it.
+
+    Group read is what the documented state needs: 0640 root:docker, because the effect account reads the file through
+    the docker group and the worker is not in that group (A4.1). ``group_readers`` is who may be that group.
+    ``unreadable_by_worker`` above answers the release's other question, whether a copied file is readable by the worker.
+    """
+    return (info.st_uid not in owners or bool(info.st_mode & (GROUP_WRITE | OTHER_READ))
+            or bool(info.st_mode & GROUP_READ and info.st_gid not in group_readers))
 
 
 SENSITIVE_KEY = re.compile(r'PASSWORD|SECRET|TOKEN|KEY|PASS|DSN|URL|URI', re.IGNORECASE)
