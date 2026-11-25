@@ -46,6 +46,8 @@ GIB = 1024 ** 3
 SS_HEADER = 'State Recv-Q Send-Q Local Address:Port Peer Address:Port'
 SYSTEMD = '/etc/systemd/system'
 STATE = '/var/lib/liwan-release/staging'
+# The owner pool's directory under the pool root (`pools.PoolPaths`): the state files of the release live here.
+POOL_ROOT, POOL_STATE = f'{STATE}/pools', f'{STATE}/pools/default/state'
 # The fake's scratch directory: a capability probe writes here and nothing it writes is kept or reused.
 SCRATCH = '/scratch/docker-config'
 # The three rules of A3.6, as the arguments after the chain name.
@@ -364,6 +366,28 @@ class BringupTest(unittest.TestCase):
         self.assertEqual(0o700, stat.S_IMODE(host.files['/var/lib/liwan-release/staging'].st_mode))
         control = host.files[f'{SRV}/control']
         self.assertEqual((0o750, 0, 990), (stat.S_IMODE(control.st_mode), control.st_uid, control.st_gid))
+
+    def test_the_pool_root_and_the_owner_pool_state_get_the_state_modes(self):
+        host = seeded_host()
+        run(host, '--apply')
+        root = host.files[POOL_ROOT]
+        self.assertEqual((0o755, 0, 0), (stat.S_IMODE(root.st_mode), root.st_uid, root.st_gid))
+        state = host.files[POOL_STATE]
+        self.assertEqual((0o700, 0, 0), (stat.S_IMODE(state.st_mode), state.st_uid, state.st_gid))
+
+    def test_the_host_wide_maintenance_directory_is_not_created(self):
+        """The marker lives in the pool's state (``pools.PoolPaths.maintenance``), so nothing writes or mounts the old one."""
+        host = seeded_host()
+        run(host, '--apply')
+        self.assertNotIn('/var/lib/liwan-release/maintenance', host.files)
+
+    def test_a_pool_that_has_served_never_lets_root_run_init_host(self):
+        host = seeded_host()
+        host.users['liwan-worker'], host.groups['liwan-worker'] = (990, 990), [990, []]
+        host.files[f'{POOL_STATE}/served.json'] = regular(0o600, text=json.dumps({'commit': COMMIT}))
+        _, lines = run(host, '--apply')
+        self.assertEqual('MISSING', statuses(lines)['init-host'])
+        self.assertFalse([call for call in host.calls if call[0].endswith('init-host.sh')])
 
     def test_symlink_at_a_directory_path_fails_without_touching_anything(self):
         host = seeded_host()
@@ -993,6 +1017,75 @@ class PostRunTest(unittest.TestCase):
         del host.files[f'{STATE}/run.json']
         host.files[f'{STATE}/halted.json'] = regular(0o600)
         self.assertEqual('MISSING', self.release_state(host))
+
+    def pool_served(self, host, **record):
+        host.files[f'{POOL_STATE}/served.json'] = regular(0o600, text=json.dumps({'commit': COMMIT, **record}))
+
+    def release_state_line(self, host):
+        return line_of(run(host, '--post-run')[1], 'post-run-release-state')
+
+    def test_the_records_of_the_owner_pool_are_the_ones_judged(self):
+        """The release keeps one state directory per pool (``pools.PoolPaths``): reading the environment directory would
+        report a host that serves the release as one that never committed it."""
+        host = self.post_host()
+        run(host, '--apply')
+        self.pool_served(host)
+        self.assertEqual('ok', self.release_state(host))
+        self.pool_served(host, commit='b' * 40)
+        self.assertEqual('MISSING', self.release_state(host))
+        self.pool_served(host)
+        host.files[f'{POOL_STATE}/run.json'] = regular(0o600)
+        self.assertEqual('MISSING', self.release_state(host))
+        del host.files[f'{POOL_STATE}/run.json']
+        host.files[f'{POOL_STATE}/halted.json'] = regular(0o600)
+        self.assertEqual('MISSING', self.release_state(host))
+
+    def test_a_host_that_has_not_been_migrated_is_judged_by_its_pre_pool_file(self):
+        """The first ``run`` migrates it, but an operator may run this item before that: the legacy file is judged, and the
+        line says which file it read and where the migration puts it."""
+        host = self.post_host()
+        run(host, '--apply')  # A3.3 makes the pool directories, empty: that alone is not a served release
+        self.served(host)
+        line = self.release_state_line(host)
+        self.assertTrue(line.startswith('ok'), line)
+        self.assertIn(f'{STATE}/served.json', line)
+        self.assertIn('before pools', line)
+        self.assertIn(POOL_STATE, line)
+
+    def test_no_state_in_either_place_is_missing_and_names_the_file(self):
+        host = self.post_host()
+        run(host, '--apply')
+        line = self.release_state_line(host)
+        self.assertTrue(line.startswith('MISSING'), line)
+        self.assertIn(f'{POOL_STATE}/served.json is absent: no release has been committed', line)
+
+    def test_a_pool_plan_that_refuses_is_missing_even_when_a_release_is_served(self):
+        host = self.post_host()
+        with_config(host, 'LIWAN_RELEASE_OWNER_POOL=other\n')
+        self.pool_served(host)
+        line = self.release_state_line(host)
+        self.assertTrue(line.startswith('MISSING'), line)
+        self.assertIn('the pool plan cannot be read', line)
+
+    def test_served_in_both_legacy_and_pool_state_is_missing_with_the_refusal_wording(self):
+        host = self.post_host()
+        run(host, '--apply')
+        self.served(host)
+        self.pool_served(host)
+        line = self.release_state_line(host)
+        self.assertTrue(line.startswith('MISSING'), line)
+        self.assertIn('legacy_state_ambiguous', line)
+        self.assertIn(f'{STATE} and {POOL_STATE} both hold served.json: keep one set', line)
+
+    def test_records_split_across_legacy_and_pool_state_are_missing(self):
+        host = self.post_host()
+        run(host, '--apply')
+        self.pool_served(host)
+        host.files[f'{STATE}/run.json'] = regular(0o600)
+        line = self.release_state_line(host)
+        self.assertTrue(line.startswith('MISSING'), line)
+        self.assertIn('legacy_state_ambiguous', line)
+        self.assertIn(f'{STATE} and {POOL_STATE} both hold release state: keep one set', line)
 
     def post(self, host, name):
         return statuses(run(host, '--post-run')[1])[name]

@@ -2,8 +2,13 @@
 """Release command: apply the candidate commit of one environment to this server. An Openship job runs it.
 
   release.py run      --environment <name> [--tag <tag>]   resolve, verify, pull, back up, stop, snapshot, upgrade, start, open, commit
-  release.py status   --environment <name>   print the served release, the unfinished run and the halt record
-  release.py rollback --environment <name>   clear a halt and finish the rollback of an unfinished run
+  release.py status   --environment <name> [--pool <id>]   print every pool's served release, unfinished run and halt record
+  release.py rollback --environment <name> [--pool <id>]   clear a halt and finish the rollback of an unfinished run
+
+A host serves one pool today (``deploy/release/pools.py``): the release upgrades the pools in sequence with the owner's
+pool first, a failing pool stops the remaining ones and rolls back only itself, and a pool that already committed keeps
+the new release. Each pool has its own state directory, its own ``current`` link and its own maintenance marker, so an
+untouched pool keeps serving while another one is upgraded.
 
 An environment with ``LIWAN_RELEASE_TAG_POLICY=highest`` follows the highest ``release/19.0.X.Y.Z`` tag; one with
 ``explicit`` applies only the tag it is given with ``--tag`` and refuses to run without one. The
@@ -43,7 +48,7 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from deploy.release import databases, proof  # noqa: E402 - path set just above
+from deploy.release import databases, pools, proof  # noqa: E402 - path set just above
 from deploy.release.common import (  # noqa: E402
     EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, FAILURE_TAIL_LINES, TIMED_OUT, CommandFailed, Lock,
     ReleaseError,
@@ -140,10 +145,9 @@ class StackBundle:
 
 class Paths:
     def __init__(self, config_root=Path('/etc/liwan-release'), state_root=Path('/var/lib/liwan-release'),
-                 releases=Path('/opt/liwan/releases'), current=Path('/opt/liwan/current'),
-                 maintenance=Path('/var/lib/liwan-release/maintenance/active')):
+                 releases=Path('/opt/liwan/releases'), current=Path('/opt/liwan/current')):
         self.config_root, self.state_root, self.releases = config_root, state_root, releases
-        self.current, self.maintenance = current, maintenance
+        self.current = current
 
 
 def load_config(paths: Paths, environment: str) -> dict[str, str]:
@@ -181,7 +185,7 @@ def normalize_tree(root: Path) -> None:
 
 class Releaser:
     def __init__(self, environment: str, config: dict[str, str], paths: Paths, runner, log, environ: dict, machine: str,
-                 tag: str | None = None):
+                 tag: str | None = None, plan: pools.Plan | None = None, pool: pools.PoolPaths | None = None):
         self.environment = environment
         self.tag = tag
         self.config = config
@@ -190,11 +194,16 @@ class Releaser:
         self.log = log
         self.environ = environ
         self.machine = machine
-        self.state = paths.state_root / environment
+        self.plan = plan or pools.plan(config, environment, paths.state_root)
+        self.pool = pool or self.plan.owner_paths
+        self.state = self.pool.state
         self.docker_config = self.state / 'docker-config'
         credentials = (USER_VAR, TOKEN_VAR, GITHUB_TOKEN_VAR)
+        # The pool's own maintenance directory is part of every compose invocation this run makes, so a marker written
+        # here is the one the edge of this pool reads and no other pool's edge does.
         self.child_env = {**{k: v for k, v in environ.items() if k not in credentials}, **config,
-                          'DOCKER_CONFIG': str(self.docker_config)}
+                          'DOCKER_CONFIG': str(self.docker_config),
+                          'LIWAN_MAINTENANCE_DIR': str(self.pool.maintenance)}
         self.platform = ''
         self.source: Source | None = None
         self.bundles: dict = {}
@@ -218,24 +227,36 @@ class Releaser:
         self.log(f'phase {phase} ({run["commit"]})')
 
     def current_release_env(self) -> str | None:
-        path = self.file('release.env')
+        path = self.pool.release_env
         return path.read_text(encoding='utf-8') if path.exists() else None
 
-    # --- maintenance marker (Caddy shows the maintenance page only while it exists) --------------------
+    # --- maintenance marker (the Caddy of this pool shows its maintenance page only while it exists) ---------
     def enter_maintenance(self) -> None:
-        marker = self.paths.maintenance
+        marker = self.pool.marker
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.parent.chmod(0o755)
         marker.touch()
         marker.chmod(0o644)
 
     def leave_maintenance(self) -> None:
-        self.paths.maintenance.unlink(missing_ok=True)
+        self.pool.marker.unlink(missing_ok=True)
 
     # --- run -------------------------------------------------------------------------------------------
     def require_current_symlink(self) -> None:
-        """``current`` is only ever replaced by a symlink into releases/; a real directory would fail mid-upgrade."""
-        current = self.paths.current
+        """``current`` is only ever replaced by a symlink into releases/; a real directory would fail mid-upgrade. The
+        pool has its own link; the host's job path is the owner pool's, so only the owner checks it."""
+        self.require_symlink(self.pool.current)
+        served = self.file('served.json')
+        if served.exists() and not self.pool.current.is_symlink():
+            # The migration seeds the link from the host's; one that could not is refused here, before anything stops,
+            # because the previous release is read and stopped through this link.
+            raise ReleaseError('current_missing', EXIT_REFUSED,
+                               f'{self.pool.current} is missing although {served} records the release this pool '
+                               f'serves; link it to that release folder under {self.paths.releases} before the next run')
+        if self.pool.id == self.plan.owner:
+            self.require_symlink(self.paths.current)
+
+    def require_symlink(self, current: Path) -> None:
         if current.exists() and not current.is_symlink():
             raise ReleaseError('current_not_symlink', EXIT_REFUSED,
                                f'{current} must be a symlink into {self.paths.releases}, not a directory')
@@ -245,6 +266,9 @@ class Releaser:
 
     def run(self) -> int:
         tag = explicit_tag(self.shared_env().get(TAG_POLICY_KEY), self.tag)
+        # Before the served and unfinished records are read: a host that predates pools would otherwise look like a
+        # first deploy, whose run skips the backup, the stop and the snapshots.
+        pools.migrate(self.paths.state_root / self.environment, self.plan, self.log, current=self.paths.current)
         self.require_current_symlink()
         halted = read_json(self.file('halted.json'))
         if halted is not None:
@@ -476,7 +500,7 @@ class Releaser:
         self.require_host_file(VENDOR_ADMIN_ENV_KEY)
         self.require_classification_dir()
         if run['previous'] is not None:  # a served release that cannot render its own stack cannot be stopped or rolled back to
-            self.stack(self.paths.current.resolve(), self.file('release.env'), 'previous_not_stack')
+            self.stack(self.pool.current.resolve(), self.file('release.env'), 'previous_not_stack')
         target = self.checkout(run['commit'])
         if not target.exists():
             self.extract(run['commit'], target)
@@ -486,7 +510,7 @@ class Releaser:
         self.prepare_odoo_config(target)
         self.require_renderable(run, target)
         if run['previous'] is not None:  # before the first image pull and the first size query, both of which assume the admin role
-            self.assert_runtime_role(self.paths.current.resolve(), {'tenants': self.tenants(target)})
+            self.assert_runtime_role(self.pool.current.resolve(), {'tenants': self.tenants(target)})
         images = self.images(target, run['document'])
         for image in self.external_images(target):  # not recorded below: no old release's prune may remove one
             self.pull(image)
@@ -560,7 +584,7 @@ class Releaser:
         """Refuse before anything stops when the free space cannot hold a snapshot of every database and filestore."""
         if run['previous'] is None:
             return
-        current = self.paths.current.resolve()
+        current = self.pool.current.resolve()
         tenants = self.tenants(checkout)
         names = {item['database']: item for item in tenants}
         quoted = ','.join(databases.literal(name) for name in names)
@@ -617,7 +641,7 @@ class Releaser:
         """Encrypted disaster copy of every tenant and the control plane, through the existing pipeline."""
         if run['previous'] is None:
             return  # first deploy: no stack has run, so there is no data to copy
-        self.assert_runtime_role(self.paths.current.resolve(), run)  # refused before anything but the worker stopped
+        self.assert_runtime_role(self.pool.current.resolve(), run)  # refused before anything but the worker stopped
         work = self.file(f'runs/{run["commit"]}/backup')
         common = ['--kind', 'hourly', '--work-root', str(work), '--pg-dump', self.config['LIWAN_RELEASE_PG_DUMP']]
         if self.config.get('LIWAN_RELEASE_BACKUP_STORE_ROOT'):
@@ -695,7 +719,7 @@ class Releaser:
     def compose(self, checkout: Path, release_env: Path | None = None) -> list[str]:
         """``docker compose`` on the stack ``checkout`` rendered, run from the project directory its manifest names so the
         stack's relative paths resolve. Later ``--env-file`` wins: the bundle's own, the shared env file, then the release env."""
-        release_env = release_env or self.file('release.env')
+        release_env = release_env or self.pool.release_env
         bundle = self.stack(checkout, release_env)
         command = ['docker', 'compose', '--project-directory', str(bundle.project_directory), '-p', self.config['LIWAN_RELEASE_PROJECT'],
                    '-f', str(bundle.compose)]
@@ -934,7 +958,7 @@ class Releaser:
     def stop(self, run: dict) -> None:
         """Maintenance: the edge (Caddy) and the databases stay up; Caddy answers 503 while the guard is down."""
         if run['previous'] is not None:
-            self.stop_services(self.paths.current.resolve())
+            self.stop_services(self.pool.current.resolve())
 
     def psql_command(self, checkout: Path, *, control: bool = False, database: str = 'postgres') -> list[str]:
         if control:
@@ -985,7 +1009,7 @@ class Releaser:
         """Copy every database (FILE_COPY template) and hard-link every filestore before anything is upgraded."""
         if run['previous'] is None:
             return  # first deploy: nothing to roll back to
-        checkout = self.paths.current.resolve()
+        checkout = self.pool.current.resolve()
         run.setdefault('access', {})
         run.setdefault('snapshots', {})
         for item in self.databases(run):
@@ -1010,11 +1034,18 @@ class Releaser:
         self.point_current(self.checkout(commit))
 
     def point_current(self, target: Path) -> None:
-        link = self.paths.current.with_name(self.paths.current.name + '.next')
+        """The pool's own link moves to the release it serves; the owner pool also keeps the host's job path on it."""
+        self.link_current(self.pool.current, target)
+        if self.pool.id == self.plan.owner:
+            self.link_current(self.paths.current, target)
+
+    @staticmethod
+    def link_current(current: Path, target: Path) -> None:
+        link = current.with_name(current.name + '.next')
         if link.is_symlink() or link.exists():
             link.unlink()
         link.symlink_to(target)
-        os.replace(link, self.paths.current)
+        os.replace(link, current)
 
     def upgrade(self, run: dict) -> None:
         """Release env and checkout first, then every tenant with the CI-proven flags, then the control plane."""
@@ -1162,25 +1193,42 @@ class Releaser:
                 shutil.rmtree(copy)
 
     def prune(self, run: dict) -> None:
-        """Keep the served release and the previous one; remove the images and release folders of every older one."""
-        keep = {run['commit']} | ({run['previous']['commit']} if run['previous'] else set())
-        for record in sorted(self.file('releases').glob('*.json')):
-            if record.stem in keep:
-                continue
-            images = (read_json(record) or {}).get('images', [])
-            if images:
-                self.run_command(['docker', 'image', 'rm', *images], env=self.child_env, check=False)
-            record.unlink()
-        for runs in sorted(self.file('runs').glob('*')):
-            if runs.name not in keep:
-                shutil.rmtree(runs, ignore_errors=True)
-        for bundle in sorted(self.file('stack').glob('*')):  # each holds a rendered odoo.conf with the database password
-            if bundle.name not in keep:
-                shutil.rmtree(bundle, ignore_errors=True)
+        """Keep every commit a pool serves or is upgrading, and the previous one; remove the images, records, run folders
+        and release folders of every older one. Host-wide: a checkout or an image one pool still serves is one no other
+        pool may remove, so a pool held back by a failed release keeps its commit alive for the rest."""
+        keep = self.kept_commits(run)
+        for pool in self.plan.ordered_paths():
+            for record in sorted((pool.state / 'releases').glob('*.json')):
+                if record.stem in keep:
+                    continue
+                images = (read_json(record) or {}).get('images', [])
+                if images:
+                    self.run_command(['docker', 'image', 'rm', *images], env=self.child_env, check=False)
+                record.unlink()
+            for runs in sorted((pool.state / 'runs').glob('*')):
+                if runs.name not in keep:
+                    shutil.rmtree(runs, ignore_errors=True)
+            for bundle in sorted((pool.state / 'stack').glob('*')):  # each holds a rendered odoo.conf with the database password
+                if bundle.name not in keep:
+                    shutil.rmtree(bundle, ignore_errors=True)
         for folder in sorted(self.paths.releases.glob('*')):
             match = RELEASE_FOLDER.match(folder.name)
             if match and match.group(1) not in keep:
                 shutil.rmtree(folder) if folder.is_dir() else folder.unlink()
+
+    def kept_commits(self, run: dict) -> set[str]:
+        """The commits of this run and of every pool's served or unfinished record: the union prune may never remove."""
+        keep = {run['commit']} | ({run['previous']['commit']} if run['previous'] else set())
+        for pool in self.plan.ordered_paths():
+            served = read_json(pool.state / 'served.json')
+            if served:
+                keep.add(served['commit'])
+            unfinished = read_json(pool.state / 'run.json')
+            if unfinished:
+                keep.add(unfinished['commit'])
+                if unfinished.get('previous'):
+                    keep.add(unfinished['previous']['commit'])
+        return keep
 
     # --- rollback --------------------------------------------------------------------------------------
     def roll_back(self, run: dict, reason: str) -> int:
@@ -1226,7 +1274,7 @@ class Releaser:
         previous = run['previous']
         checkout = self.checkout(previous['commit'])
         self.stop_worker()  # a reboot during a resumed rollback starts the enabled unit again
-        self.stop_services(self.paths.current.resolve())
+        self.stop_services(self.pool.current.resolve())
         for item in self.databases(run):
             self.swap_back(run, checkout, item)
         write_atomic(self.file('release.env'), run['previousReleaseEnv']
@@ -1266,15 +1314,11 @@ class Releaser:
                          control=control) == '1'
 
     # --- status and rollback commands ------------------------------------------------------------------
-    def status(self) -> int:
-        report = {name: read_json(self.file(f'{name}.json')) for name in ('served', 'run', 'halted')}
-        if report['run']:
-            report['run'] = {key: report['run'][key] for key in ('commit', 'ref', 'phase', 'updatedAt')}
-        sys.stdout.write(json.dumps(report, indent=2, sort_keys=True) + '\n')
-        return EXIT_HALTED if report['halted'] else EXIT_OK
-
     def rollback(self) -> int:
         """Operator command: clear the halt and failed-candidate records and finish the rollback of the unfinished run, if there is one."""
+        # An unfinished run that predates pools is finished here, so the migration accepts one for this command only.
+        pools.migrate(self.paths.state_root / self.environment, self.plan, self.log, current=self.paths.current,
+                      resume_unfinished=True)
         self.require_current_symlink()
         run = read_json(self.file('run.json'))
         if run is not None and run['phase'] in POST_OPEN_PHASES:
@@ -1288,11 +1332,49 @@ class Releaser:
         return self.roll_back(run, run.get('failure', 'operator_rollback'))
 
 
+def status_report(plan: pools.Plan, only: str | None = None) -> dict:
+    """Every pool's served release, unfinished run and halt record, or only the pool ``only`` names."""
+    selected = [plan.paths(only)] if only is not None else plan.ordered_paths()  # paths() refuses an unknown id
+    report = {'order': list(plan.order), 'pools': {}}
+    for pool in selected:
+        entry = {name: read_json(pool.state / f'{name}.json') for name in ('served', 'run', 'halted')}
+        if entry['run']:
+            entry['run'] = {key: entry['run'][key] for key in ('commit', 'ref', 'phase', 'updatedAt')}
+        report['pools'][pool.id] = entry
+    return report
+
+
+def rollback_target(plan: pools.Plan, only: str | None) -> pools.PoolPaths:
+    """The pool a rollback names: the one the host serves, or the one ``--pool`` names once it serves several."""
+    if only is not None:
+        return plan.paths(only)
+    if len(plan.ids) > 1:
+        raise ReleaseError('rollback_ambiguous_pool', EXIT_REFUSED,
+                           f'this environment declares {len(plan.ids)} pools ({", ".join(plan.ids)}); '
+                           'name the one to roll back with --pool')
+    return plan.owner_paths
+
+
+def run_pools(releasers: list[Releaser]) -> int:
+    """The pools upgrade in sequence, the owner's first: a pool that fails stops the remaining ones, and only it rolled
+    back. A pool that already committed keeps the new release."""
+    code = EXIT_OK
+    for releaser in releasers:
+        with Lock(releaser.file('lock')) as held:
+            if not held:
+                return releaser.finish(EXIT_OK, 'nothing to do: another run holds the lock')
+            code = releaser.run()
+        if code != EXIT_OK:
+            return code
+    return code
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n', 1)[0])
     parser.add_argument('command', choices=('run', 'status', 'rollback'))
     parser.add_argument('--environment', required=True)
     parser.add_argument('--tag', action='append', help='production only: the release/19.0.X.Y.Z tag to apply (once)')
+    parser.add_argument('--pool', help='status and rollback only: the pool to report or roll back')
     return parser.parse_args(argv)
 
 
@@ -1309,17 +1391,32 @@ def main(argv=None, paths: Paths | None = None, runner=None, log=None, environ: 
         tag = tags[0] if tags else None
         if tag is not None and args.command != 'run':
             raise ReleaseError('tag_not_allowed', EXIT_REFUSED, '--tag belongs to the run command only')
+        if args.pool is not None and args.command == 'run':
+            raise ReleaseError('pool_not_allowed', EXIT_REFUSED,
+                               '--pool belongs to status and rollback; run applies every pool in its order')
         config = load_config(paths, args.environment)
         log.secrets.extend(sensitive_values(config, read_env_file(Path(config['LIWAN_SHARED_ENV_FILE']))))
-        releaser = Releaser(args.environment, config, paths, runner or Runner(log), log, environ,
-                            machine or platform.machine(), tag=tag)
+        plan = pools.plan(config, args.environment, paths.state_root)
         if args.command == 'status':
-            return releaser.status()  # read-only: it must answer while a run holds the lock
-        with Lock(releaser.file('lock')) as held:
+            report = status_report(plan, args.pool)  # read-only: it must answer while a run holds the lock
+            sys.stdout.write(json.dumps(report, indent=2, sort_keys=True) + '\n')
+            return EXIT_HALTED if any(entry['halted'] for entry in report['pools'].values()) else EXIT_OK
+        selected = plan.ordered_paths() if args.command == 'run' else [rollback_target(plan, args.pool)]
+        releaser_runner = runner or Runner(log)
+        releasers = [Releaser(args.environment, config, paths, releaser_runner, log, environ,
+                              machine or platform.machine(), tag=tag, plan=plan, pool=pool) for pool in selected]
+        # The environment lock is the one every command of one environment takes; each pool then has its own.
+        with Lock(paths.state_root / args.environment / 'lock') as held:
             if not held:
                 log('another run holds the lock')
-                return releaser.finish(EXIT_OK, 'nothing to do: another run holds the lock')
-            return getattr(releaser, args.command)()
+                return releasers[0].finish(EXIT_OK, 'nothing to do: another run holds the lock')
+            if args.command == 'run':
+                return run_pools(releasers)
+            releaser = releasers[0]
+            with Lock(releaser.file('lock')) as pool_held:
+                if not pool_held:
+                    return releaser.finish(EXIT_OK, 'nothing to do: another run holds the lock')
+                return releaser.rollback()
     except ReleaseError as error:
         if error.detail:
             log(error.detail)

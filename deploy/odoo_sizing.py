@@ -50,6 +50,14 @@ MAX_ODOO_CLIENT_CONNECTIONS = 88
 # The smallest PostgreSQL plan worth running: one backend per cron and worker
 # process plus the reserve, so a probe never asks for a pool nobody can hold.
 MIN_PG_BACKENDS = 20
+# Tenants one pool serves. This is the single place the number exists:
+# `deploy/release/pools.py` reads it for `LIWAN_TENANT_CAPACITY` and this plan's
+# default assumption reads it here. The ceiling is the registry LRU bound at
+# limit_memory_soft 640 MiB (`odoo/service/server.py:1556-1562`), past which a
+# worker evicts a registry it has to load again; 40 is the owner's cap until the
+# staging measurement of the pool-capacity session lands.
+TENANT_CAPACITY_CEILING = 42
+DEFAULT_TENANT_CAPACITY = 40
 
 # A1.Flex shapes Oracle publishes. The production box is the Jeddah 4/24 one.
 BOX_JEDDAH_A1 = 'VM.Standard.A1.Flex 4 OCPU / 24 GB (Jeddah, production)'
@@ -79,7 +87,7 @@ class Assumptions:
     operations page names what would change it.
     """
 
-    tenants: int = 50
+    tenants: int = DEFAULT_TENANT_CAPACITY
     # Odoo's own recommendation is memory-based limits rather than a fixed worker
     # count. These are the per-process worst cases the plan budgets against.
     worker_rss_soft_mib: int = LIMIT_MEMORY_SOFT_MIB
@@ -454,6 +462,11 @@ def main(argv=None) -> int:
     box = Box(name=f'operator box {args.ocpu} OCPU / {args.memory_gib} GiB',
               ocpu=args.ocpu, memory_gib=args.memory_gib)
     try:
+        # The CLI refuses what one pool may not serve, before any plan is printed: the pool's own reader
+        # (`deploy/release/pools.py`) holds the same bound. `compute` keeps accepting any positive count, because the
+        # tests drive it with numbers the CLI must never render.
+        if not 1 <= args.tenants <= TENANT_CAPACITY_CEILING:
+            raise SizingError(f'--tenants is a whole number from 1 to {TENANT_CAPACITY_CEILING}')
         sizing = compute(box, Assumptions(tenants=args.tenants))
     except SizingError as error:
         sys.stderr.write(f'odoo_sizing: {error}\n')

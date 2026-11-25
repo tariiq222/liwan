@@ -387,6 +387,22 @@ class TestStackPinsThePlan(unittest.TestCase):
             self.assertNotIn('password', line)
             self.assertNotIn('db_host', line)
 
+    def test_the_cli_refuses_a_tenant_count_outside_the_pools_range(self):
+        # The pool's own reader enforces the same bound (`deploy/release/pools.py`); the CLI must not render a plan for
+        # more tenants than one pool may serve. `compute` keeps accepting any positive count for the tests below.
+        ceiling = odoo_sizing.TENANT_CAPACITY_CEILING
+        for tenants in ('0', str(ceiling + 1), '500'):
+            with self.subTest(tenants=tenants):
+                output, error = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+                    self.assertEqual(odoo_sizing.main(['--tenants', tenants]), 1)
+                self.assertEqual(error.getvalue(), f'odoo_sizing: --tenants is a whole number from 1 to {ceiling}\n')
+                self.assertEqual(output.getvalue(), '')
+        for tenants in ('1', str(ceiling)):
+            with self.subTest(tenants=tenants):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(odoo_sizing.main(['--tenants', tenants]), 0)
+
     def test_the_odoo_memory_envelope_matches_the_plan(self):
         # The worker budget lives in the config file (the launcher accepts no flags);
         # the stack carries the container envelope for the same plan.

@@ -238,14 +238,49 @@ class RenderedStack(unittest.TestCase):
 
     def test_sizing_variables_are_exactly_the_ones_the_template_requires(self):
         required = set(re.findall(r'\$\{(LIWAN_(?:ODOO|DB|PG|PGBOUNCER)_[A-Z_]+):\?', (render.STACK / 'compose.yml').read_text()))
-        self.assertEqual(required, set(render.sizing_variables()))
+        self.assertEqual(required, set(render.sizing_variables({})))
 
     def test_sizing_ceilings_match_the_plan(self):
         plan = odoo_sizing.compute(odoo_sizing.BOX_JEDDAH_A1, odoo_sizing.Assumptions())
-        values = render.sizing_variables()
+        values = render.sizing_variables({})
         ceiling = (plan.workers + plan.max_cron_threads) * plan.limit_memory_hard_mib
         self.assertGreaterEqual(int(values['LIWAN_ODOO_MEM_LIMIT'].removesuffix('m')), ceiling)
         self.assertEqual(str(plan.postgres_max_connections), values['LIWAN_PG_MAX_CONNECTIONS'])
+
+    def test_sizing_helpers_require_an_env_and_follow_tenant_capacity(self):
+        with self.assertRaises(TypeError):
+            render.sizing_plan()
+        with self.assertRaises(TypeError):
+            render.sizing_variables()
+        key = render.pools.CAPACITY_KEY
+        small = render.sizing_variables({key: '20'})
+        expected = odoo_sizing.compute(odoo_sizing.BOX_JEDDAH_A1, odoo_sizing.Assumptions(tenants=20))
+        self.assertEqual(str(expected.postgres_max_connections), small['LIWAN_PG_MAX_CONNECTIONS'])
+        with self.assertRaises(render.StackError):
+            render.sizing_variables({key: '0'})
+
+    def test_harness_stack_render_uses_env_capacity_for_sizing_and_odoo_conf(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            'harness_stack_render', Path(__file__).resolve().parents[2] / 'tools/shared_acceptance_live/stack_render.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        key = render.pools.CAPACITY_KEY
+        base = {'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'abc', 'DB_PASSWORD': 'db-secret',
+                'DB_ADMIN_PASSWORD': 'admin-secret', 'LIWAN_ODOO_ADMIN_PASSWD': "'$pbkdf2-sha512$1$c2FsdA$aGFzaA'"}
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            (run_dir / module.HARNESS_ENV).write_text(
+                ''.join(f'{k}={v}\n' for k, v in {**base, key: '20'}.items()), encoding='utf-8')
+            paths = module.render_run(run_dir)
+            sizing = render.read_env(paths['sizing.env'])
+            expected = odoo_sizing.compute(odoo_sizing.BOX_JEDDAH_A1, odoo_sizing.Assumptions(tenants=20))
+            self.assertEqual(str(expected.postgres_max_connections), sizing['LIWAN_PG_MAX_CONNECTIONS'])
+            self.assertEqual(str(expected.pgbouncer_max_db_connections), sizing['LIWAN_PGBOUNCER_MAX_DB_CONNECTIONS'])
+            (run_dir / module.HARNESS_ENV).write_text(
+                ''.join(f'{k}={v}\n' for k, v in {**base, key: '99'}.items()), encoding='utf-8')
+            with self.assertRaises(render.StackError):
+                module.render_run(run_dir)
 
 
 class TenantStorage(unittest.TestCase):

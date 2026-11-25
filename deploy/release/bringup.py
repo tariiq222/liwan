@@ -3,8 +3,9 @@
 
   bringup.py --environment <name> [--apply] [--post-run]
 
-One line per item: ``ok <item>``, ``created <item>`` (only with --apply), ``MISSING <item>: <what a human must do>`` or
-``FAILED <item>: <reason>`` (a symlink or wrong file type where a path must be what it should, or a command that failed).
+One line per item: ``ok <item>`` (``ok <item>: <note>`` when the item has one to add), ``created <item>`` (only with
+--apply), ``MISSING <item>: <what a human must do>`` or ``FAILED <item>: <reason>`` (a symlink or wrong file type where a
+path must be what it should, or a command that failed).
 The last line is ``RESULT: bringup ok`` (exit 0) or ``RESULT: bringup incomplete <n>`` (exit 1). Default is check-only;
 ``--apply`` needs root (exit 2 otherwise). A second ``--apply`` changes nothing. ``--post-run`` adds the checks of A8.2a to
 A8.7 (after the first release). The tool never prints a secret, a file content or a command output.
@@ -36,7 +37,7 @@ from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from deploy.release import common, proof  # noqa: E402 - path set just above
+from deploy.release import common, pools, proof  # noqa: E402 - path set just above
 from deploy.release.release import (  # noqa: E402
     CONFIG_KEYS, CONTROL_DB_PORT, PROOF_DIR_KEY, PROOF_KEY_FILE_KEY, PROOF_PUBLIC_KEY_KEY, PROOF_URL_KEY, RELEASE_FOLDER,
     SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
@@ -399,6 +400,47 @@ def shared_file_problem(info, worker, docker) -> str:
             f'found {shape(info)}')
 
 
+# --- the state of the owner pool (A3.2, A3.3, A8.3) -------------------------------------------------------------------
+RECORDS = ('served.json', 'run.json', 'halted.json')
+
+
+@dataclass(frozen=True)
+class ReleaseState:
+    """The directory the release records are read from, the pool's own state directory, and whether the first is a host
+    that still predates pools (the first run of ``release.py`` moves it, ``pools.migrate``)."""
+
+    path: Path
+    pool: Path
+    legacy: bool
+
+
+def owner_release_state(ctx: Context, config: dict) -> ReleaseState:
+    """Where the owner pool keeps its served, run and halted records, named by the same ``pools`` plan the release uses.
+
+    The owner pool is the one ``current`` points at, so its ``state/`` is the directory this reads. A host that has not been
+    migrated yet still holds its records in ``<state root>/<environment>`` beside the pool root, so the pre-pool ones are
+    read only when they are all the host has: the item then says which file it read instead of reporting a served host as
+    never released. When both locations hold the same entry (or both hold release records), ``legacy_state_ambiguous`` is
+    raised with the same wording ``pools.migrate`` refuses with. A plan that refuses raises ``common.ReleaseError`` and the
+    caller fails closed.
+    """
+    plan = pools.plan(config, ctx.environment, ctx.paths.state_root)
+    pool = plan.owner_paths.state
+    legacy = ctx.paths.state_root / ctx.environment
+    legacy_entries = sorted(name for name in ctx.host.listdir(legacy) if name not in pools.RESERVED_STATE)
+    clashes = [name for name in legacy_entries if ctx.host.lstat(pool / name) is not None]
+    if clashes:
+        raise pools.legacy_clash_error(legacy, pool, clashes)
+    pool_holds = any(ctx.host.lstat(pool / name) is not None for name in RECORDS)
+    legacy_holds = any(ctx.host.lstat(legacy / name) is not None for name in RECORDS)
+    if legacy_holds and pool_holds:
+        raise common.ReleaseError('legacy_state_ambiguous', common.EXIT_REFUSED,
+                                  f'{legacy} and {pool} both hold release state: keep one set')
+    if legacy_holds:
+        return ReleaseState(legacy, pool, True)
+    return ReleaseState(pool, pool, False)
+
+
 # --- A3.1 worker account ---------------------------------------------------------------------------------------------
 def docker_members(ctx: Context) -> list[str] | None:
     group = ctx.host.group(DOCKER_GROUP)
@@ -481,8 +523,16 @@ def init_host_command(ctx: Context, config: dict) -> str:
 
 def first_bring_up(ctx: Context, shared: dict) -> bool:
     """The script runs as root from here only when no release was ever served and none of its outputs exist: after that the
-    shared env file belongs to the worker account and root does not act on paths read from it."""
-    if ctx.host.lstat(ctx.paths.state_root / ctx.environment / 'served.json') is not None:
+    shared env file belongs to the worker account and root does not act on paths read from it. A state it cannot judge (no
+    release config, or a pool plan that refuses) is never a first bring-up."""
+    config = ctx.config()
+    if config is None:
+        return False
+    try:
+        state = owner_release_state(ctx, config)
+    except common.ReleaseError:
+        return False
+    if ctx.host.lstat(state.path / 'served.json') is not None:
         return False
     return all(inspect(ctx.host, path, kind) is None for path, kind in init_host_outputs(shared))
 
@@ -706,13 +756,23 @@ def check_tenant_storage_enabled(ctx: Context) -> Status:
 
 # --- A3.3 directories ------------------------------------------------------------------------------------------------
 def directory_specs(ctx: Context, config: dict) -> list[tuple[Path, int, str]]:
-    """Path, mode and group of each directory, parents first; the owner is always root."""
+    """Path, mode and group of each directory, parents first; the owner is always root.
+
+    The pool root and the owner pool's own directory are containers like the state root (0755 root), and the owner pool's
+    ``state`` carries the same 0700 as the environment directory: it holds the release records and the backups' work files.
+    """
     srv = Path(config['LIWAN_SHARED_ENV_FILE']).parent
     root_group = 'root'
+    try:
+        plan = pools.plan(config, ctx.environment, ctx.paths.state_root)
+    except common.ReleaseError as error:
+        raise ItemError(f'the pool plan cannot be read, so the pool directories cannot be named: {error.detail}') from None
+    pool = plan.owner_paths
     return [(ctx.paths.releases.parent, PUBLIC_DIR_MODE, root_group), (ctx.paths.releases, PUBLIC_DIR_MODE, root_group),
             (ETC_LIWAN, PUBLIC_DIR_MODE, root_group), (srv, PUBLIC_DIR_MODE, root_group),
-            (ctx.paths.state_root, PUBLIC_DIR_MODE, root_group), (ctx.paths.maintenance.parent, PUBLIC_DIR_MODE, root_group),
-            (ctx.paths.state_root / ctx.environment, STATE_DIR_MODE, root_group),
+            (ctx.paths.state_root, PUBLIC_DIR_MODE, root_group),
+            (ctx.paths.state_root / ctx.environment, STATE_DIR_MODE, root_group), (plan.root, PUBLIC_DIR_MODE, root_group),
+            (pool.root, PUBLIC_DIR_MODE, root_group), (pool.state, STATE_DIR_MODE, root_group),
             (srv / 'config', WORKER_DIR_MODE, WORKER_USER), (srv / 'control', WORKER_DIR_MODE, WORKER_USER)]
 
 
@@ -1334,17 +1394,28 @@ def current_commit(ctx: Context) -> str | None:
 
 
 def check_release_state(ctx: Context) -> Status:
-    if ctx.config() is None:
+    config = ctx.config()
+    if config is None:
         return NEEDS_CONFIG
-    state = ctx.paths.state_root / ctx.environment
+    try:
+        state = owner_release_state(ctx, config)
+    except common.ReleaseError as error:
+        if error.reason == 'legacy_state_ambiguous':
+            return missing(f'{error.reason}: {error.detail}')
+        return missing(f'the pool plan cannot be read: {error.detail}')
     problems = []
-    served = state / 'served.json'
+    served = state.path / 'served.json'
     if inspect(ctx.host, served, REGULAR_FILE) is None:
-        problems.append('served.json is absent: no release has been committed')
+        problems.append(f'{served} is absent: no release has been committed')
     elif served_commit(ctx, served) != current_commit(ctx):
-        problems.append(f'the served commit is not the one {ctx.paths.current} points to')
-    problems += [f'{name} exists' for name in ('run.json', 'halted.json') if ctx.host.lstat(state / name) is not None]
-    return missing('; '.join(problems)) if problems else OK
+        problems.append(f'the served commit in {served} is not the one {ctx.paths.current} points to')
+    problems += [f'{state.path / name} exists' for name in ('run.json', 'halted.json')
+                 if ctx.host.lstat(state.path / name) is not None]
+    if problems:
+        return missing('; '.join(problems))
+    if state.legacy:
+        return Status(True, f'read {served}, the state of this host before pools; the first run moves it into {state.pool}')
+    return OK
 
 
 def shared_port(shared: dict, setting: tuple[str, str]) -> str:
@@ -1523,7 +1594,7 @@ def evaluate(item: Item, ctx: Context) -> tuple[str, bool]:
     try:
         status = item.check(ctx)
         if status.ok:
-            return f'ok {item.name}', False
+            return (f'ok {item.name}: {status.detail}' if status.detail else f'ok {item.name}'), False
         if ctx.apply and item.apply is not None:
             item.apply(ctx)
             status = item.check(ctx)

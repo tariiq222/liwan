@@ -174,7 +174,7 @@ class EnvironmentTemplates(unittest.TestCase):
             for name in names:
                 required |= set(re.findall(r'\$\{([A-Z0-9_]+):\?', (DEPLOY / name).read_text()))
         # The sizing values are exported by the renderer from deploy/odoo_sizing.py, not set in an env file.
-        required -= set(stack_render.sizing_variables())
+        required -= set(stack_render.sizing_variables({}))
         for name in TEMPLATES:
             with self.subTest(template=name):
                 self.assertEqual(set(), required - set(self.values[name]))
@@ -372,6 +372,15 @@ class EnvironmentTemplates(unittest.TestCase):
             for template in ENVIRONMENTS.glob('*.env.example'):
                 self.assertNotIn(variable, template.read_text(encoding='utf-8'), template.name)
         self.assertIn('Production holds its own', readme)
+
+    def test_tenant_capacity_stays_commented_so_odoo_sizing_remains_the_single_default(self):
+        rows = {line.split('|')[1].strip() for line in (ENVIRONMENTS / 'README.md').read_text(encoding='utf-8').splitlines()
+                if line.startswith('| `')}
+        self.assertIn('`LIWAN_TENANT_CAPACITY`', rows)
+        for template in sorted(ENVIRONMENTS.glob('*.env.example')):
+            with self.subTest(template=template.name):
+                self.assertNotIn('LIWAN_TENANT_CAPACITY', parse_env(template))
+                self.assertRegex(template.read_text(encoding='utf-8'), r'(?m)^# LIWAN_TENANT_CAPACITY=$')
 
 
 if __name__ == '__main__':
