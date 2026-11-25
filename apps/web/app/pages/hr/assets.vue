@@ -8,7 +8,7 @@ import {
   type HrEquipmentActiveFilter,
   type HrEquipmentAssignedFilter,
 } from '@/composables/useHrAssets'
-import { hrEquipmentKpiQueries, hrEquipmentKpiTiles } from '@/utils/hrOpsKpis'
+import { hrEquipmentKpiQueries, hrEquipmentKpiTiles } from '@/utils/hrKpis'
 
 const route = useRoute()
 const router = useRouter()
@@ -91,7 +91,7 @@ const kpiTiles = computed(() => hrEquipmentKpiTiles({
   assigned: assignedKpi.data.value?.total ?? null,
   available: availableKpi.data.value?.total ?? null,
 }, t))
-const kpiLoading = computed(() => (listFiltered.value ? allAssetsKpi.isLoading.value : !equipment.data.value)
+const kpiLoading = computed(() => (listFiltered.value ? allAssetsKpi.isLoading.value : !equipment.data.value && !equipment.error.value)
   || assignedKpi.isLoading.value
   || availableKpi.isLoading.value)
 

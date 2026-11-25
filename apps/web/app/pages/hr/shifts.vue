@@ -12,7 +12,7 @@ import {
 import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import ShiftAssignmentTable from '@/components/hr/shifts/ShiftAssignmentTable.vue'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
-import { hrShiftKpiQueries, hrShiftKpiTiles } from '@/utils/hrOpsKpis'
+import { hrShiftKpiQueries, hrShiftKpiTiles } from '@/utils/hrKpis'
 
 const ALL = '__all__'
 
@@ -74,7 +74,7 @@ const kpiTiles = computed(() => hrShiftKpiTiles({
   planned: listFiltered.value ? plannedKpi.data.value?.total ?? null : source.data.value?.total ?? null,
   today: today.value ? todayKpi.data.value?.total ?? null : undefined,
 }, today.value, t))
-const kpiLoading = computed(() => (listFiltered.value ? plannedKpi.isLoading.value : !source.data.value) || todayKpi.isLoading.value)
+const kpiLoading = computed(() => (listFiltered.value ? plannedKpi.isLoading.value : !source.data.value && !source.error.value) || todayKpi.isLoading.value)
 
 function writeQuery(next: { employee_id?: number | null; schedule_id?: number | null; on_date?: string | null; offset?: number }) {
   const nextEmployee = next.employee_id === undefined ? employeeId.value : next.employee_id

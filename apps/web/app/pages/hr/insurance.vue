@@ -7,7 +7,7 @@ import PlanTable from '@/components/hr/insurance/PlanTable.vue'
 import { HR_INSURANCE_ENROLLMENT_STATES, HR_INSURANCE_PLAN_STATES, type HrInsuranceEnrollmentState, type HrInsurancePlanState } from '@liwan/contracts'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { HR_INSURANCE_PAGE_SIZE } from '@/composables/useHrInsurance'
-import { hrInsurancePlanKpiQueries, hrInsurancePlanKpiTiles } from '@/utils/hrOpsKpis'
+import { hrInsurancePlanKpiQueries, hrInsurancePlanKpiTiles } from '@/utils/hrKpis'
 
 const SECTIONS = ['enrollments', 'plans', 'providers'] as const
 type Section = typeof SECTIONS[number]
@@ -86,7 +86,7 @@ const planKpiTiles = computed(() => hrInsurancePlanKpiTiles({
   active: activePlansKpi.data.value?.total ?? null,
   expired: expiredPlansKpi.data.value?.total ?? null,
 }, t))
-const planKpiLoading = computed(() => (planState.value === 'all' ? !plans.data.value : allPlansKpi.isLoading.value)
+const planKpiLoading = computed(() => (planState.value === 'all' ? !plans.data.value && !plans.error.value : allPlansKpi.isLoading.value)
   || activePlansKpi.isLoading.value
   || expiredPlansKpi.isLoading.value)
 
