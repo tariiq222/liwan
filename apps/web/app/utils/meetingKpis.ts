@@ -1,4 +1,5 @@
 import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
+import { kpiLink } from '@liwan/ui/app/utils/kpiLink'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 
 type Scope = Record<string, string | number | boolean | undefined>
@@ -20,17 +21,6 @@ export function meetingKpiFilters(today: Date) {
     draft: { state: 'draft' },
     done: { state: 'done', date_from: month.from, date_to: month.to },
   } as const
-}
-
-/** A link to `path` with the given filters as its query; empty values are left out. */
-export function kpiLink(path: string, filters: Scope): string {
-  const query = new URLSearchParams()
-  for (const [key, value] of Object.entries(filters)) {
-    if (value === undefined || value === false || value === '') continue
-    query.set(key, value === true ? '1' : String(value))
-  }
-  const text = query.toString()
-  return text ? `${path}?${text}` : path
 }
 
 /** Maximum rows requested for the upcoming KPI query (matches `MAX_MEETINGS` in `liwan_meetings`). */

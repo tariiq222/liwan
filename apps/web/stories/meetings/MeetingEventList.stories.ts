@@ -26,7 +26,7 @@ const render: Story['render'] = args => ({
 
 export const Populated: Story = {
   name: 'سجل الأحداث',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:288'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:315'),
   render,
 }
 
@@ -39,14 +39,14 @@ export const Paginated: Story = {
 
 export const Empty: Story = {
   name: 'بلا أحداث',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:288'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:315'),
   args: { events: [], total: 0 },
   render,
 }
 
 export const Loading: Story = {
   name: 'جارٍ التحميل',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:288'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:315'),
   args: { events: [], total: 0, loading: true },
   render,
 }

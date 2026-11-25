@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { followupKpiStates, kpiLink, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, monthDayRange, pickNearestUpcomingMeeting } from '../meetingKpis'
+import { kpiLink } from '@liwan/ui/app/utils/kpiLink'
+import { followupKpiStates, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, monthDayRange, pickNearestUpcomingMeeting } from '../meetingKpis'
 
 const t = (key: string) => `t:${key}`
 
