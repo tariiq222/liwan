@@ -212,7 +212,7 @@ function goToday() {
 
 <template>
   <SharedTimelineFrame :title="t('nav.meetings')" :range-label="monthLabel" @prev="shift(-1)" @next="shift(1)" @today="goToday">
-    <template #actions><UButton v-if="can('meetings.create')" icon="i-lucide-plus" :to="createTo" :label="t('nav.newMeeting')" data-testid="meeting-calendar-new" /></template>
+    <template #actions><UButton v-if="can('meetings.create')" icon="i-lucide-plus" :to="createTo" :label="t('nav.newMeeting')" data-shortcut-create aria-keyshortcuts="c" :disabled="!hydrated" data-testid="meeting-calendar-new" /></template>
     <div class="grid min-w-0">
       <div class="border-b border-default px-(--liwan-card-pad-dense) py-3">
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">

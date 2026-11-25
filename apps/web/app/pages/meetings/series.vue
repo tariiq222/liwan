@@ -115,10 +115,11 @@ function setPage(next: number) {
     :create-to="can('meetings.create') ? createTo : undefined"
     :create-label="t('meetingsUi.newSeries')"
     create-test-id="meeting-series-new"
-    kpi-toggle
     @click.capture="openCreate"
   >
-    <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" :skeleton-count="3" data-testid="meeting-series-kpi-strip" />
+    <template #kpis>
+      <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" :skeleton-count="3" data-testid="meeting-series-kpi-strip" />
+    </template>
     <SharedListCard>
       <template #filters>
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">

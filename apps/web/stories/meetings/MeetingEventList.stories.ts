@@ -32,7 +32,7 @@ export const Populated: Story = {
 
 export const Paginated: Story = {
   name: 'سجل بصفحات متعددة',
-  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:398'),
+  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:396'),
   args: { total: 60, pageSize: 3 },
   render,
 }
