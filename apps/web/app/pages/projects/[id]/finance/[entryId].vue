@@ -89,6 +89,7 @@ async function confirmRemoval() {
     :back-label="t('projects.finance.backToLedger')"
     :loading="(query.isLoading.value || access.isLoading.value) && !entry"
     :error="notFound || projectId === null || entryId === null ? null : query.error.value || access.error.value"
+    aside-first
     @retry="() => { void query.refetch(); void access.refetch() }"
   >
     <template v-if="entry && canManage && projectId && entryId" #actions>
@@ -119,7 +120,7 @@ async function confirmRemoval() {
         <p class="whitespace-pre-wrap text-sm">{{ entry.notes }}</p>
       </SharedRecordSection>
     </template>
-    <template v-if="entry && currency" #summary>
+    <template v-if="entry && currency" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.finance.fields.kind')">
           <SharedStatusBadge tone="neutral" :icon="entry.kind === 'budget' ? 'i-lucide-wallet' : 'i-lucide-receipt'" :label="t(`projects.finance.kind.${entry.kind}`)" />

@@ -18,6 +18,7 @@ describe('finance stays on its templates', () => {
     const entry = read('pages/projects/[id]/finance/[entryId].vue')
     expect(entry).toContain('<SharedRecordPage')
     expect(entry).toContain('<SharedPropertiesPanel')
+    expect(entry).toContain('#aside')
     expect(read('pages/projects/[id]/finance/[entryId]/edit.vue')).not.toContain('rounded-lg ring ring-default')
   })
   it('the summary tiles are compact metric tiles with a progress bar and the forms are panels', () => {

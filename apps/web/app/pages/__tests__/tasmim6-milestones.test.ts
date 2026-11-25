@@ -20,6 +20,18 @@ describe('milestones stay on their templates', () => {
   it('the delete confirmation follows the live list', () => {
     expect(read('components/pmo/projects/MilestoneTable.vue')).toContain('items.value.find(m => m.id === deleteId.value)')
   })
+  it('the KPI strip is the shared strip counting the rows the table loads, without a request of its own, and its tiles are not links', () => {
+    const page = read('pages/projects/[id]/milestones.vue')
+    for (const needle of ['<template #kpis>', '<SharedKpiStrip', ':tiles="tiles"', ':loading="milestones.isPending.value"', "t('projects.milestones.kpi.label')", 'data-testid="milestone-kpi-strip"', 'useMilestones', 'isMilestoneOverdue', 'const tiles = computed<KpiTile[]>(() => [']) expect(page).toContain(needle)
+    // The strip owns the grid, the visibility toggle and the tiles; the page only supplies the counts.
+    expect(page).not.toContain('<SharedMetricTile')
+    expect(page).not.toContain('useKpiVisibility')
+    expect(page).not.toContain('class="liwan-kpi-grid"')
+    const start = page.indexOf('<template #kpis>')
+    const strip = page.slice(start, page.indexOf('</template>', start))
+    // No status filter exists on this list, so a tile must not claim one.
+    expect(strip).not.toContain(':to=')
+  })
   it('the edit page has no hand-built card', () => {
     const edit = read('pages/projects/[id]/milestones/[milestoneId]/edit.vue')
     expect(edit).toMatch(/<SharedFormSection[^>]* panel/)
