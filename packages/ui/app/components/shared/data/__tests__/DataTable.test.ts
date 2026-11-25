@@ -141,6 +141,21 @@ describe('SharedDataTable', () => {
     expect(html).not.toContain('data-slot="data-table-footer"')
   })
 
+  it('marks each stacked row as opening its record when the table has rowTo', async () => {
+    const mobile = { 'mobile-row': slot<{ row: Row }>(({ row }) => h('span', `mobile:${row.name}`)) }
+    const html = await render({ rowTo: (row: Row) => `/projects/${row.id}` }, mobile, { hydrated: true, ssrWidth: 390 })
+    const items = html.match(/<li[^>]*>/g) ?? []
+    expect(items).toHaveLength(2)
+    items.forEach(item => expect(item).toMatch(/data-shortcut-row[^>]*data-row-index="\d"[^>]*data-row-opens/))
+  })
+
+  it('leaves stacked rows without data-row-opens when the table has no rowTo', async () => {
+    const mobile = { 'mobile-row': slot<{ row: Row }>(({ row }) => h('span', `mobile:${row.name}`)) }
+    const html = await render({}, mobile, { hydrated: true, ssrWidth: 390 })
+    expect(html.match(/<li[^>]*data-shortcut-row[^>]*>/g)).toHaveLength(2)
+    expect(html).not.toContain('data-row-opens')
+  })
+
   it('shows the table on every width when there is no mobile row slot', async () => {
     const html = await render({})
     expect(html).not.toContain('hidden md:block')
