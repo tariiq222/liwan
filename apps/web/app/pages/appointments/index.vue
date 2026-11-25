@@ -7,8 +7,8 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { useAppointmentBookings, useAppointmentTypes } from '@/composables/appointments/useAppointments'
 import { useAppointmentListKpis } from '@/composables/appointments/useAppointmentKpis'
 import { appointmentStateTone } from '@/utils/appointmentKpis'
-import { APPOINTMENT_PAGE_SIZE, appointmentListQuery, lastAppointmentPageOffset } from '@/utils/appointmentList'
-import { parseOffset } from '@/utils/routeQuery'
+import { APPOINTMENT_PAGE_SIZE, appointmentListQuery } from '@/utils/appointmentList'
+import { lastPageOffset, parseOffset } from '@/utils/routeQuery'
 
 // The staff bookings list: the appointments of the chosen day, KPI summary strip from limit=1 totals,
 // two-row embedded filter bar, and paginated table driven by total + limit/offset.
@@ -105,7 +105,7 @@ function setPage(nextPage: number) {
 watch([total, offset, () => bookings.data.value, () => bookings.isFetching.value], () => {
   if (!bookings.data.value || bookings.isFetching.value) return
   if (total.value === 0 || offset.value === 0 || items.value.length > 0) return
-  const next = lastAppointmentPageOffset(total.value)
+  const next = lastPageOffset(total.value, PAGE_SIZE)
   writeQuery({ offset: next > 0 ? String(next) : undefined }, false)
 })
 
