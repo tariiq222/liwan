@@ -6,8 +6,9 @@
   configuration (temporary TURN credentials belong to the product session, not to a test page).
 
   Serve it from https://, or from http://localhost, or the browser refuses microphone access. The default WebSocket URL
-  is the local stack's plain ws://127.0.0.1:8088/ws; a deployment uses wss://<host>/ws, which the shared edge forwards to
-  Asterisk (design 11.2).
+  is the local stack's plain ws://localhost:8088/ws (not ws://127.0.0.1, which Chrome blocks under its proxy-bypass rule
+  and which closes with code 1006); a deployment uses wss://<host>/ws, which the shared edge forwards to Asterisk
+  (design 11.2).
 
   JsSIP 3.12.0 is loaded from cdnjs at the exact version and its published Subresource Integrity hash.
 -->
@@ -42,9 +43,10 @@
     <fieldset>
       <legend>Account</legend>
       <label>WebSocket URL
-        <input id="ws-url" value="ws://127.0.0.1:8088/ws" spellcheck="false" required>
-        <small class="note">Local stack: the plain listener on 8088. A deployment uses
-          <code>wss://&lt;host&gt;/ws</code>, which the shared edge forwards here.</small>
+        <input id="ws-url" value="ws://localhost:8088/ws" spellcheck="false" required>
+        <small class="note">Local stack: the plain listener on 8088. Keep <code>localhost</code>, not
+          <code>127.0.0.1</code>: Chrome blocks that host under its proxy-bypass rule and the socket closes with code
+          1006. A deployment uses <code>wss://&lt;host&gt;/ws</code>, which the shared edge forwards here.</small>
       </label>
       <label>Extension
         <input id="extension" value="101" inputmode="numeric" required>

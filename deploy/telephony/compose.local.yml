@@ -1,7 +1,8 @@
 # Local acceptance override of deploy/telephony/compose.yml: one machine, no public IP, no SIP trunk, nothing
-# reachable from outside. Every published port is bound to 127.0.0.1, and coturn does not start; the base file keeps
-# the non-root Asterisk service, its healthcheck and the volume-preparation job unchanged. For local testing only;
-# never use this file in a deployment, where compose.yml publishes on the company's static address.
+# reachable from outside. Every published port is bound to loopback (Asterisk on both 127.0.0.1 and ::1), and coturn
+# does not start; the base file keeps the non-root Asterisk service, its healthcheck and the volume-preparation job
+# unchanged. For local testing only; never use this file in a deployment, where compose.yml publishes on the company's
+# static address.
 #
 #   python3 -B deploy/telephony/render.py --env deploy/telephony/local/env --out /tmp/tl-local --force
 #   docker compose -f /tmp/tl-local/compose.yml -f deploy/telephony/compose.local.yml \
@@ -11,10 +12,19 @@ services:
     # The base file publishes the SIP port and the RTP block on the static address; `!override` replaces that list so
     # the local run decides every listener itself: SIP 5060/udp, the http listener 8088 (ws /ws and ARI /ari), and the
     # RTP block, all loopback.
+    #
+    # Every listener is published twice: once on IPv4 127.0.0.1 and once on IPv6 ::1, both loopback. A single
+    # `127.0.0.1:` entry is IPv4 only, and Chrome on macOS resolves `localhost` (and sometimes `127.0.0.1`) to ::1
+    # first: the test page loads over IPv4 while its WebSocket to ws://localhost:8088/ws is refused on ::1 and closes
+    # with code 1006. The plain `"8088:8088"` form would bind 0.0.0.0/:: instead, so each address is listed explicitly
+    # (`::1` is the IPv6 loopback; `::` would be the wildcard) and nothing here is reachable from outside the machine.
     ports: !override
       - "127.0.0.1:5060:5060/udp"
+      - "[::1]:5060:5060/udp"
       - "127.0.0.1:8088:8088/tcp"
+      - "[::1]:8088:8088/tcp"
       - "127.0.0.1:${LIWAN_TELEPHONY_RTP_START}-${LIWAN_TELEPHONY_RTP_END}:${LIWAN_TELEPHONY_RTP_START}-${LIWAN_TELEPHONY_RTP_END}/udp"
+      - "[::1]:${LIWAN_TELEPHONY_RTP_START}-${LIWAN_TELEPHONY_RTP_END}:${LIWAN_TELEPHONY_RTP_START}-${LIWAN_TELEPHONY_RTP_END}/udp"
   coturn:
     # No TURN server locally: the browser leg is not part of the local smoke run.
     deploy:

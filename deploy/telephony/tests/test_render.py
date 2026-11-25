@@ -120,6 +120,36 @@ FIXED = {
 }
 
 
+def pjsip_objects(text):
+    """The pjsip.conf sections grouped by name, one dict of options per section. Asterisk keeps sections of different
+    ``type`` apart, so the same name can hold an endpoint, an auth and an aor at once, as the extensions do. A section
+    written as ``[name](parent)`` takes the options it does not set from every section called ``parent``."""
+    objects = {}
+    # Each entry is (name, parent, options); inheritance is resolved once the whole file is read.
+    entries = []
+    parts = re.split(r'^\[([^\]]+)\](?:\(([^)]*)\))?\s*$', text, flags=re.M)
+    for name, parent, body in zip(parts[1::3], parts[2::3], parts[3::3]):
+        options = {}
+        for line in body.splitlines():
+            line = line.split(';', 1)[0].strip()
+            if line and '=' in line:
+                key, value = line.split('=', 1)
+                options[key.strip()] = value.strip()
+        entries.append((name, parent, options))
+    for name, parent, options in entries:
+        if parent and parent != '!':
+            for inherited in entries:
+                if inherited[0] == parent:
+                    options = {**inherited[2], **options}
+        objects.setdefault(name, []).append(options)
+    return objects
+
+
+def types_of(objects, name):
+    """The ``type`` of every section called ``name``; ``(!)`` templates carry their type the same way."""
+    return {section.get('type') for section in objects.get(name, [])}
+
+
 def asterisk_matches(pattern, extension):
     """A minimal matcher for the subset of Asterisk patterns this package writes: ``X``, ``.`` and a character set."""
     body = pattern.removeprefix('_')
@@ -462,17 +492,33 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('exten => _10[123],1,Goto(internal,${EXTEN},1)', extensions)
         self.assertIn('Dial(PJSIP/${DIAL_NUMBER}@trunk,60)', extensions)
 
-    def test_every_auth_aor_and_endpoint_reference_names_a_section_of_the_file(self):
+    def test_every_reference_names_a_section_of_the_type_it_needs(self):
+        """A name that exists as another type is not a reference: `aors=aor101` with `[aor101]` is only caught here."""
         for auth in ('credentials', 'ip'):
             with self.subTest(auth=auth), tempfile.TemporaryDirectory() as directory:
                 pjsip = (self.rendered(directory, LIWAN_TELEPHONY_TRUNK_AUTH=auth) / 'asterisk/pjsip.conf').read_text()
-                sections = set(re.findall(r'^\[([^\]]+)\]', pjsip, re.M))
-                references = set()
-                for line in pjsip.splitlines():
-                    match = re.match(r'^(auth|aors|outbound_auth|endpoint)\s*=\s*(.+)$', line.strip())
-                    if match:
-                        references |= {item for item in re.split(r'[,\s]+', match.group(2).strip()) if item}
-                self.assertEqual(set(), references - sections, f'unresolved references: {sorted(references - sections)}')
+                objects = pjsip_objects(pjsip)
+                wanted = {'auth': 'auth', 'outbound_auth': 'auth', 'aors': 'aor', 'endpoint': 'endpoint'}
+                unresolved = []
+                for sections in objects.values():
+                    for section in sections:
+                        for option, kind in wanted.items():
+                            for name in re.split(r'[,\s]+', section.get(option, '')):
+                                if name and kind not in types_of(objects, name):
+                                    unresolved.append(f'{option}={name} is not a {kind}')
+                self.assertEqual([], sorted(set(unresolved)))
+
+    def test_every_extension_endpoint_registers_to_its_own_number(self):
+        """The registrar matches the To user of a REGISTER against the endpoint's aors list, so a browser endpoint named
+        after its extension must list that same name; anything else leaves the endpoint with no AOR to register into."""
+        for auth in ('credentials', 'ip'):
+            with self.subTest(auth=auth), tempfile.TemporaryDirectory() as directory:
+                pjsip = (self.rendered(directory, LIWAN_TELEPHONY_TRUNK_AUTH=auth) / 'asterisk/pjsip.conf').read_text()
+                objects = pjsip_objects(pjsip)
+                for name in ('101', '102', '103'):
+                    endpoints = [section for section in objects.get(name, []) if section.get('type') == 'endpoint']
+                    self.assertEqual(1, len(endpoints), name)
+                    self.assertIn(name, re.split(r'[,\s]+', endpoints[0]['aors']))
 
     def test_the_plain_sip_extension_exists_for_a_softphone(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -480,7 +526,7 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('[103](endpoint-plain)', pjsip)
         self.assertIn('password=secret-103-value', pjsip)
         self.assertIn('[auth103]', pjsip)
-        self.assertIn('[aor103]', pjsip)
+        self.assertEqual({'endpoint', 'aor'}, types_of(pjsip_objects(pjsip), '103'))
         # 103 must not inherit the WebRTC transport requirements a default Linphone cannot offer.
         plain = pjsip.split('[endpoint-plain](!)', 1)[1].split('[103](endpoint-plain)', 1)[0]
         self.assertNotIn('webrtc=yes', plain)

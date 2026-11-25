@@ -52,7 +52,7 @@ dtmf_mode=rfc4733
 device_state_busy_at=1
 
 [101](endpoint-template)
-aors=aor101
+aors=101
 auth=auth101
 callerid=Extension 101 <101>
 
@@ -62,7 +62,11 @@ auth_type=userpass
 username=101
 password={{EXTENSION_101_PASSWORD}}
 
-[aor101]
+; The AOR carries the extension number, not a name of its own: the registrar matches the endpoint's aors list against
+; the user of the REGISTER's To URI, which is the extension. An AOR called aor101 never matches 101 and the
+; registration is refused with `AOR '' not found for endpoint '101'`. Asterisk holds the sections of different types
+; apart, so the endpoint and this AOR share one name without a conflict.
+[101]
 type=aor
 max_contacts=1
 remove_existing=yes
@@ -72,7 +76,7 @@ default_expiration=120
 maximum_expiration=120
 
 [102](endpoint-template)
-aors=aor102
+aors=102
 auth=auth102
 callerid=Extension 102 <102>
 
@@ -82,7 +86,7 @@ auth_type=userpass
 username=102
 password={{EXTENSION_102_PASSWORD}}
 
-[aor102]
+[102]
 type=aor
 max_contacts=1
 remove_existing=yes
@@ -105,7 +109,7 @@ dtmf_mode=rfc4733
 device_state_busy_at=1
 
 [103](endpoint-plain)
-aors=aor103
+aors=103
 auth=auth103
 callerid=Extension 103 <103>
 
@@ -115,7 +119,7 @@ auth_type=userpass
 username=103
 password={{EXTENSION_103_PASSWORD}}
 
-[aor103]
+[103]
 type=aor
 max_contacts=1
 remove_existing=yes
