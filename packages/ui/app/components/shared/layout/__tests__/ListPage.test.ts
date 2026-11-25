@@ -57,7 +57,7 @@ describe('SharedListPage', () => {
   })
 
   it('draws no create button and no KPI toggle when the frame owns the primary action', async () => {
-    const framed = options({}, { globals: { ...options().globals, useFrameOwnsActions: () => Vue.ref(true) } })
+    const framed = options({}, { globals: { useFrameOwnsActions: () => Vue.ref(true) } })
     const props = { title: 'Tasks', hideHeader: true, createTo: '/tasks/new', kpiToggle: true }
     const html = await renderShared('ListPage', props, {}, framed)
     expect(html).not.toContain('data-shortcut-create')

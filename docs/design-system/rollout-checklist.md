@@ -50,7 +50,7 @@
 - [x] 0.6 تسجيل المكوّن في `STORYBOOK_COMPONENTS` و`LAYER_COMPONENTS` داخل `tools/ui_policy.py`.
 - [x] 0.7 فقرة `SharedRecordHero` في `DESIGN.md` §5 وجملة الفتحة `#kpis` في §6، وسطر في `docs/design-system/components.md`.
 - [x] 0.8 تحويل `meetings/[id].vue` إلى `RecordHero` بلا تغيير بصري، ونقل شريط مؤشرات القائمة إلى `#kpis`.
-- [x] 0.9 الفحوص: `ui_policy` (PASS)، `arch_policy` (PASS)، `packages/ui` (92 ملفًا/734 اختبارًا)، `apps/web` (854/7748)، و`vue-tsc` (PASS بحد ذاكرة 8GB).
+- [x] 0.9 الفحوص: `ui_policy` (PASS)، `arch_policy` (PASS)، `packages/ui` (91 ملفًا/741 اختبارًا)، `apps/web` (854/7748)، و`vue-tsc` (PASS بحد ذاكرة 8GB).
 
 ## الجولات
 

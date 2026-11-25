@@ -14,6 +14,36 @@ const NUMERIC_DURATION = /\bduration-\d/
 const FORBIDDEN_IMPORTS = /(?:apps\/web|@liwan\/contracts|from\s+['"](?:@@?|~~?)\/)/
 
 const GRID_CLASS = 'grid min-w-0 gap-(--liwan-gap-card) lg:grid-flow-col lg:grid-cols-[minmax(0,2fr)] lg:auto-cols-[minmax(0,1fr)]'
+const CARD_BASE = 'flex flex-col justify-between gap-3 rounded-card px-(--liwan-card-pad) py-4'
+const CHIP_BASE = 'hidden size-10 shrink-0 place-items-center rounded-control sm:grid'
+
+const TONE_CLASSES = [
+  [
+    'info',
+    'from-info/10 via-info/[0.03] to-default ring ring-info/25 rtl:bg-linear-270 ltr:bg-linear-90 dark:from-info/15 dark:via-info/5 dark:to-default',
+    'bg-info/15 text-status-info-foreground',
+  ],
+  [
+    'success',
+    'from-success/10 via-success/[0.03] to-default ring ring-success/25 rtl:bg-linear-270 ltr:bg-linear-90 dark:from-success/15 dark:via-success/5 dark:to-default',
+    'bg-status-success-soft text-status-success-foreground',
+  ],
+  [
+    'warning',
+    'from-warning/10 via-warning/[0.03] to-default ring ring-warning/25 rtl:bg-linear-270 ltr:bg-linear-90 dark:from-warning/15 dark:via-warning/5 dark:to-default',
+    'bg-status-warning-soft text-status-warning-foreground',
+  ],
+  [
+    'danger',
+    'from-error/10 via-error/[0.03] to-default ring ring-error/25 rtl:bg-linear-270 ltr:bg-linear-90 dark:from-error/15 dark:via-error/5 dark:to-default',
+    'bg-status-danger-soft text-status-danger-foreground',
+  ],
+  [
+    'neutral',
+    'bg-elevated/40 ring ring-default',
+    'bg-elevated text-muted',
+  ],
+] as const
 
 describe('SharedRecordHero', () => {
   it('stays presentational with logical properties, named radii, and token motion only', () => {
@@ -24,13 +54,7 @@ describe('SharedRecordHero', () => {
     expect(FORBIDDEN_IMPORTS.test(source), 'must not import from apps/web or @liwan/contracts').toBe(false)
   })
 
-  it.each([
-    ['info', ['from-info/10', 'ring-info/25']],
-    ['success', ['from-success/10', 'ring-success/25']],
-    ['warning', ['from-warning/10', 'ring-warning/25']],
-    ['danger', ['from-error/10', 'ring-error/25']],
-    ['neutral', ['bg-elevated/40']],
-  ] as const)('renders tone %s with its surface classes and icon name', async (tone, expectedClasses) => {
+  it.each(TONE_CLASSES)('renders tone %s with its exact surface and icon chip classes', async (tone, surface, chip) => {
     const html = await renderShared(
       'RecordHero',
       { tone, icon: 'i-lucide-calendar-clock' },
@@ -42,11 +66,12 @@ describe('SharedRecordHero', () => {
     )
     expect(html).toContain('data-slot="record-hero"')
     expect(html).toContain(`data-tone="${tone}"`)
+    expect(html).toContain(`class="${CARD_BASE} ${surface}"`)
+    expect(html).toContain(`class="${CHIP_BASE} ${chip}"`)
     expect(html).toContain('name="i-lucide-calendar-clock"')
     expect(html).toContain('2026-10-18')
     expect(html).toContain('Organizer')
     expect(html).toContain('Join')
-    for (const cls of expectedClasses) expect(html).toContain(cls)
   })
 
   it('uses the same flow-col grid for 1, 2, and 3 tiles, and a single full-width card without tiles', async () => {
