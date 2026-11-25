@@ -267,6 +267,7 @@
       "applications": "Applications",
       "releases": "Releases",
       "notPublishedTitle": "This version is not published yet.",
+      "legacyDraft": "An old import that was never validated; import this version again to validate it",
       "toReleases": "Go to releases",
       "glossary": {
         "summary": "The difference between applications, bundles, and plans, in half a minute",

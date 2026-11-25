@@ -25,6 +25,10 @@ function uuid(text: string | undefined): string {
   if (!text || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(text)) throw new Error('UUID required')
   return text
 }
+/** PostgreSQL refused a second row for one unique key: a concurrent import of the same version stored it first. */
+function isUniqueViolation(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === '23505'
+}
 try {
   await migrate(pool)
   if (command === 'bootstrap-owner') {
@@ -68,26 +72,42 @@ try {
     const whyReason = reason(why)
     const sourceSha256 = createHash('sha256').update(source).digest('hex')
     const existing = await pool.query('SELECT id,status,source_sha256 FROM catalog_entries WHERE version=$1', [version])
-    if (existing.rowCount) {
-      const row = existing.rows[0]
+    const importOver = async (row: { id: string; status: string; source_sha256: string }): Promise<void> => {
       // One version stands for one catalog: changed bytes are a new version, never a silent replacement.
       if (row.source_sha256 !== sourceSha256) throw new Error(`catalog version ${version} already exists with different source bytes; import a new version`)
       if (row.status === 'draft') {
         // A draft imported before the check existed: the bytes are the current catalog, so it becomes validated now.
-        await transaction(pool, async (client) => {
-          await client.query("UPDATE catalog_entries SET status='validated' WHERE id=$1 AND status='draft'", [row.id])
+        // The UPDATE re-checks the status, so a draft a concurrent import already lifted writes no second audit event.
+        const lifted = await transaction(pool, async (client) => {
+          const updated = await client.query("UPDATE catalog_entries SET status='validated' WHERE id=$1 AND status='draft' RETURNING id", [row.id])
+          if (!updated.rowCount) return null
           await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'operator', 'catalog.validate', row.id, whyReason])
+          return row.id
         })
-        process.stdout.write(`${row.id}\n`)
+        if (lifted) process.stdout.write(`${lifted}\n`)
+        else {
+          const current = await pool.query('SELECT status FROM catalog_entries WHERE id=$1', [row.id])
+          process.stderr.write(`catalog version ${version} is already ${current.rows[0]?.status ?? row.status}; nothing to do\n`)
+        }
       } else process.stderr.write(`catalog version ${version} is already ${row.status}; nothing to do\n`)
-    } else {
+    }
+    if (existing.rowCount) await importOver(existing.rows[0])
+    else {
       const id = randomUUID()
       const solution = JSON.parse(source.toString('utf8'))
-      await transaction(pool, async (client) => {
-        await client.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'validated',$3,$4)", [id, version, solution, sourceSha256])
-        await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'operator', 'catalog.imported', id, whyReason])
-      })
-      process.stdout.write(`${id}\n`)
+      try {
+        await transaction(pool, async (client) => {
+          await client.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'validated',$3,$4)", [id, version, solution, sourceSha256])
+          await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'operator', 'catalog.imported', id, whyReason])
+        })
+        process.stdout.write(`${id}\n`)
+      } catch (error) {
+        // Two concurrent imports of a new version both passed the SELECT; the loser re-reads the winner's row and reports it through the same branch as a pre-existing one.
+        if (!isUniqueViolation(error)) throw error
+        const raced = await pool.query('SELECT id,status,source_sha256 FROM catalog_entries WHERE version=$1', [version])
+        if (!raced.rowCount) throw error
+        await importOver(raced.rows[0])
+      }
     }
   } else if (command === 'approve-restore') {
     const [tenantText, backupId, why] = args

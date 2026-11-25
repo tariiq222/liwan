@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import ar from '../../../i18n/locales/ar/vendor.json'
 import en from '../../../i18n/locales/en/vendor.json'
-import { catalogActionErrorKey, catalogActionPath, currentCatalogVersion, nextCatalogAction, publishedVersions, sellableTiers, type CatalogVersion } from '../vendorCatalogVersions'
+import { catalogActionErrorKey, catalogActionPath, currentCatalogVersion, legacyDraft, nextCatalogAction, publishedVersions, sellableTiers, type CatalogVersion } from '../vendorCatalogVersions'
 
 const version = (status: CatalogVersion['status'], tiers: NonNullable<CatalogVersion['solution']['tiers']> = [], id = `c-${status}`): CatalogVersion => ({ id, version: '2026.11', status, created_at: '2026-11-01T08:00:00Z', solution: { tiers } })
 
@@ -9,6 +9,20 @@ describe('nextCatalogAction', () => {
   it('publishes a validated version and has no step after publishing', () => {
     expect(nextCatalogAction('validated')).toBe('publish')
     expect(nextCatalogAction('published')).toBeNull()
+  })
+  it('has no step for a legacy draft the database still holds', () => {
+    expect(nextCatalogAction('draft')).toBeNull()
+  })
+})
+
+describe('legacyDraft', () => {
+  it('marks the old draft and only it', () => {
+    expect(legacyDraft('draft')).toBe(true)
+    expect(legacyDraft('validated')).toBe(false)
+    expect(legacyDraft('published')).toBe(false)
+  })
+  it('has a text in both languages', () => {
+    for (const locale of [ar, en]) expect(locale.vendor.catalog.legacyDraft).toBeTruthy()
   })
 })
 

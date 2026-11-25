@@ -30,6 +30,23 @@ describe('/catalog: the offer as it stands', () => {
   })
 })
 
+describe('/catalog/releases: a version with no step', () => {
+  const list = page('catalog/releases/index.vue')
+  const record = page('catalog/releases/[id].vue')
+
+  it('offers the approve link only to a validated row', () => {
+    expect(list).toContain("version.status === 'validated'")
+    expect(list).not.toContain('<NuxtLink v-else :to="path(version)" data-testid="catalog-approve"')
+  })
+
+  it('says a legacy draft has to be imported again, on the list and on the record, with no action', () => {
+    expect(list).toContain('legacyDraft(version.status)')
+    expect(list).toContain("t('vendor.catalog.legacyDraft')")
+    expect(record).toContain('legacyDraft(version.status)')
+    expect(record).toContain("t('vendor.catalog.legacyDraft')")
+  })
+})
+
 describe('/catalog/apps/[app]: one application', () => {
   const src = page('catalog/apps/[app].vue')
 

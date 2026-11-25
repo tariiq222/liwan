@@ -19,10 +19,11 @@ export async function runCatalogCheck({ python, repositoryRoot }: { python: stri
   }
 }
 
-/** The checker names the refusal on stderr (`CATALOG_INVALID ...`); that line is the reason the operator sees. */
+/** The checker names the refusal on stderr (`CATALOG_INVALID ...`); that line is the reason the operator sees, even when a crash trace comes first. */
 function refusalOf(error: unknown): string {
   if (typeof error !== 'object' || error === null) return 'catalog_check.py could not run'
   const { stderr, stdout } = error as { stderr?: unknown; stdout?: unknown }
   const output = String(stderr ?? '').trim() || String(stdout ?? '').trim()
-  return output.split('\n').map(line => line.trim()).find(line => line.length > 0) ?? 'catalog_check.py could not run'
+  const lines = output.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+  return lines.find(line => line.includes('CATALOG_INVALID')) ?? lines[0] ?? 'catalog_check.py could not run'
 }

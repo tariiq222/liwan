@@ -4,7 +4,7 @@ import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { catalogLabel } from '@/utils/catalogLabels'
 import { catalogReturn } from '@/utils/vendorCatalog'
 import { catalogDiff } from '@/utils/catalogDiff'
-import { sellableTiers } from '@/utils/vendorCatalogVersions'
+import { legacyDraft, sellableTiers } from '@/utils/vendorCatalogVersions'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
@@ -52,6 +52,7 @@ const diff = computed(() => {
         <VendorCatalogDiffDetail v-else :diff="diff" />
       </SharedRecordSection>
       <VendorCatalogVersionAction class="mt-6" :version="version" @done="refresh" />
+      <p v-if="legacyDraft(version.status)" class="mt-6 text-sm text-muted" data-testid="catalog-legacy-draft">{{ t('vendor.catalog.legacyDraft') }}</p>
       <VendorCatalogReleaseAction v-if="needsRelease" class="mt-6" :version="version.version" @done="refreshReleases" />
       <UAlert v-if="version.status === 'published'" class="mt-6" color="success" variant="subtle" :title="t('vendor.catalog.publishedTitle')" data-testid="catalog-next-step">
         <template #description><NuxtLink to="/bundles/new" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.toBundles') }}</NuxtLink></template>

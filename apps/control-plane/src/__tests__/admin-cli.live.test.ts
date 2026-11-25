@@ -102,6 +102,11 @@ else describe('admin CLI', () => {
     expect((await pool.query('SELECT status FROM catalog_entries WHERE id=$1', [id])).rows[0].status).toBe('validated')
     expect((await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='catalog.validate' AND subject=$1", [id])).rows[0].count).toBe(1)
 
+    // Once lifted there is nothing left to lift: the second pass reports the status and writes no second event.
+    const again = await runCli(['catalog-import', version, 'legacy draft'], { LIWAN_REPOSITORY_ROOT: repositoryRoot })
+    expect(again.code).toBe(0); expect(again.stderr).toMatch(/already validated; nothing to do/)
+    expect((await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='catalog.validate' AND subject=$1", [id])).rows[0].count).toBe(1)
+
     const other = `cli-other-${randomUUID()}`, otherId = randomUUID()
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'draft','{}',$3)", [otherId, other, 'f'.repeat(64)])
     const refused = await runCli(['catalog-import', other, 'different bytes'], { LIWAN_REPOSITORY_ROOT: repositoryRoot })

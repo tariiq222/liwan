@@ -4,7 +4,7 @@ import { formatBusinessDate } from '@/utils/vendorTime'
 import { elapsedSince, type Elapsed } from '@/utils/vendorHealth'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { catalogDiff, type CatalogDiff } from '@/utils/catalogDiff'
-import { currentCatalogVersion, sellableTiers, type CatalogVersion } from '@/utils/vendorCatalogVersions'
+import { currentCatalogVersion, legacyDraft, sellableTiers, type CatalogVersion } from '@/utils/vendorCatalogVersions'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
 definePageMeta({ capability: 'vendor.read' })
 const { t } = useI18n()
@@ -50,7 +50,8 @@ const columns = computed<TableColumn<CatalogVersion>[]>(() => [
           <span>{{ formatBusinessDate(version.published_at) }}</span>
           <span v-if="actor(version.published_by, 'vendor.catalog.timeline.publishedBy')" class="block text-sm text-muted">{{ actor(version.published_by, 'vendor.catalog.timeline.publishedBy') }}</span>
         </template>
-        <NuxtLink v-else :to="path(version)" data-testid="catalog-approve" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.timeline.approve') }}</NuxtLink>
+        <NuxtLink v-else-if="version.status === 'validated'" :to="path(version)" data-testid="catalog-approve" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.timeline.approve') }}</NuxtLink>
+        <span v-else-if="legacyDraft(version.status)" class="text-sm text-muted" data-testid="catalog-legacy-draft">{{ t('vendor.catalog.legacyDraft') }}</span>
       </template>
       <template #duration-cell="{ row: { original: version } }"><span class="tabular-nums">{{ duration(version) }}</span></template>
       <template #age-cell="{ row: { original: version } }"><span class="tabular-nums">{{ age(version) }}</span></template>
@@ -62,7 +63,8 @@ const columns = computed<TableColumn<CatalogVersion>[]>(() => [
         </div>
         <p class="mt-3 text-sm text-muted">{{ t('vendor.catalog.imported') }}: {{ formatBusinessDate(version.created_at) }}<template v-if="version.imported_by"> · {{ actor(version.imported_by, 'vendor.catalog.timeline.importedBy') }}</template></p>
         <p v-if="version.published_at" class="text-sm text-muted">{{ t('vendor.catalog.timeline.published') }}: {{ formatBusinessDate(version.published_at) }}<template v-if="version.published_by"> · {{ actor(version.published_by, 'vendor.catalog.timeline.publishedBy') }}</template></p>
-        <p v-else class="mt-1 text-sm"><NuxtLink :to="path(version)" data-testid="catalog-approve" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.timeline.approve') }}</NuxtLink></p>
+        <p v-else-if="version.status === 'validated'" class="mt-1 text-sm"><NuxtLink :to="path(version)" data-testid="catalog-approve" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.timeline.approve') }}</NuxtLink></p>
+        <p v-else-if="legacyDraft(version.status)" class="mt-1 text-sm text-muted" data-testid="catalog-legacy-draft">{{ t('vendor.catalog.legacyDraft') }}</p>
         <p class="mt-3 text-sm text-muted">{{ t('vendor.catalog.timeline.duration') }}: <span class="tabular-nums">{{ duration(version) }}</span><template v-if="version.published_at"> · {{ t('vendor.catalog.timeline.age') }}: <span class="tabular-nums">{{ age(version) }}</span></template></p>
         <div class="mt-3"><VendorCatalogDiffChips :diff="diffOf(version)" /></div>
       </template>

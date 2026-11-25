@@ -1,7 +1,7 @@
 import { commercialErrorKey, commercialFailure } from './vendorCommercial'
 
-/** A catalog version as the control plane lists it: imported from the server, then published (import validates it automatically). */
-export type CatalogVersionStatus = 'validated' | 'published'
+/** A catalog version as the control plane lists it: imported from the server, then published (import validates it automatically). A database written before that rule can still hold the old `draft`. */
+export type CatalogVersionStatus = 'draft' | 'validated' | 'published'
 export type CatalogVersionTier = { id: string, name: string, description?: string, modules?: string[], features?: string[], limits?: Record<string, number>, sellable?: boolean }
 export type CatalogVersion = {
   id: string
@@ -19,6 +19,11 @@ export type CatalogVersionAction = 'publish'
 /** The one step that moves a version forward; a published version has none. */
 export function nextCatalogAction(status: CatalogVersionStatus): CatalogVersionAction | null {
   return status === 'validated' ? 'publish' : null
+}
+
+/** A row the console has no step for: imported before import validated the catalog itself, so it holds the old `draft` and only a new import validates it. */
+export function legacyDraft(status: CatalogVersionStatus): boolean {
+  return status !== 'validated' && status !== 'published'
 }
 
 /** The version whose applications are the current offer: the newest published one, else the newest import (the list is newest first). */
