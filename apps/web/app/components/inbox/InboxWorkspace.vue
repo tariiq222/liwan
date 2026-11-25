@@ -16,6 +16,7 @@ import { CONVERSATION_STATE_TONE, CSAT_TONE, INBOX_PRIORITY_TONE } from '@/compo
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
 import { useInboxCatalogEnabled, useInboxChannelCommerce } from '@/composables/inbox/useInboxCatalog'
+import { useInboxConversationKpis } from '@/composables/inbox/useInboxKpis'
 import { useInboxConversation, useInboxConversations, useMarkInboxConversationRead } from '@/composables/inbox/useInbox'
 
 // The inbox page: the page header, then one 24px frame with the conversation list on the inline-start (360px) and the
@@ -60,6 +61,13 @@ const canTryCrm = computed(() => can('crm.leads.work'))
 const example = ref<'closed' | 'message' | 'replied' | 'linked'>('closed')
 const canShowUnassigned = computed(() => hasConversations.value && routeState.value.assignee !== 'unassigned')
 const status = computed(() => error.value instanceof ApiError ? error.value.status : undefined)
+// The KPI strip counts the whole list, so it belongs to the list view: an open conversation keeps the compact header
+// and the thread's own height, and asks for no counts.
+const { shown: kpisShown } = useKpiVisibility()
+const kpis = useInboxConversationKpis(
+  () => ({ q: routeState.value.q, priority: routeState.value.priority, channel: routeState.value.channel, channelId: routeState.value.channelId, departmentId: routeState.value.departmentId, csat: routeState.value.csat, unreadOnly: routeState.value.unreadOnly }),
+  computed(() => hydrated.value && kpisShown.value && !hasSelection.value),
+)
 // Escape leaves the open contact panel for the thread, as it leaves a record page for its list.
 useEscapeBack(() => (panelOpen.value ? threadTo.value : undefined))
 
@@ -71,12 +79,13 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
 
 <template>
   <SharedPageContainer>
-    <SharedPageHeader :title="t('inbox.title')" :compact="hasSelection">
+    <SharedPageHeader :title="t('inbox.title')" :compact="hasSelection" :kpi-toggle="hydrated && !hasSelection">
       <template v-if="can('inbox.channels.manage') || can('inbox.conversations.reply')" #actions>
         <InboxAvailabilitySwitch />
         <UButton v-if="can('inbox.channels.manage')" to="/settings/apps/inbox#channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
       </template>
     </SharedPageHeader>
+    <SharedKpiStrip v-if="hydrated && kpisShown && !hasSelection" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('inbox.kpi.label')" data-testid="inbox-kpi-strip" />
     <SharedRecordSection v-if="firstUse && (canConnectChannel || canTryExample)" variant="panel" :title="t('inbox.firstUse.title')">
       <div class="grid gap-3">
         <p class="text-sm text-muted">{{ t(canConnectChannel && whatsApp ? 'inbox.firstUse.description' : whatsApp ? 'inbox.list.emptyDescription' : 'inbox.list.emptyDescriptionAnyChannel') }}</p>

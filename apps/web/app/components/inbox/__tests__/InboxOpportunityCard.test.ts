@@ -6,8 +6,8 @@ import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 const filename = resolve(import.meta.dirname, '../InboxOpportunityCard.vue')
 const link = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('a', { href: attrs.to }, slots.default?.()) })
 const badge = Vue.defineComponent({ inheritAttrs: false, props: ['label'], setup: props => () => Vue.h('span', { 'data-badge': props.label }) })
-const section = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('section', slots.default?.()) })
-const button = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', { 'data-testid': attrs['data-testid'], disabled: attrs.disabled || undefined }, String(attrs.label)) })
+const section = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('section', [slots.actions?.(), slots.default?.()]) })
+const button = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h(attrs.to ? 'a' : 'button', { 'data-testid': attrs['data-testid'], href: attrs.to, disabled: attrs.disabled || undefined }, String(attrs.label)) })
 const pickList = Vue.defineComponent({ setup: () => () => Vue.h('div', { 'data-testid': 'pick-list' }) })
 
 interface Setup { read?: boolean; write?: boolean; create?: boolean; manualOnly?: boolean; data: unknown; error?: unknown; picking?: boolean }
@@ -39,7 +39,7 @@ const linked = { id: 9, contact_name: 'منى العتيبي', stage: { id: 1, n
 describe('InboxOpportunityCard', () => {
   it('shows the linked opportunity with its stage and status, linking to its page, and an unlink action', async () => {
     const html = await render({ data: { opportunity: linked, hidden: false } })
-    expect(html).toContain('href="/crm/opportunities/9"')
+    expect(html).toMatch(/<a data-testid="inbox-opportunity-open" href="\/crm\/opportunities\/9"/)
     expect(html).toContain('منى العتيبي')
     expect(html).toContain('جديد')
     expect(html).toContain('data-badge="قيد المتابعة"')

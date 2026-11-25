@@ -1,5 +1,6 @@
 import type { AppManifest } from '../types'
 import { inboxAppCard } from './appCard'
+import { inboxSidebar } from './sidebar'
 
 const manifest: AppManifest = {
   id: 'inbox',
@@ -49,8 +50,10 @@ const manifest: AppManifest = {
       { id: 'channels', labelKey: 'inbox.settings.groups.channels', parts: ['channels'] },
     ],
   },
+  sidebar: inboxSidebar,
   appCard: inboxAppCard,
   contextLinks: () => [
+    { id: 'inbox-new-campaign', labelKey: 'inbox.campaigns.new', icon: 'i-lucide-plus', to: '/inbox/campaigns/new', capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns', pinned: true },
     { id: 'inbox-conversations', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-messages-square', to: '/inbox', capability: 'inbox.conversations.read' },
     { id: 'inbox-campaigns', labelKey: 'inbox.nav.campaigns', icon: 'i-lucide-megaphone', to: '/inbox/campaigns', capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },
     { id: 'inbox-reports', labelKey: 'inbox.nav.reports', icon: 'i-lucide-chart-column', to: '/inbox/reports', capability: 'inbox.reports.read', feature: 'inbox.reports' },

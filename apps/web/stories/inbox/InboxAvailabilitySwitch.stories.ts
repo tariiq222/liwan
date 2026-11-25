@@ -15,7 +15,7 @@ const meta = {
   component: InboxAvailabilitySwitch,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/inbox/InboxWorkspace.vue:76', 'مفتاح حالة الموظف في رأس صندوق الوارد: متاح أو غير متاح لاستلام المحادثات الجديدة. يظهر لمن يملك صلاحية الرد فقط، ويسمّي الحالة الفعلية: متاح، غير متاح، أو خارج الدوام.'),
+    ...storyContext('apps/web/app/components/inbox/InboxWorkspace.vue:84', 'مفتاح حالة الموظف في رأس صندوق الوارد: متاح أو غير متاح لاستلام المحادثات الجديدة. يظهر لمن يملك صلاحية الرد فقط، ويسمّي الحالة الفعلية: متاح، غير متاح، أو خارج الدوام.'),
   },
 } satisfies Meta<typeof InboxAvailabilitySwitch>
 export default meta

@@ -13,6 +13,11 @@
       "orders": "Orders",
       "campaigns": "Campaigns"
     },
+    "sidebar": {
+      "work": "Daily work",
+      "outreach": "Outreach",
+      "insight": "Insight"
+    },
     "states": {
       "open": "Open",
       "pending": "Pending",
@@ -1885,7 +1890,13 @@
         }
       },
       "totalIncomplete": "Total is incomplete: a line has no known price.",
-      "manageTemplates": "Manage templates"
+      "manageTemplates": "Manage templates",
+      "kpi": {
+        "label": "Orders summary",
+        "total": "All orders",
+        "cart": "Carts",
+        "ordered": "Placed orders"
+      }
     },
     "campaigns": {
       "title": "Campaigns",
@@ -2235,6 +2246,10 @@
         "tags": "Customer segments",
         "tagsHint": "Tags that audiences select on.",
         "history": "Consent history"
+      },
+      "kpi": {
+        "label": "Campaigns summary",
+        "total": "All campaigns"
       }
     },
     "providerError": {
@@ -2345,6 +2360,7 @@
       "create": "Create opportunity from conversation",
       "created": "Opportunity created and linked",
       "title": "Sales opportunity",
+      "open": "Open opportunity",
       "none": "This conversation is not linked to an opportunity.",
       "hidden": "This conversation is linked to an opportunity you cannot view.",
       "link": "Link an opportunity",
@@ -2405,6 +2421,10 @@
       "resolve": "Resolve",
       "reopen": "Reopen",
       "more": "More actions"
+    },
+    "kpi": {
+      "label": "Conversations summary",
+      "mine": "Assigned to me"
     }
   },
   "errors": {

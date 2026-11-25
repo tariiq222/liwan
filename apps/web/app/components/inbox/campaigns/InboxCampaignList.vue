@@ -43,7 +43,7 @@ const stateItems = computed(() => [{ value: ALL, label: t('inbox.campaigns.filte
 const channelItems = computed(() => [{ value: ALL, label: t('inbox.campaigns.filters.allChannels') }, ...(channels.data.value?.items ?? []).map(item => ({ value: String(item.id), label: item.name }))])
 
 const columns = computed<TableColumn<InboxCampaign>[]>(() => [
-  { accessorKey: 'name', header: t('inbox.settings.name') },
+  { accessorKey: 'name', header: t('inbox.settings.name'), meta: { title: true } },
   { accessorKey: 'state', header: t('inbox.campaigns.columns.state'), meta: { class: { th: 'w-[130px]', td: 'w-[130px]' } } },
   { accessorKey: 'channel', header: t('inbox.campaigns.columns.channel') },
   { accessorKey: 'template', header: t('inbox.campaigns.columns.template') },
@@ -87,7 +87,10 @@ const createTo = computed(() => ({ path: '/inbox/campaigns/new', query: route.qu
         </template>
       </SharedEmptyState>
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="rowTo" :loading="list.isLoading.value" :caption="t('inbox.campaigns.title')">
-        <template #name-cell="{ row }"><span class="font-semibold text-highlighted" :data-testid="`inbox-campaign-row-${row.original.id}`">{{ row.original.name }}</span></template>
+        <template #name-cell="{ row }">
+          <span class="block min-w-0 truncate font-semibold text-highlighted" :data-testid="`inbox-campaign-row-${row.original.id}`">{{ row.original.name }}</span>
+          <SharedRecordNumber class="mt-0.5" :value="`#${row.original.id}`" />
+        </template>
         <template #state-cell="{ row }"><SharedStatusBadge size="sm" :tone="CAMPAIGN_STATE_TONE[row.original.state]" :label="t(`inbox.campaigns.states.${row.original.state}`)" /></template>
         <template #channel-cell="{ row }">{{ row.original.channel.name }}</template>
         <template #template-cell="{ row }">
