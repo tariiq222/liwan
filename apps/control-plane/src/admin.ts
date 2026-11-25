@@ -5,6 +5,7 @@ import { Pool } from 'pg'
 import { getConfig } from './config.js'
 import { migrate, transaction } from './db.js'
 import { readKnownSource } from './shared/catalog-source.js'
+import { runCatalogCheck } from './shared/catalog-check.js'
 import { lockOwners, normalizeEmail } from './admin-auth/accounts.js'
 import { assertLoopbackDatabase, ensureDevOwner } from './admin-auth/dev-owner.js'
 import { inviteAccount, issueReset } from './admin-auth/enrollment.js'
@@ -62,13 +63,32 @@ try {
     const at = args.indexOf('--source')
     const resolved = await readKnownSource(config.repositoryRoot, at >= 0 ? args[at + 1] : undefined)
     const source = resolved.bytes
-    const solution = JSON.parse(source.toString('utf8'))
-    const id = randomUUID()
-    await transaction(pool, async (client) => {
-      await client.query('INSERT INTO catalog_entries(id,version,solution,source_sha256) VALUES($1,$2,$3,$4)', [id, version, solution, createHash('sha256').update(source).digest('hex')])
-      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),'operator','catalog.imported',id,reason(why)])
-    })
-    process.stdout.write(`${id}\n`)
+    // Import validates itself: a catalog the repository check refuses is never stored, and publish runs the same check again.
+    await runCatalogCheck({ python: config.python, repositoryRoot: config.repositoryRoot })
+    const whyReason = reason(why)
+    const sourceSha256 = createHash('sha256').update(source).digest('hex')
+    const existing = await pool.query('SELECT id,status,source_sha256 FROM catalog_entries WHERE version=$1', [version])
+    if (existing.rowCount) {
+      const row = existing.rows[0]
+      // One version stands for one catalog: changed bytes are a new version, never a silent replacement.
+      if (row.source_sha256 !== sourceSha256) throw new Error(`catalog version ${version} already exists with different source bytes; import a new version`)
+      if (row.status === 'draft') {
+        // A draft imported before the check existed: the bytes are the current catalog, so it becomes validated now.
+        await transaction(pool, async (client) => {
+          await client.query("UPDATE catalog_entries SET status='validated' WHERE id=$1 AND status='draft'", [row.id])
+          await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'operator', 'catalog.validate', row.id, whyReason])
+        })
+        process.stdout.write(`${row.id}\n`)
+      } else process.stderr.write(`catalog version ${version} is already ${row.status}; nothing to do\n`)
+    } else {
+      const id = randomUUID()
+      const solution = JSON.parse(source.toString('utf8'))
+      await transaction(pool, async (client) => {
+        await client.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'validated',$3,$4)", [id, version, solution, sourceSha256])
+        await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'operator', 'catalog.imported', id, whyReason])
+      })
+      process.stdout.write(`${id}\n`)
+    }
   } else if (command === 'approve-restore') {
     const [tenantText, backupId, why] = args
     const tenantId = uuid(tenantText)
