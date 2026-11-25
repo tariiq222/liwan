@@ -59,7 +59,7 @@ On a host run by `deploy/release/release.py` (staging, production), do steps 1 a
 3. Render: `docker compose -f deploy/control-plane/compose.production.yml -f deploy/control-plane/compose.host-link.yml --env-file <compose env> config`.
 4. Database: `... up -d control-db`, wait for healthy.
 5. Migrate: `... --profile migrate run --rm control-migrate`. It must exit 0.
-6. Bootstrap the owner: `... --profile admin run --rm control-admin bootstrap-owner <email> "<name>" "<reason>"`. It prints a one-time enrollment link; hand it over directly, never through chat. Then `catalog-import <version> "<reason>"` and validate and publish the catalog in the console.
+6. Bootstrap the owner: `... --profile admin run --rm control-admin bootstrap-owner <email> "<name>" "<reason>"`. It prints a one-time enrollment link; hand it over directly, never through chat. Then `catalog-import <version> "<reason>"`, which validates the catalog itself, and publish the catalog in the console.
 7. Start the API: `... up -d control-api`. Check health (below).
 8. Shared worker: install the unit (`liwan-shared-worker.service` header) before the first release and do not start it; the release `commit` step starts it. After the API is up (so the internal effect certificate is in use), check `systemctl is-active liwan-shared-worker` and watch for `commercial_scheduler_tick` in `journalctl -u liwan-shared-worker`.
 9. Start the console: `... up -d vendor-console`.

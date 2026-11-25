@@ -37,15 +37,14 @@ import { requestSharedJobRecovery, UnsupportedRecoveryOperation } from './shared
 import { requestSharedJobAbandon, UnsupportedAbandonOperation } from './shared/job-abandon.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { requirePublishableSource } from './shared/catalog-source.js'
+import { runCatalogCheck } from './shared/catalog-check.js'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer } from 'node:https'
-import { execFile } from 'node:child_process'
 import { isIP } from 'node:net'
 import { clientAddressBucket } from './client-address-bucket.js'
 import { isPublicSiteEndpoint, PUBLIC_CONTACT_BODY_LIMIT, publicSiteHandler } from './public-site/http.js'
-import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
 import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, sharedBackupListSchema, sharedRestoreApprovalRequestSchema, sharedRestoreApprovalSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
@@ -54,7 +53,6 @@ import { hasUnresolvedMutation, transaction } from './db.js'
 import { publishRegistryMutation, recoverRegistry, RegistryError, registryMutationSchema } from './shared/registry-store.js'
 import { logText } from './log-text.js'
 
-const exec = promisify(execFile)
 // No shared durable publisher/fenced adapter is wired. Never fall back to the
 // dedicated inventory in a shared (or misspelled) process configuration.
 export function dedicatedExecutionEnabled(): boolean {
@@ -706,33 +704,43 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       if (pathname === '/v1/catalog' && method === 'GET') {
         requireCapability(auth, 'vendor.read')
-        const result = await pool.query('SELECT id,version,status,solution,created_at FROM catalog_entries ORDER BY created_at DESC')
-        return respond(res, 200, { items: result.rows, total: result.rowCount })
+        const result = await pool.query('SELECT id,version,status,solution,created_at,published_at FROM catalog_entries ORDER BY created_at DESC')
+        // Who imported and who published, in one query for the whole page: a vendor account resolves to its display
+        // name, any other actor (the operator) stays as stored.
+        const events = result.rowCount
+          ? await pool.query(`SELECT DISTINCT ON (a.subject,a.action) a.subject,a.action,COALESCE(v.display_name,a.actor) AS actor
+              FROM audit_events a LEFT JOIN vendor_accounts v ON a.actor='account:'||v.id
+              WHERE a.subject=ANY($1::text[]) AND a.action IN ('catalog.imported','catalog.publish')
+              ORDER BY a.subject,a.action,a.created_at DESC,a.id DESC`, [result.rows.map(row => String(row.id))])
+          : { rows: [] }
+        const actors = new Map(events.rows.map(row => [`${row.subject}:${row.action}`, String(row.actor)]))
+        return respond(res, 200, {
+          items: result.rows.map(row => ({ ...row, imported_by: actors.get(`${row.id}:catalog.imported`) ?? null, published_by: actors.get(`${row.id}:catalog.publish`) ?? null })),
+          total: result.rowCount,
+        })
       }
-      const catalogMatch = pathname.match(new RegExp(`^/v1/catalog/(${UUID})/(validate|publish)$`))
+      const catalogMatch = pathname.match(new RegExp(`^/v1/catalog/(${UUID})/publish$`))
       if (catalogMatch && method === 'POST') {
         requireCapability(auth, 'vendor.catalog.manage')
         const input = parseJson(raw, reasonRequestSchema)
+        requireStepUp(auth)
         const id = catalogMatch[1]
-        const action = catalogMatch[2]
-        if (action === 'publish') requireStepUp(auth)
-        const current = await pool.query('SELECT status,source_sha256,solution FROM catalog_entries WHERE id=$1', [id])
+        const current = await pool.query('SELECT status,source_sha256 FROM catalog_entries WHERE id=$1', [id])
         if (!current.rowCount) throw new ApiError(404, 'not_found', 'Catalog entry not found')
-        if (current.rows[0].status !== (action === 'validate' ? 'draft' : 'validated')) throw new ApiError(409, 'conflict', 'Catalog transition is unavailable')
-        // A8: both transitions re-check the source, not only import. An entry stored from a catalog file that has since
+        if (current.rows[0].status !== 'validated') throw new ApiError(409, 'conflict', 'Catalog transition is unavailable')
+        // A8: publish re-checks the source, not only import. An entry stored from a catalog file that has since
         // changed, or from an earlier catalog that is no longer the publishable one, would publish a version that sells
-        // nothing (or the wrong thing); refuse it with the same code the import uses. Publish re-checks because
-        // validation may be long past.
+        // nothing (or the wrong thing); refuse it with the same code the import uses.
         try { await requirePublishableSource(config.repositoryRoot, current.rows[0].source_sha256) }
         catch { throw new ApiError(409, 'catalog_source_not_publishable', 'Catalog source is no longer publishable; import a new version') }
-        if (action === 'validate') {
-          try { await exec(config.python, ['-B', join(config.repositoryRoot, 'tools/catalog_check.py'), '--root', config.repositoryRoot], { cwd: config.repositoryRoot, timeout: 60000, maxBuffer: 65536 }) }
-          catch { throw new ApiError(422, 'catalog_invalid', 'Trusted catalog validation failed') }
-        }
+        // Validation may be long past and the repository can have moved on: re-run the check so a stale or broken
+        // catalog is never published, and let the row stay exactly as it is.
+        try { await runCatalogCheck(config) }
+        catch { throw new ApiError(422, 'catalog_invalid', 'Trusted catalog validation failed') }
         const result = await transaction(pool, async (client) => {
-          const row = await client.query('UPDATE catalog_entries SET status=$1,published_at=CASE WHEN $1=$2 THEN now() ELSE published_at END WHERE id=$3 AND status=$4 RETURNING id,version,status,solution,created_at', [action === 'validate' ? 'validated' : 'published', 'published', id, action === 'validate' ? 'draft' : 'validated'])
+          const row = await client.query("UPDATE catalog_entries SET status='published',published_at=now() WHERE id=$1 AND status='validated' RETURNING id,version,status,solution,created_at,published_at", [id])
           if (!row.rowCount) throw new ApiError(409, 'conflict', 'Catalog changed concurrently')
-          await audit(client, auth.actor, `catalog.${action}`, id, input.reason)
+          await audit(client, auth.actor, 'catalog.publish', id, input.reason)
           return row.rows[0]
         })
         return respond(res, 200, result)

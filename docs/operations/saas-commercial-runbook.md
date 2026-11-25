@@ -142,7 +142,7 @@ npm -w apps/vendor-admin run dev -- --port 3100
 
 شرح المتغيرات وحدود التطبيق في `apps/vendor-admin/README.md`.
 
-أوامر admin أخرى: `catalog-import <version> <reason>`، `approve-restore <tenant_uuid> <op_backup_id> <reason>` (موافقة ساعة واحدة).
+أوامر admin أخرى: `catalog-import <version> <reason>` (يستورد الكاتالوج ويتحقق منه في نفس التشغيل، والخطوة اليدوية الوحيدة هي النشر)، `approve-restore <tenant_uuid> <op_backup_id> <reason>` (موافقة ساعة واحدة).
 
 ## 4. إجراءات التشغيل
 
