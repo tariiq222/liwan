@@ -53,14 +53,13 @@ describe('the Plan 6d pages stay on their templates', () => {
     expect(source).toContain('#mobile-row')
   })
 
-  // The title column takes the width the other columns leave; without the flag the narrow `#` column would take it and
-  // the name would truncate (DESIGN.md §6, DataTable's `meta.title`).
+  // The title column takes the width the other columns leave; without the flag a narrow leading column (the audit
+  // table's row number) would take it and the real title would truncate (DESIGN.md §6, DataTable's `meta.title`).
   it.each([
     ['components/access/users/UserTable.vue', 'name'],
     ['components/access/roles/RoleTable.vue', 'name'],
     ['components/access/audit/AuditTable.vue', 'occurred_at'],
     ['pages/settings/system/storage.vue', 'name'],
-    ['pages/subscription/invoices/index.vue', 'number'],
   ])('%s flags its title column so a record number keeps its width', (file, key) => {
     const column = read(file).split('\n').find(line => line.includes(`accessorKey: '${key}'`) || line.includes(`id: '${key}'`))
     expect(column, `${file} has a ${key} column`).toBeTruthy()

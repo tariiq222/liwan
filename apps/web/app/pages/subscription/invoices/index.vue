@@ -14,7 +14,7 @@ const printTo = (inv: (typeof items.value)[number]) => `/subscription/invoices/p
 const printLabel = (inv: (typeof items.value)[number]) => t('subscription.invoices.print.rowAction', { number: inv.number ?? inv.id })
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'number', header: t('commercial.invoice.number'), meta: { title: true, class: { th: 'min-w-40', td: 'max-w-0' } } },
+  { id: 'number', header: t('commercial.invoice.number'), meta: { class: { th: 'min-w-40', td: 'max-w-0' } } },
   { id: 'period', header: t('commercial.invoice.period'), meta: { class: { th: 'w-52', td: 'w-52 whitespace-nowrap' } } },
   { id: 'status', header: t('commercial.invoice.status'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
   { id: 'total', header: t('commercial.invoice.total'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },

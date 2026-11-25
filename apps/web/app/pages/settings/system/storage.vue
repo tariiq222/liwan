@@ -98,7 +98,7 @@ const stateLabel = (overLimit: boolean) => t(overLimit ? 'settings.storage.overL
         </template>
         <SharedEmptyState icon="i-lucide-hard-drive" v-if="inventory && !rows.length" class="m-(--liwan-card-pad)" :title="t('settings.storage.empty')" />
         <SharedDataTable v-else bare :rows="rows" :columns="columns" row-key="id" :caption="t('settings.storage.title')" :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch()">
-          <template #name-cell="{ row }"><bdi class="break-words font-medium">{{ row.original.name }}</bdi></template>
+          <template #name-cell="{ row }"><bdi :title="row.original.name" class="font-medium">{{ row.original.name }}</bdi></template>
           <template #size_bytes-cell="{ row }">{{ bytes(row.original.size_bytes) }}</template>
           <template #created_at-cell="{ row }">{{ createdAt(row.original.created_at) }}</template>
           <template #over_limit-cell="{ row }"><SharedStatusBadge :tone="row.original.over_limit ? 'warning' : 'neutral'" :label="stateLabel(row.original.over_limit)" /></template>
