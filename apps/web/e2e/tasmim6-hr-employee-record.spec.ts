@@ -99,12 +99,26 @@ test.describe('Plan 6b: the employee record', () => {
   test.describe('phone', () => {
     test.use({ viewport: { width: 390, height: 844 } })
 
-    test('on a 390px phone the properties follow the sections and the page fits', async ({ page }) => {
+    test('on a 390px phone the identity card leads, the properties aside carries the account and compensation blocks, and the page fits', async ({ page }) => {
       await open(page, '/hr/employees/1')
       expect(await fitsWidth(page)).toBe(true)
-      const sectionTop = await page.getByRole('heading', { level: 2, name: 'الحساب' }).evaluate(node => node.getBoundingClientRect().top)
-      const asideTop = await page.getByRole('complementary', { name: 'الخصائص' }).evaluate(node => node.getBoundingClientRect().top)
-      expect(asideTop).toBeGreaterThan(sectionTop)
+      const identity = page.locator('[data-slot="identity-card"]')
+      await expect(identity).toBeVisible()
+      const aside = page.getByRole('complementary', { name: 'الخصائص' })
+      await expect(aside.getByRole('heading', { level: 2, name: 'الحساب' })).toBeVisible()
+      const compensation = aside.getByRole('heading', { level: 2, name: 'التعويضات' })
+      if (await compensation.count()) await expect(compensation).toBeVisible()
+      const order = await page.evaluate(() => {
+        const card = document.querySelector('[data-slot="identity-card"]')
+        const properties = document.querySelector('[role="complementary"][aria-label="الخصائص"]')
+        if (!card || !properties) return { cardAboveAside: false, asideAfterCard: false }
+        return {
+          cardAboveAside: card.getBoundingClientRect().top < properties.getBoundingClientRect().top,
+          asideAfterCard: Boolean(card.compareDocumentPosition(properties) & Node.DOCUMENT_POSITION_FOLLOWING),
+        }
+      })
+      expect(order.cardAboveAside).toBe(true)
+      expect(order.asideAfterCard).toBe(true)
     })
   })
 })
