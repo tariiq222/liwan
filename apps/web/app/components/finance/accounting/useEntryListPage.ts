@@ -37,7 +37,8 @@ export function useEntryListPage(background = false) {
       shown,
       label: t('financeAccounting.kpi.label'),
       tiles: computed(() => entryKpiTiles(filters.value, counts.value, t)),
-      loading: computed(() => summary.data.value === undefined),
+      loading: computed(() => summary.isPending.value),
+      error: computed(() => summary.isError.value),
     },
     allowed,
   })

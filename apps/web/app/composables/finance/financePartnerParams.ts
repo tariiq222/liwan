@@ -1,6 +1,3 @@
-import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
-import { financeListKpiTiles } from '../../utils/financeKpis'
-
 export const FINANCE_PARTNER_PAGE_SIZE = 25
 export const FINANCE_PARTNER_KINDS = ['customer', 'vendor'] as const
 export type FinancePartnerKind = typeof FINANCE_PARTNER_KINDS[number]
@@ -43,17 +40,4 @@ export function partnerListQuery(state: FinancePartnerListState): Record<string,
 /** The kind of a partner row as the badges it shows; a partner may be both. */
 export function partnerKinds(partner: { customer: boolean; vendor: boolean }): FinancePartnerKind[] {
   return FINANCE_PARTNER_KINDS.filter(kind => (kind === 'customer' ? partner.customer : partner.vendor))
-}
-
-/** The two tiles above the partners list: the active and the archived directory under the typed search and kind. */
-export function partnerKpiTiles(filters: Pick<FinancePartnerListState, 'q' | 'kind'>, counts: Record<'active' | 'archived', number | undefined>, t: (key: string) => string): KpiTile[] {
-  return financeListKpiTiles(
-    [
-      { id: 'active', label: t('finance.partners.status.active'), icon: 'i-lucide-user-check', tone: 'success' },
-      { id: 'archived', label: t('finance.partners.status.archived'), icon: 'i-lucide-archive', tone: 'neutral', query: { archived: '1' } },
-    ],
-    counts,
-    '/finance/partners',
-    { q: filters.q, kind: filters.kind ?? undefined },
-  )
 }

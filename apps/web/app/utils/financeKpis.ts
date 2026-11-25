@@ -72,7 +72,7 @@ export function financeStateTiles(
  * The tiles of a finance list. Every tile links to the list with its own base filters and its state; a state tile
  * clears back to the list's total. `counts` holds the server total of each tile, never a count of the loaded page:
  * a list with a `/summary` endpoint (invoices, entries, budgets, assets) fills them from one summary request; a list
- * without one (partners) asks its list endpoint once per tile with `limit=1` and reads `total`.
+ * without one asks its list endpoint once per tile with `limit=1` and reads `total`.
  */
 export function financeListKpiTiles(
   tiles: readonly FinanceListTile[],

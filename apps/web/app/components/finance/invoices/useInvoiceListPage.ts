@@ -38,7 +38,8 @@ export function useInvoiceListPage(moveType: FinanceMoveType, background = false
       shown,
       label: t('financeDocuments.kpi.label'),
       tiles: computed(() => invoiceKpiTiles(moveType, filters.value, counts.value, t)),
-      loading: computed(() => summary.data.value === undefined),
+      loading: computed(() => summary.isPending.value),
+      error: computed(() => summary.isError.value),
     },
     allowed,
   })

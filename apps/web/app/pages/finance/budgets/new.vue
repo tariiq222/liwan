@@ -10,7 +10,7 @@ const page = useBudgetCreatePage()
 <template>
   <SharedListPage v-bind="page.list.header">
     <template v-if="page.list.allowed" #kpis>
-      <SharedKpiStrip v-if="page.list.kpis.shown" :tiles="page.list.kpis.tiles" :loading="page.list.kpis.loading" :label="page.list.kpis.label" data-testid="finance-budget-kpis" />
+      <SharedKpiStrip v-if="page.list.kpis.shown && !page.list.kpis.error" :tiles="page.list.kpis.tiles" :loading="page.list.kpis.loading" :label="page.list.kpis.label" data-testid="finance-budget-kpis" />
     </template>
     <BudgetList background />
   </SharedListPage>

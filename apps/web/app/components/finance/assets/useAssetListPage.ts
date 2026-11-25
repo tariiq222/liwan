@@ -37,7 +37,8 @@ export function useAssetListPage(background = false) {
       shown,
       label: t('financeAssets.kpi.label'),
       tiles: computed(() => assetKpiTiles(filters.value, counts.value, t)),
-      loading: computed(() => summary.data.value === undefined),
+      loading: computed(() => summary.isPending.value),
+      error: computed(() => summary.isError.value),
     },
     allowed,
   })

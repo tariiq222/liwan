@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BANK_PAGE_SIZE, bankActiveFilterCount, bankFiltersFromQuery, bankListParams } from '../bankListParams'
+import { BANK_PAGE_SIZE, bankActiveFilterCount, bankFiltersFromQuery, bankKpiParams, bankKpiTiles, bankListParams } from '../bankListParams'
 
 describe('bank list filters from the URL', () => {
   it('reads the supported filters', () => {
@@ -20,5 +20,25 @@ describe('bank list params', () => {
     expect(bankListParams({ journalId: null, dateFrom: null, dateTo: null, page: 1 })).toEqual({ limit: BANK_PAGE_SIZE, offset: 0 })
     expect(bankListParams({ journalId: 3, dateFrom: '2026-01-01', dateTo: null, page: 3 }))
       .toEqual({ journal_id: 3, date_from: '2026-01-01', limit: BANK_PAGE_SIZE, offset: 2 * BANK_PAGE_SIZE })
+  })
+
+  it('asks the KPI counts for one row, with the filters or without', () => {
+    const filters = { journalId: 3, dateFrom: null, dateTo: null, page: 4 }
+    expect(bankKpiParams(filters)).toEqual({ journal_id: 3, limit: 1, offset: 0 })
+    expect(bankKpiParams(null)).toEqual({ limit: 1, offset: 0 })
+  })
+
+  it('shows the filtered tile only while a filter applies, linking it back to all statements', () => {
+    const all = bankFiltersFromQuery({})
+    const allTiles = bankKpiTiles(all, { all: 6, filtered: undefined }, id => id)
+    expect(allTiles.map(tile => [tile.id, tile.value, tile.to])).toEqual([['all', 6, '/finance/bank/statements']])
+    expect(allTiles[0]).not.toHaveProperty('clearTo')
+
+    const filters = bankFiltersFromQuery({ journal_id: '3', date_from: '2026-01-01' })
+    const tiles = bankKpiTiles(filters, { all: 6, filtered: 2 }, id => id)
+    expect(tiles.map(tile => [tile.id, tile.value])).toEqual([['all', 6], ['filtered', 2]])
+    expect(tiles[0]).toMatchObject({ to: '/finance/bank/statements' })
+    expect(tiles[1]).toMatchObject({ to: '/finance/bank/statements?journal_id=3&date_from=2026-01-01', clearTo: '/finance/bank/statements' })
+    expect(bankKpiTiles(filters, { all: undefined, filtered: undefined }, id => id)[0]?.value).toBeNull()
   })
 })

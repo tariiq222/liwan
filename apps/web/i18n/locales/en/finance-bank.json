@@ -11,6 +11,11 @@
     "differencePill": "Balance difference",
     "linesTitle": "Statement lines",
     "noLines": "This statement has no lines.",
+    "kpi": {
+      "label": "Statement figures",
+      "all": "All statements",
+      "filtered": "Statements matching the filters"
+    },
     "filters": {
       "journal": "Journal",
       "allJournals": "All journals",

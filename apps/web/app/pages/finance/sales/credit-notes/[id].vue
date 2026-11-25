@@ -18,10 +18,10 @@ const record = useInvoiceRecord('out_refund')
         icon="i-lucide-file-text"
         :tone="INVOICE_STATE_TONE[record.invoice.state]"
         :title="record.title"
-        :facts="[
-          { icon: 'i-lucide-contact', label: t('financeDocuments.kinds.out_refund.partner'), value: record.invoice.partner?.name },
-          { icon: 'i-lucide-calendar', label: t('financeDocuments.columns.date'), value: record.invoice.invoice_date },
-        ]"
+        :status="t(`financeDocuments.states.${record.invoice.state}`)"
+        :amount="record.invoice.state === 'posted'
+          ? { label: t('financeDocuments.record.residual'), value: record.invoice.amount_residual, currency: record.invoice.currency }
+          : { label: t('financeDocuments.record.total'), value: record.invoice.amount_total, currency: record.invoice.currency }"
         data-testid="finance-invoice-hero"
       />
     </template>

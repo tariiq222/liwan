@@ -18,10 +18,8 @@ const record = useEntryRecord()
         icon="i-lucide-notebook-pen"
         :tone="ENTRY_STATE_TONE[record.entry.state]"
         :title="record.title"
-        :facts="[
-          { icon: 'i-lucide-book-open', label: t('financeAccounting.columns.journal'), value: record.entry.journal.name },
-          { icon: 'i-lucide-calendar', label: t('financeAccounting.columns.date'), value: record.entry.date },
-        ]"
+        :status="t(`financeAccounting.states.${record.entry.state}`)"
+        :amount="{ label: t('financeAccounting.columns.total'), value: record.entry.amount_total, currency: record.entry.currency }"
         data-testid="finance-entry-hero"
       />
     </template>

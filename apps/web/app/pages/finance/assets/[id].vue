@@ -18,10 +18,8 @@ const record = useAssetRecord()
         icon="i-lucide-package"
         :tone="ASSET_STATE_TONE[record.asset.state]"
         :title="record.asset.name"
-        :facts="[
-          { icon: 'i-lucide-contact', label: t('financeAssets.record.partner'), value: record.asset.partner?.name },
-          { icon: 'i-lucide-calendar', label: t('financeAssets.columns.dateStart'), value: record.asset.date_start },
-        ]"
+        :status="t(`financeAssets.states.${record.asset.state}`)"
+        :amount="{ label: t('financeAssets.columns.valueResidual'), value: record.asset.value_residual, currency: record.asset.currency }"
         data-testid="finance-asset-hero"
       />
     </template>

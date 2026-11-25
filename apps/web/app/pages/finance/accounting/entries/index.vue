@@ -8,7 +8,7 @@ const page = useEntryListPage()
 <template>
   <SharedListPage v-bind="page.header">
     <template v-if="page.allowed" #kpis>
-      <SharedKpiStrip v-if="page.kpis.shown" :tiles="page.kpis.tiles" :loading="page.kpis.loading" :label="page.kpis.label" data-testid="finance-entry-kpis" />
+      <SharedKpiStrip v-if="page.kpis.shown && !page.kpis.error" :tiles="page.kpis.tiles" :loading="page.kpis.loading" :label="page.kpis.label" data-testid="finance-entry-kpis" />
     </template>
     <EntryList />
   </SharedListPage>

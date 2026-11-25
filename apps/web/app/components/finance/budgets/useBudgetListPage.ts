@@ -37,7 +37,8 @@ export function useBudgetListPage(background = false) {
       shown,
       label: t('financeBudgets.kpi.label'),
       tiles: computed(() => budgetKpiTiles(filters.value, counts.value, t)),
-      loading: computed(() => summary.data.value === undefined),
+      loading: computed(() => summary.isPending.value),
+      error: computed(() => summary.isError.value),
     },
     allowed,
   })

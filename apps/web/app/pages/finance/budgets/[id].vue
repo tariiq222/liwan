@@ -3,7 +3,6 @@ import FinanceRecordHero from '@/components/finance/FinanceRecordHero.vue'
 import BudgetRecordActions from '@/components/finance/budgets/BudgetRecordActions.vue'
 import BudgetRecordAside from '@/components/finance/budgets/BudgetRecordAside.vue'
 import BudgetRecordBody from '@/components/finance/budgets/BudgetRecordBody.vue'
-import { budgetPeriod } from '@/components/finance/budgets/budgetPaths'
 import { BUDGET_STATE_TONE } from '@/components/finance/budgets/budgetTones'
 import { useBudgetRecord } from '@/components/finance/budgets/useBudgetRecord'
 
@@ -19,7 +18,7 @@ const record = useBudgetRecord()
         icon="i-lucide-target"
         :tone="BUDGET_STATE_TONE[record.budget.state]"
         :title="record.title"
-        :facts="[{ icon: 'i-lucide-calendar-range', label: t('financeBudgets.columns.period'), value: budgetPeriod(record.budget) }]"
+        :status="t(`financeBudgets.states.${record.budget.state}`)"
         data-testid="finance-budget-hero"
       />
     </template>
