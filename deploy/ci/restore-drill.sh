@@ -60,7 +60,7 @@ curl -fsS -o /dev/null -w '%{http_code}\n' "http://127.0.0.1:$ODOO_PORT/web/heal
 kill "$SERVER_PID"; wait "$SERVER_PID" || true; SERVER_PID=
 missing="$(psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$RST_DB" -At -v ON_ERROR_STOP=1 -c 'SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1')"
 test -n "$missing"
-rm "$W/backup/filestore/$missing"
+rm "$W/backup/objects/$missing"
 if verify "$RST2_DB"; then echo "negative case passed unexpectedly"; exit 1; fi
-python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["restore_verified"] is False; assert sys.argv[2] in r["checks"]["missing_attachment_files"]' "$W/backup/restore-verification.json" "$missing"
+python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["restore_verified"] is False; assert sys.argv[2] in r["checks"]["missing_objects"]; assert sys.argv[2] in r["checks"]["missing_attachment_files"]' "$W/backup/restore-verification.json" "$missing"
 cmp "$W/original-manifest.json" "$W/backup/manifest.json"
