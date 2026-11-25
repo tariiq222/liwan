@@ -86,6 +86,8 @@ What bring-up must provide (nothing here edits Compose or host files):
 
 The provisioning identity can mint a key for any tenant and delete any bucket; an OCI Audit alert on IAM operations and bucket
 deletion is a condition before production, and the backup target belongs to another compartment under another identity.
+Its own grant is `manage policies in compartment id <the storage compartment>` (the bucket compartment, `OCI_COMPARTMENT_OCID`),
+never the tenancy root: each tenant's policy is created there, and a tenancy-level grant leaves `ensure` answering `oci_refused`.
 
 ## Effect gate
 
