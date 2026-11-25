@@ -9,6 +9,7 @@ import CustomerTable from './CustomerTable.vue'
 // pager. The filters live in the URL query, so a record and the browser's Back return to the same list. `background` is
 // the list behind the create panel: it reads its filters from the panel's returnTo. The page owns the SharedListPage shell.
 const props = defineProps<{ background?: boolean }>()
+const emit = defineEmits<{ 'update:total': [value: number | undefined] }>()
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
@@ -18,6 +19,7 @@ const state = computed(() => parseCustomerListQuery(filterQuery.value))
 const query = useCustomers(state)
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+watch(() => query.data.value?.total, value => emit('update:total', value), { immediate: true })
 const pages = computed(() => Math.max(1, Math.ceil(total.value / CUSTOMER_PAGE_SIZE)))
 useLastPageClamp({ page: () => state.value.page, total: () => query.data.value?.total, pageSize: CUSTOMER_PAGE_SIZE })
 const activeCount = computed(() => Number(Boolean(state.value.q)))

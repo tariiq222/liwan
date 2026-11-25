@@ -1,4 +1,5 @@
 import type { AppManifest } from '../types'
+import { productsSidebar } from './sidebar'
 
 // Products is a shared service with a list of its own and a settings page. The tenant does not buy it: the server derives
 // `products.enabled` from the applications that use products and carries it in the platform features while the service is
@@ -9,6 +10,7 @@ const manifest: AppManifest = {
   id: 'products',
   feature: 'products.enabled',
   routePrefixes: ['/products'],
+  sidebar: productsSidebar,
   appCard: { category: 'sales', plan: 'included', surface: 'sand' },
   rail: [{ id: 'products', labelKey: 'products.title', icon: 'i-lucide-package', to: '/products', order: 89 }],
   nav: [{ to: '/products', labelKey: 'products.title', icon: 'i-lucide-package', shortcut: '', capability: 'products.read' }],

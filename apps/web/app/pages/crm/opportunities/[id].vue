@@ -302,6 +302,18 @@ async function assign() {
 // Disabled until hydrated, so a first click on the server-rendered page is never lost.
 const busy = computed(() => !hydrated.value || Object.values(actions).some(action => action.isPending.value))
 const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).map(stage => ({ value: stage.id, label: stage.name })))
+const heroTone = computed<'info' | 'success' | 'warning' | 'danger' | 'neutral'>(() => {
+  if (!record.value) return 'neutral'
+  if (record.value.status === 'won') return 'success'
+  if (record.value.status === 'lost') return 'danger'
+  if (record.value.needs_manager || due.value) return 'warning'
+  return 'info'
+})
+const heroAmount = computed(() => {
+  const item = record.value
+  if (!item) return 0
+  return (item.final_price ?? 0) > 0 ? item.final_price : (item.expected_revenue ?? 0)
+})
 </script>
 
 <template>
@@ -314,54 +326,56 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       <UButton v-if="canReopen" color="neutral" variant="outline" icon="i-lucide-rotate-ccw" :label="t('crm.opportunities.record.reopen')" :loading="actions.reopen.isPending.value" :disabled="busy" data-testid="crm-reopen" @click="reopen" />
     </template>
     <template v-if="record" #summary>
-      <SharedRecordSection variant="panel" data-testid="crm-summary">
-        <dl class="grid grid-cols-2 gap-4 text-sm lg:grid-cols-5 lg:gap-0">
-          <div class="grid min-w-0 content-start gap-1 lg:border-s lg:border-default lg:px-4 lg:first:border-s-0 lg:first:ps-0">
-            <dt class="text-xs text-muted">{{ t('crm.opportunities.record.nextCall') }}</dt>
-            <dd v-if="!pending">{{ t(record.status === 'won' ? 'crm.opportunities.record.closedWon' : 'crm.opportunities.record.closedLost') }}</dd>
-            <dd v-else-if="record.needs_manager" class="text-warning" data-testid="crm-manager-banner">{{ t('crm.opportunities.record.managerBanner') }}</dd>
-            <dd v-else-if="record.next_call_at" data-testid="crm-next-call">
-              <time :datetime="record.next_call_at" class="font-semibold" :class="due ? 'text-warning' : 'text-highlighted'">{{ due ? t('crm.opportunities.record.nextCallDue') : relativeTime(record.next_call_at, now, locale) }}</time>
-              <span class="block text-xs text-muted">{{ formatDateTime(record.next_call_at) }}</span>
-            </dd>
-            <dd v-else class="text-muted">{{ t('crm.opportunities.record.nextCallNone') }}</dd>
+      <SharedRecordHero :tone="heroTone" icon="i-lucide-handshake" data-testid="crm-summary">
+        <!-- The identity line is the follow-up the opportunity is waiting on; the heading already carries the contact's name. -->
+        <template #title>
+          <span v-if="!pending" class="min-w-0 truncate">{{ t(record.status === 'won' ? 'crm.opportunities.record.closedWon' : 'crm.opportunities.record.closedLost') }}</span>
+          <span v-else-if="record.needs_manager" class="min-w-0 truncate text-warning" data-testid="crm-manager-banner">{{ t('crm.opportunities.record.managerBanner') }}</span>
+          <template v-else-if="record.next_call_at">
+            <span class="text-muted">{{ t('crm.opportunities.record.nextCall') }}</span>
+            <time :datetime="record.next_call_at" :title="formatDateTime(record.next_call_at)" class="whitespace-nowrap" :class="due ? 'text-warning' : undefined" data-testid="crm-next-call">{{ due ? t('crm.opportunities.record.nextCallDue') : relativeTime(record.next_call_at, now, locale) }}</time>
+          </template>
+          <span v-else class="min-w-0 truncate text-muted">{{ t('crm.opportunities.record.nextCallNone') }}</span>
+        </template>
+        <template v-if="canWork || (canAssign && pending)" #actions>
+          <USelect v-if="canWork" class="w-40" size="sm" :model-value="record.stage?.id" :items="stageItems" :aria-label="t('crm.opportunities.record.stageChange')" :disabled="busy" data-testid="crm-stage-select" @update:model-value="changeStage" />
+          <div v-if="canWork" class="flex items-center gap-1.5">
+            <UInputNumber class="w-24" size="sm" :model-value="probability" :min="0" :max="100" :step="5" :disabled="busy" :aria-label="t('crm.opportunities.record.probability')" data-testid="crm-probability-input" @update:model-value="value => (probability = value ?? 0)" />
+            <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.probabilitySave')" :disabled="busy || probability === record.probability" :loading="actions.patch.isPending.value" data-testid="crm-probability-save" @click="saveProbability" />
           </div>
-          <div class="grid min-w-0 content-start gap-1 lg:border-s lg:border-default lg:px-4 lg:first:border-s-0 lg:first:ps-0">
-            <dt class="text-xs text-muted">{{ t('crm.opportunities.record.phone') }}</dt>
-            <dd class="min-w-0 text-sm"><a :href="`tel:${record.phone}`" class="font-semibold text-primary hover:underline" data-testid="crm-phone"><bdi>{{ record.phone }}</bdi></a></dd>
-          </div>
-          <div class="grid min-w-0 content-start gap-1 lg:border-s lg:border-default lg:px-4 lg:first:border-s-0 lg:first:ps-0">
-            <dt class="text-xs text-muted">{{ t('crm.opportunities.record.stage') }}</dt>
-            <dd class="min-w-0 text-sm">
-              <USelect v-if="canWork" class="w-full" size="sm" :model-value="record.stage?.id" :items="stageItems" :aria-label="t('crm.opportunities.record.stageChange')" :disabled="busy" data-testid="crm-stage-select" @update:model-value="changeStage" />
-              <span v-else class="font-semibold">{{ record.stage?.name }}</span>
-            </dd>
-          </div>
-          <div class="grid min-w-0 content-start gap-1 lg:border-s lg:border-default lg:px-4 lg:first:border-s-0 lg:first:ps-0">
-            <dt class="text-xs text-muted">{{ t('crm.opportunities.record.probability') }}</dt>
-            <dd v-if="canWork" class="flex flex-wrap items-center gap-2">
-              <UInputNumber class="w-28" size="sm" :model-value="probability" :min="0" :max="100" :step="5" :disabled="busy" :aria-label="t('crm.opportunities.record.probability')" data-testid="crm-probability-input" @update:model-value="value => (probability = value ?? 0)" />
-              <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.probabilitySave')" :disabled="busy || probability === record.probability" :loading="actions.patch.isPending.value" data-testid="crm-probability-save" @click="saveProbability" />
-            </dd>
-            <dd v-else class="font-semibold">{{ record.probability }}%</dd>
-          </div>
-          <div class="grid min-w-0 content-start gap-1 lg:border-s lg:border-default lg:px-4 lg:first:border-s-0 lg:first:ps-0">
-            <dt class="text-xs text-muted">{{ t('crm.opportunities.record.agent') }}</dt>
-            <dd class="flex flex-wrap items-center gap-2">
-              <span class="font-semibold">{{ record.user?.name ?? t('crm.opportunities.tag.pool') }}</span>
-              <UPopover v-if="canAssign && pending">
-                <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.assignAction')" :disabled="busy" data-testid="crm-assign-open" />
-                <template #content>
-                  <div class="grid w-64 gap-3 p-3">
-                    <SharedPersonPicker v-model="assignee" value-key="user_id" endpoint="/api/v1/crm/agents" :aria-label="t('crm.opportunities.record.assign')" :disabled="busy" />
-                    <UButton :disabled="busy || !assignee" :loading="actions.assign.isPending.value" :label="t('crm.opportunities.record.assignAction')" data-testid="crm-assign" @click="assign" />
-                  </div>
-                </template>
-              </UPopover>
-            </dd>
-          </div>
-        </dl>
-      </SharedRecordSection>
+          <UPopover v-if="canAssign && pending">
+            <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.assignAction')" :disabled="busy" data-testid="crm-assign-open" />
+            <template #content>
+              <div class="grid w-64 gap-3 p-3">
+                <SharedPersonPicker v-model="assignee" value-key="user_id" endpoint="/api/v1/crm/agents" :aria-label="t('crm.opportunities.record.assign')" :disabled="busy" />
+                <UButton :disabled="busy || !assignee" :loading="actions.assign.isPending.value" :label="t('crm.opportunities.record.assignAction')" data-testid="crm-assign" @click="assign" />
+              </div>
+            </template>
+          </UPopover>
+        </template>
+        <template #meta>
+          <span v-if="record.stage && !canWork" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-columns-3" class="size-4 shrink-0" aria-hidden="true" /><span>{{ record.stage.name }}</span></span>
+          <span class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-user" class="size-4 shrink-0" aria-hidden="true" /><span>{{ record.user?.name ?? t('crm.opportunities.tag.pool') }}</span></span>
+          <span v-if="!canWork" class="inline-flex items-center gap-1.5" data-testid="crm-probability"><UIcon name="i-lucide-percent" class="size-4 shrink-0" aria-hidden="true" /><span>{{ t('crm.opportunities.record.probability') }}: {{ record.probability }}%</span></span>
+          <a :href="`tel:${record.phone}`" class="inline-flex items-center gap-1.5 font-medium text-primary hover:underline" data-testid="crm-phone"><UIcon name="i-lucide-phone" class="size-4 shrink-0" aria-hidden="true" /><bdi dir="ltr">{{ record.phone }}</bdi></a>
+        </template>
+        <SharedMetricTile
+          v-if="pending"
+          density="compact"
+          icon="i-lucide-banknote"
+          :label="t('crm.opportunities.record.expectedAmount')"
+          :value="heroAmount > 0 ? formatPrice(heroAmount) : null"
+          value-dir="ltr"
+        />
+        <SharedMetricTile
+          density="compact"
+          icon="i-lucide-phone-call"
+          :tone="due || record.needs_manager ? 'warning' : 'neutral'"
+          :label="t('crm.opportunities.record.attempts')"
+          :value="record.attempt_count"
+          value-dir="ltr"
+        />
+      </SharedRecordHero>
     </template>
     <template v-if="record">
       <SharedUnsavedChanges :dirty="unsent" guard-route-updates />
@@ -404,10 +418,10 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
         <SharedPropertyRow v-if="record.package" :label="term('package', 'one')" :value="record.package.name" />
         <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.listPrice', { term: term('package', 'one') })" :value="formatPrice(record.list_price)" />
         <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.discount')" :value="`${record.discount_percent}%`" />
-        <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.finalPrice')" :value="formatPrice(record.final_price)" />
-        <SharedPropertyRow v-else-if="record.status === 'won'" :label="t('crm.opportunities.record.wonAmount')" :value="formatPrice(record.final_price)" data-testid="crm-won-amount" />
+        <!-- The summary carries the money while the opportunity is open; the properties keep it once it closes. -->
+        <SharedPropertyRow v-if="record.package && !pending" :label="t('crm.opportunities.record.finalPrice')" :value="formatPrice(record.final_price)" />
+        <SharedPropertyRow v-else-if="!record.package && record.status === 'won'" :label="t('crm.opportunities.record.wonAmount')" :value="formatPrice(record.final_price)" data-testid="crm-won-amount" />
         <SharedPropertyRow v-if="record.lost_reason" :label="t('crm.opportunities.record.lostReason')" :value="record.lost_reason.name" />
-        <SharedPropertyRow :label="t('crm.opportunities.record.attempts')" :value="record.attempt_count" />
         <SharedPropertyRow v-if="record.cycle" :label="t('crm.opportunities.record.cycle')" :value="record.cycle" />
         <SharedPropertyRow v-if="record.recycle_at" :label="t('crm.opportunities.record.recycleAt')" :value="formatDate(record.recycle_at)" />
         <SharedPropertyRow :label="t('crm.opportunities.record.created')" :value="formatDate(record.created_at)" />

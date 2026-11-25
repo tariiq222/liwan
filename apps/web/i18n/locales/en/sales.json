@@ -15,6 +15,12 @@
     "footer": "{shown} of 1 result | {shown} of {total} results",
     "mine": "Mine only",
     "noSalesperson": "No salesperson",
+    "kpi": {
+      "label": "Sales metrics",
+      "quotations": "Quotations",
+      "orders": "Orders",
+      "cancelled": "Cancelled"
+    },
     "columns": {
       "number": "Number",
       "customer": "Customer",

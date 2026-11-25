@@ -17,6 +17,12 @@
     "restoreHint": "يعود المنتج إلى القائمة وقوائم الاختيار.",
     "rowActions": "إجراءات المنتج {name}",
     "sharedByAllBranches": "مشترك بين الفروع",
+    "kpi": {
+      "label": "مؤشرات المنتجات",
+      "total": "الإجمالي",
+      "goods": "بضائع",
+      "services": "خدمات"
+    },
     "columns": {
       "name": "الاسم",
       "type": "النوع",

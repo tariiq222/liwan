@@ -8,7 +8,7 @@ const meta = {
   component: ProductTable,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/products/ProductDirectory.vue:65', 'صفوف قائمة المنتجات: الاسم والنوع والسعر كما كُتب والإجمالي شامل الضريبة والجهة التي تُدار منها (أو «مشترك بين الفروع»). الصفحة تملك الاستعلام والترقيم.'),
+    ...storyContext('apps/web/app/components/products/ProductDirectory.vue:67', 'صفوف قائمة المنتجات: الاسم والنوع والسعر كما كُتب والإجمالي شامل الضريبة والجهة التي تُدار منها (أو «مشترك بين الفروع»). الصفحة تملك الاستعلام والترقيم.'),
   },
   args: { rows: products, loading: false, error: null, recordTo: product => `/products/${product.id}` },
 } satisfies Meta<typeof ProductTable>

@@ -180,6 +180,13 @@
     "opportunities": {
       "createManualOnly": "With manual distribution, only people who can assign create opportunities.",
       "callAction": "Call {name}",
+      "kpi": {
+        "label": "Opportunity metrics",
+        "open": "Open",
+        "won": "Won",
+        "lost": "Lost",
+        "due": "Follow-up due"
+      },
       "list": {
         "new": "Add {term}",
         "search": "Search by name, phone or email",
@@ -279,7 +286,8 @@
         "probabilitySaved": "Probability saved",
         "customFieldsSaved": "Fields saved",
         "notes": "Imported notes",
-        "wonAmount": "Won amount"
+        "wonAmount": "Won amount",
+        "expectedAmount": "Expected amount"
       },
       "call": {
         "title": "Record a call",

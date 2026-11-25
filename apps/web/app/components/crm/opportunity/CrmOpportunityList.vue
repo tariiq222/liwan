@@ -20,6 +20,7 @@ import { activeFilterCount, CRM_LIST_PATH, isCallDue, opportunityFilters, opport
 // filters from the panel's returnTo. The page owns the SharedListPage shell. A board move that needs input (the sold
 // stage, the lost zone, the «move» action) asks in the move sheet; a plain stage move is sent at once.
 const props = defineProps<{ view?: string; background?: boolean; createTo?: RouteLocationRaw }>()
+const emit = defineEmits<{ 'update:total': [value: number | undefined] }>()
 const PAGE_SIZE = 20
 const BOARD_LIMIT = 200
 const route = useRoute()
@@ -40,6 +41,7 @@ const packages = useCrmPackageChoices()
 const lostReasons = useCrmLostReasonChoices()
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+watch(() => query.data.value?.total, value => emit('update:total', value), { immediate: true })
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const count = computed(() => activeFilterCount(filterQuery.value))
 const canAssign = computed(() => can('crm.leads.assign'))
@@ -73,7 +75,7 @@ function clearFilters() {
 }
 
 const columns = computed<TableColumn<CrmOpportunity>[]>(() => [
-  { id: 'contact', header: t('crm.opportunities.form.contact'), meta: { class: { th: 'text-start min-w-[200px]', td: 'max-w-0' } } as TableColumn<CrmOpportunity>['meta'] },
+  { id: 'contact', header: t('crm.opportunities.form.contact'), meta: { title: true, class: { th: 'text-start min-w-[200px]', td: 'max-w-0' } } as TableColumn<CrmOpportunity>['meta'] },
   { id: 'phone', header: t('crm.opportunities.cols.phone'), meta: { class: { th: 'text-start w-[150px]', td: 'whitespace-nowrap' } } as TableColumn<CrmOpportunity>['meta'] },
   { id: 'stage', header: t('crm.opportunities.cols.stage'), meta: { class: { th: 'text-start w-[140px]', td: 'whitespace-nowrap' } } as TableColumn<CrmOpportunity>['meta'] },
   { id: 'probability', header: t('crm.opportunities.cols.probability'), meta: { class: { th: 'text-start w-[110px]', td: 'whitespace-nowrap' } } as TableColumn<CrmOpportunity>['meta'] },
@@ -113,11 +115,16 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
       <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,760px)] [&_table]:table-fixed">
         <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('nav.crm')">
           <template #contact-cell="{ row }">
-            <span class="flex min-w-0 items-center gap-2">
-              <NuxtLink :to="recordTo(row.original)" class="min-w-0 truncate font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.stop>{{ row.original.contact_name }}</NuxtLink>
-              <SharedStatusBadge v-if="row.original.status !== 'pending'" :tone="statusTone(row.original)" :label="statusLabel(row.original)" size="sm" />
-              <SharedStatusBadge v-else-if="row.original.needs_manager" tone="warning" :label="t('crm.opportunities.tag.needsManager')" size="sm" />
-            </span>
+            <div class="min-w-0">
+              <span class="flex min-w-0 items-center gap-2">
+                <NuxtLink :to="recordTo(row.original)" class="min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.stop>{{ row.original.contact_name }}</NuxtLink>
+                <SharedStatusBadge v-if="row.original.status !== 'pending'" :tone="statusTone(row.original)" :label="statusLabel(row.original)" size="sm" />
+                <SharedStatusBadge v-else-if="row.original.needs_manager" tone="warning" :label="t('crm.opportunities.tag.needsManager')" size="sm" />
+              </span>
+              <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+                <SharedRecordNumber :value="row.original.id" />
+              </div>
+            </div>
           </template>
           <template #phone-cell="{ row }"><a :href="`tel:${row.original.phone}`" class="text-sm hover:underline" @click.stop><bdi>{{ row.original.phone }}</bdi></a></template>
           <template #stage-cell="{ row }"><span class="text-sm">{{ row.original.stage?.name }}</span></template>

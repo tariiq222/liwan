@@ -15,6 +15,12 @@
     "footer": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة",
     "mine": "مستنداتي فقط",
     "noSalesperson": "بلا مندوب",
+    "kpi": {
+      "label": "مؤشرات المبيعات",
+      "quotations": "عروض الأسعار",
+      "orders": "الطلبات",
+      "cancelled": "الملغاة"
+    },
     "columns": {
       "number": "الرقم",
       "customer": "العميل",

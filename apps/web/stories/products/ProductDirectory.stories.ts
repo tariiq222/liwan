@@ -14,7 +14,7 @@ const meta = {
   component: ProductDirectory,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/products/index.vue:17', 'بطاقة المنتجات: البحث بالاسم، فلتر النوع، تبديل النشط والمؤرشف، والصفحة، وكلها في عنوان الصفحة. حالات الفراغ والتحميل والخطأ من المكوّنات المشتركة.'),
+    ...storyContext('apps/web/app/pages/products/index.vue:27', 'بطاقة المنتجات: البحث بالاسم، فلتر النوع، تبديل النشط والمؤرشف، والصفحة، وكلها في عنوان الصفحة. حالات الفراغ والتحميل والخطأ من المكوّنات المشتركة.'),
     msw: { handlers: { api: [reader] } },
   },
 } satisfies Meta<typeof ProductDirectory>

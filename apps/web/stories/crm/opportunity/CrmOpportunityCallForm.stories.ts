@@ -6,7 +6,7 @@ import { lostReasons, outcomes, packages } from './crmOpportunityFixtures'
 const meta = {
   title: 'CRM/CrmOpportunityCallForm',
   component: CrmOpportunityCallForm,
-  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:386', 'تسجيل اتصال: نتيجة البيع تفتح حقول البيع، ونتيجة خسارة بلا سبب تطلب السبب.'),
+  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:400', 'تسجيل اتصال: نتيجة البيع تفتح حقول البيع، ونتيجة خسارة بلا سبب تطلب السبب.'),
   args: { outcomes, packages, lostReasons },
 } satisfies Meta<typeof CrmOpportunityCallForm>
 export default meta

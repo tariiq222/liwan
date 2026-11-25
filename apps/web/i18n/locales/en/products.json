@@ -17,6 +17,12 @@
     "restoreHint": "The product returns to the list and the product pickers.",
     "rowActions": "Actions for product {name}",
     "sharedByAllBranches": "Shared by all branches",
+    "kpi": {
+      "label": "Product metrics",
+      "total": "Total",
+      "goods": "Goods",
+      "services": "Services"
+    },
     "columns": {
       "name": "Name",
       "type": "Type",

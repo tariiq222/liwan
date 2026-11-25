@@ -8,7 +8,7 @@ const meta = {
   component: CustomerTable,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/customers/CustomerDirectory.vue:56', 'صفوف دليل العملاء: الاسم والشركة الأم والجوال والبريد والفرع المالك (أو «مشترك بين كل الفروع») والحالة. الصفحة تملك الاستعلام والترقيم.'),
+    ...storyContext('apps/web/app/components/customers/CustomerDirectory.vue:58', 'صفوف دليل العملاء: الاسم والشركة الأم والجوال والبريد والفرع المالك (أو «مشترك بين كل الفروع») والحالة. الصفحة تملك الاستعلام والترقيم.'),
   },
   args: { rows: customers, loading: false, error: null, recordTo: customer => `/customers/${customer.id}` },
 } satisfies Meta<typeof CustomerTable>
