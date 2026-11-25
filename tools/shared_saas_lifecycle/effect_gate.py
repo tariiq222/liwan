@@ -32,7 +32,7 @@ from tools.shared_saas_lifecycle.effect_schema import SchemaError, validate
 
 EFFECTS = {name: 'tools.shared_saas_lifecycle.' + name for name in (
     'odoo_effect', 'odoo_backup', 'subscription_effect', 'admin_password_effect', 'tenant_status_effect', 'tenant_drop_effect',
-    'tenant_storage_effect')}
+    'tenant_storage_effect', 'tenant_telephony_effect')}
 
 MAX_REQUEST = 65536
 MAX_HEAD_LINE = 1024
@@ -47,13 +47,14 @@ CONFIG_ENV = 'LIWAN_SHARED_RUNTIME_CONFIG'
 DELETION_ENV = 'LIWAN_TENANT_DELETION_ENABLED'
 DROP_EFFECT = 'tenant_drop_effect'
 STORAGE_EFFECT = 'tenant_storage_effect'
+TELEPHONY_EFFECT = 'tenant_telephony_effect'
 # The effects need exactly these; the gate's other variables (the runtime config path, the deletion flag, secrets) stay behind.
 # LIWAN_BACKUP_PASSPHRASE_FILE is the operator's backup key path (a 0600 file the effect account owns): odoo_backup
 # encrypts and decrypts every artifact file with it, and it is a path, never the secret itself.
 CHILD_ENV = ('PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG', 'LIWAN_BACKUP_PASSPHRASE_FILE')
 DEFAULT_PATH = '/usr/bin:/bin'
 EFFECT_STATE_DIRS = ('reservations', 'credentials', 'classifications', 'restore-effects', 'reconfigure',
-                     'runtime-gate-history', 'tenant-storage', 'backups')
+                     'runtime-gate-history', 'tenant-storage', 'backups', 'tenant-telephony')
 
 
 class Refusal(Exception):
@@ -222,8 +223,9 @@ def check_request_schema(effect, request, validator=validate):
 
 def check_deletion_switch(effect, request, env):
     """A real deletion needs the flag in the gate's own unit; a compromised worker cannot supply it. Dry runs never change anything.
-    The storage effect's `drop` removes a tenant's bucket and IAM resources, so it is a deletion too."""
-    destructive = effect == DROP_EFFECT or (effect == STORAGE_EFFECT and request.get('operation') == 'drop')
+    The storage effect's `drop` removes a tenant's bucket and IAM resources, and the telephony effect's `drop` removes the
+    company's provisioning record, so both are deletions too."""
+    destructive = effect == DROP_EFFECT or (effect in (STORAGE_EFFECT, TELEPHONY_EFFECT) and request.get('operation') == 'drop')
     if destructive and request.get('dryRun') is not True and env.get(DELETION_ENV) != 'true':
         raise Refusal('deletion_disabled')
 
