@@ -31,7 +31,7 @@ const meta = {
   component: ListPage,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/recruitment/jobs.vue:97', 'قائمة الوظائف: نطاق النشطة والمؤرشفة، والبحث، وجدول يعرض العدد المطلوب وعدد المتقدمين القيد لكل وظيفة.'),
+    ...storyContext('apps/web/app/pages/hr/recruitment/jobs.vue:117', 'قائمة الوظائف: نطاق النشطة والمؤرشفة، والبحث، وجدول يعرض العدد المطلوب وعدد المتقدمين القيد لكل وظيفة.'),
   },
   args: { title: 'الوظائف', createTo: '/hr/recruitment/jobs/new', createLabel: 'وظيفة جديدة', createTestId: 'hr-recruitment-job-new' },
   render: args => ({

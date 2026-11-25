@@ -2,6 +2,7 @@
 import RunTable from '@/components/hr/lifecycle/RunTable.vue'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import { useHrOnboardingRuns, type HrRunListParams } from '@/composables/useHrOnboarding'
+import { hrRunKpiQueries, hrRunKpiTiles } from '@/utils/hrStaffingKpis'
 
 const NAMESPACE = 'hrOnboarding'
 const PAGE_SIZE = 25
@@ -30,6 +31,23 @@ const runs = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 const page = computed(() => Math.floor(offset.value / PAGE_SIZE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+
+// The tiles count the open and the done runs the endpoint filters by; the tile the list is showing reads the
+// list's own total, and the other asks one row.
+const { shown: kpisShown } = useKpiVisibility()
+const kpiQueries = hrRunKpiQueries()
+const kpisEnabled = computed(() => !forbidden.value && isListRoute.value && kpisShown.value)
+const openReused = computed(() => state.value === 'open')
+const doneReused = computed(() => state.value === 'done')
+const openCount = useHrOnboardingRuns(kpiQueries.open, computed(() => kpisEnabled.value && !openReused.value))
+const doneCount = useHrOnboardingRuns(kpiQueries.done, computed(() => kpisEnabled.value && !doneReused.value))
+const kpiCounts = computed(() => ({
+  open: openReused.value ? total.value : openCount.data.value?.total ?? null,
+  done: doneReused.value ? total.value : doneCount.data.value?.total ?? null,
+}))
+const kpiTiles = computed(() => hrRunKpiTiles(kpiCounts.value, t))
+const kpiLoading = computed(() => query.isLoading.value || openCount.isLoading.value || doneCount.isLoading.value)
+
 const stateOptions = computed(() => [
   { value: 'all', label: t(`${NAMESPACE}.runs.allStates`) },
   { value: 'open', label: t(`${NAMESPACE}.states.open`) },
@@ -66,6 +84,9 @@ function setPage(next: number) {
     :create-label="t(`${NAMESPACE}.runs.new`)"
     create-test-id="hr-onboarding-new"
   >
+    <template v-if="!forbidden" #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t(`${NAMESPACE}.kpi.label`)" data-testid="hr-onboarding-kpi-strip" />
+    </template>
     <template v-if="!forbidden" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-list-checks" to="/hr/onboarding/plans" :disabled="!hydrated" :label="t(`${NAMESPACE}.plans.title`)" data-testid="hr-onboarding-plans" />
     </template>

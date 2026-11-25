@@ -23,6 +23,7 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/documents.vue', ['const kpiEnabled = computed(() => isListRoute.value && kpisShown.value)', 'useDocuments({ limit: 1 }, kpiEnabled)']],
     // The headcount reuses the directory's own total while it shows the plain active list; it asks only when narrowed.
     ['pages/hr/index.vue', ['useHrEmployees({ limit: 1 }, computed(() => kpisShown.value && !reuseListTotal.value))', 'kpisShown.value && canManage.value']],
+    ['pages/hr/payroll.vue', ['const kpisEnabled = computed(() => isListRoute.value && kpisShown.value && canRead.value)', 'useHrPayrollRuns(kpiQueries.all, computed(() => kpisEnabled.value && !reuseListTotal.value))', 'useHrPayrollRuns(kpiQueries.draft, kpisEnabled)', 'useHrPayrollRuns(kpiQueries.computed, kpisEnabled)', 'useHrPayrollRuns(kpiQueries.approved, kpisEnabled)']],
     ['components/hr/LeaveList.vue', ['const kpisEnabled = computed(() => !props.personal && isListRoute.value && kpisShown.value)', 'useHrLeaveRequests(kpiQueries.pending, kpisEnabled)', 'useHrLeaveRequests(kpiQueries.approved, kpisEnabled)']],
     ['pages/finance/index.vue', ["useFinanceAging('receivable', computed(() => kpisShown.value && canStatements.value))", 'useFinancePartners({ limit: 1 }, computed(() => kpisShown.value && canPartners.value))']],
     ['components/finance/invoices/useInvoiceListPage.ts', ['useFinanceInvoiceSummary(() => invoiceSummaryParams(moveType, filters.value), () => shown.value && allowed.value)']],
@@ -39,6 +40,14 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/products/index.vue', ['useProductListKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
     ['pages/sales/index.vue', ['useSalesListKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
     ['pages/crm/opportunities/index.vue', ['useCrmOpportunityKpis(listFilters, listTotal, computed(() => kpisShown.value && canRead.value), activeView)']],
+    // The staffing lists (recruitment, lifecycle plans and runs, departures, warnings) pass their tile queries the same flag.
+    ['pages/hr/recruitment.vue', ['const kpisEnabled = computed(() => isListRoute.value && kpisShown.value)', 'kpisEnabled.value && !ongoingReused.value']],
+    ['pages/hr/recruitment/jobs.vue', ['const kpisEnabled = computed(() => isJobsRoute.value && kpisShown.value)', 'kpisEnabled.value && !closedReused.value']],
+    ['pages/hr/onboarding.vue', ['const kpisEnabled = computed(() => !forbidden.value && isListRoute.value && kpisShown.value)', 'kpisEnabled.value && !doneReused.value']],
+    ['pages/hr/onboarding/plans/index.vue', ['const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)', 'kpisEnabled.value && !inactiveReused.value']],
+    ['pages/hr/offboarding.vue', ['const kpisEnabled = computed(() => !forbidden.value && isListRoute.value && kpisShown.value)', 'kpisEnabled.value && !unclearedReused.value']],
+    ['pages/hr/offboarding/plans/index.vue', ['const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)', 'kpisEnabled.value && !inactiveReused.value']],
+    ['pages/hr/warnings.vue', ['const kpisEnabled = computed(() => isListRoute.value && kpisShown.value)', 'kpisEnabled.value && !acknowledgedReused.value']],
   ])('%s passes the visibility as the tile queries enabled flag', (file, needles) => {
     const source = read(file)
     expect(source).toContain('useKpiVisibility()')

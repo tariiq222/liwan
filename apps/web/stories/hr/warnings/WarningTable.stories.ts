@@ -12,7 +12,7 @@ const meta = {
   component: WarningTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/warnings.vue:141', 'جدول الإنذارات داخل بطاقة القائمة: الموظف والنوع ومستواه وتاريخ الإصدار وحالة الإنذار.'),
+    ...storyContext('apps/web/app/pages/hr/warnings.vue:177', 'جدول الإنذارات داخل بطاقة القائمة: الموظف والنوع ومستواه وتاريخ الإصدار وحالة الإنذار.'),
   },
   args: {
     warnings: [

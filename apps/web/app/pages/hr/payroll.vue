@@ -4,6 +4,7 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import type { HrPayrollRunState, HrPayrollRunSummary } from '@liwan/contracts'
 import { HR_PAYROLL_PAGE_SIZE, hrPayrollRunsQuery, type HrPayrollRunStateFilter } from '@/composables/useHrPayrollRuns'
 import { currentPayrollMonth } from '@/utils/payrollFormat'
+import { hrPayrollRunKpiQueries, hrPayrollRunKpiTiles } from '@/utils/hrKpis'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,6 +23,7 @@ const isListRoute = computed(() => {
   return path === '/hr/payroll' || path === '/hr/payroll/new'
 })
 const canManage = computed(() => can('hr.payroll.manage'))
+const canRead = computed(() => can('hr.payroll.read'))
 
 function firstParam(value: unknown) {
   return Array.isArray(value) ? value[0] : value
@@ -50,6 +52,25 @@ const page = computed(() => Math.floor(offset.value / LIMIT) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !runs.isLoading.value && !runs.error.value && items.value.length === 0)
 const activeFilterCount = computed(() => [year.value, state.value === 'all' ? null : state.value].filter(Boolean).length)
+
+// The tiles count runs per state with one-row requests (their `total`), never a run's amounts. They ask nothing while the
+// figures are hidden or the viewer cannot read payroll; the all-runs figure reuses the list total while the list is unfiltered.
+const { shown: kpisShown } = useKpiVisibility()
+const kpisEnabled = computed(() => isListRoute.value && kpisShown.value && canRead.value)
+const reuseListTotal = computed(() => activeFilterCount.value === 0)
+const kpiQueries = hrPayrollRunKpiQueries()
+const allCount = useHrPayrollRuns(kpiQueries.all, computed(() => kpisEnabled.value && !reuseListTotal.value))
+const draftCount = useHrPayrollRuns(kpiQueries.draft, kpisEnabled)
+const computedCount = useHrPayrollRuns(kpiQueries.computed, kpisEnabled)
+const approvedCount = useHrPayrollRuns(kpiQueries.approved, kpisEnabled)
+const kpiTiles = computed(() => hrPayrollRunKpiTiles({
+  all: (reuseListTotal.value ? runs.data.value?.total : allCount.data.value?.total) ?? null,
+  draft: draftCount.data.value?.total ?? null,
+  computed: computedCount.data.value?.total ?? null,
+  approved: approvedCount.data.value?.total ?? null,
+}, t))
+const kpiLoading = computed(() => (reuseListTotal.value ? runs.isLoading.value : allCount.isLoading.value)
+  || draftCount.isLoading.value || computedCount.isLoading.value || approvedCount.isLoading.value)
 
 // The years offered: the current one, the three before and the next, plus whichever year the URL asks for.
 const yearOptions = computed(() => {
@@ -104,6 +125,9 @@ function runTo(row: HrPayrollRunSummary) {
     :create-label="t('hrPayroll.runs.new')"
     create-test-id="hr-payroll-new"
   >
+    <template v-if="canRead" #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t('hrPayroll.kpi.label')" data-testid="hr-payroll-kpi-strip" />
+    </template>
     <SharedListCard>
       <template #filters>
         <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">

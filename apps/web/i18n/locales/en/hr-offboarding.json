@@ -1,5 +1,16 @@
 {
   "hrOffboarding": {
+    "kpi": {
+      "label": "Clearance figures",
+      "runs": {
+        "cleared": "Cleared",
+        "uncleared": "Not cleared"
+      },
+      "plans": {
+        "active": "Active plans",
+        "inactive": "Inactive plans"
+      }
+    },
     "runs": {
       "title": "Clearance runs",
       "empty": "No clearance runs yet",

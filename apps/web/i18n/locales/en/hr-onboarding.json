@@ -1,6 +1,17 @@
 {
   "hrOnboarding": {
     "title": "Onboarding",
+    "kpi": {
+      "label": "Onboarding figures",
+      "runs": {
+        "open": "In progress",
+        "done": "Completed"
+      },
+      "plans": {
+        "active": "Active plans",
+        "inactive": "Inactive plans"
+      }
+    },
     "runs": {
       "title": "Onboarding",
       "empty": "No onboarding runs yet",

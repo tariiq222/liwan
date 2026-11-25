@@ -2,6 +2,12 @@
   "hrWarnings": {
     "description": "Record administrative warnings for employees and follow their replies.",
     "title": "Administrative warnings",
+    "kpi": {
+      "label": "Warning figures",
+      "issued": "Issued",
+      "acknowledged": "Acknowledged",
+      "contested": "Contested"
+    },
     "new": "New warning",
     "anyEmployee": "All employees",
     "anyType": "All types",
