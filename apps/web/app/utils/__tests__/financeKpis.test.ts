@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { agedOwed, financeOverviewTiles } from '../financeKpis'
-import { financeSetupProgress, financeSetupSteps } from '../financeSetupSteps'
+import { financeSetupProgress, financeSetupSteps } from '../../composables/finance/financeSetupSteps'
+import { agedOwed, financeListKpiTiles, financeOverviewTiles, financeStateTiles } from '../financeKpis'
 
 const t = (key: string) => key
 const n = (value: number, options?: Intl.NumberFormatOptions) => `${options?.currency ?? ''}${value}`
@@ -51,5 +51,28 @@ describe('what is owed', () => {
 
   it('is zero, not minus zero, when nothing is open', () => {
     expect(Object.is(agedOwed(report('payable', [])).total, 0)).toBe(true)
+  })
+})
+
+describe('finance list tiles', () => {
+  const tiles = financeStateTiles([{ id: 'draft', icon: 'i-lucide-file-pen', tone: 'warning' }], 'i-lucide-files', id => `kpi.${id}`)
+
+  it('puts the total before one tile per state, each carrying its state filter', () => {
+    expect(tiles).toEqual([
+      { id: 'total', label: 'kpi.total', icon: 'i-lucide-files', tone: 'neutral' },
+      { id: 'draft', label: 'kpi.draft', icon: 'i-lucide-file-pen', tone: 'warning', query: { state: 'draft' } },
+    ])
+  })
+
+  it('links each tile to the list with its base filters, the state tile clearing back to the total', () => {
+    const [total, draft] = financeListKpiTiles(tiles, { total: 4, draft: undefined }, '/finance/x', { q: 'a', partner_id: undefined, date_to: '2026-01-31' })
+    expect(total).toEqual({ id: 'total', label: 'kpi.total', icon: 'i-lucide-files', tone: 'neutral', value: 4, to: '/finance/x?q=a&date_to=2026-01-31' })
+    expect(draft).toMatchObject({ value: null, to: '/finance/x?q=a&date_to=2026-01-31&state=draft', clearTo: '/finance/x?q=a&date_to=2026-01-31' })
+  })
+
+  it('links to the bare list when no base filter is set', () => {
+    const [total, draft] = financeListKpiTiles(tiles, { total: 0, draft: 0 }, '/finance/x', { q: '' })
+    expect(total?.to).toBe('/finance/x')
+    expect(draft).toMatchObject({ value: 0, to: '/finance/x?state=draft', clearTo: '/finance/x' })
   })
 })

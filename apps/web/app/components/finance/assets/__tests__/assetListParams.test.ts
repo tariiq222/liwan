@@ -43,7 +43,19 @@ describe('KPI params and tiles', () => {
   })
 
   it('draws all, draft, running and closed tiles from the server counts', () => {
-    const tiles = assetKpiTiles({ total: 8, draft: 2, open: 4, close: undefined }, id => id)
+    const tiles = assetKpiTiles(filters, { total: 8, draft: 2, open: 4, close: undefined }, key => key)
     expect(tiles.map(tile => [tile.id, tile.value])).toEqual([['total', 8], ['draft', 2], ['open', 4], ['close', null]])
+  })
+
+  it('links every tile to the list with its filters, without the page or the selected state', () => {
+    const tiles = assetKpiTiles(filters, { total: 8, draft: 2, open: 4, close: 2 }, key => key)
+    const base = '/finance/assets?q=abc&profile_id=9'
+    expect(tiles[0]).toMatchObject({ to: base })
+    expect(tiles.find(tile => tile.id === 'open')).toMatchObject({ to: `${base}&state=open`, clearTo: base })
+    for (const tile of tiles) {
+      const query = new URL(tile.to ?? '', 'https://liwan.local').searchParams
+      expect(query.has('page')).toBe(false)
+      expect(query.getAll('state')).toEqual(tile.id === 'total' ? [] : [tile.id])
+    }
   })
 })

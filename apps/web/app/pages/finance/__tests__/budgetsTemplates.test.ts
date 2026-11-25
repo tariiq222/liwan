@@ -31,11 +31,10 @@ const locale = (code: string) => JSON.parse(readFileSync(resolve(locales, `${cod
 
 describe('the finance budgets pages stay on their templates', () => {
   it.each([
-    ['pages/finance/budgets/index.vue', ['<SharedListPage', 'v-bind="page"']],
-    ['components/finance/budgets/useBudgetListPage.ts', ['kpiToggle: true', "kind: 'count'", "can('finance.budgets.manage')", 'returnTo']],
-    ['components/finance/budgets/BudgetList.vue', ['<SharedListCard', 'embedded', '<SharedFilterBar', '<SharedDataTable', ' bare', '<SharedRecordNumber', '#mobile-row', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', '<BudgetKpiStrip', 'useKpiVisibility', "can('finance.budgets.read')"]],
-    ['components/finance/budgets/BudgetKpiStrip.vue', ['<SharedKpiStrip']],
-    ['pages/finance/budgets/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<BudgetList background']],
+    ['pages/finance/budgets/index.vue', ['<SharedListPage', 'v-bind="page.header"', '#kpis', '<SharedKpiStrip', 'data-testid="finance-budget-kpis"']],
+    ['components/finance/budgets/useBudgetListPage.ts', ['useKpiVisibility', "kind: 'count'", "can('finance.budgets.manage')", 'returnTo']],
+    ['components/finance/budgets/BudgetList.vue', ['<SharedListCard', 'embedded', '<SharedFilterBar', '<SharedDataTable', ' bare', '<SharedRecordNumber', '#mobile-row', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', "can('finance.budgets.read')"]],
+    ['pages/finance/budgets/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<SharedKpiStrip', '<BudgetList background']],
     ['components/finance/budgets/BudgetForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', '<SharedDateField', 'color="error" variant="subtle"', ':error=']],
     ['pages/finance/budgets/[id].vue', ['<SharedRecordPage', '#aside', '#actions']],
     ['components/finance/budgets/useBudgetRecord.ts', ["kind: 'category'", "kind: 'schedule'", 'statusTag(', 'readFinanceActions(']],

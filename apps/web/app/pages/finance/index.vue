@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SetupChecklist from '@/components/finance/SetupChecklist.vue'
 import DraftDocumentList from '@/components/finance/DraftDocumentList.vue'
-import { agedOwed, financeOverviewTiles } from '@/composables/finance/financeKpis'
+import { agedOwed, financeOverviewTiles } from '@/utils/financeKpis'
 import { financeSetupProgress } from '@/composables/finance/financeSetupSteps'
 import { useFinancePartners } from '@/composables/finance/useFinancePartners'
 import { useFinanceAging, useFinanceDrafts } from '@/composables/finance/useFinanceOverview'

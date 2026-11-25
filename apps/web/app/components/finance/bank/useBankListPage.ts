@@ -24,6 +24,5 @@ export function useBankListPage(background = false) {
     createLabel: t('financeBank.new'),
     createTestId: 'finance-bank-statement-new',
     hideHeader: background,
-    kpiToggle: true,
   })
 }

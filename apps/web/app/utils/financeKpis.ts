@@ -1,4 +1,5 @@
 import type { FinanceAgedPartnerBalance } from '@liwan/contracts'
+import { kpiLink } from '@liwan/ui/app/utils/kpiLink'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 
 type Translate = (key: string, named?: Record<string, unknown>, plural?: number) => string
@@ -43,4 +44,53 @@ export function agedOwed(report: Pick<FinanceAgedPartnerBalance, 'kind' | 'curre
   const open = report.accounts.flatMap(account => account.partners).filter(row => row.partner !== null).reduce((sum, row) => sum + row.total, 0)
   const total = (report.kind === 'payable' ? -open : open) + 0
   return { total: Math.round(total * 100) / 100, currency: report.currency }
+}
+
+/** One tile a finance list can show: the query it adds over the list's own filters, absent on its total tile. */
+export interface FinanceListTile {
+  id: string
+  label: string
+  icon: `i-lucide-${string}`
+  tone: NonNullable<KpiTile['tone']>
+  /** The state (or archived) filter the tile applies; the total tile carries none. */
+  query?: Record<string, string>
+}
+
+/** A tile per state over the list's total, in the order the list's filter offers them. */
+export function financeStateTiles(
+  states: readonly { id: string; icon: `i-lucide-${string}`; tone: NonNullable<KpiTile['tone']> }[],
+  totalIcon: `i-lucide-${string}`,
+  label: (id: string) => string,
+): FinanceListTile[] {
+  return [
+    { id: 'total', label: label('total'), icon: totalIcon, tone: 'neutral' },
+    ...states.map(state => ({ id: state.id, label: label(state.id), icon: state.icon, tone: state.tone, query: { state: state.id } })),
+  ]
+}
+
+/**
+ * The tiles of a finance list. Every tile links to the list with its own base filters and its state; a state tile
+ * clears back to the list's total. `counts` holds the server total of each tile, never a count of the loaded page:
+ * a list with a `/summary` endpoint (invoices, entries, budgets, assets) fills them from one summary request; a list
+ * without one (partners) asks its list endpoint once per tile with `limit=1` and reads `total`.
+ */
+export function financeListKpiTiles(
+  tiles: readonly FinanceListTile[],
+  counts: Readonly<Record<string, number | undefined>>,
+  path: string,
+  base: Record<string, string | number | undefined>,
+): KpiTile[] {
+  const baseLink = kpiLink(path, base)
+  return tiles.map(tile => {
+    const to = tile.query ? kpiLink(path, { ...base, ...tile.query }) : baseLink
+    return {
+      id: tile.id,
+      label: tile.label,
+      icon: tile.icon,
+      tone: tile.tone,
+      value: counts[tile.id] ?? null,
+      to,
+      ...(tile.query ? { clearTo: baseLink } : {}),
+    }
+  })
 }

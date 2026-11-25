@@ -6,7 +6,6 @@ import { useFinanceBankJournals, useFinanceBankStatements } from '@/composables/
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import { listReturnTo, useListLocation } from '../invoices/listLocation'
 import Money from '../invoices/Money.vue'
-import BankKpiStrip from './BankKpiStrip.vue'
 import { BANK_PAGE_SIZE, bankActiveFilterCount, bankFiltersFromQuery, bankListParams } from './bankListParams'
 import { BANK_STATEMENTS_PATH, hasEndDifference, statementPath } from './bankModel'
 
@@ -15,7 +14,6 @@ import { BANK_STATEMENTS_PATH, hasEndDifference, statementPath } from './bankMod
 const props = defineProps<{ background?: boolean }>()
 const { t } = useI18n()
 const { can } = useAccess()
-const { shown: kpisShown } = useKpiVisibility()
 const allowed = computed(() => can('finance.bank.read'))
 const { hydrated, filterQuery, update } = useRouteListFilters({
   background: () => props.background,
@@ -67,7 +65,6 @@ const dash = computed(() => t('app.notAvailable'))
 <template>
   <SharedForbiddenState v-if="!allowed" :description="t('financeBank.forbidden')" />
   <div v-else class="liwan-page-stack">
-    <BankKpiStrip v-if="kpisShown" :filters="filters" :filtered="activeCount > 0" />
     <div v-if="importTo" class="flex justify-end">
       <UButton color="neutral" variant="outline" icon="i-lucide-file-up" :to="importTo" :label="t('financeBank.import.link')" data-testid="finance-bank-import-link" />
     </div>

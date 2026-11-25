@@ -1,4 +1,3 @@
-import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { queryDay, queryPositiveInt } from '../../../utils/routeQuery'
 
 export const BANK_PAGE_SIZE = 25
@@ -48,15 +47,3 @@ export function bankListParams(filters: BankListFilters): BankListParams {
   }
 }
 
-/** One KPI count: the given filters (none for "all statements"), and one row asked for because only `total` is read. */
-export function bankKpiParams(filters: BankListFilters | null): BankListParams {
-  return { ...bankListParams(filters ? { ...filters, page: 1 } : { journalId: null, dateFrom: null, dateTo: null, page: 1 }), limit: 1, offset: 0 }
-}
-
-export type BankKpiId = 'all' | 'filtered'
-
-/** The strip above the list: every statement, and (only while a filter applies) the ones the filters keep. */
-export function bankKpiTiles(counts: Record<BankKpiId, number | undefined>, filtered: boolean, label: (id: BankKpiId) => string): KpiTile[] {
-  const ids: BankKpiId[] = filtered ? ['all', 'filtered'] : ['all']
-  return ids.map(id => ({ id, label: label(id), value: counts[id] ?? null, icon: id === 'all' ? 'i-lucide-landmark' : 'i-lucide-list-filter', tone: 'neutral' }))
-}

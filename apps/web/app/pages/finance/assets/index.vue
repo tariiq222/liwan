@@ -9,7 +9,10 @@ const compute = useAssetCompute()
 </script>
 
 <template>
-  <SharedListPage v-bind="page">
+  <SharedListPage v-bind="page.header">
+    <template v-if="page.allowed" #kpis>
+      <SharedKpiStrip v-if="page.kpis.shown" :tiles="page.kpis.tiles" :loading="page.kpis.loading" :label="page.kpis.label" data-testid="finance-asset-kpis" />
+    </template>
     <template v-if="compute.allowed" #actions><AssetComputeButton :compute="compute" /></template>
     <AssetList :compute="compute" />
   </SharedListPage>

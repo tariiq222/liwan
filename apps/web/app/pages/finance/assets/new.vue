@@ -8,7 +8,12 @@ const page = useAssetCreatePage()
 </script>
 
 <template>
-  <SharedListPage v-bind="page.list"><AssetList background /></SharedListPage>
+  <SharedListPage v-bind="page.list.header">
+    <template v-if="page.list.allowed" #kpis>
+      <SharedKpiStrip v-if="page.list.kpis.shown" :tiles="page.list.kpis.tiles" :loading="page.list.kpis.loading" :label="page.list.kpis.label" data-testid="finance-asset-kpis" />
+    </template>
+    <AssetList background />
+  </SharedListPage>
   <SharedCreatePanel :title="page.title" :back-to="page.backTo">
     <AssetForm v-if="page.allowed" :back-to="page.backTo" @saved="page.saved" />
     <SharedForbiddenState v-else :description="t('financeAssets.forbidden')" />

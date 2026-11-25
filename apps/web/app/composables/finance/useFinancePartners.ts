@@ -49,6 +49,15 @@ export function useFinancePartners(params: MaybeRefOrGetter<FinancePartnerListPa
   })
 }
 
+/** The two counts above the partners list: the active and the archived directory under the typed search and kind. */
+export function useFinancePartnerKpis(filters: MaybeRefOrGetter<Pick<FinancePartnerListParams, 'q' | 'kind'>>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const params = (archived: boolean) => () => ({ ...toValue(filters), archived, limit: 1, offset: 0 })
+  return {
+    active: useFinancePartners(params(false), enabled),
+    archived: useFinancePartners(params(true), enabled),
+  }
+}
+
 export function useFinancePartner(id: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
   return useQuery({

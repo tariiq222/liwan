@@ -15,7 +15,6 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/operations/index.vue', '<RequestKpiStrip v-if="kpisShown" scope="mine"'],
     ['pages/operations/pending.vue', '<RequestKpiStrip v-if="kpisShown" scope="pending"'],
     ['pages/operations/monitoring.vue', '<RequestKpiStrip v-if="kpisShown" scope="monitoring"'],
-    ['components/finance/invoices/InvoiceList.vue', '<InvoiceKpiStrip v-if="kpisShown"'],
   ])('%s mounts its strip only while shown', (file, mount) => {
     expect(read(file)).toContain(mount)
   })
@@ -24,6 +23,10 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/documents.vue', ['const kpiEnabled = computed(() => isListRoute.value && kpisShown.value)', 'useDocuments({ limit: 1 }, kpiEnabled)']],
     ['pages/hr/index.vue', ['useHrEmployees({ limit: 1 }, kpisShown)', 'kpisShown.value && canManage.value']],
     ['pages/finance/index.vue', ["useFinanceAging('receivable', computed(() => kpisShown.value && canStatements.value))", 'useFinancePartners({ limit: 1 }, computed(() => kpisShown.value && canPartners.value))']],
+    ['components/finance/invoices/useInvoiceListPage.ts', ['useFinanceInvoiceSummary(() => invoiceSummaryParams(moveType, filters.value), () => shown.value && allowed.value)']],
+    ['components/finance/accounting/useEntryListPage.ts', ['useFinanceEntrySummary(() => entrySummaryParams(filters.value), () => shown.value && allowed.value)']],
+    ['components/finance/budgets/useBudgetListPage.ts', ['useFinanceBudgetSummary(() => budgetSummaryParams(filters.value), () => shown.value && allowed.value)']],
+    ['components/finance/assets/useAssetListPage.ts', ['useFinanceAssetSummary(() => assetSummaryParams(filters.value), () => shown.value && allowed.value)']],
     // The personal task list moved into the shared workspace when /my-tasks became a redirect (2026-11-21).
     ['components/personal-tasks/MyTasksWorkspace.vue', ['}, kpisShown)']],
     ['pages/meetings/index.vue', ['}), kpisShown)']],

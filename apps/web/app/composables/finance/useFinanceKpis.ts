@@ -14,7 +14,7 @@ const schemas = {
 }
 type Resource = keyof typeof schemas
 
-function useFinanceSummary<T>(resource: Resource, schema: z.ZodType<T>, params: MaybeRefOrGetter<Filters>) {
+function useFinanceSummary<T>(resource: Resource, schema: z.ZodType<T>, params: MaybeRefOrGetter<Filters>, enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
   const filters = computed(() => {
     const { state: _state, page: _page, limit: _limit, offset: _offset, sort: _sort, ...rest } = toValue(params)
@@ -22,6 +22,7 @@ function useFinanceSummary<T>(resource: Resource, schema: z.ZodType<T>, params: 
   })
   return useQuery({
     queryKey: computed(() => ['finance', resource, 'summary', filters.value] as const),
+    enabled: computed(() => toValue(enabled)),
     placeholderData: keepPreviousData,
     // Read the key's snapshot rather than reactive filters after the request has started.
     queryFn: ({ queryKey, signal }) => $api(`/api/v1/finance/${resource}/summary`, {
@@ -30,7 +31,7 @@ function useFinanceSummary<T>(resource: Resource, schema: z.ZodType<T>, params: 
   })
 }
 
-export const useFinanceInvoiceSummary = (params: MaybeRefOrGetter<Filters>) => useFinanceSummary('invoices', schemas.invoices, params)
-export const useFinanceEntrySummary = (params: MaybeRefOrGetter<Filters>) => useFinanceSummary('entries', schemas.entries, params)
-export const useFinanceAssetSummary = (params: MaybeRefOrGetter<Filters>) => useFinanceSummary('assets', schemas.assets, params)
-export const useFinanceBudgetSummary = (params: MaybeRefOrGetter<Filters>) => useFinanceSummary('budgets', schemas.budgets, params)
+export const useFinanceInvoiceSummary = (params: MaybeRefOrGetter<Filters>, enabled: MaybeRefOrGetter<boolean> = true) => useFinanceSummary('invoices', schemas.invoices, params, enabled)
+export const useFinanceEntrySummary = (params: MaybeRefOrGetter<Filters>, enabled: MaybeRefOrGetter<boolean> = true) => useFinanceSummary('entries', schemas.entries, params, enabled)
+export const useFinanceAssetSummary = (params: MaybeRefOrGetter<Filters>, enabled: MaybeRefOrGetter<boolean> = true) => useFinanceSummary('assets', schemas.assets, params, enabled)
+export const useFinanceBudgetSummary = (params: MaybeRefOrGetter<Filters>, enabled: MaybeRefOrGetter<boolean> = true) => useFinanceSummary('budgets', schemas.budgets, params, enabled)
