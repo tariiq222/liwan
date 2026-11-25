@@ -109,8 +109,8 @@ test.describe('Tasmim shell (desktop)', () => {
     const search = page.getByTestId('global-search-trigger')
     await expect(search).toBeEnabled()
     await expect(search).toHaveAccessibleName('بحث')
-    // Every icon button of the capsule is one 34px button (DESIGN.md, top bar).
-    for (const [id, size] of [['notification-bell', 34]] as const) {
+    // Every icon button of the capsule is one 32px button inside the 40px bar tile (DESIGN.md, top bar).
+    for (const [id, size] of [['notification-bell', 32]] as const) {
       const area = await box(page, id)
       expect(area.width).toBeCloseTo(size, 0)
       expect(area.height).toBeCloseTo(size, 0)

@@ -143,27 +143,23 @@ test('between 768px and 1099px the sidebar is an icon-only 84px column, and the 
   await expect(menu.getByTestId('context-link-project-dashboard')).toHaveAccessibleName('نظرة عامة')
 })
 
-test('meetings share the hierarchy and documents without archive access stay direct', async ({ page }) => {
+test('meetings stay flat with direct links and documents without archive access stay direct', async ({ page }) => {
   for (const path of ['/meetings', '/documents']) {
     await open(page, path)
     const menu = page.getByTestId('application-navigation')
+    // Only the list rows (`.liwan-side-body`): the application block above them is a switcher menu and the footer chevron
+    // below them opens the named list, and both carry `aria-expanded` themselves.
+    await expect(menu.locator('.liwan-side-body button[aria-expanded]:not([data-testid="navigation-app-block"])')).toHaveCount(0)
     if (path === '/documents') {
       // This mock identity may read/manage documents, but may not archive them.
       await expect(menu.getByTestId('context-link-documents')).toHaveAttribute('href', path)
       await expect(menu.getByTestId('context-link-documents')).toHaveAttribute('data-active', 'true')
-      // Only the list rows (`.liwan-side-body`): the application block above them is a switcher menu and the footer chevron
-      // below them opens the named list, and both carry `aria-expanded` themselves.
-      await expect(menu.locator('.liwan-side-body button[aria-expanded]:not([data-testid="navigation-app-block"])')).toHaveCount(0)
       continue
     }
-    const parentId = await menu.locator('.liwan-side-body button[aria-expanded="true"]').first().getAttribute('data-testid')
-    const parent = menu.getByTestId(parentId!)
-    await expect(parent).toBeVisible()
-    await expectAlignedGuide(parent)
-    await expect(menu.locator(`.liwan-side-branch a[href="${path}"]`)).toBeVisible()
-    const originalUrl = page.url()
-    await parent.click()
-    await expect(parent).toHaveAttribute('aria-expanded', 'false')
-    await expect(page).toHaveURL(originalUrl)
+    await expect(menu.getByTestId('context-link-meetings')).toHaveAttribute('href', '/meetings')
+    await expect(menu.getByTestId('context-link-meetings')).toHaveAttribute('data-active', 'true')
+    await expect(menu.getByTestId('context-link-meeting-calendar')).toHaveAttribute('href', '/meetings/calendar')
+    await expect(menu.getByTestId('context-link-meeting-followup')).toHaveAttribute('href', '/meetings/follow-up')
+    await expect(menu.getByTestId('context-link-meeting-series')).toHaveAttribute('href', '/meetings/series')
   }
 })

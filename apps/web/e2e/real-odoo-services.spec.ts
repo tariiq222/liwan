@@ -62,7 +62,7 @@ test('real meeting create persists and detail returns to a filtered meeting list
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name)
   const origin = `/meetings?q=${encodeURIComponent(name)}#meetings`
   await open(page, origin)
-  await page.getByRole('link', { name, exact: true }).click()
+  await page.locator('main').getByRole('link', { name, exact: true }).click()
   await expect.poll(() => new URL(page.url()).pathname).toBe(`/meetings/${meeting.id}`)
   assertReturnTo(page, origin)
   await page.getByTestId('meeting-detail-back').click()
@@ -86,7 +86,7 @@ test('real on-demand meeting series persists and its filtered list roundtrip sta
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name)
   const origin = `/meetings/series?q=${encodeURIComponent(name)}#series`
   await open(page, origin)
-  await page.getByRole('link', { name, exact: true }).click()
+  await page.locator('main').getByRole('link', { name, exact: true }).click()
   await expect.poll(() => new URL(page.url()).pathname).toBe(`/meetings/series/${series.id}`)
   assertReturnTo(page, origin)
   await page.locator('[data-slot="page-header"]').getByRole('link', { name: 'رجوع', exact: true }).click()

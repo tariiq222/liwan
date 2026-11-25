@@ -26,7 +26,7 @@ test('project sidebar changes content without replaying the whole page entrance'
   await expect(page.getByTestId('shell-main')).toHaveAttribute('data-test-animation-count', '0')
 
   // Leaving the workspace still plays the normal entrance on the same shell.
-  await page.getByTestId('core-app-meetings').click()
-  await expect(page).toHaveURL(/\/meetings$/)
+  await page.getByTestId('core-app-tasks').click()
+  await expect(page).toHaveURL(/\/work$/)
   await expect(page.getByTestId('shell-main')).toHaveAttribute('data-test-animation-count', '1')
 })

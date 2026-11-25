@@ -31,12 +31,12 @@ test.describe('top bar (desktop)', () => {
     await expect(bar.getByTestId('theme-toggle')).toHaveCount(0)
   })
 
-  test('every icon button sits in the soft capsule, 34px, with no background at rest and fills on hover', async ({ page }) => {
+  test('every icon button sits in the soft capsule, 32px, with no background at rest and fills on hover', async ({ page }) => {
     for (const id of ['notification-bell']) {
       const button = page.getByTestId(id)
       const box = (await button.boundingBox())!
-      expect(box.width).toBeCloseTo(34, 0)
-      expect(box.height).toBeCloseTo(34, 0)
+      expect(box.width).toBeCloseTo(32, 0)
+      expect(box.height).toBeCloseTo(32, 0)
       await expect(button).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     }
     const bell = page.getByTestId('notification-bell')
