@@ -61,7 +61,7 @@ export type BankKpiId = 'all' | 'filtered'
  * The strip above the list: every statement linked to the list without the filters, and (only while a filter applies)
  * the statements the filters keep, linked to the list with them and clearing back to all statements.
  */
-export function bankKpiTiles(filters: BankListFilters, counts: Record<BankKpiId, number | undefined>, label: (id: BankKpiId) => string): KpiTile[] {
+export function bankKpiTiles(filters: BankListFilters, counts: Record<BankKpiId, number | null | undefined>, label: (id: BankKpiId) => string): KpiTile[] {
   const tiles: KpiTile[] = [
     { id: 'all', label: label('all'), value: counts.all ?? null, icon: 'i-lucide-landmark', tone: 'neutral', to: BANK_STATEMENTS_PATH },
   ]
