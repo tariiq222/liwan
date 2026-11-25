@@ -18,7 +18,10 @@ two files: the provisioning API key and the naming key. The naming key makes the
 (HMAC of the tenant id), so a repeated call finds what an earlier call created without any stored mapping.
 
 Calls are signed with the OCI HTTP signature scheme (RSA-SHA256). The signature is computed by the `openssl` binary of the
-image, so no Python dependency is added. Endpoint host names and IAM write semantics are not yet proven on the real account.
+image, so no Python dependency is added. The endpoint host names and every IAM write this module makes are proven on the real
+account: users, groups, policies in the storage compartment, customer secret keys, and the capabilities restriction verified
+live on 2026-11-25 (console password refused, customer secret keys allowed). The access rule of the shared `fixed` policy mode
+is the one thing still unproven there.
 """
 from __future__ import annotations
 
@@ -339,6 +342,15 @@ class OciRest:
     def create_user(self, name):
         return self._identity('POST', '/users', payload=user_payload(self.config.tenancy, name))
 
+    def set_capabilities(self, user_id):
+        """A tenant user only signs S3-compatible requests: customer secret keys are the single capability it needs, and every other way
+        to authenticate is closed. In an identity-domain tenancy the domain mails an activation link to the address a user is created
+        with, so a console password would open a human login path to the tenant's bucket. Every flag is sent explicitly, so a service
+        default cannot re-open one: the request model names the DB flag `canUseDBCredentials`, unlike the response's `canUseDbCredentials`."""
+        return self._identity('PUT', f'/users/{user_id}/capabilities', payload={
+            'canUseConsolePassword': False, 'canUseApiKeys': False, 'canUseAuthTokens': False, 'canUseSmtpCredentials': False,
+            'canUseDBCredentials': False, 'canUseOAuth2ClientCredentials': False, 'canUseCustomerSecretKeys': True})
+
     def find_group(self, name):
         return self._find('groups', self.config.tenancy, name)
 
@@ -391,7 +403,8 @@ class OciRest:
             'description': 'LiwanOS tenant storage'})
 
     def update_policy(self, policy_id, statements, version_date):
-        # The service refuses a changed statement set without the policy's current version date, so the caller carries it from the read.
+        # The service refuses a changed statement set without a version date; an empty string means "current behaviour", which is what a
+        # policy created without one answers.
         return self._identity('PUT', '/policies/' + policy_id, payload={'statements': statements, 'versionDate': version_date})
 
     # Customer secret keys
@@ -449,6 +462,8 @@ class Provisioner:
         if user is None:
             created = api.create_user(name)
             user = api.find_user(name) if created is None or created.get('conflict') else created
+            if user and isinstance(user.get('id'), str):
+                api.set_capabilities(user['id'])
         if not user or not isinstance(user.get('id'), str):
             raise OciError('oci_refused')
         group_name = name
@@ -471,9 +486,9 @@ class Provisioner:
             if created is None or (created.get('conflict') and api.find_policy(config.compartment, policy_name) is None):
                 raise OciError('oci_refused')
         elif sorted(policy.get('statements') or []) != sorted(statements):
-            if not isinstance(policy.get('versionDate'), str):
-                raise OciError('oci_refused')  # an update without the policy's version date is always refused by the service
-            api.update_policy(policy['id'], statements, policy['versionDate'])
+            # A policy created without a version date answers null, which the service reads as "current behaviour": an empty string
+            # carries that meaning on the update, where both parameters are required together.
+            api.update_policy(policy['id'], statements, policy.get('versionDate') or '')
         return {'bucket': name, 'endpointUrl': config.endpoint_url(namespace), 'keys': self._keys(user)}
 
     def _user(self, name):
