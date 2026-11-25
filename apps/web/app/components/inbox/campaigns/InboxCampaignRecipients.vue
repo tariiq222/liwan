@@ -6,7 +6,7 @@ import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { RECIPIENT_STATE_TONE, RECIPIENT_STATES } from '@/composables/inbox/inboxCampaignPresentation'
 import {
   CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseRecipientRoute, serializeRecipientRoute, type RecipientRoute,
-} from '@/composables/inbox/inboxCampaignRoute'
+} from '@/utils/inboxCampaignRoute'
 import { useInboxCampaignRecipients } from '@/composables/inbox/useInboxCampaigns'
 
 // The recipients of one campaign with their own state, the reason for a skip or a failure (with Meta's code), replies and

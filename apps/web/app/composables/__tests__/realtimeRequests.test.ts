@@ -18,7 +18,7 @@ import { inboxAutomationKeys } from '../inbox/useInboxAutomation'
 import { inboxHealthKeys } from '../inbox/useInboxChannelHealth'
 import { inboxTikTokKeys } from '../inbox/inboxTikTok'
 import { DEFAULT_INBOX_LIST_ROUTE } from '../inbox/inboxListRoute'
-import { DEFAULT_CAMPAIGN_LIST_ROUTE, DEFAULT_RECIPIENT_ROUTE, DEFAULT_AUDIENCE_LIST_ROUTE, DEFAULT_MEMBER_ROUTE } from '../inbox/inboxCampaignRoute'
+import { DEFAULT_CAMPAIGN_LIST_ROUTE, DEFAULT_RECIPIENT_ROUTE, DEFAULT_AUDIENCE_LIST_ROUTE, DEFAULT_MEMBER_ROUTE } from '../../utils/inboxCampaignRoute'
 import { InboxOrderSchema, type InboxOrderPaymentStatus } from '@liwan/contracts'
 vi.mock('@/modules/registry', () => ({ hasFeature: () => true }))
 

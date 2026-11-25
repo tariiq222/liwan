@@ -14,7 +14,7 @@ const meta = {
   component: InboxConversationActions,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/inbox/InboxWorkspace.vue:137', 'إجراءات المحادثة في رأس الخيط: إسناد لي، حل المحادثة أو إعادة فتحها، وقائمة الأولوية وإلغاء الإسناد. الزر الذي لا يملك المستخدم صلاحيته لا يُرسم، وتحت 768px يصير الزران أيقونتين.'),
+    ...storyContext('apps/web/app/components/inbox/InboxWorkspace.vue:146', 'إجراءات المحادثة في رأس الخيط: إسناد لي، حل المحادثة أو إعادة فتحها، وقائمة الأولوية وإلغاء الإسناد. الزر الذي لا يملك المستخدم صلاحيته لا يُرسم، وتحت 768px يصير الزران أيقونتين.'),
     msw: { handlers: { api: [access] } },
   },
   args: { conversation },

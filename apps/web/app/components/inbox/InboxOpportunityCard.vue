@@ -70,10 +70,13 @@ const stageOf = (item: { stage: { name: string } | null }) => item.stage?.name ?
 
 <template>
   <SharedRecordSection v-if="visible" variant="panel" :title="t('inbox.opportunity.title')" data-testid="inbox-opportunity">
+    <template v-if="opportunity" #actions>
+      <UButton :to="`/crm/opportunities/${opportunity.id}`" size="sm" color="neutral" variant="outline" icon="i-lucide-arrow-up-right" :ui="{ leadingIcon: 'rtl:-scale-x-100' }" :label="t('inbox.opportunity.open')" data-testid="inbox-opportunity-open" />
+    </template>
     <div class="grid gap-3 text-sm">
       <template v-if="opportunity">
         <div class="grid gap-1" data-testid="inbox-opportunity-linked">
-          <NuxtLink :to="`/crm/opportunities/${opportunity.id}`" class="min-w-0 truncate font-semibold text-primary hover:underline">{{ opportunity.contact_name }}</NuxtLink>
+          <p class="min-w-0 truncate font-semibold text-highlighted">{{ opportunity.contact_name }}</p>
           <p class="flex flex-wrap items-center gap-2 text-muted">
             <span>{{ opportunity.stage?.name ?? t('inbox.opportunity.noStage') }}</span>
             <SharedStatusBadge :tone="STATUS_TONE[opportunity.status]" :label="t(`inbox.opportunity.status.${opportunity.status}`)" size="sm" />

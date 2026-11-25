@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { InboxAudienceMember } from '@liwan/contracts'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { CONSENT_STATES, CONSENT_TONE } from '@/composables/inbox/inboxCampaignPresentation'
-import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseMemberRoute, serializeMemberRoute, type MemberRoute } from '@/composables/inbox/inboxCampaignRoute'
+import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseMemberRoute, serializeMemberRoute, type MemberRoute } from '@/utils/inboxCampaignRoute'
 import { useInboxAudienceMembers } from '@/composables/inbox/useInboxCampaigns'
 
 // The contacts that match an audience right now, with their marketing consent, filtered by consent and name or number.

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InboxOrdersTable from '@/components/inbox/InboxOrdersTable.vue'
 import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
+import { useInboxOrderKpis } from '@/composables/inbox/useInboxKpis'
 import { useInboxOrders } from '@/composables/inbox/useInboxOrders'
 import { useInboxChannels } from '@/composables/inbox/useInboxSettings'
 import { listPageNumber, useLastPageClamp } from '@/composables/useRouteListFilters'
@@ -27,6 +28,12 @@ const search = ref(committedSearch.value)
 watch(committedSearch, (value) => { search.value = value })
 const page = computed(() => listPageNumber(route.query.page))
 const query = useInboxOrders(() => ({ state: state.value, payment_status: payment.value, channel_id: channelId.value, q: committedSearch.value.trim(), limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }), enabled)
+// The summary strip counts the whole list under the search and the channel; each tile adds its own state or payment.
+const { shown: kpisShown } = useKpiVisibility()
+const kpis = useInboxOrderKpis(
+  () => ({ q: committedSearch.value.trim(), channelId: channelId.value }),
+  computed(() => hydrated.value && kpisShown.value && enabled.value),
+)
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 useLastPageClamp({ page: () => page.value, total: () => query.data.value?.total, pageSize: PAGE_SIZE })
@@ -49,9 +56,10 @@ function clear() {
 
 <template>
   <SharedForbiddenState v-if="!enabled" />
-  <SharedPageContainer v-else>
-    <!-- Not sticky: the inbox shell's content area has no floating-header slot, so a sticky header would cover the filters. -->
-    <SharedPageHeader :title="t('inbox.orders.title')" back-to="/inbox" :back-label="t('inbox.title')" :sticky="false" />
+  <SharedListPage v-else :title="t('inbox.orders.title')" back-to="/inbox" :back-label="t('inbox.title')" data-testid="inbox-orders-page">
+    <template #kpis>
+      <SharedKpiStrip v-if="hydrated && kpisShown" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('inbox.orders.kpi.label')" data-testid="inbox-orders-kpi-strip" />
+    </template>
     <SharedListCard data-testid="inbox-orders-list">
       <template #filters>
         <SharedFilterBar embedded class="w-full" :active-count="Number(!!state) + Number(!!payment) + Number(!!channelId) + Number(!!committedSearch.trim())" :disabled="!hydrated" @clear="clear">
@@ -73,5 +81,5 @@ function clear() {
         <SharedPagination :page="page" :pages="pages" class="w-full" @update:page="update({ page: $event > 1 ? String($event) : undefined })" />
       </template>
     </SharedListCard>
-  </SharedPageContainer>
+  </SharedListPage>
 </template>

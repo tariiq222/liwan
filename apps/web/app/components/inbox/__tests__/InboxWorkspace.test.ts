@@ -10,6 +10,7 @@ const filename = new URL('../InboxWorkspace.vue', import.meta.url)
 // `inbox_channel_kind_unsupported`), so the commerce query is not asked for and the orders toggle and panel stay out.
 function mount(kind: 'whatsapp' | 'tiktok', ordersOpen = true) {
   const commerceEnabled = vi.fn()
+  const kpisEnabled = vi.fn()
   const { state } = mountScript(filename, {
     useRoute: () => ({ query: {}, path: '/inbox/5' }),
     useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -20,6 +21,8 @@ function mount(kind: 'whatsapp' | 'tiktok', ordersOpen = true) {
     useInboxConversation: () => ({ data: Vue.ref({ id: 5, can_reply: true, unread: false, contact: {}, channel: { id: 1, kind } }), error: Vue.ref(null), refetch: vi.fn() }),
     useInboxConversations: () => ({ data: Vue.ref({ items: [], total: 1 }) }),
     useMarkInboxConversationRead: () => ({ mutate: vi.fn() }),
+    useKpiVisibility: () => ({ shown: Vue.ref(true) }),
+    useInboxConversationKpis: (_scope: unknown, enabled: Vue.Ref<boolean>) => { kpisEnabled.mockImplementation(() => enabled.value); return { tiles: Vue.ref([]), loading: Vue.ref(false) } },
     parseInboxListRoute: () => ({ assignee: 'all' }),
     serializeInboxListRoute: () => ({}),
     inboxContactName: () => 'x',
@@ -27,7 +30,7 @@ function mount(kind: 'whatsapp' | 'tiktok', ordersOpen = true) {
     EmptyState: null, avatarProps: () => ({}), InboxAvailabilitySwitch: null, InboxComposer: null, InboxConversationActions: null, InboxContactPanel: null, InboxOrderPanel: null,
     InboxConversationList: null, InboxThread: null, ApiError: class {}, CHANNEL_KIND_ICON: {}, CONVERSATION_STATE_TONE: {}, CSAT_TONE: {}, INBOX_PRIORITY_TONE: {}, replyWindowOpen: () => true,
   }, { conversationId: 5, ordersOpen })
-  return { state, commerceEnabled }
+  return { state, commerceEnabled, kpisEnabled }
 }
 
 describe('InboxWorkspace orders', () => {
@@ -36,6 +39,10 @@ describe('InboxWorkspace orders', () => {
     expect(state.ordersAvailable).toBe(true)
     expect(state.ordersOpen).toBe(true)
     expect(commerceEnabled()).toBe(true)
+  })
+
+  it('asks for no KPI counts while a conversation is open', () => {
+    expect(mount('whatsapp').kpisEnabled()).toBe(false)
   })
 
   it('offers none of them on a TikTok conversation', () => {

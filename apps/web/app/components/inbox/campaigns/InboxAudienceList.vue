@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { InboxAudience } from '@liwan/contracts'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import InboxContactImport from '@/components/inbox/campaigns/InboxContactImport.vue'
-import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseAudienceListRoute, serializeAudienceListRoute, type AudienceListRoute } from '@/composables/inbox/inboxCampaignRoute'
+import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseAudienceListRoute, serializeAudienceListRoute, type AudienceListRoute } from '@/utils/inboxCampaignRoute'
 import { useInboxAudienceList } from '@/composables/inbox/useInboxCampaigns'
 
 // The saved audiences with their live counts, and below them the contact CSV import. Creating an audience is the
@@ -27,7 +27,7 @@ function setPage(next: number) {
   if (hydrated.value && !list.isFetching.value) setFilters({ offset: campaignPageOffset(next, total.value) })
 }
 const columns = computed<TableColumn<InboxAudience>[]>(() => [
-  { accessorKey: 'name', header: t('inbox.settings.name') },
+  { accessorKey: 'name', header: t('inbox.settings.name'), meta: { title: true } },
   { accessorKey: 'tags', header: t('inbox.panel.tags') },
   { accessorKey: 'contact_count', header: t('inbox.campaigns.audiences.contacts'), meta: { class: { th: 'w-[110px]', td: 'w-[110px]' } } },
   { accessorKey: 'reachable_count', header: t('inbox.campaigns.audiences.reachable'), meta: { class: { th: 'w-[110px]', td: 'w-[110px]' } } },
@@ -51,7 +51,10 @@ const rowTo = (audience: InboxAudience) => ({ path: `/inbox/campaigns/audiences/
     <SharedPageState :error="list.error.value" :keep-content="items.length > 0" @retry="list.refetch">
       <SharedEmptyState icon="i-lucide-users" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('inbox.campaigns.audiences.empty')" :description="t('inbox.campaigns.audiences.emptyHint')" data-testid="inbox-audiences-empty" />
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="rowTo" :loading="list.isLoading.value" :caption="t('inbox.campaigns.audiences.title')">
-        <template #name-cell="{ row }"><span class="font-semibold text-highlighted" :data-testid="`inbox-audience-row-${row.original.id}`">{{ row.original.name }}</span></template>
+        <template #name-cell="{ row }">
+          <span class="block min-w-0 truncate font-semibold text-highlighted" :data-testid="`inbox-audience-row-${row.original.id}`">{{ row.original.name }}</span>
+          <SharedRecordNumber class="mt-0.5" :value="`#${row.original.id}`" />
+        </template>
         <template #tags-cell="{ row }">
           <span v-if="row.original.tags.length" class="flex flex-wrap gap-1"><SharedStatusBadge v-for="tag in row.original.tags" :key="tag.id" size="sm" tone="neutral" :label="tag.name" /></span>
           <span v-else class="text-muted">{{ t('inbox.campaigns.audiences.everyone') }}</span>

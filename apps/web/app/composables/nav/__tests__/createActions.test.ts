@@ -48,6 +48,18 @@ describe('createLinkTo', () => {
     expect((to as { query: Record<string, unknown> }).query).toMatchObject({ q: 'ali', filter: 'unread' })
   })
 
+  it('carries the campaign list filters into a new campaign from that list', () => {
+    const to = createLinkTo({ id: 'inbox-new-campaign', to: '/inbox/campaigns/new' }, routeOf('/inbox/campaigns', { state: 'running', channel_id: '4', q: 'عيد', offset: '20' }))
+    expect(to).toEqual({ path: '/inbox/campaigns/new', query: { state: 'running', channel_id: 4, q: 'عيد', offset: 20 } })
+  })
+
+  it('opens a plain new campaign page away from the campaigns list', () => {
+    expect(createLinkTo({ id: 'inbox-new-campaign', to: '/inbox/campaigns/new' }, routeOf('/inbox/campaigns/7', { state: 'running' })))
+      .toEqual({ path: '/inbox/campaigns/new' })
+    expect(createLinkTo({ id: 'inbox-new-campaign', to: '/inbox/campaigns/new' }, routeOf('/inbox', { q: 'ali' })))
+      .toEqual({ path: '/inbox/campaigns/new' })
+  })
+
   it('builds the meeting create route with its project and series context', () => {
     const to = createLinkTo({ id: 'new-meeting', to: '/meetings/new' }, routeOf('/meetings', { project_id: '3', series_id: '9' }))
     expect(to).toMatchObject({
