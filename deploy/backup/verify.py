@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Restore one artifact into a NEW scratch database and prove it is usable.
 
-The dump and the filestore are first compared with the SHA-256 digests and file count the
-snapshot manifest pinned, so a file that changed after the copy is a failed restore, not a
+The dump and the object tree are first compared with the SHA-256 digests, the object count
+and the object bytes the snapshot manifest pinned, and against the artifact's own
+``objects.index``, so a file that changed after the copy is a failed restore, not a
 verified one. The database is then created with the provisioning recipe, closed to
 ``PUBLIC`` before any data is restored, restored in one transaction, and read back: every
 release module installed, no module stuck mid-transition, every referenced attachment
@@ -23,11 +24,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from deploy.backup import snapshot
-from deploy.backup.artifact import sha256_file
+from deploy.backup import bucket
+from deploy.backup.artifact import (
+    CONTENTS_MEMBER,
+    DATABASE_MEMBER,
+    MANIFEST_NAME,
+    OBJECTS_DIRECTORY,
+    sha256_file,
+)
 from deploy.backup.dump import validate_db_name, validate_existing_file
 from deploy.backup.errors import BackupError, require
-from deploy.backup.manifest import CONSISTENCY_UNVERIFIED, SHA256_RE
+from deploy.backup.manifest import CONSISTENCY_UNVERIFIED, is_real_sha256, is_valid_contents_totals
 from deploy.release.tenant_postgres import tenant_create_database_sql, tenant_isolation_sql
 
 if TYPE_CHECKING:
@@ -119,52 +126,60 @@ def load_manifest_integrity(manifest_path: Path) -> dict[str, object]:
     try:
         payload = json.loads(manifest_path.read_text(encoding='utf-8'))
     except ValueError as error:
-        raise BackupError(f'{snapshot.MANIFEST_NAME} is not valid JSON: {error}') from None
+        raise BackupError(f'{MANIFEST_NAME} is not valid JSON: {error}') from None
     if not isinstance(payload, dict):
-        raise BackupError(f'{snapshot.MANIFEST_NAME} is not a JSON object')
+        raise BackupError(f'{MANIFEST_NAME} is not a JSON object')
     require(
         isinstance(payload.get('db_name'), str) and bool(payload['db_name']),
-        f'{snapshot.MANIFEST_NAME} does not name the database it copied',
+        f'{MANIFEST_NAME} does not name the database it copied',
     )
     consistency = payload.get('consistency', CONSISTENCY_UNVERIFIED)
     require(
         consistency == CONSISTENCY_UNVERIFIED,
-        f'{snapshot.MANIFEST_NAME} claims consistency {consistency!r}: this package cannot '
+        f'{MANIFEST_NAME} claims consistency {consistency!r}: this package cannot '
         f'certify more than {CONSISTENCY_UNVERIFIED}',
     )
-    pinned = all(
-        isinstance(payload.get(name), str) and bool(SHA256_RE.fullmatch(payload[name]))
-        for name in ('database_dump_sha256', 'filestore_sha256')
+    pinned = all(is_real_sha256(payload.get(name)) for name in ('database_sha256', 'contents_sha256'))
+    sized = is_valid_contents_totals(
+        payload.get('contents_object_count'), payload.get('contents_object_bytes'),
     )
-    count = payload.get('filestore_file_count')
     require(
-        pinned and isinstance(count, int) and not isinstance(count, bool) and count >= 0,
-        f'{snapshot.MANIFEST_NAME} does not pin the backup: it needs database_dump_sha256, '
-        f'filestore_sha256 and filestore_file_count as this package writes them',
+        pinned and sized,
+        f'{MANIFEST_NAME} does not pin the backup: it needs database_sha256, '
+        f'contents_sha256, contents_object_count and contents_object_bytes as this package writes them',
     )
     return payload
 
 
-def check_backup_integrity(manifest: dict[str, object], dump: Path, store: Path) -> dict[str, object]:
-    """Compare the dump and the filestore with what the manifest pinned.
+def check_backup_integrity(manifest: dict[str, object], dump: Path, artifact: Path) -> dict[str, object]:
+    """Compare the dump and the object tree with what the manifest pinned.
 
-    A symlink or special file in the backup is refused; a digest or count that differs is
-    listed in ``mismatches`` so the restore record shows it and cannot verify.
+    The artifact's own ``objects.index`` is the second opinion: every object it names must
+    be there with the same bytes, and an object it does not name is a mismatch too. A
+    symlink in the tree is refused; a digest, count or byte total that differs is listed so
+    the restore record shows it and cannot verify.
     """
     require(not dump.is_symlink(), 'database.dump is a symlink: a restore reads a regular file only')
+    index_path = artifact / CONTENTS_MEMBER
+    objects = artifact / OBJECTS_DIRECTORY
+    require(index_path.is_file(), f'the artifact holds no {CONTENTS_MEMBER}')
+    index = index_path.read_bytes()
     try:
-        filestore_sha256, file_count = snapshot.filestore_digest(store)
+        actual = bucket.tree_manifest(objects)
+        missing = bucket.compare(index, objects)
     except BackupError as error:
-        raise BackupError(f'the backup filestore cannot be restored: {error}') from None
-    actual = {
-        'database_dump_sha256': sha256_file(dump),
-        'filestore_sha256': filestore_sha256,
-        'filestore_file_count': file_count,
+        raise BackupError(f'the backup objects cannot be restored: {error}') from None
+    found = {
+        'database_sha256': sha256_file(dump),
+        'contents_sha256': actual.index_sha256,
+        'contents_object_count': actual.object_count,
+        'contents_object_bytes': actual.object_bytes,
     }
     return {
-        'mismatches': [key for key, value in actual.items() if manifest[key] != value],
-        'filestore_files_expected': manifest['filestore_file_count'],
-        'filestore_files_actual': file_count,
+        'mismatches': [name for name, value in found.items() if manifest[name] != value],
+        'objects_expected': manifest['contents_object_count'],
+        'objects_actual': actual.object_count,
+        'missing_objects': missing,
     }
 
 
@@ -199,13 +214,13 @@ def restore_verified(
     """
     db = validate_target_db(target_db)
     backup_path = Path(artifact)
-    dump = backup_path / snapshot.DUMP_NAME
-    store = backup_path / snapshot.FILESTORE_NAME
-    manifest_path = backup_path / snapshot.MANIFEST_NAME
+    dump = backup_path / DATABASE_MEMBER
+    objects = backup_path / OBJECTS_DIRECTORY
+    manifest_path = backup_path / MANIFEST_NAME
     require(
-        backup_path.is_absolute() and dump.is_file() and store.is_dir() and manifest_path.is_file(),
-        f'the artifact must be an absolute directory holding {snapshot.DUMP_NAME}, '
-        f'{snapshot.FILESTORE_NAME}/ and {snapshot.MANIFEST_NAME}',
+        backup_path.is_absolute() and dump.is_file() and objects.is_dir() and manifest_path.is_file(),
+        f'the artifact must be an absolute directory holding {DATABASE_MEMBER}, '
+        f'{CONTENTS_MEMBER}, {OBJECTS_DIRECTORY}/ and {MANIFEST_NAME}',
     )
     destination = Path(target_filestore)
     require(
@@ -217,7 +232,7 @@ def restore_verified(
     # The restored database stays open to the role the restore connects as once PUBLIC is closed.
     require(bool(pg.user), 'a postgres user is required: it is the role the restored database stays open to')
     source_manifest = load_manifest_integrity(manifest_path)
-    integrity = check_backup_integrity(source_manifest, dump, store)
+    integrity = check_backup_integrity(source_manifest, dump, backup_path)
     try:
         create, isolation = (
             tenant_create_database_sql(db) + ';\n',
@@ -246,7 +261,7 @@ def restore_verified(
     run([str(pg_restore), *conn, '--no-owner', '--no-acl', '--exit-on-error',
          '--single-transaction', '-d', db, str(dump)])
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(str(store), str(destination))
+    shutil.copytree(str(objects), str(destination))
 
     def query(sql: str) -> str:
         return run([str(psql), *conn, '-d', db, '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql])
@@ -260,15 +275,16 @@ def restore_verified(
     result = {
         'restore_verified': (
             bool(expected) and not missing_modules and stuck == 0 and not missing
-            and not integrity['mismatches']
+            and not integrity['mismatches'] and not integrity['missing_objects']
         ),
         'verified_at': datetime.now(timezone.utc).isoformat(),
         'restored_into': db,
         'source_manifest': source_manifest,
         'checks': {
             'backup_integrity_mismatches': integrity['mismatches'],
-            'filestore_files_expected': integrity['filestore_files_expected'],
-            'filestore_files_actual': integrity['filestore_files_actual'],
+            'objects_expected': integrity['objects_expected'],
+            'objects_actual': integrity['objects_actual'],
+            'missing_objects': integrity['missing_objects'],
             'liwan_modules_installed': len(installed_names),
             'liwan_modules_expected': len(expected),
             'missing_modules': missing_modules,

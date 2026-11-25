@@ -245,15 +245,13 @@ class S3Client:
         )
 
 
-def _key_parts(key: str) -> tuple[str, ...]:
-    """Reject a key that could leave the root; both stores share this rule."""
-    refused = (
-        not key,
-        key.startswith('/'),
-        '\\' in key,
-    )
-    parts = tuple(key.split('/')) if key else ()
-    if any(refused) or any(part in ('', '.', '..') for part in parts):
+def relative_key_parts(key: str) -> tuple[str, ...]:
+    """Reject a key that could leave the root; both stores and the bucket half share this rule."""
+    if not isinstance(key, str) or not key or key.startswith('/') or '\\' in key or Path(key).is_absolute():
+        message = f'key must be a relative object path: {key!r}'
+        raise StorageError(message)
+    parts = tuple(key.split('/'))
+    if any(part in ('', '.', '..') for part in parts):
         message = f'key must be a relative object path: {key!r}'
         raise StorageError(message)
     return parts
@@ -315,7 +313,7 @@ class FilesystemStore:
         self._existing(key).unlink()
 
     def _path(self, key: str) -> Path:
-        return self._root.joinpath(*_key_parts(key))
+        return self._root.joinpath(*relative_key_parts(key))
 
     def _existing(self, key: str) -> Path:
         path = self._path(key)
@@ -407,14 +405,14 @@ class S3Store:
 
     def put(self, key: str, data: bytes) -> None:
         status, _headers, _body = self._send(
-            'PUT', _key_parts(key), body=data,
+            'PUT', relative_key_parts(key), body=data,
             extra_headers={IF_NONE_MATCH_HEADER: IF_NONE_MATCH_ANY},
         )
         self._require_success(status, key, 'write')
 
     def put_file(self, key: str, source: Path) -> None:
         """Upload a file in bounded parts; make the new object visible at completion."""
-        key_parts = _key_parts(key)
+        key_parts = relative_key_parts(key)
         with source.open('rb') as handle:
             size = os.fstat(handle.fileno()).st_size
             if not 0 < size <= MULTIPART_PART_BYTES * MULTIPART_MAX_PARTS:
@@ -474,19 +472,19 @@ class S3Store:
     def get_file(self, key: str, target: Path, *, expected_size: int) -> None:
         def download(handle: BinaryIO) -> None:
             status, _headers, _body = self._send(
-                'GET', _key_parts(key), download=handle, expected_size=expected_size,
+                'GET', relative_key_parts(key), download=handle, expected_size=expected_size,
             )
             self._require_success(status, key, 'download')
 
         _write_download(target, download, expected_size)
 
     def get(self, key: str) -> bytes:
-        status, _headers, body = self._send('GET', _key_parts(key))
+        status, _headers, body = self._send('GET', relative_key_parts(key))
         self._require_success(status, key, 'read')
         return body
 
     def head(self, key: str) -> int:
-        status, headers, _body = self._send('HEAD', _key_parts(key))
+        status, headers, _body = self._send('HEAD', relative_key_parts(key))
         self._require_success(status, key, 'read')
         size = _response_header(headers, CONTENT_LENGTH_HEADER)
         try:
@@ -515,7 +513,7 @@ class S3Store:
         # S3 answers 204 for an absent key, so absence is checked first: retention
         # pruning must behave identically against a bucket and against a filesystem.
         self.head(key)
-        status, _headers, _body = self._send('DELETE', _key_parts(key))
+        status, _headers, _body = self._send('DELETE', relative_key_parts(key))
         self._require_success(status, key, 'delete')
 
     def _send(

@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-from deploy.backup import artifact, lock as lock_module, recover, snapshot, store as store_module
+from deploy.backup import artifact, bucket, lock as lock_module, recover, snapshot, store as store_module
 from deploy.backup.artifact import PASSPHRASE_ENVIRONMENT_VARIABLE
 from deploy.backup.capture import (
     CONTROL_PLANE_SOURCE,
@@ -62,7 +62,7 @@ from deploy.backup.manifest import (
     as_utc,
     parse_stamp,
 )
-from deploy.backup.snapshot import CaptureSource, filestore_digest, validate_filestore
+from deploy.backup.snapshot import CaptureSource, validate_filestore
 from deploy.backup.verify import SQL_ATTACHMENTS, SQL_INSTALLED_NAMES, SQL_STUCK, expected_modules
 from deploy.s3_client import FilesystemStore, StorageError
 
@@ -157,18 +157,23 @@ class PipelineCase(unittest.TestCase):
         path.chmod(mode)
         return path
 
+    def filestore(self, name: str = 'liwan_scratch') -> Path:
+        """The tenant's own directory, read as a bucket by the local source."""
+        path = self.root / 'data' / 'filestore' / name
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
     def source(self) -> CaptureSource:
-        filestore = self.root / 'data' / 'filestore' / 'liwan_scratch'
-        if not filestore.is_symlink():
-            filestore.mkdir(parents=True, exist_ok=True)
         pg_dump = self.root / 'pg_dump'
         pg_dump.write_text('', encoding='utf-8')
-        return CaptureSource(db_name='liwan_scratch', filestore=filestore, pg_dump=pg_dump)
+        return CaptureSource(
+            db_name='liwan_scratch', bucket=bucket.DirectoryBucket(self.filestore()), pg_dump=pg_dump,
+        )
 
     def control_plane_source(self, db_name: str = 'liwan_control') -> CaptureSource:
         pg_dump = self.root / 'pg_dump'
         pg_dump.write_text('', encoding='utf-8')
-        return CaptureSource(db_name=db_name, filestore=None, pg_dump=pg_dump)
+        return CaptureSource(db_name=db_name, bucket=None, pg_dump=pg_dump)
 
     def capture_control_plane(self, *, kind: str = 'hourly', captured_at: str = STAMP,
                               runner=None, source: CaptureSource | None = None) -> BackupManifest:
@@ -319,9 +324,12 @@ class TestEncryption(PipelineCase):
 class TestArchive(PipelineCase):
     def staged_tree(self) -> Path:
         staged = self.root / 'staged'
-        (staged / 'filestore' / 'ab').mkdir(parents=True)
+        (staged / 'objects' / 'ab').mkdir(parents=True, exist_ok=True)
         (staged / 'database.dump').write_bytes(DUMP_BYTES)
-        (staged / 'filestore' / 'ab' / 'cdef').write_bytes(ATTACHMENT_BYTES)
+        (staged / 'objects' / 'ab' / 'cdef').write_bytes(ATTACHMENT_BYTES)
+        (staged / 'objects.index').write_bytes(
+            hashlib.sha256(ATTACHMENT_BYTES).hexdigest().encode('ascii') + b'  ab/cdef\n',
+        )
         return staged
 
     def test_the_same_input_produces_the_same_bytes(self):
@@ -348,7 +356,7 @@ class TestArchive(PipelineCase):
     def test_a_changed_attachment_changes_the_digest(self):
         staged = self.staged_tree()
         before = artifact.archive_snapshot(staged, self.root / 'before.tar')
-        (staged / 'filestore' / 'ab' / 'cdef').write_bytes(b'a different payload')
+        (staged / 'objects' / 'ab' / 'cdef').write_bytes(b'a different payload')
         after = artifact.archive_snapshot(staged, self.root / 'after.tar')
         self.assertNotEqual(before, after)
 
@@ -360,18 +368,37 @@ class TestArchive(PipelineCase):
             artifact.archive_snapshot(staged, target)
         self.assertEqual(target.read_bytes(), b'existing')
 
-    def test_the_archive_holds_the_dump_and_the_filestore(self):
+    def test_the_archive_holds_the_dump_the_index_and_the_objects(self):
         staged = self.staged_tree()
         archive = self.root / 'artifact.tar'
         artifact.archive_snapshot(staged, archive)
         with tarfile.open(archive) as bundle:
-            names = sorted(bundle.getnames())
+            names = bundle.getnames()
             payloads = {member.name: bundle.extractfile(member).read()
                         for member in bundle.getmembers() if member.isfile()}
-        self.assertEqual(names, ['database.dump', 'filestore', 'filestore/ab',
-                                 'filestore/ab/cdef'])
+        self.assertEqual(sorted(names), ['database.dump', 'objects', 'objects.index',
+                                        'objects/ab', 'objects/ab/cdef'])
         self.assertEqual(payloads['database.dump'], DUMP_BYTES)
-        self.assertEqual(payloads['filestore/ab/cdef'], ATTACHMENT_BYTES)
+        self.assertEqual(payloads['objects/ab/cdef'], ATTACHMENT_BYTES)
+        # The index travels before any object, so a streaming reader knows what to find.
+        self.assertLess(names.index('objects.index'), names.index('objects/ab/cdef'))
+
+    def test_a_tree_one_half_short_is_refused(self):
+        staged = self.staged_tree()
+        (staged / 'objects.index').unlink()
+        with self.assertRaisesRegex(BackupError, 'objects.index'):
+            artifact.archive_snapshot(staged, self.root / 'artifact.tar')
+        staged = self.staged_tree()
+        (staged / 'database.dump').unlink()
+        with self.assertRaisesRegex(BackupError, 'database.dump'):
+            artifact.archive_snapshot(staged, self.root / 'artifact.tar')
+
+    def test_a_member_outside_the_one_format_is_refused(self):
+        staged = self.staged_tree()
+        (staged / 'filestore').mkdir()
+        (staged / 'filestore' / 'ab').write_bytes(ATTACHMENT_BYTES)
+        with self.assertRaisesRegex(BackupError, 'not part of one backup'):
+            artifact.archive_snapshot(staged, self.root / 'artifact.tar')
 
     def test_the_archive_is_pax_so_a_member_of_eight_gib_or_more_fits(self):
         staged = self.staged_tree()
@@ -388,21 +415,19 @@ class TestArchive(PipelineCase):
 
     def test_a_path_longer_than_ustar_allows_round_trips(self):
         staged = self.staged_tree()
-        deep = staged / 'filestore' / '/'.join(['d' * 90] * 3)
+        deep = staged / 'objects' / '/'.join(['d' * 90] * 3)
         deep.mkdir(parents=True)
         (deep / 'blob').write_bytes(ATTACHMENT_BYTES)
         archive = self.root / 'artifact.tar'
         first = artifact.archive_snapshot(staged, archive)
         with tarfile.open(archive) as bundle:
-            name = 'filestore/' + '/'.join(['d' * 90] * 3) + '/blob'
+            name = 'objects/' + '/'.join(['d' * 90] * 3) + '/blob'
             self.assertEqual(bundle.extractfile(name).read(), ATTACHMENT_BYTES)
         self.assertEqual(first, artifact.archive_snapshot(staged, self.root / 'again.tar'))
 
     def test_a_symlink_is_refused(self):
-        staged = self.root / 'staged'
-        staged.mkdir()
-        (staged / 'database.dump').write_bytes(DUMP_BYTES)
-        (staged / 'escape').symlink_to('/etc/hosts')
+        staged = self.staged_tree()
+        (staged / 'escaping').symlink_to('/etc/hosts')
         with self.assertRaises(BackupError):
             artifact.archive_snapshot(staged, self.root / 'artifact.tar')
 
@@ -417,6 +442,10 @@ class TestManifest(PipelineCase):
             'ciphertext_sha256': 'b' * 64,
             'plaintext_bytes': 10,
             'ciphertext_bytes': 32,
+            'database_sha256': 'c' * 64,
+            'contents_sha256': 'd' * 64,
+            'contents_object_count': 2,
+            'contents_object_bytes': 20,
         }
         fields.update(overrides)
         return BackupManifest(**fields)
@@ -429,6 +458,46 @@ class TestManifest(PipelineCase):
         )
         self.assertEqual(manifest.consistency, 'UNVERIFIED')
         self.assertEqual(manifest.cipher, 'aes-256-cbc-pbkdf2')
+        self.assertEqual(manifest.payload()['format'], 'odoo-pg-bucket-v1')
+
+    def test_a_manifest_without_one_half_or_with_a_zeroed_one_is_refused(self):
+        valid = json.loads(self.manifest().to_json(self.passphrase_file))
+        for field_name in ('database_sha256', 'contents_sha256', 'contents_object_count',
+                           'contents_object_bytes'):
+            absent = {key: value for key, value in valid.items() if key != field_name}
+            with self.subTest(field_name=field_name), self.assertRaises(BackupError):
+                BackupManifest.from_json(json.dumps(absent), self.passphrase_file)
+        zeroed = dict(valid, contents_sha256='0' * 64)
+        with self.assertRaisesRegex(BackupError, 'zeroed'):
+            BackupManifest.from_json(json.dumps(zeroed), self.passphrase_file)
+        with self.assertRaises(BackupError):
+            self.manifest(database_sha256='0' * 64)
+
+    def test_another_format_is_refused_rather_than_upgraded(self):
+        payload = json.loads(self.manifest().to_json(self.passphrase_file))
+        payload['format'] = 'odoo-pg-bucket-v2'
+        with self.assertRaisesRegex(BackupError, 'odoo-pg-bucket-v1'):
+            BackupManifest.from_json(json.dumps(payload), self.passphrase_file)
+        payload.pop('format')
+        with self.assertRaises(BackupError):
+            BackupManifest.from_json(json.dumps(payload), self.passphrase_file)
+
+    def test_a_negative_or_mismatched_contents_half_is_refused(self):
+        with self.assertRaises(BackupError):
+            self.manifest(contents_object_count=-1)
+        with self.assertRaises(BackupError):
+            self.manifest(contents_object_count=0, contents_object_bytes=4)
+        with self.assertRaises(BackupError):
+            self.manifest(contents_object_count=True)
+
+    def test_a_contents_half_holding_only_zero_byte_objects_is_accepted(self):
+        for count in (1, 3):
+            with self.subTest(count=count):
+                manifest = self.manifest(contents_object_count=count, contents_object_bytes=0)
+                round_tripped = BackupManifest.from_json(
+                    manifest.to_json(self.passphrase_file), self.passphrase_file,
+                )
+                self.assertEqual(round_tripped, manifest)
 
     def test_consistency_can_never_be_upgraded(self):
         payload = json.loads(self.manifest().to_json(self.passphrase_file))
@@ -468,6 +537,8 @@ class TestManifest(PipelineCase):
             self.manifest(plaintext_sha256='not-a-digest')
         with self.assertRaises(BackupError):
             self.manifest(ciphertext_bytes=0)
+        with self.assertRaises(BackupError):
+            self.manifest(database_sha256='not-a-digest')
 
     def test_a_tenant_that_could_leave_its_prefix_is_refused(self):
         for tenant in ('../acme', 'Acme', '', 'a/b'):
@@ -630,11 +701,16 @@ class TestControlPlaneCapture(PipelineCase):
         plain = self.root / 'artifact.tar'
         artifact.decrypt_file(ciphertext, plain, passphrase_file=self.passphrase_file)
         with tarfile.open(plain) as archive:
-            self.assertEqual(archive.getnames(), [snapshot.DUMP_NAME, snapshot.MANIFEST_NAME])
-            self.assertEqual(archive.extractfile(snapshot.DUMP_NAME).read(), DUMP_BYTES)
-            manifest = json.loads(archive.extractfile(snapshot.MANIFEST_NAME).read())
-        self.assertIsNone(manifest['filestore_copy'])
-        self.assertEqual(manifest['filestore_file_count'], 0)
+            self.assertEqual(archive.getnames(), [
+                artifact.DATABASE_MEMBER, artifact.MANIFEST_NAME, artifact.OBJECTS_DIRECTORY,
+                artifact.CONTENTS_MEMBER,
+            ])
+            self.assertEqual(archive.extractfile(artifact.DATABASE_MEMBER).read(), DUMP_BYTES)
+            manifest = json.loads(archive.extractfile(artifact.MANIFEST_NAME).read())
+        self.assertEqual(manifest['contents_object_count'], 0)
+        self.assertEqual(manifest['contents_object_bytes'], 0)
+        self.assertEqual(manifest['contents_sha256'], hashlib.sha256(b'').hexdigest())
+        self.assertEqual(manifest['database_sha256'], hashlib.sha256(DUMP_BYTES).hexdigest())
         self.assertEqual(manifest['consistency'], 'UNVERIFIED')
 
     def test_it_runs_pg_dump_directly_and_never_backup_py_or_a_password_flag(self):
@@ -840,7 +916,8 @@ class TestCandidateArtifact(PipelineCase):
                         runner=self.runner)
         self.assertEqual((code, stderr.getvalue()), (EXIT_OK, ''))
         self.assertEqual(sorted(path.name for path in destination.iterdir()), sorted(
-            (snapshot.DUMP_NAME, snapshot.FILESTORE_NAME, snapshot.MANIFEST_NAME)))
+            (artifact.DATABASE_MEMBER, artifact.CONTENTS_MEMBER, artifact.MANIFEST_NAME,
+             artifact.OBJECTS_DIRECTORY)))
 
         modules = expected_modules()
 
@@ -875,6 +952,82 @@ class TestCandidateArtifact(PipelineCase):
         self.assertEqual(record['source_manifest']['db_name'], 'liwan_scratch')
         self.assertEqual(record['source_manifest']['consistency'], 'UNVERIFIED')
         self.assertEqual(record['checks']['backup_integrity_mismatches'], [])
+
+    def test_zero_byte_objects_capture_fetch_and_restore(self):
+        """A bucket holding only zero-byte objects (such as Odoo GC markers) captures and restores."""
+        modules = expected_modules()
+
+        for case_name, keys in (
+            ('one-empty', ('ab/marker',)),
+            ('several-empty', ('ab/marker1', 'cd/marker2', 'ef/marker3')),
+        ):
+            with self.subTest(case=case_name):
+                store = FilesystemStore(self.root / f'bucket-{case_name}')
+                filestore = self.filestore(f'liwan_zero_{case_name.replace("-", "_")}')
+                for key in keys:
+                    path = filestore / key
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b'')
+                pg_dump = self.root / 'pg_dump'
+                pg_dump.write_text('', encoding='utf-8')
+                source = CaptureSource(
+                    db_name=filestore.name, bucket=bucket.DirectoryBucket(filestore), pg_dump=pg_dump,
+                )
+                manifest = capture(
+                    store=store,
+                    tenant=TENANT,
+                    source=source,
+                    kind='hourly',
+                    work_root=self.root / f'work-{case_name}',
+                    passphrase_file=self.passphrase_file,
+                    now=datetime.fromisoformat(STAMP),
+                    runner=Runner(fake_pg_dump()),
+                )
+                self.assertEqual((manifest.contents_object_count, manifest.contents_object_bytes),
+                                 (len(keys), 0))
+                ref = recover.latest_artifact(store, TENANT)
+                self.assertIsNotNone(ref)
+                fetched = recover.fetch_artifact(
+                    store, ref, self.root / f'fetched-{case_name}',
+                    passphrase_file=self.passphrase_file, runner=Runner(),
+                )
+                restored_bucket = self.root / f'populated-{case_name}'
+                restored_bucket.mkdir()
+                bucket.populate(
+                    fetched.artifact_dir, bucket.DirectoryBucket(restored_bucket),
+                    manifest.contents_sha256,
+                )
+                for key in keys:
+                    self.assertEqual((restored_bucket / key).read_bytes(), b'')
+
+                def sql(argv, _keys=keys, **_kwargs):
+                    arguments = [str(argument) for argument in argv]
+                    if Path(arguments[0]).name == 'pg_restore':
+                        return Completed()
+                    if SQL_STUCK in arguments:
+                        return Completed(stdout='0\n')
+                    if SQL_ATTACHMENTS in arguments:
+                        return Completed(stdout='\n'.join(_keys) + '\n')
+                    if SQL_INSTALLED_NAMES in arguments:
+                        return Completed(stdout='\n'.join(modules) + '\n')
+                    return Completed()
+
+                tools = {}
+                for name in ('pg_restore', 'psql'):
+                    tools[name] = self.root / name
+                    tools[name].write_text('', encoding='utf-8')
+                target = f'liwan_scratch_{case_name.replace("-", "_")}'
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    code = main(['verify', '--backup-dir', str(fetched.artifact_dir), '--target-db', target,
+                                 '--target-filestore', str(self.root / 'restored' / target),
+                                 '--pg-restore', str(tools['pg_restore']), '--psql', str(tools['psql']),
+                                 '--pg-user', 'scratch_user'], runner=Runner(sql))
+                self.assertEqual((code, stderr.getvalue()), (EXIT_OK, ''))
+                record = json.loads((fetched.artifact_dir / 'restore-verification.json').read_text(encoding='utf-8'))
+                self.assertTrue(record['restore_verified'])
+                self.assertEqual(record['checks']['objects_actual'], len(keys))
+                self.assertEqual(record['checks']['missing_attachment_files'], [])
 
 
 class TestRestoreVerified(PipelineCase):
@@ -1019,7 +1172,7 @@ class TestCommandLine(PipelineCase):
         source = self.source()
         return [
             'capture', '--tenant', tenant, '--kind', 'daily',
-            '--work-root', str(self.work_root), '--data-dir', str(source.filestore.parent.parent),
+            '--work-root', str(self.work_root), '--data-dir', str(self.filestore().parent.parent),
             '--pg-dump', str(source.pg_dump), '--store-root', str(self.root / 'cli-bucket'),
             '--now', STAMP,
         ]
@@ -1052,7 +1205,7 @@ class TestCommandLine(PipelineCase):
 
     def test_capture_uses_the_database_and_filestore_from_the_trusted_registry(self):
         source = self.source()
-        attachment = source.filestore / 'ab' / 'cdef'
+        attachment = self.filestore() / 'ab' / 'cdef'
         attachment.parent.mkdir(parents=True)
         attachment.write_bytes(ATTACHMENT_BYTES)
         environ = {PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
@@ -1064,7 +1217,7 @@ class TestCommandLine(PipelineCase):
         self.assertEqual(pg_dump[pg_dump.index('-d') + 1], source.db_name)
         store = FilesystemStore(self.root / 'cli-bucket')
         fetched = self.fetch_artifact_dir(store)
-        self.assertEqual((fetched / 'filestore' / 'ab' / 'cdef').read_bytes(), ATTACHMENT_BYTES)
+        self.assertEqual((fetched / artifact.OBJECTS_DIRECTORY / 'ab' / 'cdef').read_bytes(), ATTACHMENT_BYTES)
         self.assertEqual(len(store.list(f'{TENANT}/daily/')), 3)
 
     def test_capture_protects_a_disabled_but_still_bound_tenant(self):
@@ -1081,7 +1234,7 @@ class TestCommandLine(PipelineCase):
         store = FilesystemStore(self.root / 'cli-bucket')
         self.assertEqual(len(store.list('other/daily/')), 3)
         fetched = self.fetch_artifact_dir(store, tenant='other')
-        self.assertEqual((fetched / 'filestore' / 'ab' / 'cdef').read_bytes(), ATTACHMENT_BYTES)
+        self.assertEqual((fetched / artifact.OBJECTS_DIRECTORY / 'ab' / 'cdef').read_bytes(), ATTACHMENT_BYTES)
 
     def test_capture_skips_a_retired_tenant_without_failing_or_touching_anything(self):
         environ = {PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
@@ -1129,18 +1282,18 @@ class TestCommandLine(PipelineCase):
         self.assertFalse(self.work_root.exists())
 
     def test_capture_refuses_a_filestore_link_to_another_database(self):
-        source = self.source()
-        source.filestore.rmdir()
-        other_store = self.root / 'another' / 'filestore' / source.db_name
+        filestore = self.filestore()
+        filestore.rmdir()
+        other_store = self.root / 'another' / 'filestore' / 'liwan_scratch'
         other_store.mkdir(parents=True)
-        source.filestore.symlink_to(other_store)
+        filestore.symlink_to(other_store)
         environ = {PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
         with _environment(environ):
             code, _stdout, stderr = self.run_main(self.capture_argv())
         self.assertEqual(code, EXIT_REFUSED)
         self.assertIn('filestore', stderr)
         self.assertEqual(self.runner.calls, [])
-        source.filestore.unlink()
+        filestore.unlink()
 
     def test_capture_without_the_passphrase_variable_is_a_refusal(self):
         with _environment(self.registry_environment(), clear=(PASSPHRASE_ENVIRONMENT_VARIABLE,)):
@@ -1214,7 +1367,7 @@ class TestCommandLine(PipelineCase):
         argv = [
             'capture', '--tenant', TENANT, '--kind', 'candidate',
             '--work-root', str(self.work_root),
-            '--db-name', source.db_name, '--filestore', str(source.filestore),
+            '--db-name', source.db_name, '--filestore', str(self.filestore()),
             '--pg-dump', str(source.pg_dump), '--store-root', str(self.root / 'cli-bucket'),
             '--now', STAMP,
         ]
@@ -1235,9 +1388,9 @@ class TestCommandLine(PipelineCase):
             '--store-root', str(self.root / 'cli-bucket'), '--now', STAMP,
         ]
         cases = (
-            (['--filestore', str(source.filestore)], '--db-name'),
-            (['--filestore', str(source.filestore), '--db-name', source.db_name,
-              '--data-dir', str(source.filestore.parent.parent)], '--data-dir'),
+            (['--filestore', str(self.filestore())], '--db-name'),
+            (['--filestore', str(self.filestore()), '--db-name', source.db_name,
+              '--data-dir', str(self.filestore().parent.parent)], '--data-dir'),
             (['--db-name', source.db_name], '--db-name'),
         )
         environ = {PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}
@@ -1262,7 +1415,7 @@ class TestCommandLine(PipelineCase):
         self.assertEqual(code, EXIT_REFUSED)
         self.assertIn('database-only', stderr)
         self.assertEqual(self.runner.calls, [])
-        self.assertTrue(source.filestore.is_dir())
+        self.assertTrue(self.filestore().is_dir())
 
     def test_a_source_is_required_and_the_two_are_exclusive(self):
         for argv in (['prune'], ['prune', '--tenant', TENANT, '--control-plane']):
@@ -1577,25 +1730,42 @@ class TestDump(PipelineCase):
 
 
 class TestSnapshot(PipelineCase):
-    def attachment(self, source: CaptureSource) -> Path:
-        path = source.filestore / 'ab' / 'cdef'
-        path.parent.mkdir(parents=True)
+    def attachment(self) -> Path:
+        path = self.filestore() / 'ab' / 'cdef'
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(ATTACHMENT_BYTES)
         return path
 
-    def test_the_snapshot_manifest_pins_the_dump_and_the_filestore_tree(self):
-        source = self.source()
-        self.attachment(source)
-        payload = snapshot.snapshot(source, self.root / 'snapshot', runner=self.runner)
-        self.assertEqual(payload['database_dump_sha256'], hashlib.sha256(DUMP_BYTES).hexdigest())
+    def test_the_snapshot_manifest_pins_the_dump_and_the_object_half(self):
+        self.attachment()
+        payload = snapshot.snapshot(self.source(), self.root / 'snapshot', runner=self.runner)
+        contents = bucket.tree_manifest(self.root / 'snapshot' / artifact.OBJECTS_DIRECTORY)
+        self.assertEqual(payload['database_sha256'], hashlib.sha256(DUMP_BYTES).hexdigest())
+        self.assertEqual(payload['contents_sha256'], contents.index_sha256)
+        self.assertEqual(payload['contents_object_count'], 1)
+        self.assertEqual(payload['contents_object_bytes'], len(ATTACHMENT_BYTES))
         self.assertEqual(
-            (payload['filestore_sha256'], payload['filestore_file_count']),
-            filestore_digest(self.root / 'snapshot' / 'filestore'),
+            (self.root / 'snapshot' / artifact.CONTENTS_MEMBER).read_bytes(), contents.index,
         )
-        self.assertEqual(payload['filestore_file_count'], 1)
         self.assertEqual(payload['consistency'], 'UNVERIFIED')
         self.assertFalse(payload['recovery_ready'])
         self.assertNotIn('quiesce', payload)
+
+    def test_an_empty_bucket_has_the_empty_index_and_a_zero_count(self):
+        payload = snapshot.snapshot(self.source(), self.root / 'snapshot', runner=self.runner)
+        self.assertEqual(payload['contents_sha256'], hashlib.sha256(b'').hexdigest())
+        self.assertEqual((payload['contents_object_count'], payload['contents_object_bytes']), (0, 0))
+        self.assertEqual((self.root / 'snapshot' / artifact.CONTENTS_MEMBER).read_bytes(), b'')
+
+    def test_the_index_follows_the_content_and_the_names(self):
+        attachment = self.attachment()
+        before = bucket.tree_manifest(self.filestore())
+        attachment.write_bytes(b'a different payload')
+        changed = bucket.tree_manifest(self.filestore())
+        self.assertNotEqual(before.index_sha256, changed.index_sha256)
+        self.assertEqual((before.object_count, changed.object_count), (1, 1))
+        attachment.rename(self.filestore() / 'ab' / 'renamed')
+        self.assertNotEqual(changed.index_sha256, bucket.tree_manifest(self.filestore()).index_sha256)
 
     def test_a_staged_snapshot_directory_that_exists_is_refused(self):
         destination = self.root / 'snapshot'
@@ -1605,32 +1775,29 @@ class TestSnapshot(PipelineCase):
         self.assertEqual(list(destination.iterdir()), [])
         self.assertEqual(self.runner.calls, [])
 
-    def test_a_dump_that_wrote_no_file_is_refused(self):
+    def test_a_dump_that_wrote_no_file_is_refused_and_copies_no_objects(self):
+        self.attachment()
         with self.assertRaises(BackupError):
             snapshot.snapshot(
                 self.source(), self.root / 'snapshot', runner=Runner(fake_pg_dump(writes=False)),
             )
-        self.assertFalse((self.root / 'snapshot' / snapshot.MANIFEST_NAME).exists())
+        self.assertFalse((self.root / 'snapshot' / artifact.MANIFEST_NAME).exists())
+        self.assertFalse((self.root / 'snapshot' / artifact.CONTENTS_MEMBER).exists())
 
-    def test_the_filestore_digest_follows_the_content_and_the_names(self):
-        filestore = self.source().filestore
-        before = filestore_digest(filestore)
-        (filestore / 'ab').mkdir()
-        (filestore / 'ab' / 'one').write_bytes(b'x')
-        changed = filestore_digest(filestore)
-        self.assertNotEqual(before[0], changed[0])
-        self.assertEqual((before[1], changed[1]), (0, 1))
-        (filestore / 'ab' / 'one').write_bytes(b'z')
-        self.assertNotEqual(changed[0], filestore_digest(filestore)[0])
-        (filestore / 'ab' / 'one').rename(filestore / 'ab' / 'renamed')
-        self.assertNotEqual(changed[0], filestore_digest(filestore)[0])
-        self.assertEqual(filestore_digest(filestore)[1], 1)
+    def test_a_duplicate_key_from_the_bucket_is_refused(self):
+        class Twice(bucket.DirectoryBucket):
+            def list(self, prefix):
+                return [bucket.ObjectMeta('ab/cdef', 1), bucket.ObjectMeta('ab/cdef', 1)]
 
-    def test_an_empty_filestore_has_the_empty_digest_and_a_zero_count(self):
-        self.assertEqual(filestore_digest(self.source().filestore), (hashlib.sha256(b'').hexdigest(), 0))
+        self.attachment()
+        source = self.source()
+        source = CaptureSource(db_name=source.db_name, bucket=Twice(self.filestore()), pg_dump=source.pg_dump)
+        with self.assertRaises(BackupError):
+            snapshot.snapshot(source, self.root / 'snapshot', runner=self.runner)
+        self.assertFalse((self.root / 'snapshot' / artifact.MANIFEST_NAME).exists())
 
-    def test_a_symlinked_file_a_dangling_link_or_a_linked_directory_is_refused(self):
-        filestore = self.source().filestore
+    def test_a_symlinked_object_a_dangling_link_or_a_linked_directory_is_refused(self):
+        filestore = self.filestore()
         links = filestore / 'ab'
         links.mkdir()
         (links / 'external').symlink_to('/etc/hosts')
@@ -1643,20 +1810,20 @@ class TestSnapshot(PipelineCase):
                     validate_filestore(filestore, 'liwan_scratch')
 
     def test_a_special_file_is_refused(self):
-        filestore = self.source().filestore
+        filestore = self.filestore()
         (filestore / 'ab').mkdir()
         os.mkfifo(filestore / 'ab' / 'pipe')
         with self.assertRaisesRegex(BackupError, 'special file'):
             validate_filestore(filestore, 'liwan_scratch')
 
     def test_a_symlinked_filestore_root_is_refused(self):
-        source = self.source()
-        moved = self.root / 'elsewhere' / source.db_name
+        filestore = self.filestore()
+        moved = self.root / 'elsewhere' / 'liwan_scratch'
         moved.parent.mkdir()
-        source.filestore.rename(moved)
-        source.filestore.symlink_to(moved, target_is_directory=True)
+        filestore.rename(moved)
+        filestore.symlink_to(moved, target_is_directory=True)
         with self.assertRaisesRegex(BackupError, 'must not be a symlink'):
-            validate_filestore(source.filestore, source.db_name)
+            validate_filestore(filestore, 'liwan_scratch')
 
 
 class TestLock(PipelineCase):
@@ -1706,7 +1873,7 @@ class TestLock(PipelineCase):
 
     def test_another_database_is_not_blocked(self):
         other = CaptureSource(
-            db_name='otherdb', filestore=self.source().filestore, pg_dump=self.source().pg_dump,
+            db_name='otherdb', bucket=bucket.DirectoryBucket(self.filestore()), pg_dump=self.source().pg_dump,
         )
         with database_lock(self.DB):
             self.assertTrue(snapshot.snapshot(other, self.root / 'other', runner=self.runner))
@@ -1733,7 +1900,7 @@ class TestLock(PipelineCase):
         source = self.source()
         argv = [
             'capture', '--tenant', TENANT, '--kind', 'candidate', '--work-root', str(self.work_root),
-            '--db-name', source.db_name, '--filestore', str(source.filestore),
+            '--db-name', source.db_name, '--filestore', str(self.filestore()),
             '--pg-dump', str(source.pg_dump), '--store-root', str(self.root / 'bucket'),
         ]
         stderr = io.StringIO()

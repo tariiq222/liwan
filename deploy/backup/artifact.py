@@ -1,9 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """How an artifact is named, laid out, archived and encrypted.
 
-One artifact is one restorable unit: ``database.dump`` and ``filestore/`` inside one
-reproducible PAX archive, encrypted with ``aes-256-cbc-pbkdf2`` and written under
-``<tenant>/<kind>/<UTC stamp>/``.
+One artifact is one restorable unit: ``database.dump`` and the bucket half
+(``objects.index`` beside ``objects/<key>``) inside one reproducible PAX archive, encrypted
+with ``aes-256-cbc-pbkdf2`` and written under ``<tenant>/<kind>/<UTC stamp>/``.
 
 The secret reaches ``openssl`` only as ``-pass file:<path>``, never as an argument or an
 environment variable, so it cannot be read from a process listing or a shell history.
@@ -44,6 +44,11 @@ ARTIFACT_NAME = 'artifact.tar'
 ARTIFACT_CIPHERTEXT_NAME = 'artifact.tar.enc'
 MANIFEST_NAME = 'manifest.json'
 CHECKSUMS_NAME = 'checksums.sha256'
+# What one artifact may hold: the database half, the index of the bucket half, the objects
+# themselves under their own keys, and the snapshot manifest that pins them. Nothing else.
+DATABASE_MEMBER = 'database.dump'
+CONTENTS_MEMBER = 'objects.index'
+OBJECTS_DIRECTORY = 'objects'
 CHECKSUM_LINE_SEPARATOR = '  '
 OPENSSL_BINARY = 'openssl'
 PASSPHRASE_ENVIRONMENT_VARIABLE = 'LIWAN_BACKUP_PASSPHRASE_FILE'
@@ -155,22 +160,28 @@ def checksums(digests: Sequence[str], object_names: Sequence[str]) -> str:
 def archive_snapshot(source_dir: Path, target_tar: Path) -> str:
     """Write one reproducible archive of a snapshot tree and return its digest.
 
-    The tree holds ``database.dump`` and ``filestore/``, so one artifact is one restorable
-    unit: a restore needs both or neither. Every name is sorted and every header field is
-    fixed (mode, uid, gid, uname, gname, mtime), so the same input produces the same bytes
-    and the manifest digest is a fact about the data.
+    The tree holds ``database.dump`` and the bucket half — ``objects.index`` beside
+    ``objects/<key>`` — so one artifact is one restorable unit: a restore needs both or
+    neither, and an archive that carries one without the other is refused before it is
+    written. Every name is sorted and every header field is fixed (mode, uid, gid, uname,
+    gname, mtime), so the same input produces the same bytes and the manifest digest is a
+    fact about the data. Sorted order also puts ``objects.index`` before every object, so a
+    streaming reader learns what it must find before it reads one byte of it.
 
     The standard library writes the archive on purpose: the ``tar`` on an operator's
     machine is bsdtar, which rejects ``--sort=name`` and ``--mtime``, so a shell-out could
     not promise the fixed metadata this function promises.
 
     The format is PAX, not USTAR: USTAR's octal size field overflows at 8 GiB and its name
-    fields at 256 bytes, and a tenant's dump or filestore can pass either. PAX writes a
+    fields at 256 bytes, and a tenant's dump or an object key can pass either. PAX writes a
     header record only for a member that needs one, so an ordinary tree is still
     byte-for-byte reproducible, and ``tarfile`` reads every format.
     """
     require(source_dir.is_absolute(), 'the archive source must be an absolute path')
     require(source_dir.is_dir(), 'the archive source must be an existing directory')
+    for member in (DATABASE_MEMBER, CONTENTS_MEMBER):
+        require((source_dir / member).is_file(),
+                f'the archive source holds no {member}: one backup is both halves')
     _fresh_path(target_tar, 'archive')
     members = _archive_members(source_dir)
     require(bool(members), 'the archive source holds nothing to capture')
@@ -349,7 +360,11 @@ def _add_member(archive: tarfile.TarFile, relative: str, path: Path, is_director
 
 
 def _archive_members(source_dir: Path) -> list[tuple[str, Path, bool]]:
-    """Every directory and regular file under the source, in sorted path order."""
+    """Every directory and regular file under the source, in sorted path order.
+
+    Only a member of the one artifact format is accepted: a tree that also carries another
+    name is refused, so a second copy of the files cannot ride along unnoticed.
+    """
     members: list[tuple[str, Path, bool]] = []
     for root, directories, files in os.walk(source_dir):
         directories.sort()
@@ -363,6 +378,19 @@ def _archive_members(source_dir: Path) -> list[tuple[str, Path, bool]]:
                 f'the archive source holds a symlink or a special file that a restore '
                 f'cannot reproduce: {relative}',
             )
+            require(
+                is_artifact_member(relative),
+                f'the archive source holds a member that is not part of one backup: {relative}',
+            )
             members.append((relative, path, is_directory))
     members.sort(key=lambda member: member[0])
     return members
+
+
+def is_artifact_member(relative: str) -> bool:
+    """Whether one archive member name belongs to the one backup format."""
+    return (
+        relative in (DATABASE_MEMBER, CONTENTS_MEMBER, MANIFEST_NAME)
+        or relative == OBJECTS_DIRECTORY
+        or relative.startswith(OBJECTS_DIRECTORY + '/')
+    )

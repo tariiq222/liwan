@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from deploy import s3_client
 from deploy.backup.artifact import passphrase_from_environment
+from deploy.backup.bucket import DirectoryBucket
 from deploy.backup.capture import (
     CONTROL_PLANE_SOURCE,
     DEFAULT_PURGE_SETTLE_SECONDS,
@@ -186,7 +187,8 @@ def _capture_source(args: argparse.Namespace) -> CaptureSource:
         require(args.db_name is not None, '--filestore needs --db-name: the two name one copy')
         require(args.data_dir is None, '--data-dir and --filestore name two different sources')
         filestore = validate_filestore(args.filestore, args.db_name)
-        return CaptureSource(args.db_name, filestore, args.pg_dump, args.pg_host, args.pg_port, args.pg_user)
+        return CaptureSource(args.db_name, DirectoryBucket(filestore), args.pg_dump,
+                             args.pg_host, args.pg_port, args.pg_user)
     require(args.db_name is None, 'a tenant capture takes its database from the registry, not --db-name')
     require(args.data_dir is not None, 'a tenant capture needs --data-dir')
     return _registry_source(args)
@@ -206,7 +208,8 @@ def _registry_source(args: argparse.Namespace) -> CaptureSource:
     require(filestore.is_dir() and filestore.resolve() == filestore,
             'the registered filestore must be an existing directory under the Odoo data directory without links')
     return CaptureSource(
-        str(binding['database']), filestore, args.pg_dump, args.pg_host, args.pg_port, args.pg_user,
+        str(binding['database']), DirectoryBucket(filestore), args.pg_dump,
+        args.pg_host, args.pg_port, args.pg_user,
     )
 
 

@@ -1,9 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """What a verified restore promises, proven offline against a fake PostgreSQL.
 
-The frozen manifest is the point: the dump digest, the filestore tree digest and the file
-count the capture pinned are compared before any database is created, so an artifact that
-changed after the copy cannot be reported as restored. The target database must be a new
+The frozen manifest is the point: the dump digest, the object index digest, the object
+count and the object bytes the capture pinned are compared before any database is created,
+so an artifact that changed after the copy cannot be reported as restored. The target database must be a new
 scratch name and may not resemble a live one. The provisioning, isolation, ``pg_restore``
 and read-back commands are faked; nothing here opens a socket or starts a database.
 """
@@ -17,7 +17,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from deploy.backup import snapshot, verify
+from deploy.backup import bucket, verify
+from deploy.backup.artifact import CONTENTS_MEMBER, OBJECTS_DIRECTORY
 from deploy.backup.errors import BackupError
 from deploy.backup.verify import PostgresConnection, RestoreTools, restore_verified
 
@@ -32,10 +33,10 @@ MODULES_ANSWER = 'liwan_api\nliwan_core\nliwan_hr\n'
 
 def make_backup(root: Path, files=('ab/abcdef',)) -> Path:
     backup_dir = root / 'backup'
-    (backup_dir / 'filestore').mkdir(parents=True)
+    (backup_dir / OBJECTS_DIRECTORY).mkdir(parents=True)
     (backup_dir / 'database.dump').write_bytes(b'PGDMP')
     for name in files:
-        path = backup_dir / 'filestore' / name
+        path = backup_dir / OBJECTS_DIRECTORY / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b'x')
     write_manifest(backup_dir)
@@ -43,14 +44,16 @@ def make_backup(root: Path, files=('ab/abcdef',)) -> Path:
 
 
 def write_manifest(backup_dir: Path) -> None:
-    """The snapshot manifest as this package pins the bytes now on disk."""
-    filestore_sha256, file_count = snapshot.filestore_digest(backup_dir / 'filestore')
+    """The snapshot manifest and object index as this package pins the bytes now on disk."""
+    contents = bucket.tree_manifest(backup_dir / OBJECTS_DIRECTORY)
+    (backup_dir / CONTENTS_MEMBER).write_bytes(contents.index)
     (backup_dir / 'manifest.json').write_text(json.dumps({
         'db_name': 'src',
         'consistency': 'UNVERIFIED',
-        'database_dump_sha256': hashlib.sha256((backup_dir / 'database.dump').read_bytes()).hexdigest(),
-        'filestore_sha256': filestore_sha256,
-        'filestore_file_count': file_count,
+        'database_sha256': hashlib.sha256((backup_dir / 'database.dump').read_bytes()).hexdigest(),
+        'contents_sha256': contents.index_sha256,
+        'contents_object_count': contents.object_count,
+        'contents_object_bytes': contents.object_bytes,
     }), encoding='utf-8')
 
 
@@ -196,44 +199,51 @@ class TestRestoreVerify(unittest.TestCase):
         backup = make_backup(self.tmp)
         result = self.run_verify(backup, self.passing_answers())
         self.assertEqual(result['checks']['backup_integrity_mismatches'], [])
-        self.assertEqual(result['checks']['filestore_files_expected'], 1)
-        self.assertEqual(result['checks']['filestore_files_actual'], 1)
+        self.assertEqual(result['checks']['missing_objects'], [])
+        self.assertEqual(result['checks']['objects_expected'], 1)
+        self.assertEqual(result['checks']['objects_actual'], 1)
         pinned = result['source_manifest']
-        self.assertEqual(pinned['database_dump_sha256'], hashlib.sha256(b'PGDMP').hexdigest())
-        self.assertEqual(pinned['filestore_file_count'], 1)
-        self.assertEqual(pinned['filestore_sha256'], snapshot.filestore_digest(backup / 'filestore')[0])
+        self.assertEqual(pinned['database_sha256'], hashlib.sha256(b'PGDMP').hexdigest())
+        self.assertEqual(pinned['contents_object_count'], 1)
+        self.assertEqual(
+            pinned['contents_sha256'],
+            bucket.tree_manifest(backup / OBJECTS_DIRECTORY).index_sha256,
+        )
 
     def test_a_dump_with_wrong_content_is_detected(self):
         backup = make_backup(self.tmp)
         (backup / 'database.dump').write_bytes(b'PGDMX')
         result = self.run_verify(backup, self.passing_answers())
         self.assertFalse(result['restore_verified'])
-        self.assertEqual(result['checks']['backup_integrity_mismatches'], ['database_dump_sha256'])
+        self.assertEqual(result['checks']['backup_integrity_mismatches'], ['database_sha256'])
         self.assertFalse(json.loads((backup / 'restore-verification.json').read_text())['restore_verified'])
 
-    def test_a_filestore_file_with_wrong_content_is_detected(self):
+    def test_an_object_with_wrong_content_is_detected(self):
         """Same name, same size, different bytes: the count matches and the digest does not."""
         backup = make_backup(self.tmp)
-        (backup / 'filestore' / 'ab' / 'abcdef').write_bytes(b'y')
+        (backup / OBJECTS_DIRECTORY / 'ab' / 'abcdef').write_bytes(b'y')
         result = self.run_verify(backup, self.passing_answers())
         self.assertFalse(result['restore_verified'])
-        self.assertEqual(result['checks']['backup_integrity_mismatches'], ['filestore_sha256'])
+        self.assertEqual(result['checks']['backup_integrity_mismatches'], ['contents_sha256'])
+        self.assertEqual(result['checks']['missing_objects'], ['ab/abcdef'])
 
-    def test_an_added_and_a_removed_filestore_file_change_the_count(self):
+    def test_an_added_object_changes_the_count_and_the_bytes(self):
         backup = make_backup(self.tmp)
-        (backup / 'filestore' / 'cd').mkdir()
-        (backup / 'filestore' / 'cd' / 'extra').write_bytes(b'x')
+        (backup / OBJECTS_DIRECTORY / 'cd').mkdir()
+        (backup / OBJECTS_DIRECTORY / 'cd' / 'extra').write_bytes(b'x')
         result = self.run_verify(backup, self.passing_answers())
         self.assertFalse(result['restore_verified'])
         self.assertEqual(
-            result['checks']['backup_integrity_mismatches'], ['filestore_sha256', 'filestore_file_count'],
+            result['checks']['backup_integrity_mismatches'],
+            ['contents_sha256', 'contents_object_count', 'contents_object_bytes'],
         )
-        self.assertEqual(result['checks']['filestore_files_expected'], 1)
-        self.assertEqual(result['checks']['filestore_files_actual'], 2)
+        self.assertEqual(result['checks']['missing_objects'], ['cd/extra'])
+        self.assertEqual(result['checks']['objects_expected'], 1)
+        self.assertEqual(result['checks']['objects_actual'], 2)
 
-    def test_a_symlink_in_the_backup_filestore_is_refused_before_any_command(self):
+    def test_a_symlink_in_the_backup_objects_is_refused_before_any_command(self):
         backup = make_backup(self.tmp)
-        (backup / 'filestore' / 'ab' / 'escape').symlink_to('/etc/hosts')
+        (backup / OBJECTS_DIRECTORY / 'ab' / 'escape').symlink_to('/etc/hosts')
         with self.assertRaisesRegex(BackupError, 'symlink'):
             self.run_verify(backup, [])
         self.assertEqual(self.calls, [])
@@ -249,16 +259,19 @@ class TestRestoreVerify(unittest.TestCase):
             self.run_verify(backup, [])
         self.assertEqual(self.calls, [])
 
-    def test_the_filestore_copy_does_not_carry_links(self):
+    def test_the_object_copy_does_not_carry_links(self):
         backup = make_backup(self.tmp)
         with mock.patch.object(verify.shutil, 'copytree', wraps=verify.shutil.copytree) as copytree:
             self.run_verify(backup, self.passing_answers())
         self.assertFalse(copytree.call_args.kwargs.get('symlinks', False))
 
     def test_a_manifest_without_the_digests_is_refused_before_any_command(self):
-        for pinned in ({}, {'database_dump_sha256': 'a' * 64, 'filestore_sha256': 'a' * 64},
-                       {'database_dump_sha256': 'nothex', 'filestore_sha256': 'a' * 64, 'filestore_file_count': 1},
-                       {'database_dump_sha256': 'a' * 64, 'filestore_sha256': 'a' * 64, 'filestore_file_count': True}):
+        complete = {'database_sha256': 'a' * 64, 'contents_sha256': 'b' * 64,
+                    'contents_object_count': 1, 'contents_object_bytes': 1}
+        for pinned in ({}, {key: complete[key] for key in ('database_sha256', 'contents_sha256')},
+                       dict(complete, database_sha256='nothex'), dict(complete, contents_object_count=True),
+                       dict(complete, contents_sha256='0' * 64),
+                       dict(complete, contents_object_count=0, contents_object_bytes=4)):
             with self.subTest(pinned=pinned):
                 root = Path(tempfile.mkdtemp()).resolve()
                 self.addCleanup(shutil.rmtree, root, True)

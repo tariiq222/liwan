@@ -3,11 +3,13 @@
 
 A fetch authenticates the keyed manifest *before* the ciphertext is downloaded, compares
 both digests before anything is trusted, and extracts the archive inside the destination
-only. The result is the artifact's own tree — ``database.dump``, ``filestore/`` and the
-snapshot manifest that pins them — with no ciphertext or extra plaintext left beside it.
+only. The result is the artifact's own tree — ``database.dump``, ``objects.index``,
+``objects/`` and the snapshot manifest that pins them — with no ciphertext or extra plaintext
+left beside it.
 """
 from __future__ import annotations
 
+import json
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -15,8 +17,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from deploy.backup import artifact
-from deploy.backup.errors import require
-from deploy.backup.manifest import BackupManifest
+from deploy.backup.errors import BackupError, require
+from deploy.backup.manifest import HALF_FIELDS, BackupManifest
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -94,8 +96,7 @@ def fetch_artifact(
         )
         extracted = Path(private) / 'artifact'
         artifact.extract_archive(archive, extracted)
-        require((extracted / artifact.MANIFEST_NAME).is_file(),
-                f'artifact {ref.artifact_key} holds no snapshot manifest')
+        _require_inner_manifest(extracted, manifest, ref.artifact_key)
         # The tree is moved out of the private directory in one step, so nothing plaintext
         # but the artifact itself survives the call.
         for member in sorted(extracted.iterdir()):
@@ -105,4 +106,25 @@ def fetch_artifact(
         manifest=manifest,
         manifest_sha256=artifact.sha256_bytes(manifest_bytes),
         artifact_dir=destination,
+    )
+
+
+def _require_inner_manifest(extracted: Path, outer: BackupManifest, artifact_key: str) -> None:
+    """The snapshot manifest inside the archive must pin the same halves as the outer one."""
+    inner_path = extracted / artifact.MANIFEST_NAME
+    require(inner_path.is_file(), f'artifact {artifact_key} holds no snapshot manifest')
+    try:
+        inner = json.loads(inner_path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as error:
+        raise BackupError(f'artifact {artifact_key} holds an unreadable snapshot manifest') from error
+    require(isinstance(inner, dict), f'artifact {artifact_key} holds a malformed snapshot manifest')
+    mismatched = [
+        field_name for field_name in HALF_FIELDS
+        if type(inner.get(field_name)) is not type(getattr(outer, field_name))
+        or inner.get(field_name) != getattr(outer, field_name)
+    ]
+    require(
+        not mismatched,
+        f'artifact {artifact_key} inner manifest disagrees with the outer manifest on: '
+        f'{", ".join(mismatched)}',
     )
