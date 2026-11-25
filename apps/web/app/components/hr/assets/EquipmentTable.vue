@@ -2,8 +2,6 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import type { HrEquipment } from '@liwan/contracts'
-import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 
 // The equipment table of /hr/assets: one row per asset with its category, its holder and
@@ -18,7 +16,6 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const columns = computed<TableColumn<HrEquipment>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'name', header: t('hrAssets.columns.name'), meta: { title: true } },
   { accessorKey: 'category', header: t('hrAssets.columns.category') },
   { accessorKey: 'employee', header: t('hrAssets.columns.employee') },
@@ -41,10 +38,12 @@ function holder(equipment: HrEquipment) {
     :loading="props.loading"
     :caption="props.caption"
   >
-    <template #id-cell="{ row }"><RecordNumber :value="row.original.id" :data-testid="`hr-asset-row-${row.original.id}`" /></template>
     <template #name-cell="{ row }">
       <span class="font-semibold text-highlighted">{{ row.original.name }}</span>
-      <span v-if="row.original.serial_no" class="block text-xs text-muted"><bdi>{{ row.original.serial_no }}</bdi></span>
+      <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+        <SharedRecordNumber :value="row.original.id" :data-testid="`hr-asset-row-${row.original.id}`" />
+        <bdi v-if="row.original.serial_no" class="truncate">{{ row.original.serial_no }}</bdi>
+      </div>
     </template>
     <template #category-cell="{ row }">{{ row.original.category?.name || t('hrAssets.noCategory') }}</template>
     <template #employee-cell="{ row }">

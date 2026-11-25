@@ -15,7 +15,7 @@ const types = [
 const meta = {
   title: 'Shared/FilterPopover',
   component: FilterPopover,
-  parameters: storyContext('apps/web/app/pages/hr/warnings.vue:146', 'زر «فلاتر» واحد بعدّاد النشط منها يفتح نافذة بحقول الفلاتر؛ يوضع في شريط الأدوات المضمّن مع البحث والحالة.'),
+  parameters: storyContext('apps/web/app/pages/hr/warnings.vue:157', 'زر «فلاتر» واحد بعدّاد النشط منها يفتح نافذة بحقول الفلاتر؛ يوضع في شريط الأدوات المضمّن مع البحث والحالة.'),
   args: { count: 1, disabled: false },
   render: args => ({
     components: { FilterPopover, FilterBar, FilterField, FilterChip },
