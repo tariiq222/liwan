@@ -1,0 +1,41 @@
+# Rendered by deploy/telephony/render.py from the company's env file. Never commit the rendered file: it holds the
+# TURN REST secret. Company {{COMPANY_ID}}.
+#
+# TURN for the browser leg only (design 3, 12.3): coturn relays the browser's media to Asterisk on the company's
+# private network, and never carries the provider's leg. Credentials are temporary, issued per session by pbx-agent as
+# TURN REST (an expiry as the username, its HMAC under the secret below as the password), so there is no static user
+# and no user database here.
+
+listening-port={{TURN_PORT}}
+listening-ip=0.0.0.0
+# The public address of the package host: the only address a peer sees, because the relay ports below are published
+# one-to-one on it by compose.yml.
+external-ip={{STATIC_ADDRESS}}
+min-port={{TURN_MIN_PORT}}
+max-port={{TURN_MAX_PORT}}
+
+# TURN REST: no static users and no database.
+lt-cred-mech
+use-auth-secret
+static-auth-secret={{TURN_SECRET}}
+realm={{COMPANY_ID}}.telephony
+fingerprint
+
+# Native ceilings: a session's allocations (one username per browser session), the instance's allocations, and the
+# bandwidth one session may use. Accounting across instances is the shared coturn's job (D2).
+user-quota={{TURN_USER_QUOTA}}
+total-quota={{TURN_TOTAL_QUOTA}}
+max-bps={{TURN_MAX_BPS}}
+stale-nonce=600
+
+# No multicast relays, no loopback peers, no telnet CLI; the log goes to the container's bounded json file.
+no-multicast-peers
+no-loopback-peers
+no-cli
+simple-log
+log-file=stdout
+
+# TLS and DTLS are off until the edge's certificate inventory is wired to them: the browser reaches TURN over UDP and
+# TCP today, and TURN over TLS is the fallback for networks that allow nothing else.
+no-tls
+no-dtls

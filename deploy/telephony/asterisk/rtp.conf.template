@@ -1,0 +1,7 @@
+; Rendered by deploy/telephony/render.py from the company's env file.
+; The company's fixed RTP block; it is unique on the address and never overlaps another company's block, and the
+; TURN relay block of this package is checked against it at render time (design 12.3).
+[general]
+rtpstart={{RTP_START}}
+rtpend={{RTP_END}}
+strictrtp=yes

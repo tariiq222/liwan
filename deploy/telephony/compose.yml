@@ -1,0 +1,214 @@
+# The telephony package of one company: Asterisk 22 LTS, coturn and pbx-agent, running beside LiwanOS and shared with
+# no other company (D2; docs/superpowers/specs/2026-10-28-liwan-telephony-design.md sections 2, 3, 11.2, 12.3).
+# deploy/telephony/render.py turns this template into the Compose file of one company. The only structural variation is
+# a rendered block, marked with the toggle it depends on (`LIWAN_TELEPHONY_<NAME>`), kept only when every service of
+# that block belongs to the company's mode. The RTP block is published in every mode and the SIP port only when the
+# line needs it; both are derived, never typed, so neither can be published or withheld by a typo. Render and review,
+# then start from the rendered directory with the same env file:
+#   python3 -B deploy/telephony/render.py --env deploy/telephony/env.example --out /tmp/telephony
+#   docker compose --project-directory /tmp/telephony --env-file <env file> up -d
+# NOT deployment authorization.
+
+# Bounded container logs: without this the json-file driver grows until the disk is full.
+x-logging: &liwan-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+services:
+  asterisk:
+    # Asterisk 22 LTS, the version the design pins (section 3). No official image exists, so this is the community
+    # image built from Asterisk's own sources; the tag is the exact LTS release and the digest was resolved on
+    # 2026-11-25 with `docker buildx imagetools inspect andrius/asterisk:22.11.0_debian-trixie`. Re-resolve the digest
+    # when the base image moves (deploy/image_pins.py owns the production stack's record).
+    image: andrius/asterisk:22.11.0_debian-trixie@sha256:d4aa1629e92b24e42c3b4555db8e3b2b54eca29e2c9ce7a56653d4257381e3c4
+    restart: unless-stopped
+    logging: *liwan-logging
+    # The image's own entrypoint gives the `asterisk` user the uid/gid below and hands it the volumes; Asterisk then
+    # drops root itself. CHOWN, SETUID and SETGID are exactly what those two steps need, and nothing gains privileges.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      # uid/gid 10002 is the agent image's user (apps/pbx-agent/Dockerfile), so the recordings volume is written by
+      # Asterisk and pruned by the agent under one uid and needs no shared-group trick.
+      PUID: "10002"
+      PGID: "10002"
+      # Asterisk's CEL eventtime is a wall clock and the agent reads it as UTC (apps/pbx-agent/Dockerfile), so both
+      # containers of the package share the zone.
+      TZ: "UTC"
+    volumes:
+      # Rendered by deploy/telephony/render.py and read-only: a running PBX cannot rewrite its own configuration. The
+      # files the image ships for everything else (modules.conf, indications.conf, ...) stay in the image.
+      - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/http.conf:/etc/asterisk/http.conf:ro
+      - ./asterisk/ari.conf:/etc/asterisk/ari.conf:ro
+      - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./asterisk/logger.conf:/etc/asterisk/logger.conf:ro
+      # CEL on, and the CSV the agent tails for reconciliation (design 4.6).
+      - ./asterisk/cel.conf:/etc/asterisk/cel.conf:ro
+      - ./asterisk/cel_custom.conf:/etc/asterisk/cel_custom.conf:ro
+      # Recordings, on their own named volume so they survive `down` (design 4.4, 11.1). The mount point is the image's
+      # own spool directory, so a fresh volume inherits the ownership Asterisk writes with (and the entrypoint hands it
+      # to uid/gid 10002 above); MixMonitor writes /var/spool/asterisk/monitor/<linkedid>.wav there, the directory the
+      # agent serves and prunes.
+      - telephony_recordings:/var/spool/asterisk
+      # The shared log directory. The image's /var/log/asterisk is 0755 owned by the asterisk user, and the entrypoint
+      # above hands it (and a fresh volume) to 10002:10002, the agent's uid; Asterisk creates cel-custom.csv 0644 under
+      # its umask. Both containers mount it read-write, so a truncation needs no remount, and no other file is logged
+      # there (logger.conf writes only to stdout).
+      - telephony_logs:/var/log/asterisk
+    expose: ["5060", "8088"]
+    ports:
+      # The company's fixed RTP block is published in every mode: the provider's media arrives there in the credentials
+      # mode too (design 12.3), and so do the mode-b devices' media. The browser leg needs none of it: coturn reaches
+      # Asterisk on the private network.
+      - "${LIWAN_TELEPHONY_STATIC_ADDRESS}:${LIWAN_TELEPHONY_RTP_START}-${LIWAN_TELEPHONY_RTP_END}:${LIWAN_TELEPHONY_RTP_START}-${LIWAN_TELEPHONY_RTP_END}/udp"
+      # @if LIWAN_TELEPHONY_PUBLIC_SIP
+      # The SIP port is published only for a provider that authenticates the company by address, or for mode-b devices
+      # registering from outside (design 12.3): the company's own port on the operator's address.
+      - "${LIWAN_TELEPHONY_STATIC_ADDRESS}:${LIWAN_TELEPHONY_SIP_PORT}:5060/udp"
+      - "${LIWAN_TELEPHONY_STATIC_ADDRESS}:${LIWAN_TELEPHONY_SIP_PORT}:5060/tcp"
+      # @endif
+    # The private network carries ARI and the browser leg; the uplink carries the trunk to the provider and nothing
+    # else is attached to it.
+    networks: [telephony_internal, telephony_uplink]
+    healthcheck:
+      # The CLI answers only when the core is up and its control socket is writable.
+      test: ["CMD-SHELL", "asterisk -rx 'core show uptime' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  coturn:
+    # coturn 4.19.2, pinned by version and index digest (resolved 2026-11-25 with
+    # `docker buildx imagetools inspect coturn/coturn:4.19.2`); the image runs as `nobody` and binds no privileged port.
+    image: coturn/coturn:4.19.2@sha256:ccdbc51e6f072130b0fc9eebda21f8d026d0a25581746c52557e887818011a3f
+    restart: unless-stopped
+    logging: *liwan-logging
+    # One explicit config file: the path cannot move with the image.
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    # The relay keeps no state with TURN REST; the image's spool is the only writable path.
+    tmpfs: ["/tmp", "/var/lib/coturn:uid=65534,gid=65534"]
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    expose: ["3478", "3478/udp"]
+    # @if LIWAN_TELEPHONY_TURN_PUBLISHED
+    # This package is the company's TURN server: the listener and the relay range are published on the operator's
+    # address, because a browser behind NAT cannot reach TURN otherwise. In the shared SaaS deployment the host's
+    # shared coturn serves the browser leg (D2) and this block stays out of the file, with no port published.
+    ports:
+      - "${LIWAN_TELEPHONY_STATIC_ADDRESS}:${LIWAN_TELEPHONY_TURN_PORT}:3478/udp"
+      - "${LIWAN_TELEPHONY_STATIC_ADDRESS}:${LIWAN_TELEPHONY_TURN_PORT}:3478/tcp"
+      - "${LIWAN_TELEPHONY_STATIC_ADDRESS}:${LIWAN_TELEPHONY_TURN_MIN_PORT}-${LIWAN_TELEPHONY_TURN_MAX_PORT}:${LIWAN_TELEPHONY_TURN_MIN_PORT}-${LIWAN_TELEPHONY_TURN_MAX_PORT}/udp"
+    # @endif
+    # The private network reaches Asterisk's RTP; the uplink is the route the relayed traffic takes to the browser, so
+    # the published ports above work (a container on an internal network alone has no path back to the internet).
+    networks: [telephony_internal, telephony_uplink]
+    healthcheck:
+      # The image ships bash, and turnserver listens on TCP as well as UDP (turnserver.conf does not disable it).
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/3478"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  pbx-agent:
+    # Built by the app part from apps/pbx-agent and run by the release tag, like the stack's own services.
+    image: liwan-pbx-agent:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    restart: unless-stopped
+    logging: *liwan-logging
+    # The image's own user (pbx, uid/gid 10002 in apps/pbx-agent/Dockerfile); Asterisk adopts the same uid above, so
+    # the recordings volume it writes is the one this container serves and prunes.
+    user: "10002:10002"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      # The exact variable contract of apps/pbx-agent/src/pbx_agent/settings.py. A value comes from this company's env
+      # file when the package has one; the rest name this package's own PJSIP objects, dialplan contexts and internal
+      # paths, so the agent and the rendered Asterisk configuration cannot disagree.
+      # ARI is reached on the private network only (design 11.2) and is the http base URL the agent turns into ws.
+      PBX_ARI_URL: http://asterisk:8088/ari
+      PBX_ARI_USERNAME: "${LIWAN_TELEPHONY_ARI_USER:?}"
+      PBX_ARI_PASSWORD: "${LIWAN_TELEPHONY_ARI_PASSWORD:?}"
+      # The company database name carried in every event (12.5).
+      PBX_DATABASE: "${LIWAN_TELEPHONY_DATABASE:?}"
+      # Events go to Odoo's signed machine route (design 4.5) with the company's derived events key; the reverse key
+      # signs the signed recording URL and every request Odoo makes to the agent (12.6). Both reach this host only as
+      # derived keys: the root key never leaves the shared side.
+      PBX_EVENTS_KEY: "${LIWAN_TELEPHONY_EVENTS_KEY:?}"
+      PBX_REVERSE_KEY: "${LIWAN_TELEPHONY_REVERSE_KEY:?}"
+      # The keys-file alternative cannot be combined with the two keys above (settings.py), and this package passes the
+      # keys directly; empty rather than omitted keeps the whole contract in one place.
+      PBX_KEYS_FILE: ""
+      PBX_ODOO_EVENTS_URL: "${LIWAN_TELEPHONY_EVENTS_URL:?}"
+      # MixMonitor writes <linkedid>.wav into this directory on the shared recordings volume, mounted at /recordings
+      # below, which is the mount the agent image expects. Retention deleting from here is phase 4 (design 4.4); today
+      # the period is validated and nothing reads it, and only the free-space floor of the health report (4.6) reads
+      # the volume.
+      PBX_RECORDINGS_DIR: /recordings/monitor
+      PBX_RECORDINGS_MIN_FREE_BYTES: "${LIWAN_TELEPHONY_RECORDINGS_MIN_FREE_BYTES:?}"
+      # The agent's durable queue (4.6) on its own company volume, and the CEL CSV Asterisk writes for reconciliation.
+      PBX_QUEUE_PATH: /var/lib/pbx-agent/queue.sqlite3
+      PBX_CEL_PATH: /var/log/asterisk/cel-custom.csv
+      # The company host the signed recording token is bound to (4.4).
+      PBX_PUBLIC_HOST: "${LIWAN_TELEPHONY_HOST_NAME:?}"
+      # The health endpoint of 4.6, on the private network only and never published.
+      PBX_LISTEN_HOST: "0.0.0.0"
+      PBX_LISTEN_PORT: "8601"
+      PBX_RECONCILE_SECONDS: "${LIWAN_TELEPHONY_RECONCILE_SECONDS:?}"
+      # The inbound context of the rendered extensions.conf, and the trunk endpoint reported as the line in /health.
+      # (The agent no longer reads a PJSIP transport or extension context: provisioning moved out of it.)
+      PBX_INBOUND_CONTEXT: from-trunk
+      PBX_LINE_ENDPOINT: trunk
+    volumes:
+      # Asterisk's recordings volume, at the path the agent image expects (`/recordings`, apps/pbx-agent/README.md).
+      # Read-write: the agent serves a recording from monitor/; deleting it at the retention period is phase 4.
+      - telephony_recordings:/recordings
+      # The durable queue file: the image creates /var/lib/pbx-agent for its user, and the volume keeps it across a
+      # recreate (design 4.6).
+      - telephony_agent_state:/var/lib/pbx-agent
+      # The CEL CSV Asterisk appends. The agent reads it by byte offset and starts again at zero when the file's
+      # identity (device, inode, digest of its first bytes) changes, so a rotation or rewrite is safe; mounted
+      # read-write under the same uid so the file is the same object in both containers.
+      - telephony_logs:/var/log/asterisk
+    expose: ["8601"]
+    # The uplink is how events reach Odoo. PBX_ODOO_EVENTS_URL is the address the package host actually reaches: on the
+    # shared deployment the private path between the package host and the app hosts (design 12.3), not the public
+    # tenant edge.
+    networks: [telephony_internal, telephony_uplink]
+    healthcheck:
+      # The image's own probe (apps/pbx-agent/Dockerfile), on the port above.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8601/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      asterisk: { condition: service_healthy }
+
+networks:
+  # The company's private network: Asterisk's ARI and the browser leg, and coturn's path to Asterisk's RTP. Nothing
+  # from here is ever published; only the ports above leave the host.
+  telephony_internal:
+    name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-internal
+    internal: true
+  # The provider's leg, the event path to Odoo, and TURN's relayed traffic back to the browser. Asterisk, pbx-agent and
+  # coturn are the members.
+  telephony_uplink:
+    name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-uplink
+
+volumes:
+  # Named for the company, so a company's recordings are never a directory another company's package can mount.
+  telephony_recordings:
+    name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-recordings
+  # The agent's durable event queue (design 4.6), separate from the call audio.
+  telephony_agent_state:
+    name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-agent-state
+  # The CEL CSV Asterisk writes and the agent tails (design 4.6); named for the company like the other volumes.
+  telephony_logs:
+    name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-logs

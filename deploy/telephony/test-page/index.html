@@ -1,0 +1,169 @@
+<!doctype html>
+<!--
+  TEST TOOL, not product UI. This page exists to prove the phase-1 voice path of a company's telephony package
+  (docs/superpowers/specs/2026-10-28-liwan-telephony-design.md section 13): register a test extension over wss, call a
+  number, hang up. It is not the LiwanOS softphone, it has no product behaviour, no card lookup and no TURN
+  configuration (temporary TURN credentials belong to the product session, not to a test page).
+
+  Serve it from https://, or from http://localhost, or the browser refuses microphone access. The WebSocket URL is the
+  company host's /ws, which the shared edge forwards to Asterisk (design 11.2): before that route exists this page
+  cannot register.
+
+  JsSIP 3.12.0 is loaded from cdnjs at the exact version and its published Subresource Integrity hash.
+-->
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Liwan telephony test page (test tool)</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; color: #111; }
+    h1 { font-size: 1.25rem; }
+    .tool { border: 2px dashed #b45309; background: #fffbeb; padding: .75rem 1rem; }
+    fieldset { border: 1px solid #d4d4d4; margin: 1rem 0; padding: .75rem 1rem; }
+    label { display: block; margin: .5rem 0; }
+    input { width: 100%; box-sizing: border-box; font: inherit; padding: .35rem .5rem; }
+    button { font: inherit; margin: .25rem .5rem .25rem 0; padding: .35rem .9rem; }
+    #state { font-family: ui-monospace, monospace; background: #f5f5f5; border: 1px solid #d4d4d4; padding: .5rem; min-height: 1.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Liwan telephony test page</h1>
+  <p class="tool"><strong>TEST TOOL — not product UI.</strong> It types an extension password into a plain page and keeps
+    it only for this tab. Use a test extension, never a colleague's.</p>
+
+  <form id="settings" autocomplete="off">
+    <fieldset>
+      <legend>Account</legend>
+      <label>WebSocket URL
+        <input id="ws-url" value="wss://CHANGE-ME.example/ws" spellcheck="false" required>
+      </label>
+      <label>Extension
+        <input id="extension" value="101" inputmode="numeric" required>
+      </label>
+      <label>Password
+        <input id="password" type="password" required>
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Call</legend>
+      <label>Number to call (E.164 as dialled, e.g. +9665…)
+        <input id="number" placeholder="+9665…" spellcheck="false">
+      </label>
+      <button id="register" type="button">Register</button>
+      <button id="unregister" type="button">Unregister</button>
+      <button id="call" type="button">Call</button>
+      <button id="hangup" type="button">Hang up</button>
+    </fieldset>
+  </form>
+
+  <p>State: <span id="state" role="status" aria-live="polite">idle</span></p>
+  <audio id="remote" autoplay></audio>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jssip/3.12.0/jssip.min.js"
+          integrity="sha512-r/56cPG6CuT9+qu+thVVk1snQ23fyL+SjiH26g4IJJIcTIUBTNMM3O92xzZ7oJ2wjj1oZilCUtPgovgQ14A0dg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    'use strict';
+
+    const $ = (id) => document.getElementById(id);
+    const remote = $('remote');
+    let ua = null;
+    let session = null;
+
+    function state(text) {
+      $('state').textContent = new Date().toLocaleTimeString() + ' — ' + text;
+    }
+
+    function hangup() {
+      if (session) {
+        session.terminate();
+        session = null;
+      }
+    }
+
+    function watch(call) {
+      session = call;
+      call.on('peerconnection', (data) => {
+        data.peerconnection.addEventListener('track', (event) => {
+          remote.srcObject = event.streams[0];
+        });
+      });
+      call.on('confirmed', () => state('in call'));
+      call.on('ended', () => { state('call ended'); session = null; });
+      call.on('failed', (event) => { state('call failed: ' + event.cause); session = null; });
+    }
+
+    $('register').addEventListener('click', () => {
+      if (ua) {
+        state('already registered');
+        return;
+      }
+      const wsUrl = $('ws-url').value.trim();
+      const extension = $('extension').value.trim();
+      let host;
+      try {
+        host = new URL(wsUrl).hostname;
+      } catch (error) {
+        state('bad WebSocket URL: ' + error.message);
+        return;
+      }
+      ua = new JsSIP.UA({
+        sockets: [new JsSIP.WebSocketInterface(wsUrl)],
+        uri: 'sip:' + extension + '@' + host,
+        password: $('password').value,
+        register: true,
+        session_timers: false
+      });
+      ua.on('connecting', () => state('connecting to ' + wsUrl));
+      ua.on('connected', () => state('websocket open, registering'));
+      ua.on('registered', () => state('registered as ' + extension));
+      ua.on('unregistered', () => state('unregistered'));
+      ua.on('registrationFailed', (event) => state('registration failed: ' + event.cause));
+      ua.on('disconnected', () => state('websocket closed'));
+      ua.on('newRTCSession', (event) => {
+        if (event.originator === 'remote') {
+          const caller = event.session.remote_identity.uri.toString();
+          watch(event.session);
+          if (window.confirm('Answer the incoming call from ' + caller + '?')) {
+            event.session.answer({ mediaConstraints: { audio: true, video: false } });
+          } else {
+            event.session.terminate();
+          }
+        }
+      });
+      ua.start();
+    });
+
+    $('unregister').addEventListener('click', () => {
+      hangup();
+      if (ua) {
+        ua.unregister({ all: true });
+        ua.stop();
+        ua = null;
+        state('idle');
+      }
+    });
+
+    $('call').addEventListener('click', () => {
+      if (!ua || !ua.isRegistered()) {
+        state('register first');
+        return;
+      }
+      const number = $('number').value.trim().replace(/\s+/g, '');
+      if (!number) {
+        state('enter a number');
+        return;
+      }
+      const target = 'sip:' + number + '@' + new URL($('ws-url').value.trim()).hostname;
+      watch(ua.call(target, { mediaConstraints: { audio: true, video: false } }));
+      state('calling ' + number);
+    });
+
+    $('hangup').addEventListener('click', () => {
+      hangup();
+      state('hang up');
+    });
+  </script>
+</body>
+</html>

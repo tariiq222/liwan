@@ -1,0 +1,11 @@
+; Rendered by deploy/telephony/render.py from the company's env file.
+; One HTTP listener serves the browser WebSocket (/ws) and ARI on the company's private network only: the container
+; publishes no port for it, and the shared edge forwards just /ws on the company host, answering 404 for every other
+; path including /ari (design 11.2).
+[general]
+enabled=yes
+bindaddr=0.0.0.0
+bindport=8088
+servername={{HOST_NAME}}
+; TLS is terminated by the shared edge, never here: the PBX host holds no certificate.
+tlsenable=no

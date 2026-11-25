@@ -1,0 +1,9 @@
+; Rendered by deploy/telephony/render.py from the company's env file (company {{COMPANY_ID}}).
+; One channel: stdout, which Compose bounds with the json-file driver, carries the normal log and the security channel
+; (failed registrations, the signal the limit in design 11.3 is built on). No log file is written to /var/log/asterisk,
+; so the shared log volume holds only the CEL CSV the agent tails.
+[general]
+dateformat=%F %T
+
+[logfiles]
+console => notice,warning,error,security

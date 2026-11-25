@@ -1,0 +1,21 @@
+; Rendered by deploy/telephony/render.py from the company's env file.
+; The one CEL CSV file the agent tails (PBX_CEL_PATH in compose.yml). Asterisk's CEL custom backend names each output
+; after its section, and an absolute section name is used verbatim as the file path (res/cdrel_custom/config.c), so the
+; section below is the path the agent reads; the backend appends one newline-terminated record per event. The image
+; autoloads its modules (modules.conf.sample: autoload=yes), so cel_custom.so — which reads this file — and the
+; res_cdrel_custom.so it depends on are loaded without a modules.conf override.
+;
+; The columns are the agent's order (apps/pbx-agent/src/pbx_agent/cel.py, CEL_COLUMNS): eventtype, eventtime, cidname,
+; cidnum, cidani, cidrdnis, ciddnid, exten, context, channame, appname, appdata, amaflags, accountcode, uniqueid,
+; linkedid, userfield, peeraccount, sequence. Asterisk 22.11.0 exposes the caller-id values as name, num, ani, rdnis
+; and dnid (res/cdrel_custom/registry.c), and it has no CEL `sequence` column, so the last field is the literal 0: the
+; agent reads the column position and never that value.
+[/var/log/asterisk/cel-custom.csv]
+; Delimiter-separated values: a comma separator, the default double-quote character, and every field quoted.
+format = dsv
+separator_character = ,
+; Quote every field, so a comma or a newline inside a value (an appdata, a caller name) cannot break the row. Asterisk
+; names this method all (the alternatives are minimal, non_numeric and none), and the agent unquotes each field before
+; it reads it.
+quoting_method = all
+fields = eventtype,eventtime,name,num,ani,rdnis,dnid,exten,context,channame,appname,appdata,amaflags,accountcode,uniqueid,linkedid,userfield,peeraccount,"0"

@@ -1,0 +1,13 @@
+; Rendered by deploy/telephony/render.py from the company's env file. Never commit the rendered file: it holds the ARI
+; password.
+; ARI is the pbx-agent's only Asterisk interface (design 3, D6). It rides the same listener as /ws, on the private
+; network only; no origin list is needed because no browser ever reaches it.
+[general]
+enabled=yes
+pretty=no
+
+[{{ARI_USER}}]
+type=user
+password={{ARI_PASSWORD}}
+password_format=plain
+read_only=no
