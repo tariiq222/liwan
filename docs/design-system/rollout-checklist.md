@@ -2,7 +2,7 @@
 
 سجل حالة حيّ لمتابعة التنفيذ، وليس سياسة تصميم. المرجع الملزم للشكل هو [DESIGN.md](../../DESIGN.md)، وقواعد العمل في [AGENTS.md](../../AGENTS.md) و[parallel-work.md](../parallel-work.md). تُحدَّث الحالات بعده فقط، ولا تُعدَّل حالة بند قبل دمج PR الخاص به. القواعد الواردة هنا تنسيق لهذه الجولة بين اللينات، ولا تنشئ سياسة جديدة ولا تتقدم على المراجع المذكورة.
 
-آخر تحديث: 2026-11-25 · الفرع الأساس: `main` · المنسّق: `opencode-ui-core`
+آخر تحديث: 2026-11-25 · `main` عند `daed7cc42` · المنسّق: `opencode-ui-core`
 
 ## دلالة الرموز
 
@@ -56,39 +56,46 @@
 
 ### R1: التطبيقات الصغيرة (4 لينات متوازية)
 
-#### meetings (`web-meetings-finish`)
-- [ ] `meetings/calendar.vue`: رأس وفلاتر موحّدة، ومبدّل العرض من الشريط بدل تكرار الشاشة.
-- [ ] `meetings/follow-up`: شريط مؤشرات التوصيات (إجمالي، نشط، متأخر، منجز).
-- [ ] `meetings/series`: شريط مؤشرات + فلاتر صفّين.
-- [ ] `meetings/series/[id].vue`: بطل + `#aside` بخصائص السلسلة.
-- [ ] لقطات 390/1440 عربي/إنجليزي فاتح/داكن.
+#### meetings (`web-meetings-finish`) — مدموج في #884
+- [x] `meetings/calendar.vue`: زر الإنشاء يحمل `data-shortcut-create` ويتعطّل حتى الترطيب؛ الفلاتر كانت أصلًا `FilterBar embedded` بصفّين.
+- [x] `meetings/follow-up`: شريط المؤشرات في `#kpis` والمفتاح تلقائي.
+- [x] `meetings/series`: شريط المؤشرات في `#kpis`.
+- [x] `meetings/series/[id].vue`: خصائص السلسلة في `#aside`، وبقيت التبويبات في رأس الصفحة (أُزيل بطل مكرر بعد المراجعة).
+- [-] وسم عدد في رأس التقويم: غير ممكن بلا مساس `SharedTimelineFrame`، و`total` يشمل نافذة 7 أيام سابقة فلا يطابق الشهر.
 
-#### helpdesk + appointments (`web-helpdesk-appointments`)
-- [ ] `helpdesk/index`: شريط مؤشرات (مفتوح، بانتظاري، متأخر) + فلاتر + جدول موحّد.
-- [ ] `helpdesk/[id]`: بطل + `#aside` + إجراءات التبويبات في رؤوس البطاقات.
-- [ ] `helpdesk/reports`: رأس وإجراءات موحّدة.
-- [ ] شريط جانبي لـ helpdesk بعدّادات.
-- [ ] `appointments/index`: شريط مؤشرات + فلاتر + جدول.
-- [ ] `appointments/[id]`: بطل + `#aside` + إجراءات.
-- [ ] `settings/apps/appointments`: بطاقات موحّدة.
+#### helpdesk + appointments (`web-helpdesk-appointments`) — مدموج في #886
+- [x] `helpdesk/index`: العمود الأول عنوان + `SharedRecordNumber` مع `meta.title`، `StatusBadge`، والترقيم وأعمدة SLA كما هي.
+- [x] `helpdesk/[id]`: إجراءات الأقسام في `SharedRecordSection #actions`، حراسة تهيئة على الدمج والنسخ، وحذف مراقب السجلات الأخيرة الميت.
+- [x] شريط جانبي لـ helpdesk: التذاكر والتقارير بعدّادات من ملخص التذاكر، مع `anyCapabilities` (تشمل `helpdesk.tickets.read`).
+- [x] `appointments/index`: شريط مؤشرات في `#kpis` (الإجمالي من استعلام القائمة بلا طلب إضافي)، فلاتر صفّين، `SharedDataTable` بعنوان ورقم سجل، وترقيم من `total` مع `offset`.
+- [x] `appointments/[id]`: بطل `SharedRecordHero` (الوقت عنوانًا) وخصائص في `#aside`.
+- [x] شريط جانبي للمواعيد بعدّاد اليوم.
+- [x] `settings/apps/appointments`: بطاقات على نمط الإعدادات بلا تغيير سلوك.
+- [-] حقل بحث في فلاتر الحجوزات: العقد `.strict()` يرفض `q`، وتغييره يمس الـAPI.
+- [-] صف «أنواع المواعيد»: لا توجد صفحة أنواع ولا مسار؛ أُزيل الرابط المضلِّل بدل صف وهمي.
 
-#### operations (`web-operations-design`)
-- [ ] `operations/index`, `pending`, `monitoring`: شريط مؤشرات + فلاتر صفّين + جدول.
-- [ ] `operations/self/index`: قائمة موحّدة.
-- [ ] `operations/[id]` و`self/[id]`: بطل + `#aside`.
-- [ ] شريط جانبي للعمليات بعدّادات.
+#### operations (`web-operations-design`) — مدموج في #885
+- [x] `operations/index`, `pending`, `monitoring`: كانت على النمط (KPI + FilterBar + جدول + ترقيم).
+- [x] `/account/requests` (`operations/self/index`): شريط مؤشرات للطلبات الشخصية في `#kpis`.
+- [x] `operations/[id]` و`self/[id]`: لوحة الخصائص صارت تشمل الغرض وعدد المراحل، وأزرار القرار والمرفق في `#actions`.
+- [x] شريط جانبي للعمليات: ثلاثة صفوف بعدّادات `limit: 1` تحت جذر استعلام العمليات.
+- [x] `settings/apps/operations/processes`: `SharedFilterBar` و`SharedDataTable` بعمود عنوان + رقم سجل.
 
-#### commercial: crm + customers + sales + products (`web-commercial-design`)
-- [ ] `crm/opportunities/index`: شريط مؤشرات + فلاتر + جدول.
-- [ ] `crm/audit` و`crm/imports`: قائمة موحّدة.
-- [ ] `crm/index`: رأس وإجراءات.
-- [ ] `settings/apps/crm`: مجموعات وبطاقات.
-- [ ] `customers/index` و`customers/[id]`: قائمة + بطل و`#aside`.
-- [ ] `sales/index`, `sales/reports`, `sales/[id]`: قائمة + سجل.
-- [ ] `products/index` و`products/[id]`: قائمة + سجل.
-- [ ] شريط جانبي لـ crm وsales بعدّادات.
+#### commercial: crm + customers + sales + products (`web-commercial-design`) — مدموج في #887
+- [x] `crm/opportunities/index`: شريط مؤشرات في `#kpis` (مفتوحة، فازت، خسرت، متابعة مستحقة).
+- [x] `crm/opportunities/[id]`: `SharedRecordHero` بدل `<dl>` اليدوي، بلا تكرار مع لوحة الخصائص، وتسميات قراءة للهاتف والمسؤول والمرحلة.
+- [x] `customers/index` و`customers/[id]`: مؤشرات (إجمالي بلا رابط، نشط، مؤرشف)، وسجل ببطل و`#aside`.
+- [x] `sales/index`: مؤشرات عروض/طلبات/ملغاة، `sales/[id]` و`sales/reports` على النمط.
+- [x] `products/index` و`products/[id]`: مؤشرات (إجمالي، سلع، خدمات) وسجل على النمط.
+- [x] أشرطة جانبية للتطبيقات الأربعة بعدّادات `limit: 1`، وعدّاد الاستيراد في CRM محمي بالميزة `crm.import`.
+- [-] `crm/audit` و`crm/imports` و`crm/index` و`settings/apps/crm`: بقيت كما هي؛ لم تكن في نطاق الجولة الأولى.
 
-### R2: التطبيقات الكبيرة (4 لينات متوازية)
+## ملاحظات عامة من R1
+- [x] `total` لا يمرَّر إلى مؤشرات أثناء `placeholderData` (القوائم الأربع التجارية)، فلا يعرض المؤشر رقم الفلتر السابق.
+- [x] `lastPageOffset` صار مساعدًا واحدًا في `utils/routeQuery.ts` يستخدمه «أعمالي» والمواعيد.
+- [x] `AppSidebarCounts.feature` جديد: عدّاد لا يُطلب أصلًا إذا كانت ميزته مغلقة.
+
+### R2: التطبيقات الكبيرة (4 لينات متوازية) — مكتملة في #889 و#890 و#891 و#892
 
 #### hr-core (`web-hr-core`)
 - [ ] `hr/index` و`hr/employees/index`: شريط مؤشرات (نشط، على رأس العمل، بلا مدير، قيد التأهيل) + فلاتر + جدول.
@@ -125,6 +132,14 @@
 - [ ] `inbox/flows/**` و`reports/**`: قائمة + سجل.
 - [ ] `settings/apps/inbox/**` (25 صفحة): بطاقات ومجموعات وإجراءات.
 - [ ] شريط جانبي لـ inbox بعدّادات.
+
+#### ملخص R2 المنفَّذ
+- [x] hr-core: شريط إجازات (بانتظار/معتمدة) في `#kpis`، نقل حساب الموظف والتعويضات إلى `#aside`، رابط مستندات القسم زرًا، توحيد رجوع الخدمة الذاتية. (بدون بطاقات لا يدعمها العقد، وبدون شريط جانبي مسطّح.)
+- [x] finance: شرائط الفواتير والقيود والميزانيات والأصول وكشوف البنك في `#kpis` من `/summary`، حذف مكوّنات الشرائط الخمسة، إرجاع شريط البنك بعد المراجعة. لا بطل سجل (كان يكرر الرأس والخصائص).
+- [x] projects: خصائص أربعة سجلات إلى `#aside`، مؤشرات المعالم بـ`SharedKpiStrip` من الصفوف المحمّلة، `cancelRefetch: false` في المعالم.
+- [x] inbox: مؤشرات المحادثات (عرض القائمة فقط) والطلبات والحملات، شريط جانبي بثلاثة أقسام، زر الفرصة، حفظ فلاتر الحملات عند الإنشاء، مفتاح استعلام مشترك للطابورين.
+- [x] قرار مسجَّل: صفحات `settings/apps/inbox/**` تبقى على قالب السجل (لوحة خصائص + تبويبات) ولا تُحوَّل إلى قالب الإعدادات، لأن التحويل يفقد الإجراءات والسياق.
+- [x] قرار مسجَّل: البطل لا يُضاف إذا كانت معلوماته موجودة في الرأس أو الخصائص الجانبية.
 
 ### R3: الرواتب والتوظيف والأصول والإعدادات المنصّية
 
@@ -177,4 +192,12 @@
 
 | PR | الفرع | النطاق | الحالة | التاريخ |
 |---|---|---|---|---|
-| — | `web-ui-record-hero` | المرحلة 0 | ملاحظات المراجعة تُصلَح في الفرع | — |
+| #882 | `web-ui-record-hero` | المرحلة 0 | مدموج | 2026-11-25 |
+| #884 | `web-meetings-finish` | R1 الاجتماعات | مدموج | 2026-11-25 |
+| #885 | `web-operations-design` | R1 العمليات | مدموج | 2026-11-25 |
+| #886 | `web-helpdesk-appointments` | R1 الدعم والحجوزات | مدموج | 2026-11-25 |
+| #887 | `web-commercial-design` | R1 التجاري | مدموج | 2026-11-25 |
+| #889 | `web-r2-projects` | R2 المشاريع | مدموج | 2026-11-25 |
+| #890 | `web-r2-inbox` | R2 صندوق الوارد | مدموج | 2026-11-25 |
+| #891 | `web-r2-hr-core` | R2 الموارد البشرية | مدموج | 2026-11-25 |
+| #892 | `web-r2-finance` | R2 المالية | مدموج | 2026-11-25 |
