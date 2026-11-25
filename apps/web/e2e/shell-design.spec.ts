@@ -83,7 +83,7 @@ test.describe('unified mobile navigation', () => {
     await login(page); await open(page, '/meetings')
     const bar = page.getByTestId('shell-tabbar')
     await expect(bar).toBeVisible()
-    expect((await bar.boundingBox())!.height).toBeCloseTo(68, 0)
+    expect((await bar.boundingBox())!.height).toBeCloseTo(61.2, 0)
     await expect(page.getByTestId('mobile-navigation-trigger')).toHaveAttribute('data-active', 'true')
     await expect(bar.locator('a[data-active="true"]')).toHaveCount(0)
     for (const tab of await bar.locator('a, button').all()) expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44)
@@ -122,23 +122,23 @@ test.describe('sidebar modes and widths', () => {
     await expect(menu).toHaveAttribute('data-mode', 'app')
   })
 
-  test('the sidebar is a fixed 264px column at the inline start', async ({ page }) => {
+  test('the sidebar is a fixed 264px (0.9x -> 237.6px) column at the inline start', async ({ page }) => {
     await open(page, '/projects')
     const menu = page.getByTestId('application-navigation')
     const box = (await menu.boundingBox())!
-    expect(box.width).toBe(264)
+    expect(box.width).toBeCloseTo(237.6, 0)
     expect(box.y).toBe(0)
     expect(box.height).toBe(900)
-    expect(box.x + box.width).toBe(1440)
+    expect(box.x + box.width).toBeCloseTo(1440, 0)
     await page.evaluate(() => window.scrollTo(0, 400))
     expect((await menu.boundingBox())!.y).toBe(0)
   })
 
-  test('from 768px to 1099px the sidebar is an 84px icon column that keeps accessible names', async ({ page }) => {
+  test('from 768px to 1099px the sidebar is an 84px (0.9x -> 75.6px) icon column that keeps accessible names', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 })
     await open(page, '/')
     const menu = page.getByTestId('application-navigation')
-    expect((await menu.boundingBox())!.width).toBe(84)
+    expect((await menu.boundingBox())!.width).toBeCloseTo(75.6, 0)
     const projects = menu.getByTestId('navigation-app-projects')
     await expect(projects).toBeVisible()
     await expect(projects).toHaveAccessibleName('المشاريع')
@@ -185,9 +185,9 @@ test.describe('top bar tools and slide-over panels', () => {
     await open(page, '/projects')
   })
 
-  test('the top bar is 68px high, flat and carries the search field and the tools', async ({ page }) => {
+  test('the top bar is 68px (0.9x -> 61.2px) high, flat and carries the search field and the tools', async ({ page }) => {
     const bar = page.getByTestId('shell-header')
-    expect((await bar.boundingBox())!.height).toBeCloseTo(68, 0)
+    expect((await bar.boundingBox())!.height).toBeCloseTo(61.2, 0)
     await expect(bar.getByTestId('global-search-trigger')).toBeVisible()
     await expect(bar.getByTestId('app-switcher')).toHaveCount(0)
     await expect(bar.getByTestId('theme-toggle')).toHaveCount(0)
@@ -210,8 +210,8 @@ test.describe('top bar tools and slide-over panels', () => {
     await expect(button).toHaveAttribute('aria-expanded', 'true')
     await expect(button).toHaveAttribute('aria-controls', 'slide-over-notifications')
     const box = (await slide.boundingBox())!
-    expect(box.width).toBeCloseTo(380, 0)
-    expect(box.y).toBeGreaterThanOrEqual(68)
+    expect(box.width).toBeCloseTo(342, 0)
+    expect(box.y).toBeGreaterThanOrEqual(61)
     // Not a modal: the page behind keeps working.
     await expect(page.getByTestId('shell-main')).not.toHaveAttribute('inert')
     await expect(slide.getByTestId('slide-over-notifications-all')).toHaveAttribute('href', /^\/\w/)

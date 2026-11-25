@@ -31,12 +31,12 @@ test.describe('top bar (desktop)', () => {
     await expect(bar.getByTestId('theme-toggle')).toHaveCount(0)
   })
 
-  test('every icon button sits in the soft capsule, 32px, with no background at rest and fills on hover', async ({ page }) => {
+  test('every icon button sits in the soft capsule, 28px at the 0.9 scale, with no background at rest and fills on hover', async ({ page }) => {
     for (const id of ['notification-bell']) {
       const button = page.getByTestId(id)
       const box = (await button.boundingBox())!
-      expect(box.width).toBeCloseTo(32, 0)
-      expect(box.height).toBeCloseTo(32, 0)
+      expect(box.width).toBeCloseTo(28, 0)
+      expect(box.height).toBeCloseTo(28, 0)
       await expect(button).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     }
     const bell = page.getByTestId('notification-bell')
@@ -55,6 +55,7 @@ test.describe('top bar (desktop)', () => {
     await expect(trigger).toHaveAttribute('aria-expanded', 'true')
     await expect(menu.getByRole('menuitem', { name: 'حسابي وكلمة المرور' })).toHaveAttribute('href', '/account/settings')
     await expect(menu.getByTestId('user-menu-appearance').getByRole('button', { name: 'داكن' })).toBeVisible()
+    await expect(menu.getByTestId('user-menu-font-size').getByRole('button', { name: 'وسط' })).toBeVisible()
     await expect(menu.getByTestId('user-menu-language').getByRole('button', { name: 'English' })).toBeVisible()
     await expect(menu.getByRole('menuitem', { name: 'تسجيل الخروج' })).toBeVisible()
     await page.keyboard.press('Escape')
@@ -78,6 +79,65 @@ test.describe('top bar (desktop)', () => {
       await group.getByRole('button', { name: dark ? 'فاتح' : 'داكن' }).click()
       if (dark) await expect(html).not.toHaveClass(/dark/)
       else await expect(html).toHaveClass(/dark/)
+    } finally {
+      await restoreAppearance(page)
+    }
+  })
+
+  test('the font size control switches html[data-font-size] and all three preference controls stretch compactly', async ({ page }) => {
+    const html = page.locator('html')
+    try {
+      await restoreAppearance(page)
+      await page.reload()
+      await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
+      await expect(html).toHaveAttribute('data-font-size', 'small')
+      await page.getByTestId('account-menu').click()
+      const row = page.getByTestId('user-menu-font-size')
+      await expect(row).toBeVisible()
+      // All three preference controls stretch to the same full width with compact 26px segments on one row.
+      const widths = await Promise.all(['user-menu-appearance', 'user-menu-font-size', 'user-menu-language'].map(id =>
+        page.getByTestId(id).locator('[data-slot="segmented-control"]').evaluate(el => {
+          const menu = el.closest('[role="menu"]')!.getBoundingClientRect()
+          const rect = el.getBoundingClientRect()
+          const buttons = [...el.querySelectorAll('button')].map(btn => btn.getBoundingClientRect())
+          return {
+            width: Math.round(rect.width),
+            fits: rect.left >= menu.left - 1 && rect.right <= menu.right + 1,
+            oneRow: new Set(buttons.map(b => Math.round(b.top))).size === 1,
+            compactHeight: buttons.every(b => b.height <= 28),
+          }
+        })))
+      expect(widths.every(item => item.fits && item.oneRow && item.compactHeight)).toBe(true)
+      expect(Math.abs(widths[0]!.width - widths[1]!.width)).toBeLessThanOrEqual(2)
+      expect(Math.abs(widths[1]!.width - widths[2]!.width)).toBeLessThanOrEqual(2)
+      // On a paid application (/projects), the global account menu stays in Liwan ink (--ui-text-highlighted) and aligns its labels to inline-start.
+      await expect(page.locator('html')).toHaveAttribute('data-app', 'projects')
+      const activeSegment = page.getByTestId('user-menu-appearance').locator('[aria-pressed="true"]')
+      expect(await activeSegment.evaluate(el => {
+        const probe = document.createElement('span')
+        probe.style.color = 'var(--ui-text-highlighted)'
+        document.body.appendChild(probe)
+        const expected = getComputedStyle(probe).color
+        probe.remove()
+        return { actual: getComputedStyle(el).color, expected }
+      })).toEqual({ actual: 'rgb(20, 16, 42)', expected: 'rgb(20, 16, 42)' })
+      await expect(row.locator('span').first()).toHaveCSS('text-align', 'start')
+      await row.getByRole('button', { name: 'وسط', exact: true }).click()
+      await expect(html).toHaveAttribute('data-font-size', 'medium')
+      await row.getByRole('button', { name: 'كبير', exact: true }).click()
+      await expect(html).toHaveAttribute('data-font-size', 'large')
+      await page.getByTestId('user-menu-language').getByRole('button', { name: 'English' }).click()
+      await expect(html).toHaveAttribute('dir', 'ltr')
+      await expect(row.getByRole('button', { name: 'Medium', exact: true })).toBeVisible()
+      expect(await row.locator('[data-slot="segmented-control"]').evaluate(el => {
+        const menu = el.closest('[role="menu"]')!.getBoundingClientRect()
+        const buttons = [...el.querySelectorAll('button')].map(btn => btn.getBoundingClientRect())
+        return new Set(buttons.map(b => Math.round(b.top))).size === 1 && buttons.every(b => b.left >= menu.left - 1 && b.right <= menu.right + 1)
+      })).toBe(true)
+      await row.getByRole('button', { name: 'Small', exact: true }).click()
+      await expect(html).toHaveAttribute('data-font-size', 'small')
+      await page.getByTestId('user-menu-language').getByRole('button', { name: 'العربية' }).click()
+      await expect(html).toHaveAttribute('dir', 'rtl')
     } finally {
       await restoreAppearance(page)
     }

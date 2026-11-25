@@ -44,13 +44,13 @@ test('appearance changes apply across routes and survive reload without changing
   const html = page.locator('html')
   const originalColor = await primary(page)
   await expectChecked(page, FONT.small)
-  await expect(html).toHaveCSS('font-size', '14px')
+  await expect(html).toHaveCSS('font-size', '12.6px')
   await expectChecked(page, MODE.light)
 
   await choose(page, MODE.dark)
   await expect(html).toHaveClass(/dark/)
   await expect(html).toHaveCSS('color-scheme', 'dark')
-  for (const [size, pixels] of [['medium', '16px'], ['large', '18px'], ['small', '14px']] as const) {
+  for (const [size, pixels] of [['medium', '14.4px'], ['large', '16.2px'], ['small', '12.6px']] as const) {
     await choose(page, FONT[size])
     await expect(html).toHaveCSS('font-size', pixels)
     await expect(html).toHaveClass(/dark/)
@@ -61,17 +61,17 @@ test('appearance changes apply across routes and survive reload without changing
   expect(darkColor).not.toBe('')
   await page.goto('/projects')
   await expect(html).toHaveClass(/dark/)
-  await expect(html).toHaveCSS('font-size', '18px')
+  await expect(html).toHaveCSS('font-size', '16.2px')
   await page.reload()
   await expect(html).toHaveClass(/dark/)
-  await expect(html).toHaveCSS('font-size', '18px')
+  await expect(html).toHaveCSS('font-size', '16.2px')
   expect(await primary(page)).toBe(darkColor)
   const me = await (await page.request.get('/api/v1/me')).json()
   expect(me.appearance).toEqual({ mode: 'dark', font_size: 'large' })
   await expectChecked(page, FONT.large)
   await choose(page, MODE.light)
   await expect(html).not.toHaveClass(/dark/)
-  await expect(html).toHaveCSS('font-size', '18px')
+  await expect(html).toHaveCSS('font-size', '16.2px')
   expect(await primary(page)).toBe(originalColor)
 })
 
@@ -138,7 +138,7 @@ test('saving organization color preserves personal mode and font preferences', a
     await save('#0f766e')
     await page.reload()
     await expect(page.locator('html')).toHaveClass(/dark/)
-    await expect(page.locator('html')).toHaveCSS('font-size', '16px')
+    await expect(page.locator('html')).toHaveCSS('font-size', '14.4px')
     // The organization color themes documents, never the interface.
     expect(await primary(page)).toBe(interfacePrimary)
   } finally {

@@ -8,7 +8,7 @@ test('creation uses its actual pixel width at the small font size', async ({ pag
   await enterFoundation(page, '/projects/new')
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
-  await expect.poll(async () => Math.round((await dialog.boundingBox())!.width)).toBe(640)
+  await expect.poll(async () => Math.round((await dialog.boundingBox())!.width)).toBe(576)
 })
 
 test('long simple creation keeps Create visible and submits its own form from the footer', async ({ page }) => {

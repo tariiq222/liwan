@@ -136,7 +136,7 @@ test('between 768px and 1099px the sidebar is an icon-only 84px column, and the 
   await page.setViewportSize({ width: 900, height: 900 })
   await open(page, '/projects')
   const menu = page.getByTestId('application-navigation')
-  expect((await menu.boundingBox())!.width).toBe(84)
+  expect((await menu.boundingBox())!.width).toBeCloseTo(75.6, 0)
   await expect(menu.getByTestId('context-link-projects')).toBeVisible()
   await expect(menu.locator('.liwan-side-branch')).toHaveCount(0)
   await expect(menu.getByTestId('navigation-app-block').locator('[data-slot="name"]')).toBeHidden()

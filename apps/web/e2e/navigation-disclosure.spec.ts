@@ -100,7 +100,7 @@ for (const entry of responsiveCases) {
           await expect(parent).toHaveAttribute('aria-expanded', 'true')
           expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
           if (entry.width >= 768 && entry.width < 1100) {
-            expect((await menu.boundingBox())!.width).toBe(84)
+            expect((await menu.boundingBox())!.width).toBeCloseTo(75.6, 0)
             await expect(menu.getByTestId('submenu-finance-sales')).toBeHidden()
             return
           }

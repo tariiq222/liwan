@@ -18,14 +18,14 @@ test('the sidebar follows the viewport alone: no stored state, 264px, 84px, then
   const sidebar = page.getByTestId('application-navigation')
   await page.setViewportSize({ width: 1440, height: 1000 })
   await enterFoundation(page, '/projects')
-  expect((await sidebar.boundingBox())!.width).toBe(264)
+  expect((await sidebar.boundingBox())!.width).toBeCloseTo(237.6, 0)
   await page.setViewportSize({ width: 1099, height: 1000 })
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(84)
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeCloseTo(75.6, 0)
   await page.keyboard.press('BracketLeft')
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(84)
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeCloseTo(75.6, 0)
   await page.reload()
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
-  expect((await sidebar.boundingBox())!.width).toBe(84)
+  expect((await sidebar.boundingBox())!.width).toBeCloseTo(75.6, 0)
   await page.setViewportSize({ width: 767, height: 1000 })
   await expect(sidebar).toBeHidden()
   await expect(page.getByTestId('shell-tabbar')).toBeVisible()
@@ -42,7 +42,7 @@ for (const width of [767, 1100]) {
       await expect(page.getByTestId('mobile-navigation-trigger')).toBeVisible()
     } else {
       await expect(page.getByTestId('shell-tabbar')).toBeHidden()
-      expect((await page.getByTestId('application-navigation').boundingBox())!.width).toBe(264)
+      expect((await page.getByTestId('application-navigation').boundingBox())!.width).toBeCloseTo(237.6, 0)
     }
   })
 }

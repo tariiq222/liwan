@@ -34,7 +34,7 @@ test.describe('core apps icon row', () => {
     expect(new Set(tops).size).toBe(1)
     expect(tops[0]!).toBeGreaterThan(org.y + org.height)
     const box = (await row.boundingBox())!
-    expect(box.width).toBeLessThanOrEqual(264)
+    expect(box.width).toBeLessThanOrEqual(238)
   })
 
   test('the list «تطبيقاتي» excludes the core and footer applications while carrying meetings as a regular application', async ({ page }) => {
@@ -136,7 +136,7 @@ test.describe('core apps icon row', () => {
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     const tops = await row.locator('a').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().top)))
     expect(new Set(tops).size).toBe(1)
-    expect((await row.boundingBox())!.x + (await row.boundingBox())!.width).toBeLessThanOrEqual(264)
+    expect((await row.boundingBox())!.x + (await row.boundingBox())!.width).toBeLessThanOrEqual(238)
     expect(await fitsWidth(page)).toBe(true)
   })
 
@@ -144,7 +144,7 @@ test.describe('core apps icon row', () => {
     await page.setViewportSize({ width: 900, height: 900 })
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
-    expect((await menu.boundingBox())!.width).toBe(84)
+    expect((await menu.boundingBox())!.width).toBeCloseTo(75.6, 0)
     const lefts = await menu.getByTestId('core-apps').locator('a').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().left)))
     const tops = await menu.getByTestId('core-apps').locator('a').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().top)))
     expect(new Set(lefts).size).toBe(1)
