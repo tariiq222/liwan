@@ -577,7 +577,8 @@
           "validate": "Applications release validated"
         },
         "catalog_release": {
-          "created": "Bundle release created"
+          "created": "Bundle release created",
+          "entitlement_incompatible": "Subscription entitlement could not follow the release"
         },
         "customer": {
           "admin_login_changed": "Customer registered e-mail changed"
