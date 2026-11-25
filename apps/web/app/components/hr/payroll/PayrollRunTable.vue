@@ -2,8 +2,6 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import type { HrPayrollRunSummary } from '@liwan/contracts'
-import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { formatPayrollAmount, formatPayrollMonth, payrollRunStateTone, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
@@ -19,8 +17,7 @@ const props = defineProps<{
 const { t, locale } = useI18n()
 
 const columns = computed<TableColumn<HrPayrollRunSummary>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'month', header: t('hrPayroll.runs.columns.month') },
+  { accessorKey: 'month', header: t('hrPayroll.runs.columns.month'), meta: { title: true } },
   { accessorKey: 'state', header: t('hrPayroll.runs.columns.state'), meta: { class: { th: 'w-[110px]', td: 'w-[110px]' } } },
   { accessorKey: 'employee_count', header: t('hrPayroll.runs.columns.employees') },
   { id: 'gross', header: t('hrPayroll.runs.columns.gross') },
@@ -42,9 +39,9 @@ const amount = (value: number) => formatPayrollAmount(value, locale.value)
     :loading="props.loading"
     :caption="props.caption"
   >
-    <template #id-cell="{ row }"><RecordNumber :value="row.original.id" :data-testid="`hr-payroll-run-${row.original.id}`" /></template>
     <template #month-cell="{ row }">
       <NuxtLink :to="props.rowTo(row.original)" class="rounded-inner font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ formatPayrollMonth(row.original.month, locale) }}</NuxtLink>
+      <div class="mt-0.5"><SharedRecordNumber :value="row.original.id" :data-testid="`hr-payroll-run-${row.original.id}`" /></div>
     </template>
     <template #state-cell="{ row }">
       <SharedStatusBadge size="sm" :tone="payrollRunStateTone(row.original.state)" :label="t(`hrPayroll.runs.state.${row.original.state}`)" data-testid="hr-payroll-run-state" />

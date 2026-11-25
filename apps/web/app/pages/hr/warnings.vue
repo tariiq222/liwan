@@ -139,7 +139,18 @@ function warningTo(row: HrWarning) {
     </template>
     <SharedListCard>
       <template #filters>
-        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #scope>
+            <div class="max-w-full overflow-x-auto">
+              <SharedSegmentedControl
+                :model-value="state"
+                :items="stateOptions"
+                :label="t('hrWarnings.filter.state')"
+                :disabled="!hydrated"
+                @update:model-value="writeQuery({ state: stateParam($event), offset: 0 })"
+              />
+            </div>
+          </template>
           <template #search>
             <EmployeeSearchSelect id="hr-warnings-employee" :model-value="employeeId" :any-label="t('hrWarnings.anyEmployee')" :placeholder="t('hr.employeePicker.search')" :disabled="!hydrated" test-id="hr-warnings-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
           </template>
@@ -157,15 +168,6 @@ function warningTo(row: HrWarning) {
               />
             </SharedFilterField>
           </SharedFilterPopover>
-          <div class="max-w-full overflow-x-auto">
-            <SharedSegmentedControl
-              :model-value="state"
-              :items="stateOptions"
-              :label="t('hrWarnings.filter.state')"
-              :disabled="!hydrated"
-              @update:model-value="writeQuery({ state: stateParam($event), offset: 0 })"
-            />
-          </div>
           <template #active>
             <SharedFilterChip v-if="typeId" :label="typeName" @remove="writeQuery({ type: null, offset: 0 })" />
           </template>

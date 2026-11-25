@@ -14,8 +14,8 @@ import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import { canWorkOpportunity } from '@/utils/crmBoardMove'
 import { activeFilterCount, CRM_LIST_PATH, isCallDue, opportunityFilters, opportunityListLocation, relativeTime, safeCrmReturnTo } from '@/utils/crmOpportunity'
 
-// The body of the opportunities page: the filter bar on the page, then the stage board directly on the page or the
-// table in one card with its pager. `view` is the page's `?view=` choice. `createTo` (the page's create link) turns
+// The body of the opportunities page: one list card with the filter bar in its header row, then the stage board or the
+// table, and the result count (with the table's pager) in its footer. `view` is the page's `?view=` choice. `createTo` (the page's create link) turns
 // the end of every board column into an add tile. `background` is the list behind the create panel: it reads its
 // filters from the panel's returnTo. The page owns the SharedListPage shell. A board move that needs input (the sold
 // stage, the lost zone, the «move» action) asks in the move sheet; a plain stage move is sent at once.
@@ -91,69 +91,69 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
 
 <template>
   <SharedForbiddenState v-if="!can('crm.leads.read')" />
-  <div v-else class="flex min-w-0 flex-col gap-4">
-    <SharedFilterBar embedded class="w-full" :active-count="count" :default-open="count > 0" :disabled="!hydrated" @clear="clearFilters">
-      <template #search>
-        <form @submit.prevent="update({ q: search.trim() || undefined, page: undefined })"><UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('crm.opportunities.list.search')" :aria-label="t('crm.opportunities.list.search')" :disabled="!hydrated" /></form>
-      </template>
-      <USelect variant="soft" class="w-full md:w-40" :model-value="String(filters.stage_id ?? ALL)" :items="stageItems" :aria-label="t('crm.opportunities.list.stage')" :disabled="!hydrated" @update:model-value="value => update({ stage_id: choice(value), page: undefined })" />
-      <USelect variant="soft" class="w-full md:w-40" :model-value="String(filters.source_id ?? ALL)" :items="sourceItems" :aria-label="t('crm.opportunities.list.source')" :disabled="!hydrated" @update:model-value="value => update({ source_id: choice(value), page: undefined })" />
-      <USelect variant="soft" class="w-full md:w-40" :model-value="filters.status ?? 'open'" :items="statusItems" :aria-label="t('crm.opportunities.list.statusFilter')" :disabled="!hydrated" data-testid="crm-filter-status" @update:model-value="value => update({ status: value === 'open' ? undefined : String(value), page: undefined })" />
-      <SharedPersonPicker v-if="canAssign" v-model="agent" value-key="user_id" class="w-full md:w-44" :placeholder="t('crm.opportunities.list.agentPicker')" :aria-label="t('crm.opportunities.list.agent')" :disabled="!hydrated" />
-      <USwitch v-model="due" :label="t('crm.opportunities.list.due')" :disabled="!hydrated" data-testid="crm-filter-due" />
-      <template v-if="canAssign">
-        <USwitch v-model="unassigned" :label="t('crm.opportunities.list.unassigned')" :disabled="!hydrated" />
-        <USwitch v-model="needsManager" :label="t('crm.opportunities.list.needsManager')" :disabled="!hydrated" />
-      </template>
-    </SharedFilterBar>
+  <SharedListCard v-else>
+    <template #filters>
+      <SharedFilterBar embedded class="w-full" :active-count="count" :default-open="count > 0" :disabled="!hydrated" @clear="clearFilters">
+        <template #search>
+          <form @submit.prevent="update({ q: search.trim() || undefined, page: undefined })"><UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('crm.opportunities.list.search')" :aria-label="t('crm.opportunities.list.search')" :disabled="!hydrated" /></form>
+        </template>
+        <USelect variant="soft" class="w-full md:w-40" :model-value="String(filters.stage_id ?? ALL)" :items="stageItems" :aria-label="t('crm.opportunities.list.stage')" :disabled="!hydrated" @update:model-value="value => update({ stage_id: choice(value), page: undefined })" />
+        <USelect variant="soft" class="w-full md:w-40" :model-value="String(filters.source_id ?? ALL)" :items="sourceItems" :aria-label="t('crm.opportunities.list.source')" :disabled="!hydrated" @update:model-value="value => update({ source_id: choice(value), page: undefined })" />
+        <USelect variant="soft" class="w-full md:w-40" :model-value="filters.status ?? 'open'" :items="statusItems" :aria-label="t('crm.opportunities.list.statusFilter')" :disabled="!hydrated" data-testid="crm-filter-status" @update:model-value="value => update({ status: value === 'open' ? undefined : String(value), page: undefined })" />
+        <SharedPersonPicker v-if="canAssign" v-model="agent" value-key="user_id" class="w-full md:w-44" :placeholder="t('crm.opportunities.list.agentPicker')" :aria-label="t('crm.opportunities.list.agent')" :disabled="!hydrated" />
+        <USwitch v-model="due" :label="t('crm.opportunities.list.due')" :disabled="!hydrated" data-testid="crm-filter-due" />
+        <template v-if="canAssign">
+          <USwitch v-model="unassigned" :label="t('crm.opportunities.list.unassigned')" :disabled="!hydrated" />
+          <USwitch v-model="needsManager" :label="t('crm.opportunities.list.needsManager')" :disabled="!hydrated" />
+        </template>
+      </SharedFilterBar>
+    </template>
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
-    <SharedEmptyState :icon="count ? 'i-lucide-filter-x' : 'i-lucide-handshake'" v-else-if="!query.isPending.value && !items.length" :title="t(count ? 'app.noResults' : 'crm.opportunities.list.empty')" />
-    <template v-else-if="board">
+    <SharedEmptyState :icon="count ? 'i-lucide-filter-x' : 'i-lucide-handshake'" v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t(count ? 'app.noResults' : 'crm.opportunities.list.empty')" />
+    <div v-else-if="board" class="min-w-0 p-(--liwan-card-pad-dense)">
       <CrmOpportunityBoard :loading="query.isPending.value || stages.isLoading.value" :stages="stages.data.value?.items ?? []" :items="items" :to="recordTo" :now="now" :create-to="createTo" :create-label="createLabel" :can-move="canMove" @move="mover.request" />
       <CrmOpportunityMoveSheet :move="mover.active.value" :stages="stages.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="lostReasons.data.value?.items ?? []" :pending="mover.pending.value" :error="mover.error.value" :conflict="mover.conflict.value" @confirm="mover.confirm" @cancel="mover.cancel" />
-      <p v-if="!query.isPending.value" class="text-sm text-muted">{{ total > items.length ? t('crm.opportunities.board.capped', { count: items.length }) : t('crm.opportunities.list.results', { shown: items.length, total }) }}</p>
-    </template>
-    <SharedListCard v-else>
-      <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,760px)] [&_table]:table-fixed">
-        <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('nav.crm')">
-          <template #contact-cell="{ row }">
-            <div class="min-w-0">
-              <span class="flex min-w-0 items-center gap-2">
-                <NuxtLink :to="recordTo(row.original)" class="min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.stop>{{ row.original.contact_name }}</NuxtLink>
-                <SharedStatusBadge v-if="row.original.status !== 'pending'" :tone="statusTone(row.original)" :label="statusLabel(row.original)" size="sm" />
-                <SharedStatusBadge v-else-if="row.original.needs_manager" tone="warning" :label="t('crm.opportunities.tag.needsManager')" size="sm" />
-              </span>
-              <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
-                <SharedRecordNumber :value="row.original.id" />
-              </div>
-            </div>
-          </template>
-          <template #phone-cell="{ row }"><a :href="`tel:${row.original.phone}`" class="text-sm hover:underline" @click.stop><bdi>{{ row.original.phone }}</bdi></a></template>
-          <template #stage-cell="{ row }"><span class="text-sm">{{ row.original.stage?.name }}</span></template>
-          <template #probability-cell="{ row }"><span class="text-sm">{{ row.original.probability }}%</span></template>
-          <template #agent-cell="{ row }"><span class="text-sm" :class="{ 'text-muted': !row.original.user }">{{ row.original.user?.name ?? t('crm.opportunities.tag.pool') }}</span></template>
-          <template #next_call-cell="{ row }">
-            <span v-if="row.original.next_call_at" class="text-sm" :class="{ 'text-warning': isCallDue(row.original, now) }">
-              <time :datetime="row.original.next_call_at" :title="formatDateTime(row.original.next_call_at, timeZone)">{{ relativeTime(row.original.next_call_at, now, locale) }}</time>
+    </div>
+    <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,760px)] [&_table]:table-fixed">
+      <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('nav.crm')">
+        <template #contact-cell="{ row }">
+          <div class="min-w-0">
+            <span class="flex min-w-0 items-center gap-2">
+              <NuxtLink :to="recordTo(row.original)" class="min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.stop>{{ row.original.contact_name }}</NuxtLink>
+              <SharedStatusBadge v-if="row.original.status !== 'pending'" :tone="statusTone(row.original)" :label="statusLabel(row.original)" size="sm" />
+              <SharedStatusBadge v-else-if="row.original.needs_manager" tone="warning" :label="t('crm.opportunities.tag.needsManager')" size="sm" />
             </span>
-            <span v-else class="text-sm text-muted" aria-hidden="true">—</span>
-          </template>
-          <template #mobile-row="{ row }">
-            <div class="flex items-center gap-3">
-              <NuxtLink :to="recordTo(row)" class="flex min-w-0 flex-1 flex-col gap-1">
-                <span class="flex min-w-0 items-center gap-2"><span class="min-w-0 truncate font-semibold text-highlighted">{{ row.contact_name }}</span><SharedStatusBadge v-if="row.status !== 'pending'" :tone="statusTone(row)" :label="statusLabel(row)" size="sm" /></span>
-                <span class="truncate text-sm text-muted"><bdi>{{ row.phone }}</bdi></span>
-                <span class="truncate text-sm text-muted">{{ row.stage?.name }} · {{ row.probability }}% · {{ row.user?.name ?? t('crm.opportunities.tag.pool') }}</span>
-                <time v-if="row.next_call_at" class="text-sm" :class="isCallDue(row, now) ? 'text-warning' : 'text-muted'" :datetime="row.next_call_at">{{ relativeTime(row.next_call_at, now, locale) }}</time>
-              </NuxtLink>
-              <CrmCallButton :phone="row.phone" :name="row.contact_name" />
+            <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+              <SharedRecordNumber :value="row.original.id" />
             </div>
-          </template>
-        </SharedDataTable>
-      </div>
-      <template #footer>
-        <SharedListFooter :count-label="t('crm.opportunities.list.results', { shown: items.length, total })" :page="page" :pages="pages" :disabled="!hydrated || query.isFetching.value" @update:page="value => update({ page: String(value) })" />
-      </template>
-    </SharedListCard>
-  </div>
+          </div>
+        </template>
+        <template #phone-cell="{ row }"><a :href="`tel:${row.original.phone}`" class="text-sm hover:underline" @click.stop><bdi>{{ row.original.phone }}</bdi></a></template>
+        <template #stage-cell="{ row }"><span class="text-sm">{{ row.original.stage?.name }}</span></template>
+        <template #probability-cell="{ row }"><span class="text-sm">{{ row.original.probability }}%</span></template>
+        <template #agent-cell="{ row }"><span class="text-sm" :class="{ 'text-muted': !row.original.user }">{{ row.original.user?.name ?? t('crm.opportunities.tag.pool') }}</span></template>
+        <template #next_call-cell="{ row }">
+          <span v-if="row.original.next_call_at" class="text-sm" :class="{ 'text-warning': isCallDue(row.original, now) }">
+            <time :datetime="row.original.next_call_at" :title="formatDateTime(row.original.next_call_at, timeZone)">{{ relativeTime(row.original.next_call_at, now, locale) }}</time>
+          </span>
+          <span v-else class="text-sm text-muted" aria-hidden="true">—</span>
+        </template>
+        <template #mobile-row="{ row }">
+          <div class="flex items-center gap-3">
+            <NuxtLink :to="recordTo(row)" class="flex min-w-0 flex-1 flex-col gap-1">
+              <span class="flex min-w-0 items-center gap-2"><span class="min-w-0 truncate font-semibold text-highlighted">{{ row.contact_name }}</span><SharedStatusBadge v-if="row.status !== 'pending'" :tone="statusTone(row)" :label="statusLabel(row)" size="sm" /></span>
+              <span class="truncate text-sm text-muted"><bdi>{{ row.phone }}</bdi></span>
+              <span class="truncate text-sm text-muted">{{ row.stage?.name }} · {{ row.probability }}% · {{ row.user?.name ?? t('crm.opportunities.tag.pool') }}</span>
+              <time v-if="row.next_call_at" class="text-sm" :class="isCallDue(row, now) ? 'text-warning' : 'text-muted'" :datetime="row.next_call_at">{{ relativeTime(row.next_call_at, now, locale) }}</time>
+            </NuxtLink>
+            <CrmCallButton :phone="row.phone" :name="row.contact_name" />
+          </div>
+        </template>
+      </SharedDataTable>
+    </div>
+    <template v-if="!query.error.value && items.length" #footer>
+      <p v-if="board" class="text-xs text-muted">{{ total > items.length ? t('crm.opportunities.board.capped', { count: items.length }) : t('crm.opportunities.list.results', { shown: items.length, total }) }}</p>
+      <SharedListFooter v-else :count-label="t('crm.opportunities.list.results', { shown: items.length, total })" :page="page" :pages="pages" :disabled="!hydrated || query.isFetching.value" @update:page="value => update({ page: String(value) })" />
+    </template>
+  </SharedListCard>
 </template>

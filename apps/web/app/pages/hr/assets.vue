@@ -176,7 +176,27 @@ function equipmentTo(row: HrEquipment) {
 
     <SharedListCard>
       <template #filters>
-        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #scope>
+            <div class="max-w-full overflow-x-auto">
+              <SharedSegmentedControl
+                :model-value="active"
+                :items="activeOptions"
+                :label="t('hrAssets.filter.active')"
+                :disabled="!hydrated"
+                @update:model-value="writeQuery({ active: activeParam($event), offset: 0 })"
+              />
+            </div>
+            <div class="max-w-full overflow-x-auto">
+              <SharedSegmentedControl
+                :model-value="assigned"
+                :items="assignedOptions"
+                :label="t('hrAssets.filter.custody')"
+                :disabled="!hydrated"
+                @update:model-value="writeQuery({ assigned: assignedParam($event), offset: 0 })"
+              />
+            </div>
+          </template>
           <template #search>
             <UInput
               :model-value="search"
@@ -213,24 +233,6 @@ function equipmentTo(row: HrEquipment) {
               />
             </SharedFilterField>
           </SharedFilterPopover>
-          <div class="max-w-full overflow-x-auto">
-            <SharedSegmentedControl
-              :model-value="active"
-              :items="activeOptions"
-              :label="t('hrAssets.filter.active')"
-              :disabled="!hydrated"
-              @update:model-value="writeQuery({ active: activeParam($event), offset: 0 })"
-            />
-          </div>
-          <div class="max-w-full overflow-x-auto">
-            <SharedSegmentedControl
-              :model-value="assigned"
-              :items="assignedOptions"
-              :label="t('hrAssets.filter.custody')"
-              :disabled="!hydrated"
-              @update:model-value="writeQuery({ assigned: assignedParam($event), offset: 0 })"
-            />
-          </div>
           <template #active>
             <SharedFilterChip v-if="categoryId" :label="categoryName" @remove="writeQuery({ category: null, offset: 0 })" />
             <SharedFilterChip v-if="employeeId" :label="employeeName" @remove="writeQuery({ employee: null, offset: 0 })" />
