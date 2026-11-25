@@ -88,7 +88,7 @@ const createTo = computed(() => ({ path: '/inbox/campaigns/new', query: route.qu
       </SharedEmptyState>
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="rowTo" :loading="list.isLoading.value" :caption="t('inbox.campaigns.title')">
         <template #name-cell="{ row }">
-          <span class="block min-w-0 truncate font-semibold text-highlighted" :data-testid="`inbox-campaign-row-${row.original.id}`">{{ row.original.name }}</span>
+          <span class="block min-w-0 truncate font-semibold text-highlighted" :title="row.original.name" :data-testid="`inbox-campaign-row-${row.original.id}`">{{ row.original.name }}</span>
           <SharedRecordNumber class="mt-0.5" :value="`#${row.original.id}`" />
         </template>
         <template #state-cell="{ row }"><SharedStatusBadge size="sm" :tone="CAMPAIGN_STATE_TONE[row.original.state]" :label="t(`inbox.campaigns.states.${row.original.state}`)" /></template>

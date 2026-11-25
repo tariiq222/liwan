@@ -28,6 +28,8 @@
       },
       "emptyTitle": "لا مسيرات رواتب بعد",
       "emptyHint": "أنشئ مسير الشهر لاحتساب رواتب الموظفين واعتمادها.",
+      "emptyFiltered": "لا مسيرات مطابقة للتصفية",
+      "clearFilters": "مسح الفلاتر",
       "footer": "عرض {shown} من {total}",
       "employeeCount": "لا موظفين | موظف واحد | موظفان | {count} موظفين | {count} موظفًا | {count} موظف",
       "columns": {

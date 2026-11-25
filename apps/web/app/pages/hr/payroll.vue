@@ -52,6 +52,9 @@ const page = computed(() => Math.floor(offset.value / LIMIT) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !runs.isLoading.value && !runs.error.value && items.value.length === 0)
 const activeFilterCount = computed(() => [year.value, state.value === 'all' ? null : state.value].filter(Boolean).length)
+// A filter that matches nothing is not the same as no run at all: the empty state says which one it is and offers the
+// way out (clear the filters, else create the first run).
+const filtered = computed(() => activeFilterCount.value > 0)
 
 // The tiles count runs per state with one-row requests (their `total`), never a run's amounts. They ask nothing while the
 // figures are hidden or the viewer cannot read payroll; the all-runs figure reuses the list total while the list is unfiltered.
@@ -161,7 +164,27 @@ function runTo(row: HrPayrollRunSummary) {
       </template>
 
       <SharedPageState :error="runs.error.value" :keep-content="items.length > 0" @retry="runs.refetch">
-        <SharedEmptyState icon="i-lucide-banknote" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrPayroll.runs.emptyTitle')" :description="t('hrPayroll.runs.emptyHint')" />
+        <SharedEmptyState
+          v-if="showEmpty"
+          class="m-(--liwan-card-pad-dense)"
+          :icon="filtered ? 'i-lucide-filter-x' : 'i-lucide-banknote'"
+          :title="filtered ? t('hrPayroll.runs.emptyFiltered') : t('hrPayroll.runs.emptyTitle')"
+          :description="filtered ? undefined : t('hrPayroll.runs.emptyHint')"
+          data-testid="hr-payroll-empty"
+        >
+          <template v-if="filtered" #action>
+            <UButton
+              icon="i-lucide-rotate-ccw"
+              :label="t('hrPayroll.runs.clearFilters')"
+              :disabled="!hydrated"
+              data-testid="hr-payroll-empty-clear"
+              @click="clearFilters"
+            />
+          </template>
+          <template v-else-if="createTo" #action>
+            <UButton :to="createTo" icon="i-lucide-plus" :label="t('hrPayroll.runs.new')" :disabled="!hydrated" data-testid="hr-payroll-empty-create" />
+          </template>
+        </SharedEmptyState>
         <PayrollRunTable v-else :runs="items" :row-to="runTo" :loading="runs.isLoading.value" :caption="t('hrPayroll.title')" />
       </SharedPageState>
       <template v-if="runs.data.value && !showEmpty" #footer>

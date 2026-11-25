@@ -20,7 +20,7 @@ const { t, locale } = useI18n()
 
 const columns = computed<TableColumn<HrPayrollRunSummary>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'month', header: t('hrPayroll.runs.columns.month') },
+  { accessorKey: 'month', header: t('hrPayroll.runs.columns.month'), meta: { title: true } },
   { accessorKey: 'state', header: t('hrPayroll.runs.columns.state'), meta: { class: { th: 'w-[110px]', td: 'w-[110px]' } } },
   { accessorKey: 'employee_count', header: t('hrPayroll.runs.columns.employees') },
   { id: 'gross', header: t('hrPayroll.runs.columns.gross') },
