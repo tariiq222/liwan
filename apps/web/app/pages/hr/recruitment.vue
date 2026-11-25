@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import {
   HR_RECRUITMENT_PAGE_SIZE,
@@ -10,6 +8,7 @@ import {
   type HrApplicant,
   type HrApplicantStatusFilter,
 } from '@/composables/useHrRecruitment'
+import { hrApplicantKpiQueries, hrApplicantKpiTiles } from '@/utils/hrStaffingKpis'
 
 const route = useRoute()
 const router = useRouter()
@@ -67,6 +66,39 @@ const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !applicants.isLoading.value && !applicants.error.value && items.value.length === 0)
 const activeFilterCount = computed(() => [search.value.trim(), jobId.value, stageId.value, status.value === 'all' ? null : status.value].filter(Boolean).length)
 
+// The tiles count the applicant states the endpoint already filters by. The tile whose state the list is showing
+// reads the list's own total instead of asking the same question again; the others ask one row each.
+const { shown: kpisShown } = useKpiVisibility()
+const kpiQueries = hrApplicantKpiQueries()
+const kpisEnabled = computed(() => isListRoute.value && kpisShown.value)
+const allReused = computed(() => status.value === 'all')
+const ongoingReused = computed(() => status.value === 'ongoing')
+const hiredReused = computed(() => status.value === 'hired')
+const kpiScope = computed(() => ({
+  q: search.value.trim() || undefined,
+  job_id: jobId.value ?? undefined,
+  stage_id: stageId.value ?? undefined,
+}))
+const allCount = useHrRecruitmentApplicants(
+  computed(() => ({ ...kpiQueries.all, ...kpiScope.value })),
+  computed(() => kpisEnabled.value && !allReused.value),
+)
+const ongoingCount = useHrRecruitmentApplicants(
+  computed(() => ({ ...kpiQueries.ongoing, ...kpiScope.value })),
+  computed(() => kpisEnabled.value && !ongoingReused.value),
+)
+const hiredCount = useHrRecruitmentApplicants(
+  computed(() => ({ ...kpiQueries.hired, ...kpiScope.value })),
+  computed(() => kpisEnabled.value && !hiredReused.value),
+)
+const kpiCounts = computed(() => ({
+  all: allReused.value ? total.value : allCount.data.value?.total ?? null,
+  ongoing: ongoingReused.value ? total.value : ongoingCount.data.value?.total ?? null,
+  hired: hiredReused.value ? total.value : hiredCount.data.value?.total ?? null,
+}))
+const kpiTiles = computed(() => hrApplicantKpiTiles(kpiCounts.value, t))
+const kpiLoading = computed(() => applicants.isLoading.value || allCount.isLoading.value || ongoingCount.isLoading.value || hiredCount.isLoading.value)
+
 const jobOptions = computed(() => (jobs.data.value?.items ?? []).map(job => ({ value: String(job.id), label: job.name })))
 const stageOptions = computed(() => (stages.data.value?.items ?? []).map(stage => ({ value: String(stage.id), label: stage.name })))
 const jobName = computed(() => jobOptions.value.find(option => option.value === String(jobId.value))?.label ?? t('hrRecruitment.columns.job'))
@@ -78,7 +110,6 @@ const statusOptions = computed(() => STATUS_FILTERS.map(status => ({
 })))
 
 const columns = computed<TableColumn<HrApplicant>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'partner_name', header: t('hrRecruitment.columns.applicant'), meta: { title: true } },
   { accessorKey: 'job', header: t('hrRecruitment.columns.job') },
   { accessorKey: 'stage', header: t('hrRecruitment.columns.stage') },
@@ -129,6 +160,9 @@ function applicantTo(applicant: HrApplicant) {
     :create-label="t('hrRecruitment.newApplicant')"
     create-test-id="hr-recruitment-new"
   >
+    <template #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t('hrRecruitment.kpi.label')" data-testid="hr-recruitment-kpi-strip" />
+    </template>
     <template v-if="canReadJobs" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-briefcase" :to="jobsTo" :disabled="!hydrated" :label="t('hrRecruitment.jobs.title')" data-testid="hr-recruitment-jobs" />
     </template>
@@ -201,8 +235,10 @@ function applicantTo(applicant: HrApplicant) {
           :loading="applicants.isLoading.value"
           :caption="t('hrRecruitment.title')"
         >
-          <template #id-cell="{ row }"><RecordNumber :value="row.original.id" :data-testid="`hr-applicant-row-${row.original.id}`" /></template>
-          <template #partner_name-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.partner_name }}</span></template>
+          <template #partner_name-cell="{ row }">
+            <span class="font-semibold text-highlighted">{{ row.original.partner_name }}</span>
+            <div class="mt-0.5"><SharedRecordNumber :value="row.original.id" :data-testid="`hr-applicant-row-${row.original.id}`" /></div>
+          </template>
           <template #job-cell="{ row }">{{ row.original.job?.name || t('hrRecruitment.noJob') }}</template>
           <template #stage-cell="{ row }">{{ row.original.stage?.name || t('hrRecruitment.noStage') }}</template>
           <template #status-cell="{ row }">

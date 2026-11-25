@@ -188,13 +188,13 @@ export async function hireHrApplicant($api: Api, qc: QueryClient, id: number) {
   return result
 }
 
-export function useHrRecruitmentJobList(input: MaybeRefOrGetter<HrRecruitmentJobInput>) {
+export function useHrRecruitmentJobList(input: MaybeRefOrGetter<HrRecruitmentJobInput>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrRecruitmentKeys.jobs(hrJobQuery(toValue(input)))),
     placeholderData: keepPreviousData,
-    enabled: computed(() => can('hr.recruitment.read')),
+    enabled: computed(() => can('hr.recruitment.read') && toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/recruitment/jobs', {
       query: { ...hrJobQuery(toValue(input)) },
       schema: HrRecruitmentJobListSchema,
@@ -235,13 +235,13 @@ export function useHrRecruitmentRefuseReasons() {
   })
 }
 
-export function useHrRecruitmentApplicants(input: MaybeRefOrGetter<HrApplicantInput>) {
+export function useHrRecruitmentApplicants(input: MaybeRefOrGetter<HrApplicantInput>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrRecruitmentKeys.applicants(hrApplicantQuery(toValue(input)))),
     placeholderData: keepPreviousData,
-    enabled: computed(() => can('hr.recruitment.read')),
+    enabled: computed(() => can('hr.recruitment.read') && toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/recruitment/applicants', {
       query: { ...hrApplicantQuery(toValue(input)) },
       schema: HrApplicantListSchema,

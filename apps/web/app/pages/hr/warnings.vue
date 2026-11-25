@@ -4,6 +4,7 @@ import WarningTable from '@/components/hr/warnings/WarningTable.vue'
 import { HR_WARNING_STATES, type HrWarningState } from '@liwan/contracts'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { HR_WARNINGS_PAGE_SIZE, type HrWarning } from '@/composables/useHrWarnings'
+import { hrWarningKpiQueries, hrWarningKpiTiles } from '@/utils/hrStaffingKpis'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,6 +52,38 @@ const page = computed(() => Math.floor(offset.value / LIMIT) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !warnings.isLoading.value && !warnings.error.value && items.value.length === 0)
 const activeFilterCount = computed(() => [employeeId.value, typeId.value, state.value === 'all' ? null : state.value].filter(Boolean).length)
+
+// The tiles count the live warning states the endpoint filters by; the tile the list is showing reads the list's
+// own total, and the others ask one row each. There is no active/expired aggregate, and no expiry date.
+const { shown: kpisShown } = useKpiVisibility()
+const kpiQueries = hrWarningKpiQueries()
+const kpisEnabled = computed(() => isListRoute.value && kpisShown.value)
+const issuedReused = computed(() => state.value === 'issued')
+const acknowledgedReused = computed(() => state.value === 'acknowledged')
+const contestedReused = computed(() => state.value === 'contested')
+const kpiScope = computed(() => ({
+  employee_id: employeeId.value ?? undefined,
+  type_id: typeId.value ?? undefined,
+}))
+const issuedCount = useHrWarningList(
+  computed(() => ({ ...kpiQueries.issued, ...kpiScope.value })),
+  computed(() => kpisEnabled.value && !issuedReused.value),
+)
+const acknowledgedCount = useHrWarningList(
+  computed(() => ({ ...kpiQueries.acknowledged, ...kpiScope.value })),
+  computed(() => kpisEnabled.value && !acknowledgedReused.value),
+)
+const contestedCount = useHrWarningList(
+  computed(() => ({ ...kpiQueries.contested, ...kpiScope.value })),
+  computed(() => kpisEnabled.value && !contestedReused.value),
+)
+const kpiCounts = computed(() => ({
+  issued: issuedReused.value ? total.value : issuedCount.data.value?.total ?? null,
+  acknowledged: acknowledgedReused.value ? total.value : acknowledgedCount.data.value?.total ?? null,
+  contested: contestedReused.value ? total.value : contestedCount.data.value?.total ?? null,
+}))
+const kpiTiles = computed(() => hrWarningKpiTiles(kpiCounts.value, t))
+const kpiLoading = computed(() => warnings.isLoading.value || issuedCount.isLoading.value || acknowledgedCount.isLoading.value || contestedCount.isLoading.value)
 
 const typeOptions = computed(() => (types.data.value?.items ?? []).map(type => ({ value: String(type.id), label: type.name })))
 const typeName = computed(() => typeOptions.value.find(option => option.value === String(typeId.value))?.label ?? t('hrWarnings.columns.type'))
@@ -101,6 +134,9 @@ function warningTo(row: HrWarning) {
     :create-label="t('hrWarnings.new')"
     create-test-id="hr-warning-new"
   >
+    <template #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t('hrWarnings.kpi.label')" data-testid="hr-warnings-kpi-strip" />
+    </template>
     <SharedListCard>
       <template #filters>
         <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">

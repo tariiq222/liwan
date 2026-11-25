@@ -39,6 +39,14 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/products/index.vue', ['useProductListKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
     ['pages/sales/index.vue', ['useSalesListKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
     ['pages/crm/opportunities/index.vue', ['useCrmOpportunityKpis(listFilters, listTotal, computed(() => kpisShown.value && canRead.value), activeView)']],
+    // The staffing lists (recruitment, lifecycle plans and runs, departures, warnings) pass their tile queries the same flag.
+    ['pages/hr/recruitment.vue', ['const kpisEnabled = computed(() => isListRoute.value && kpisShown.value)', 'kpisEnabled.value && !ongoingReused.value']],
+    ['pages/hr/recruitment/jobs.vue', ['const kpisEnabled = computed(() => isJobsRoute.value && kpisShown.value)', 'kpisEnabled.value && !closedReused.value']],
+    ['pages/hr/onboarding.vue', ['const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)', 'kpisEnabled.value && !doneReused.value']],
+    ['pages/hr/onboarding/plans/index.vue', ['const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)', 'kpisEnabled.value && !inactiveReused.value']],
+    ['pages/hr/offboarding.vue', ['const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)', 'kpisEnabled.value && !unclearedReused.value']],
+    ['pages/hr/offboarding/plans/index.vue', ['const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)', 'kpisEnabled.value && !inactiveReused.value']],
+    ['pages/hr/warnings.vue', ['const kpisEnabled = computed(() => isListRoute.value && kpisShown.value)', 'kpisEnabled.value && !acknowledgedReused.value']],
   ])('%s passes the visibility as the tile queries enabled flag', (file, needles) => {
     const source = read(file)
     expect(source).toContain('useKpiVisibility()')

@@ -20,6 +20,12 @@
       "status": "Status",
       "priority": "Priority"
     },
+    "kpi": {
+      "label": "Recruitment figures",
+      "all": "All applicants",
+      "ongoing": "In progress",
+      "hired": "Hired"
+    },
     "status": {
       "ongoing": "In progress",
       "hired": "Hired",
@@ -57,7 +63,6 @@
     },
     "detail": {
       "pipeline": "Recruitment stage",
-      "contact": "Contact details",
       "appliedOn": "Applied on",
       "empty": "Not set",
       "department": "Department",
@@ -117,6 +122,11 @@
         "description": "Description",
         "active": "Active job position",
         "requiredHint": "Fields marked with * are required."
+      },
+      "kpi": {
+        "label": "Job position figures",
+        "open": "Open positions",
+        "closed": "Closed positions"
       }
     }
   }

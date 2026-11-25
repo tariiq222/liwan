@@ -2,8 +2,6 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import type { HrWarning } from '@liwan/contracts'
-import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { hrWarningBadge } from '@/utils/hrWarnings'
 
@@ -19,7 +17,6 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const columns = computed<TableColumn<HrWarning>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'employee', header: t('hrWarnings.columns.employee'), meta: { title: true } },
   { accessorKey: 'type', header: t('hrWarnings.columns.type') },
   { accessorKey: 'date_issued', header: t('hrWarnings.columns.date') },
@@ -42,8 +39,10 @@ function badge(warning: HrWarning) {
     :loading="props.loading"
     :caption="props.caption"
   >
-    <template #id-cell="{ row }"><RecordNumber :value="row.original.id" :data-testid="`hr-warning-row-${row.original.id}`" /></template>
-    <template #employee-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.employee.name }}</span></template>
+    <template #employee-cell="{ row }">
+      <span class="font-semibold text-highlighted">{{ row.original.employee.name }}</span>
+      <div class="mt-0.5"><SharedRecordNumber :value="row.original.id" :data-testid="`hr-warning-row-${row.original.id}`" /></div>
+    </template>
     <template #type-cell="{ row }">
       {{ row.original.type.name }}
       <span class="block text-xs text-muted">{{ t('hrWarnings.severity', { severity: row.original.type.severity }) }}</span>

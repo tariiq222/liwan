@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import DepartureTable from '@/components/hr/lifecycle/DepartureTable.vue'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
-import { hrDepartureListQuery, useHrDepartures, type HrDepartureListParams } from '@/composables/useHrOffboarding'
+import { useHrDepartures, type HrDepartureListParams } from '@/composables/useHrOffboarding'
+import { hrDepartureKpiQueries, hrDepartureKpiTiles } from '@/utils/hrStaffingKpis'
 
 const NAMESPACE = 'hrOffboarding'
 const PAGE_SIZE = 25
@@ -31,6 +32,29 @@ const total = computed(() => query.data.value?.total ?? 0)
 const page = computed(() => Math.floor(offset.value / PAGE_SIZE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(cleared.value)))
+
+// The tiles count the finished and the open clearances the endpoint filters by; the tile the list is showing reads
+// the list's own total, and the other asks one row.
+const { shown: kpisShown } = useKpiVisibility()
+const kpiQueries = hrDepartureKpiQueries()
+const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)
+const clearedReused = computed(() => cleared.value === 'true')
+const unclearedReused = computed(() => cleared.value === 'false')
+const clearedCount = useHrDepartures(
+  computed(() => ({ ...kpiQueries.cleared, q: search.value.trim() || undefined })),
+  computed(() => kpisEnabled.value && !clearedReused.value),
+)
+const unclearedCount = useHrDepartures(
+  computed(() => ({ ...kpiQueries.uncleared, q: search.value.trim() || undefined })),
+  computed(() => kpisEnabled.value && !unclearedReused.value),
+)
+const kpiCounts = computed(() => ({
+  cleared: clearedReused.value ? total.value : clearedCount.data.value?.total ?? null,
+  uncleared: unclearedReused.value ? total.value : unclearedCount.data.value?.total ?? null,
+}))
+const kpiTiles = computed(() => hrDepartureKpiTiles(kpiCounts.value, t))
+const kpiLoading = computed(() => query.isLoading.value || clearedCount.isLoading.value || unclearedCount.isLoading.value)
+
 const clearedOptions = computed(() => [
   { value: 'all', label: t(`${NAMESPACE}.departures.allClearance`) },
   { value: 'true', label: t(`${NAMESPACE}.departures.clearedOnly`) },
@@ -69,6 +93,9 @@ function setPage(next: number) {
     :create-label="t(`${NAMESPACE}.departures.new`)"
     create-test-id="hr-offboarding-new"
   >
+    <template v-if="!forbidden" #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t(`${NAMESPACE}.kpi.label`)" data-testid="hr-offboarding-kpi-strip" />
+    </template>
     <template v-if="!forbidden" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-list-checks" to="/hr/offboarding/plans" :disabled="!hydrated" :label="t(`${NAMESPACE}.plans.title`)" data-testid="hr-offboarding-plans" />
     </template>
