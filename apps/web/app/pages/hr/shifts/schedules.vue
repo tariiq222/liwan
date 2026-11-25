@@ -78,11 +78,11 @@ const createTo = computed(() => canManage.value ? { path: '/hr/shifts/schedules/
   <SharedListPage
     v-if="isListRoute"
     :title="t('hrShifts.schedulesTitle')"
+    :back-to="{ path: '/hr/shifts' }"
+    :back-label="t('hrShifts.title')"
     :create-to="createTo"
     :create-label="t('hrShifts.newSchedule')"
     create-test-id="hr-shifts-schedules-new"
-    :back-to="{ path: '/hr/shifts' }"
-    :back-label="t('hrShifts.title')"
   >
     <div class="liwan-page-stack">
       <UAlert v-if="archiveError" role="alert" color="error" variant="subtle" :title="archiveError" data-testid="hr-shifts-archive-error" />

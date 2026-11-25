@@ -16,6 +16,12 @@
       "emptyHint": "تظهر هنا الأصول التي تُسلَّم لك."
     },
     "footer": "لا أصول | عرض {shown} من أصل واحد | عرض {shown} من أصلين | عرض {shown} من {total} أصول | عرض {shown} من {total} أصلًا | عرض {shown} من {total} أصل",
+    "kpi": {
+      "label": "مؤشرات الأصول",
+      "assets": "الأصول النشطة",
+      "assigned": "مُسلَّمة",
+      "available": "جاهزة للتسليم"
+    },
     "filter": {
       "active": "حالة الأصل",
       "custody": "العهدة"

@@ -8,12 +8,14 @@ import {
   type HrEquipmentActiveFilter,
   type HrEquipmentAssignedFilter,
 } from '@/composables/useHrAssets'
+import { hrEquipmentKpiQueries, hrEquipmentKpiTiles } from '@/utils/hrKpis'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const { shown: kpisShown } = useKpiVisibility()
 
 const LIMIT = HR_ASSETS_PAGE_SIZE
 // The equipment list is this page's own screen and stays behind its create panel; the
@@ -75,6 +77,23 @@ const activeFilterCount = computed(() => [
   assigned.value === 'all' ? null : assigned.value,
   active.value === 'true' ? null : active.value,
 ].filter(Boolean).length)
+
+// The tiles count the active assets the list shows by default: all of them, and how many are with an employee or free.
+// The asset tile reuses the unfiltered list's own total, so it asks nothing extra until a filter narrows the list.
+const kpiQueries = hrEquipmentKpiQueries()
+const listFiltered = computed(() => activeFilterCount.value > 0)
+const kpisEnabled = computed(() => kpisShown.value && can('hr.assets.read'))
+const allAssetsKpi = useHrEquipmentList({ limit: 1 }, computed(() => kpisEnabled.value && listFiltered.value))
+const assignedKpi = useHrEquipmentList(kpiQueries.assigned, kpisEnabled)
+const availableKpi = useHrEquipmentList(kpiQueries.available, kpisEnabled)
+const kpiTiles = computed(() => hrEquipmentKpiTiles({
+  assets: listFiltered.value ? allAssetsKpi.data.value?.total ?? null : equipment.data.value?.total ?? null,
+  assigned: assignedKpi.data.value?.total ?? null,
+  available: availableKpi.data.value?.total ?? null,
+}, t))
+const kpiLoading = computed(() => (listFiltered.value ? allAssetsKpi.isLoading.value : !equipment.data.value && !equipment.error.value)
+  || assignedKpi.isLoading.value
+  || availableKpi.isLoading.value)
 
 const categoryOptions = computed(() => (categories.data.value?.items ?? []).map(category => ({
   value: String(category.id),
@@ -149,6 +168,10 @@ function equipmentTo(row: HrEquipment) {
   >
     <template #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-tags" :to="categoriesTo" :disabled="!hydrated" :label="t('hrAssets.categories.title')" data-testid="hr-asset-categories" />
+    </template>
+
+    <template v-if="hydrated && can('hr.assets.read')" #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :skeleton-count="3" :label="t('hrAssets.kpi.label')" data-testid="hr-assets-kpis" />
     </template>
 
     <SharedListCard>

@@ -16,6 +16,12 @@
       "emptyHint": "Assets handed to you appear here."
     },
     "footer": "{shown} of 1 asset | {shown} of {total} assets",
+    "kpi": {
+      "label": "Asset figures",
+      "assets": "Active assets",
+      "assigned": "Assigned",
+      "available": "Ready to assign"
+    },
     "filter": {
       "active": "Asset state",
       "custody": "Custody"

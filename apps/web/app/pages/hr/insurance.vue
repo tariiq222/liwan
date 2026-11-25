@@ -7,6 +7,7 @@ import PlanTable from '@/components/hr/insurance/PlanTable.vue'
 import { HR_INSURANCE_ENROLLMENT_STATES, HR_INSURANCE_PLAN_STATES, type HrInsuranceEnrollmentState, type HrInsurancePlanState } from '@liwan/contracts'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { HR_INSURANCE_PAGE_SIZE } from '@/composables/useHrInsurance'
+import { hrInsurancePlanKpiQueries, hrInsurancePlanKpiTiles } from '@/utils/hrKpis'
 
 const SECTIONS = ['enrollments', 'plans', 'providers'] as const
 type Section = typeof SECTIONS[number]
@@ -16,6 +17,7 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const { shown: kpisShown } = useKpiVisibility()
 
 const LIMIT = HR_INSURANCE_PAGE_SIZE
 // The list is this page's own screen and stays behind its create panels; an enrollment or a plan record is a full page.
@@ -72,6 +74,22 @@ const planStateItems = computed(() => (['all', ...HR_INSURANCE_PLAN_STATES] as c
   value, label: value === 'all' ? t('hrInsurance.allStates') : t(`hrInsurance.planState.${value}`), testId: `hr-insurance-plan-state-${value}`,
 })))
 
+// The plans section's tiles: every plan, the running ones and the lapsed ones. The all-plans figure reuses the unfiltered
+// plan list's own total; the state figures are one `limit: 1` request each, asked only while the plans list is open.
+const planKpiQueries = hrInsurancePlanKpiQueries()
+const plansKpisEnabled = computed(() => kpisShown.value && section.value === 'plans')
+const allPlansKpi = useHrInsurancePlans(planKpiQueries.all, computed(() => plansKpisEnabled.value && planState.value !== 'all'))
+const activePlansKpi = useHrInsurancePlans(planKpiQueries.active, plansKpisEnabled)
+const expiredPlansKpi = useHrInsurancePlans(planKpiQueries.expired, plansKpisEnabled)
+const planKpiTiles = computed(() => hrInsurancePlanKpiTiles({
+  all: planState.value === 'all' ? plans.data.value?.total ?? null : allPlansKpi.data.value?.total ?? null,
+  active: activePlansKpi.data.value?.total ?? null,
+  expired: expiredPlansKpi.data.value?.total ?? null,
+}, t))
+const planKpiLoading = computed(() => (planState.value === 'all' ? !plans.data.value && !plans.error.value : allPlansKpi.isLoading.value)
+  || activePlansKpi.isLoading.value
+  || expiredPlansKpi.isLoading.value)
+
 type Patch = Partial<{ section: Section; employee: number | null; plan: number | null; state: string; planState: string; expiring: boolean; offset: number }>
 function writeQuery(patch: Patch) {
   if (!hydrated.value) return
@@ -126,7 +144,18 @@ async function reloadProviders() {
     :create-label="t(section === 'plans' ? 'hrInsurance.newPlan' : 'hrInsurance.newEnrollment')"
     create-test-id="hr-insurance-new"
   >
-    <InsuranceSummaryStrip />
+    <template v-if="hydrated" #kpis>
+      <InsuranceSummaryStrip v-if="kpisShown && section !== 'plans'" />
+      <SharedKpiStrip
+        v-else-if="kpisShown"
+        :tiles="planKpiTiles"
+        :loading="planKpiLoading"
+        :skeleton-count="3"
+        :label="t('hrInsurance.kpi.planLabel')"
+        data-testid="hr-insurance-kpis"
+      />
+    </template>
+
     <SharedSegmentedControl :model-value="section" :items="sectionItems" :label="t('hrInsurance.sectionLabel')" :disabled="!hydrated" @update:model-value="writeQuery({ section: $event as Section })" />
 
     <template v-if="section === 'providers'">

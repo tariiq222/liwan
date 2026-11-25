@@ -113,13 +113,13 @@ export function useHrShiftSchedule(id: MaybeRefOrGetter<number | null>) {
   })
 }
 
-export function useHrShiftAssignments(params: MaybeRefOrGetter<HrShiftAssignmentListParams>) {
+export function useHrShiftAssignments(params: MaybeRefOrGetter<HrShiftAssignmentListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrShiftKeys.assignments(toValue(params))),
     placeholderData: keepPreviousData,
-    enabled: computed(() => can('hr.shifts.read')),
+    enabled: computed(() => can('hr.shifts.read') && toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/shifts/assignments', {
       query: hrShiftAssignmentQuery(toValue(params)),
       schema: HrShiftAssignmentListSchema,

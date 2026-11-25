@@ -15,6 +15,7 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/operations/index.vue', '<RequestKpiStrip v-if="kpisShown" scope="mine"'],
     ['pages/operations/pending.vue', '<RequestKpiStrip v-if="kpisShown" scope="pending"'],
     ['pages/operations/monitoring.vue', '<RequestKpiStrip v-if="kpisShown" scope="monitoring"'],
+    ['pages/hr/insurance.vue', '<InsuranceSummaryStrip v-if="kpisShown && section !== \'plans\'" />'],
   ])('%s mounts its strip only while shown', (file, mount) => {
     expect(read(file)).toContain(mount)
   })
@@ -25,6 +26,25 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/hr/index.vue', ['useHrEmployees({ limit: 1 }, computed(() => kpisShown.value && !reuseListTotal.value))', 'kpisShown.value && canManage.value']],
     ['pages/hr/payroll.vue', ['const kpisEnabled = computed(() => isListRoute.value && kpisShown.value && canRead.value)', 'useHrPayrollRuns(kpiQueries.all, computed(() => kpisEnabled.value && !reuseListTotal.value))', 'useHrPayrollRuns(kpiQueries.draft, kpisEnabled)', 'useHrPayrollRuns(kpiQueries.computed, kpisEnabled)', 'useHrPayrollRuns(kpiQueries.approved, kpisEnabled)']],
     ['components/hr/LeaveList.vue', ['const kpisEnabled = computed(() => !props.personal && isListRoute.value && kpisShown.value)', 'useHrLeaveRequests(kpiQueries.pending, kpisEnabled)', 'useHrLeaveRequests(kpiQueries.approved, kpisEnabled)']],
+    // The asset, shift and plan tiles reuse their list's own total while it is unfiltered and ask only when narrowed.
+    ['pages/hr/assets.vue', [
+      "const kpisEnabled = computed(() => kpisShown.value && can('hr.assets.read'))",
+      'useHrEquipmentList({ limit: 1 }, computed(() => kpisEnabled.value && listFiltered.value))',
+      'useHrEquipmentList(kpiQueries.assigned, kpisEnabled)',
+      'useHrEquipmentList(kpiQueries.available, kpisEnabled)',
+    ]],
+    ['pages/hr/shifts.vue', [
+      'const kpisEnabled = computed(() => canRead.value && kpisShown.value)',
+      'useHrShiftSettings(kpisEnabled)',
+      'useHrShiftAssignments(computed(() => kpiQueries.value.planned), computed(() => kpisEnabled.value && listFiltered.value))',
+      'useHrShiftAssignments(computed(() => kpiQueries.value.today), computed(() => kpisEnabled.value && !!today.value))',
+    ]],
+    ['pages/hr/insurance.vue', [
+      "const plansKpisEnabled = computed(() => kpisShown.value && section.value === 'plans')",
+      "useHrInsurancePlans(planKpiQueries.all, computed(() => plansKpisEnabled.value && planState.value !== 'all'))",
+      'useHrInsurancePlans(planKpiQueries.active, plansKpisEnabled)',
+      'useHrInsurancePlans(planKpiQueries.expired, plansKpisEnabled)',
+    ]],
     ['pages/finance/index.vue', ["useFinanceAging('receivable', computed(() => kpisShown.value && canStatements.value))", 'useFinancePartners({ limit: 1 }, computed(() => kpisShown.value && canPartners.value))']],
     ['components/finance/invoices/useInvoiceListPage.ts', ['useFinanceInvoiceSummary(() => invoiceSummaryParams(moveType, filters.value), () => shown.value && allowed.value)']],
     ['components/finance/accounting/useEntryListPage.ts', ['useFinanceEntrySummary(() => entrySummaryParams(filters.value), () => shown.value && allowed.value)']],
