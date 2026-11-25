@@ -181,7 +181,7 @@ const retry = () => Promise.all([refresh(), refreshUsage()])
             <UIcon name="i-lucide-tag" class="size-4" />
           </span>
           <div class="min-w-0 flex-1">
-            <div dir="ltr" class="font-medium tabular-nums text-highlighted" data-testid="catalog-app-history-link">{{ item.entry.version }}</div>
+            <div class="font-medium tabular-nums text-highlighted" data-testid="catalog-app-history-link"><bdi dir="ltr">{{ item.entry.version }}</bdi></div>
             <div class="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
               <UIcon name="i-lucide-calendar" class="size-3.5 shrink-0" aria-hidden="true" />
               <span>{{ formatBusinessDate(item.entry.created_at) }}</span>

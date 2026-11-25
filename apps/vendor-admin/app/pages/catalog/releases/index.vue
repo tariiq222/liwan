@@ -41,7 +41,7 @@ const columns = computed<TableColumn<CatalogVersion>[]>(() => [
     <SharedDataTable :rows="items" :columns="columns" row-key="id" :row-to="path" :loading="pending" :error="error" :empty-text="t('vendor.catalog.empty')" :caption="t('vendor.catalog.releases')" @retry="refresh">
       <template #version-cell="{ row: { original: version } }">
         <span class="flex flex-col">
-          <NuxtLink :to="path(version)" data-testid="catalog-row" class="font-medium tabular-nums hover:underline" dir="ltr">{{ version.version }}</NuxtLink>
+          <NuxtLink :to="path(version)" data-testid="catalog-row" class="font-medium tabular-nums hover:underline"><bdi dir="ltr">{{ version.version }}</bdi></NuxtLink>
           <span class="mt-0.5 text-sm text-muted">{{ formatBusinessDate(version.created_at) }}</span>
         </span>
       </template>

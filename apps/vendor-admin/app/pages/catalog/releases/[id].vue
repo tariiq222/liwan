@@ -62,7 +62,7 @@ const heroTone = computed(() => (version.value?.status === 'published' ? 'succes
           <span class="flex min-w-0 flex-wrap items-center gap-2">
             <SharedStatusBadge size="sm" data-slot="lifecycle-badge" :tone="lifecycleBadge(version).tone" :label="t(lifecycleBadge(version).labelKey)" />
             <span aria-hidden="true">·</span>
-            <span dir="ltr" class="tabular-nums">{{ version.version }}</span>
+            <span class="tabular-nums"><bdi dir="ltr">{{ version.version }}</bdi></span>
           </span>
         </template>
         <template #meta>
