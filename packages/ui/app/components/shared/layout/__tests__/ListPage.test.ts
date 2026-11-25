@@ -2,7 +2,7 @@ import * as Vue from 'vue'
 import { h, type VNode } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import * as listView from '../../../../utils/listView'
-import { renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
+import { loadShared, renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
 
 const views = [
   { value: 'table', label: 'Table view', icon: 'i-lucide-list' },
@@ -12,8 +12,9 @@ const slot = <P>(render: (props: P) => VNode) => render as (...args: unknown[]) 
 const TooltipStub = Vue.defineComponent({ setup: (_, { slots }) => () => h('span', slots.default?.()) })
 
 function options(query: Record<string, string> = {}, patch: SharedRenderOptions = {}): SharedRenderOptions {
-  return {
-    modules: { '../../../utils/listView': listView },
+  const base: SharedRenderOptions = {
+    ...patch,
+    modules: { '../../../utils/listView': listView, ...patch.modules },
     globals: {
       useRoute: () => ({ path: '/tasks', query }),
       usePageArea: () => () => ({ plain: false, record: false }),
@@ -22,9 +23,13 @@ function options(query: Record<string, string> = {}, patch: SharedRenderOptions 
       useEscapeBack: () => undefined,
       useFrameOwnsHeading: () => Vue.ref(false),
       useFrameOwnsActions: () => Vue.ref(false),
+      useKpiVisibility: () => ({ shown: Vue.ref(true), toggle: vi.fn() }),
+      ...patch.globals,
     },
-    stubs: { UTooltip: TooltipStub },
-    ...patch,
+  }
+  return {
+    ...base,
+    stubs: { UTooltip: TooltipStub, SharedKpiToggle: loadShared('KpiToggle', base), ...patch.stubs },
   }
 }
 const showView = { default: slot<{ view?: string }>(({ view }) => h('p', `view:${view}`)) }
@@ -104,6 +109,51 @@ describe('SharedListPage', () => {
     const html = await renderShared('ListPage', { title: 'Tasks', hideHeader: true }, showView, options())
     expect(html).not.toContain('data-slot="page-header"')
     expect(html).not.toMatch(/<h[12]/)
+  })
+
+  it('renders #kpis after the header and before the toolbar with one automatic kpi-toggle', async () => {
+    const html = await renderShared(
+      'ListPage',
+      { title: 'Meetings' },
+      {
+        kpis: () => h('div', { 'data-testid': 'kpi-content' }, 'KPI strip'),
+        filters: () => h('div', 'Filters'),
+        default: () => h('div', 'Rows'),
+      },
+      options(),
+    )
+    expect(html).toContain('data-slot="list-page-kpis"')
+    expect(html).toContain('data-testid="kpi-content"')
+    expect(html.match(/data-testid="kpi-toggle"/g)).toHaveLength(1)
+    const headerIndex = html.indexOf('data-slot="page-header"')
+    const kpisIndex = html.indexOf('data-slot="list-page-kpis"')
+    const toolbarIndex = html.indexOf('data-slot="list-page-toolbar"')
+    expect(headerIndex).toBeGreaterThan(-1)
+    expect(kpisIndex).toBeGreaterThan(headerIndex)
+    expect(toolbarIndex).toBeGreaterThan(kpisIndex)
+  })
+
+  it('keeps #kpis content without a kpi-toggle when the frame owns actions and hides the header', async () => {
+    const framed = options({}, { globals: { useFrameOwnsActions: () => Vue.ref(true) } })
+    const html = await renderShared(
+      'ListPage',
+      { title: 'Meetings', hideHeader: true },
+      { kpis: () => h('div', { 'data-testid': 'kpi-content' }, 'KPI strip') },
+      framed,
+    )
+    expect(html).toContain('data-slot="list-page-kpis"')
+    expect(html).toContain('data-testid="kpi-content"')
+    expect(html).not.toContain('data-testid="kpi-toggle"')
+  })
+
+  it('renders no kpi-toggle without #kpis or kpiToggle, and exactly one with kpiToggle alone', async () => {
+    const plain = await renderShared('ListPage', { title: 'Meetings' }, {}, options())
+    expect(plain).not.toContain('data-testid="kpi-toggle"')
+    expect(plain).not.toContain('data-slot="list-page-kpis"')
+
+    const propOnly = await renderShared('ListPage', { title: 'Meetings', kpiToggle: true }, {}, options())
+    expect(propOnly.match(/data-testid="kpi-toggle"/g)).toHaveLength(1)
+    expect(propOnly).not.toContain('data-slot="list-page-kpis"')
   })
 })
 

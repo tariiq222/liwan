@@ -211,7 +211,7 @@ function displayValue(value: string | null | undefined) {
           <template v-if="query.data.value.meeting_url" #actions>
             <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-video" class="shrink-0 bg-default" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
           </template>
-          <template v-if="query.data.value.organizer || query.data.value.location" #meta>
+          <template #meta>
             <span v-if="query.data.value.organizer" class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[query.data.value.organizer]" /><span class="truncate">{{ t('meetingsUi.organizer') }}: {{ query.data.value.organizer.name }}</span></span>
             <span v-if="query.data.value.location" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-map-pin" class="size-4 shrink-0" aria-hidden="true" />{{ query.data.value.location }}</span>
           </template>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /*
  * Record hero (DESIGN.md §5): the record's primary identity block above its tabs, with an optional icon chip,
- * tone-tinted surface, title line, muted meta line, top-end actions, and optional side-by-side metric tiles
- * passed in the default slot.
+ * tone-tinted surface, title line, muted meta line, top-end actions, and a default slot that takes one or more
+ * compact metric tiles (1–2 recommended) while the hero card keeps 2fr.
  */
 type Tone = 'info' | 'success' | 'warning' | 'danger' | 'neutral'
 
@@ -39,7 +39,7 @@ defineSlots<{
   <div
     data-slot="record-hero"
     :data-tone="props.tone"
-    :class="$slots.default ? 'grid min-w-0 gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]' : 'min-w-0'"
+    :class="$slots.default ? 'grid min-w-0 gap-(--liwan-gap-card) lg:grid-flow-col lg:grid-cols-[minmax(0,2fr)] lg:auto-cols-[minmax(0,1fr)]' : 'min-w-0'"
   >
     <div :class="['flex flex-col justify-between gap-3 rounded-card px-(--liwan-card-pad) py-4', TONE_SURFACE[props.tone]]">
       <div class="flex flex-wrap items-center justify-between gap-3">
