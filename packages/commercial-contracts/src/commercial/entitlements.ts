@@ -7,8 +7,11 @@ import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, C
 
 export { CommercialError }
 /** /2: modules are the whole release (every application is installed in every tenant) and
- * features carry every key of every release application (spec 3.6, rulings E2/E3/E6). */
-export const COMPILER_VERSION = 'commercial-compiler/4'
+ * features carry every key of every release application (spec 3.6, rulings E2/E3/E6). /5:
+ * an entitlement follows the latest published release for the applications its
+ * subscription already owns, so an entitlement compiled against an older release (or an
+ * older compiler) is recomputed and re-delivered. */
+export const COMPILER_VERSION = 'commercial-compiler/5'
 
 /**
  * Whether a customer may buy this application: only a tier that says so. A catalog that predates the flag declares

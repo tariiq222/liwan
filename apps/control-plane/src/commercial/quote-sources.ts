@@ -5,6 +5,7 @@ import { policyWire } from './policies.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { bundleRevision, loadRelease } from './bundles.js'
 import { planRevision } from './plans.js'
+import { latestPublishedRelease } from './catalog-releases.js'
 
 // The shared quote-source helpers live here, a leaf both the quote layer and the free-base layer import, so neither imports the other.
 const bad = (code: string, field: string, status = 422) => new CommercialHttpError(code, status, field, [{ code, field }])
@@ -28,9 +29,9 @@ export async function loadQuoteSources(client: Pick<PoolClient, 'query'>, custom
   const kept = new Set([applied?.plan_revision_id, ...(applied?.bundle_revision_ids ?? [])])
   if ([row, ...b.rows].some(r => !kept.has(r.id) && (r.status !== 'published' || !r.available))) throw bad('not_sellable', 'plan_revision_id')
   const bundles = ids.map(id => bundleRevision(b.rows.find(r => r.id === id)))
-  const releaseId = bundles[0]?.catalog_release_id ?? (await client.query('SELECT id FROM catalog_releases ORDER BY created_at DESC,id LIMIT 1')).rows[0]?.id
-  if (!releaseId) throw bad('release_missing', 'catalog_release_id')
-  const release = await loadRelease(client, releaseId)
+  // Nothing names a release when no bundle is involved: the entitlement then follows the newest release, the catalog being sold.
+  const release = bundles[0] ? await loadRelease(client, bundles[0].catalog_release_id) : await latestPublishedRelease(client)
+  if (!release) throw bad('release_missing', 'catalog_release_id')
   const policyResult = await client.query("SELECT * FROM pricing_policy_revisions WHERE id=$1 AND status='approved'", [row.policy_revision_id])
   if (!policyResult.rowCount) throw bad('policy_missing', 'policy_revision_id')
   const terms = await loadCustomerTerms(client, customerId, input.terms_revision_id)

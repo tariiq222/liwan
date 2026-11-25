@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { Pool } from 'pg'
 import { catalogReleaseCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
 import { createRelease, listReleases } from './catalog-releases.js'
+import { pushCatalogEntitlement } from './catalog-entitlements.js'
 import { createBundle, getBundle, listBundles, mutateBundle } from './bundles.js'
 import { seedDefaultBundles } from './default-bundles.js'
 import { CommercialHttpError } from './lifecycle.js'
@@ -55,6 +56,9 @@ export async function commercialHttp(pool: Pool, input: CommercialInput) {
       needStepUp(input)
       const body = parseBody(input.raw, catalogReleaseCreateSchema)
       const r = await createRelease(pool, actor, body)
+      // A published release is what a customer's entitlement follows: the subscriptions that own a workspace
+      // are pushed to it now. The release row is already committed, so a push failure never fails the publish.
+      if (r.created) await pushCatalogEntitlement(pool, r.release)
       return { status: r.created ? 201 : 200, data: r.release }
     }
     throw new CommercialHttpError('not_found', 404)

@@ -19,7 +19,7 @@ import { acceptQuote, cancelOrder, cancelOrderBodySchema, customerOrderStatusVie
 import { listInvoices, getCustomerInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
-import { getRelease } from './catalog-releases.js'
+import { getRelease, latestPublishedRelease } from './catalog-releases.js'
 import { bankTransferInstructions, claimBankTransfer } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { trialEndPreview } from './trial-preview.js'
@@ -46,8 +46,9 @@ export type CustomerInput = { method: string; path: string; raw: string; headers
 export async function customerCatalog(pool: Pool, customerId: string) {
   const plans = (await pool.query("SELECT * FROM plan_revisions WHERE status='published' AND available AND (audience_customer_id IS NULL OR audience_customer_id=$1) ORDER BY name,id", [customerId])).rows
   const bundles = (await pool.query("SELECT * FROM bundle_revisions WHERE status='published' AND available AND (audience_customer_id IS NULL OR audience_customer_id=$1) ORDER BY name,id", [customerId])).rows
-  const releaseId = bundles[0]?.catalog_release_id ?? (await pool.query('SELECT id FROM catalog_releases ORDER BY created_at DESC,id LIMIT 1')).rows[0]?.id
-  return { plans: plans.map(r=>planWire(r)), bundles: bundles.map(r=>bundleWire(r)), release: releaseId ? await getRelease(pool,releaseId) : null, ai_topup: await aiTopupCatalog(pool) }
+  // The catalog shows the release its sellable bundles were built on; with none, the newest release.
+  const release = bundles[0] ? await getRelease(pool, bundles[0].catalog_release_id) : await latestPublishedRelease(pool)
+  return { plans: plans.map(r=>planWire(r)), bundles: bundles.map(r=>bundleWire(r)), release, ai_topup: await aiTopupCatalog(pool) }
 }
 const branchInput = z.strictObject({ add: z.array(z.strictObject({name:z.string().trim().min(1).max(200)})).default([]), archive: z.array(z.uuid()).default([]), restore: z.array(z.uuid()).default([]) })
 export async function createBranchQuote(pool: Pool, customerId: string, raw: string) {
