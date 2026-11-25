@@ -42,11 +42,7 @@ const columns = computed<TableColumn<OperationProcess>[]>(() => [
       <SharedFilterBar embedded class="w-full" :active-count="Number(!!committedSearch)" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <form @submit.prevent="update({ q: search.trim() || undefined, page: undefined })">
-            <UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('operations.searchProcesses')" :aria-label="t('operations.searchProcesses')" :disabled="!hydrated">
-              <template v-if="search" #trailing>
-                <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('filterCard.clear')" class="-me-1" @click="clearFilters" />
-              </template>
-            </UInput>
+            <UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('operations.searchProcesses')" :aria-label="t('operations.searchProcesses')" :disabled="!hydrated" />
           </form>
         </template>
       </SharedFilterBar>

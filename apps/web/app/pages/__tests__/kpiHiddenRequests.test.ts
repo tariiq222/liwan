@@ -29,6 +29,7 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/meetings/index.vue', ['}), kpisShown)']],
     ['pages/meetings/series.vue', ['useMeetingSeriesKpis(kpisShown)']],
     ['pages/meetings/follow-up.vue', ['}), kpisShown)']],
+    ['pages/operations/self/index.vue', ['computed(() => allowed.value && kpisShown.value)']],
   ])('%s passes the visibility as the tile queries enabled flag', (file, needles) => {
     const source = read(file)
     expect(source).toContain('useKpiVisibility()')
