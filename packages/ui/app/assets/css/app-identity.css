@@ -96,3 +96,10 @@
 /* Settings and filters inside a paid application: an «on» toggle and the chosen segment take the application colour. */
 :is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) button[role="switch"][data-state="checked"] { background-color: var(--app-accent); }
 :is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) [data-slot="segmented-control"] [aria-pressed="true"] { color: var(--app-accent-text); }
+
+/* Global shell chrome (account menu) keeps Liwan ink regardless of the open application. */
+.approved-account-menu {
+  --app-accent: var(--liwan-ink);
+  --app-accent-text: var(--ui-text-highlighted);
+  --ring: var(--liwan-ink);
+}

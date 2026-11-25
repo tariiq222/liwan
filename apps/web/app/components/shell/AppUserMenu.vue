@@ -2,6 +2,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { useQuery } from '@tanstack/vue-query'
 import { useAppearance } from '@/composables/useAppearance'
+import type { FontSize } from '@/utils/appearance'
 import { useLocaleChoice } from '@/composables/useLocaleChoice'
 import { useSignOut } from '@/composables/useSignOut'
 import { useSwitchCompany } from '@/composables/useSwitchCompany'
@@ -11,7 +12,7 @@ import { personalAction, personalEntries } from '@/composables/nav/personalModel
 // The user at the far end of the top bar: avatar (with the live-connection dot), name, first role and a chevron. The menu
 // holds the employee card, the person's own services (only when the account is linked to an employee record; each
 // entry is declared by its application through `personal` and filtered by the same permission and feature checks as
-// the /account hub), a quick leave request, the account page, the appearance and language switches and sign out.
+// the /account hub), a quick leave request, the account page, the appearance, font size and language switches and sign out.
 // «المزيد» opens the existing /account hub. Not offered because the product has no support for them: a presence status,
 // per-user notification preferences and an automatic (follow the system) appearance. A person who belongs to more than
 // one company of the tenant also gets the list of them under the card: the working one is marked, another one switches
@@ -24,7 +25,7 @@ const hydrated = useHydrated()
 const toast = useToast()
 const signOut = useSignOut()
 const switchCompany = useSwitchCompany()
-const { mode, setMode } = useAppearance()
+const { mode, fontSize, setMode, setFontSize } = useAppearance()
 const { languages, choose } = useLocaleChoice()
 
 const open = ref(false)
@@ -62,6 +63,11 @@ const appearanceItems = computed(() => [
   { value: 'light', label: t('nav.userMenu.light'), icon: 'i-lucide-sun' },
   { value: 'dark', label: t('nav.userMenu.dark'), icon: 'i-lucide-moon' },
 ])
+const fontSizeItems = computed(() => [
+  { value: 'small', label: t('settings.appearance.small') },
+  { value: 'medium', label: t('settings.appearance.medium') },
+  { value: 'large', label: t('settings.appearance.large') },
+])
 const languageItems = computed(() => languages.map(language => ({ value: language.code, label: language.name })))
 const keepOpen = (event: Event) => event.preventDefault()
 
@@ -94,7 +100,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
   ]] : []),
   ...(linked.value && leaveAction.value ? [[{ label: t(leaveAction.value.labelKey), icon: leaveAction.value.icon, to: leaveAction.value.to }]] : []),
   [{ label: t('nav.userMenu.accountPassword'), icon: 'i-lucide-user-round', to: '/account/settings' }],
-  [{ slot: 'appearance', onSelect: keepOpen }, { slot: 'language', onSelect: keepOpen }],
+  [{ slot: 'appearance', onSelect: keepOpen }, { slot: 'fontSize', onSelect: keepOpen }, { slot: 'language', onSelect: keepOpen }],
   [{ label: t('nav.logout'), icon: 'i-lucide-log-out', color: 'error', onSelect: () => { void leave() } }],
 ])
 </script>
@@ -106,7 +112,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
     :modal="false"
     :disabled="!hydrated"
     :content="{ align: 'end', sideOffset: 8 }"
-    :ui="{ content: 'approved-account-menu min-w-64' }"
+    :ui="{ content: 'approved-account-menu min-w-68' }"
     :external-icon="false"
   >
     <button type="button" class="liwan-user" data-testid="account-menu" :disabled="!hydrated" :aria-label="label">
@@ -130,15 +136,21 @@ const items = computed<DropdownMenuItem[][]>(() => [
       </div>
     </template>
     <template #appearance>
-      <div class="flex items-center justify-between gap-3 py-1" data-testid="user-menu-appearance">
-        <span class="text-sm text-toned">{{ t('nav.userMenu.appearance') }}</span>
-        <SharedSegmentedControl :model-value="mode" :items="appearanceItems" :label="t('nav.userMenu.appearance')" @update:model-value="setMode($event === 'dark' ? 'dark' : 'light')" />
+      <div class="grid w-full gap-1 py-0.5" data-testid="user-menu-appearance">
+        <span class="text-start text-xs font-medium text-muted">{{ t('nav.userMenu.appearance') }}</span>
+        <SharedSegmentedControl block size="sm" class="w-full" :model-value="mode" :items="appearanceItems" :label="t('nav.userMenu.appearance')" @update:model-value="setMode($event === 'dark' ? 'dark' : 'light')" />
+      </div>
+    </template>
+    <template #fontSize>
+      <div class="grid w-full gap-1 py-0.5" data-testid="user-menu-font-size">
+        <span class="text-start text-xs font-medium text-muted">{{ t('settings.appearance.fontSize') }}</span>
+        <SharedSegmentedControl block size="sm" class="w-full" :model-value="fontSize" :items="fontSizeItems" :label="t('settings.appearance.fontSize')" @update:model-value="setFontSize($event as FontSize)" />
       </div>
     </template>
     <template #language>
-      <div class="flex items-center justify-between gap-3 py-1" data-testid="user-menu-language">
-        <span class="text-sm text-toned">{{ t('nav.language') }}</span>
-        <SharedSegmentedControl :model-value="locale" :items="languageItems" :label="t('nav.language')" @update:model-value="choose($event as 'ar' | 'en')" />
+      <div class="grid w-full gap-1 py-0.5" data-testid="user-menu-language">
+        <span class="text-start text-xs font-medium text-muted">{{ t('nav.language') }}</span>
+        <SharedSegmentedControl block size="sm" class="w-full" :model-value="locale" :items="languageItems" :label="t('nav.language')" @update:model-value="choose($event as 'ar' | 'en')" />
       </div>
     </template>
   </UDropdownMenu>

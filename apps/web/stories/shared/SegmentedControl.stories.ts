@@ -27,6 +27,11 @@ export const IconOnly: Story = {
   args: { label: 'طريقة العرض', modelValue: 'table', iconOnly: true, items: [{ value: 'table', label: 'عرض الجدول', icon: 'i-lucide-list' }, { value: 'board', label: 'عرض اللوحة', icon: 'i-lucide-layout-grid' }] },
 }
 export const Block: Story = { name: 'بملء الصف', args: { block: true }, render: args => ({ components: { SegmentedControl }, setup: () => ({ args, value: ref(args.modelValue) }), template: '<div class="max-w-xs"><SegmentedControl v-bind="args" v-model="value" /></div>' }) }
+export const CompactBlock: Story = {
+  name: 'مدمج بملء الصف (sm)',
+  args: { block: true, size: 'sm', label: 'حجم الخط', modelValue: 'small', items: [{ value: 'small', label: 'صغير' }, { value: 'medium', label: 'وسط' }, { value: 'large', label: 'كبير' }] },
+  render: args => ({ components: { SegmentedControl }, setup: () => ({ args, value: ref(args.modelValue) }), template: '<div class="max-w-64"><SegmentedControl v-bind="args" v-model="value" /></div>' }),
+}
 export const Disabled: Story = { name: 'معطّلة', args: { disabled: true } }
 export const Actions: Story = {
   name: 'إجراءات (أزرار وروابط)',
