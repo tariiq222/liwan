@@ -214,12 +214,37 @@ stream lost (design 4.6). This package wires the whole path; nothing about it is
   The quoted row and the parser that unquotes it are the pair to watch in that call, together with the adoption rule
   above: a fresh queue deliberately does not resend rows written before it started.
 
+## The shared edge route
+
+The browser opens `wss://<company host>/ws` on the same host liwan is served from, so the telephony routes are not a
+site of their own: `deploy/stack/Caddyfile` imports the generated snippet **inside** the tenant site and above the
+guard. A second site naming that host would shadow the tenant site and take liwan down on it.
+
+`deploy/telephony/edge/render_edge.py` turns the control plane's snapshot into that snippet:
+
+```sh
+python3 -B deploy/telephony/edge/render_edge.py --snapshot <telephony-registry.json> --out <telephony.caddy>
+```
+
+- **The snapshot.** `telephony-registry.json` is published atomically by the control plane and holds
+  `{"companies": {"<host>": {"asterisk": "host:port", "agent": "host:port"}}}`. A `.pending` marker beside it means a
+  publication is in progress and is refused; the file's identity is compared before and after the read, so a
+  replacement under the read is never bound. An invalid snapshot is refused before anything is written, so a refused
+  run leaves the last good snippet in place. The output is deterministic: hosts in sorted order, no timestamp.
+- **The two forwarded paths, and only those.** `/ws` goes to that company's Asterisk (carrying the real client address,
+  because Asterisk keys failed SIP registrations by impersonation and address together) and `GET /pbx/recordings/<token>`
+  goes to its `pbx-agent`. The token is one path segment. Nothing else is forwarded: `/ari`, any other method on the
+  recording path, and every other spelling of the two prefixes are answered 404 by the shared Caddyfile, which also
+  gives a company host absent from the snapshot the same 404. The edge's private headers never cross to a PBX host.
+
 ## Not in this package yet
 
 - PJSIP realtime and the session endpoint/password (the static-first decision above).
 - IVR, queues, the recording announcement prompt, outbound destination policy and the concurrent-call limits of 11.3.
   They are absent on purpose, not stubbed.
-- The shared edge route (`/ws`, `/pbx/recordings/<token>`) and the shared coturn's per-company accounting (D2).
+- The shared edge route's mount and publication: `deploy/telephony/edge/render_edge.py` renders the snippet and the
+  shared Caddyfile imports it, but the step that mounts the generated file into the proxy container belongs to the
+  stack, not this package. The shared coturn's per-company accounting (D2) is also still open.
 - TURN over TLS (5349), trunk TLS (5061) and the AMI fallback for events ARI does not deliver (section 13).
 - Recording encryption: the volume holds plain WAV files. The agent already serves the signed route
   (`GET /pbx/recordings/<token>`); publishing it on the company host is the separate edge part.

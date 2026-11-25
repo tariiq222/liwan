@@ -67,6 +67,12 @@ policies() {
   # The control-plane runtime tests drive the local-runtime scripts with fake docker/lsof/npm/curl and the Node on PATH (no Docker, database or fixed port).
   python3 -B -m unittest deploy/control-plane/test_*.py
   PYTHONPATH=tools/documents_acceptance python3 -B -m unittest tools/documents_acceptance/test_acceptance.py
+  # The telephony package: the agent's tests (they put their own src on sys.path) and the renderer's. Neither tests
+  # folder is a package, so each is discovered from its own directory rather than from the repository root.
+  python3 -B -m unittest discover -s apps/pbx-agent/tests -p 'test_*.py'
+  python3 -B -m unittest discover -s deploy/telephony/tests -p 'test_*.py'
+  # The shared edge snippet; its Caddy probe builds the pinned proxy image and skips when docker cannot.
+  python3 -B -m unittest discover -s deploy/telephony/edge -p 'test_*.py'
 }
 
 # `npm test`: the tools tests and every workspace's unit tests. Two web tests drive Chromium, so only this part installs it.

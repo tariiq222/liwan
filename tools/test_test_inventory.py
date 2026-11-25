@@ -444,7 +444,8 @@ class InventoryTest(unittest.TestCase):
         for anchor in ('tools/test_ci_scope.py', 'deploy/test_alerts.py', 'deploy/shared/dedicated_guard.test.mjs',
                        'deploy/shared/guard.test.mjs', 'tools/foundation_acceptance/lib.test.mjs',
                        'apps/web/app/composables/useAuth.test.ts', 'apps/control-plane/src/__tests__/app.test.ts',
-                       'apps/ai-service/tests/test_app.py'):
+                       'apps/ai-service/tests/test_app.py', 'apps/pbx-agent/tests/test_events.py',
+                       'deploy/telephony/tests/test_render.py', 'deploy/telephony/edge/test_edge.py'):
             if anchor in self.files:
                 self.assertIn(anchor, self.executed, f'the inventory no longer sees how {anchor} runs')
         self.assertGreater(len(self.executed), 500)

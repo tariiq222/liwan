@@ -209,7 +209,26 @@
 	}
 }
 
+# The telephony edge route (deploy/telephony/edge/render_edge.py, design 11.2 and 12.3). A company host IS a tenant host
+# (design 12.8 decision 2: the browser opens `wss://<company host>/ws`, the same name liwan is served from), so the routes
+# are imported INSIDE the tenant site and above the guard, never into a site of their own: a second site naming that host
+# would shadow this one and take liwan down on it. The snippet forwards exactly two paths of the hosts the control plane's
+# `telephony-registry.json` names — `/ws` to that company's Asterisk and `GET /pbx/recordings/<token>` to its pbx-agent —
+# and the route below answers every other spelling of those paths with 404 on every tenant host, `/ari` among them. An
+# unknown host and a snapshot with no route for it therefore answer the same 404: nothing here reaches the guard, so the
+# answer does not depend on the tenant registry. The glob imports nothing while no snippet is published, so a stack
+# without telephony still validates (the mount that publishes the file is the telephony part's, not this file's).
 {$DOMAIN} {
+	import /etc/caddy/telephony/*.caddy
+	route {
+		@telephonyReserved path /ws /ws/* /ari /ari/* /pbx /pbx/*
+		# `path` is matched decoded and case-folded, so `/%61ri` or `/pbx%2fhealth` would fall through to the guard.
+		# The raw URI closes that: any spelling of the three reserved prefixes is a 404, and `respond` stops the route
+		# chain there. It is anchored, so liwan's own `/websocket` and `/wsx` are untouched.
+		@telephonyReservedRaw expression `{http.request.orig_uri}.lowerAscii().matches("^/(ws|ari|pbx)([/?%]|$)")`
+		respond @telephonyReserved 404
+		respond @telephonyReservedRaw 404
+	}
 	import guarded_site
 	import maintenance_page
 }
