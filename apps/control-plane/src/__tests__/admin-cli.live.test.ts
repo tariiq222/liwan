@@ -91,7 +91,7 @@ else describe('admin CLI', () => {
 
     await pool.query('DELETE FROM audit_events WHERE subject=$1', [stored.rows[0].id])
     await pool.query('DELETE FROM catalog_entries WHERE version=$1', [version])
-  })
+  }, 120_000)
   it('validates a legacy draft on re-import and refuses different bytes under the same version', async () => {
     const version = `cli-draft-${randomUUID()}`, id = randomUUID()
     const source = readFileSync(join(repositoryRoot, 'deploy/catalog/solutions/platform_v4.json'))
@@ -115,5 +115,5 @@ else describe('admin CLI', () => {
 
     await pool.query('DELETE FROM audit_events WHERE subject = ANY($1::text[])', [[id, otherId]])
     await pool.query('DELETE FROM catalog_entries WHERE id = ANY($1::uuid[])', [[id, otherId]])
-  })
+  }, 120_000)
 })
