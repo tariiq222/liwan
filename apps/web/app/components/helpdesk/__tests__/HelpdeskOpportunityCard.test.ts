@@ -6,7 +6,7 @@ import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 const filename = resolve(import.meta.dirname, '../HelpdeskOpportunityCard.vue')
 const link = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('a', { href: attrs.to }, slots.default?.()) })
 const badge = Vue.defineComponent({ inheritAttrs: false, props: ['label'], setup: props => () => Vue.h('span', { 'data-badge': props.label }) })
-const section = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('section', slots.default?.()) })
+const section = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('section', [slots.actions?.(), slots.default?.()]) })
 const button = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', { 'data-testid': attrs['data-testid'], disabled: attrs.disabled || undefined }, String(attrs.label)) })
 const pickList = Vue.defineComponent({ setup: () => () => Vue.h('div', { 'data-testid': 'pick-list' }) })
 const alert = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('div', { role: attrs.role, 'data-testid': attrs['data-testid'] }, String(attrs.description)) })

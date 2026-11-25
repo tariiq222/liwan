@@ -15,7 +15,7 @@ const meta = {
   component: HelpdeskOpportunityCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/helpdesk/[id].vue:122', 'فرصة المبيعات المرتبطة بالتذكرة: الاسم والمرحلة والحالة مع رابط الفرصة، وتغييرها أو فك الربط لمن يملك صلاحية كتابة التذكرة، أو ربط فرصة موجودة بالبحث. الفرصة التي لا يراها المستخدم لا تُسمّى.'),
+    ...storyContext('apps/web/app/pages/helpdesk/[id].vue:123', 'فرصة المبيعات المرتبطة بالتذكرة: الاسم والمرحلة والحالة مع رابط الفرصة، وتغييرها أو فك الربط لمن يملك صلاحية كتابة التذكرة، أو ربط فرصة موجودة بالبحث. الفرصة التي لا يراها المستخدم لا تُسمّى.'),
     ...answer({ opportunity: null, hidden: false }).parameters,
   },
   args: { ticketId: 4 },

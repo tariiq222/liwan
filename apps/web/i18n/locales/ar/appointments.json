@@ -4,7 +4,15 @@
     "empty": "لا توجد أنواع مواعيد بعد",
     "duration": "{count} دقيقة",
     "nav": {
-      "types": "أنواع المواعيد"
+      "bookings": "الحجوزات",
+      "recent": "المفتوحة مؤخرًا"
+    },
+    "kpi": {
+      "label": "ملخص المواعيد",
+      "total": "مواعيد اليوم",
+      "scheduled": "مجدولة",
+      "confirmed": "مؤكدة",
+      "canceled": "ملغاة"
     },
     "book": {
       "title": "موعدك",
@@ -138,6 +146,9 @@
       "requester": "مقدم الطلب",
       "time": "الوقت",
       "unscheduled": "بلا وقت",
+      "clear": "مسح الفلاتر",
+      "countTag": "لا مواعيد | موعد واحد | موعدان | {count} مواعيد | {count} موعدًا | {count} موعد",
+      "footer": "لا مواعيد | عرض {shown} من موعد واحد | عرض {shown} من موعدين | عرض {shown} من {total} مواعيد | عرض {shown} من {total} موعدًا | عرض {shown} من {total} موعد",
       "empty": "لا مواعيد في هذا اليوم."
     },
     "state": {
@@ -145,6 +156,12 @@
       "scheduled": "مجدول",
       "confirmed": "مؤكد",
       "canceled": "ملغى"
+    },
+    "attendance": {
+      "arrived": "حضر",
+      "in_service": "قيد الخدمة",
+      "done": "مكتمل",
+      "no_show": "لم يحضر"
     },
     "form": {
       "type": "نوع الموعد",
@@ -168,6 +185,8 @@
       "day": "اليوم",
       "duration": "المدة",
       "notes": "ملاحظات",
+      "noNotes": "لا توجد ملاحظات على هذا الموعد.",
+      "attendanceStatus": "حالة الحضور",
       "visitReason": "سبب الزيارة",
       "cancelReason": "سبب الإلغاء",
       "time": "الوقت",

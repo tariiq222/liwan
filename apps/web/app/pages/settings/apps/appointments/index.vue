@@ -23,11 +23,20 @@ async function reloadSettings() {
   <SharedSettingsPage>
     <SharedPageHeader :title="t('appointments.settings.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
-    <SharedPageState empty-icon="i-lucide-settings" v-else-if="!settings.data.value" :loading="settings.isLoading.value" :error="settings.error.value" :empty="true" @retry="settings.refetch()" />
     <template v-else>
-      <AppointmentPresetCard v-if="shows('preset')" :settings="settings.data.value" :can-edit="canEdit" :reload-settings="reloadSettings" />
-      <AppointmentBookingCard v-if="shows('booking')" :settings="settings.data.value" :can-edit="canEdit" :reload-settings="reloadSettings" />
-      <AppointmentRequesterCard v-if="shows('requester')" :settings="settings.data.value" :can-edit="canEdit" :reload-settings="reloadSettings" />
+      <SharedPageState
+        empty-icon="i-lucide-settings"
+        :loading="settings.isLoading.value"
+        :error="settings.data.value ? null : settings.error.value"
+        :empty="!settings.data.value"
+        @retry="settings.refetch()"
+      >
+        <template v-if="settings.data.value">
+          <AppointmentPresetCard v-if="shows('preset')" :settings="settings.data.value" :can-edit="canEdit" :reload-settings="reloadSettings" />
+          <AppointmentBookingCard v-if="shows('booking')" :settings="settings.data.value" :can-edit="canEdit" :reload-settings="reloadSettings" />
+          <AppointmentRequesterCard v-if="shows('requester')" :settings="settings.data.value" :can-edit="canEdit" :reload-settings="reloadSettings" />
+        </template>
+      </SharedPageState>
     </template>
   </SharedSettingsPage>
 </template>

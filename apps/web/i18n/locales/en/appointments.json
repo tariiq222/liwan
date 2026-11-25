@@ -4,7 +4,15 @@
     "empty": "No appointment types yet",
     "duration": "{count} min",
     "nav": {
-      "types": "Appointment types"
+      "bookings": "Bookings",
+      "recent": "Recently opened"
+    },
+    "kpi": {
+      "label": "Appointment summary",
+      "total": "Day's bookings",
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "canceled": "Canceled"
     },
     "book": {
       "title": "Your appointment",
@@ -138,6 +146,9 @@
       "requester": "Requester",
       "time": "Time",
       "unscheduled": "Unscheduled",
+      "clear": "Clear filters",
+      "countTag": "{count} appointment | {count} appointments",
+      "footer": "{shown} of 1 appointment | {shown} of {total} appointments",
       "empty": "No appointments on this day."
     },
     "state": {
@@ -145,6 +156,12 @@
       "scheduled": "Scheduled",
       "confirmed": "Confirmed",
       "canceled": "Canceled"
+    },
+    "attendance": {
+      "arrived": "Arrived",
+      "in_service": "In service",
+      "done": "Completed",
+      "no_show": "No-show"
     },
     "form": {
       "type": "Appointment type",
@@ -168,6 +185,8 @@
       "day": "Day",
       "duration": "Duration",
       "notes": "Notes",
+      "noNotes": "No notes on this appointment.",
+      "attendanceStatus": "Attendance",
       "visitReason": "Visit reason",
       "cancelReason": "Cancellation reason",
       "time": "Time",

@@ -109,6 +109,10 @@ const busy = computed(() => files.upload.isPending.value || files.remove.isPendi
       <p v-if="failure" class="mt-2 text-sm text-error" role="alert" data-testid="helpdesk-thread-error">{{ failure }}</p>
     </SharedRecordSection>
     <SharedRecordSection variant="panel" :title="t('helpdesk.attachments.title')" data-testid="helpdesk-attachments">
+      <template v-if="mayComment" #actions>
+        <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-paperclip" :loading="busy" :disabled="!hydrated || closed" :label="t('helpdesk.attachments.add')" @click="fileInput?.click()" />
+      </template>
+      <input v-if="mayComment" ref="fileInput" type="file" class="hidden" data-testid="helpdesk-file" @change="upload">
       <SharedEmptyState v-if="!attachments.length" :title="t('helpdesk.attachments.empty')" />
       <ul v-else class="flex flex-col divide-y divide-default">
         <li v-for="attachment in attachments" :key="attachment.id" class="flex items-center justify-between gap-3 py-2">
@@ -116,10 +120,6 @@ const busy = computed(() => files.upload.isPending.value || files.remove.isPendi
           <UButton v-if="mayComment" color="neutral" variant="ghost" icon="i-lucide-trash-2" size="xs" :aria-label="t('helpdesk.attachments.remove')" :disabled="busy" @click="removeAttachment(attachment.id)" />
         </li>
       </ul>
-      <template v-if="mayComment">
-        <input ref="fileInput" type="file" class="hidden" data-testid="helpdesk-file" @change="upload">
-        <UButton class="mt-3" color="neutral" variant="outline" icon="i-lucide-paperclip" :loading="busy" :disabled="closed" :label="t('helpdesk.attachments.add')" @click="fileInput?.click()" />
-      </template>
     </SharedRecordSection>
   </div>
 </template>

@@ -1,5 +1,6 @@
 import type { AppManifest, AppSearchApi } from '../types'
 import { helpdeskAppCard, searchTickets } from './appCard'
+import { helpdeskSidebar } from './sidebar'
 
 // The Support Desk: the team's queue, the ticket and its thread, and the policy a tenant shapes in Settings.
 // `helpdesk.tickets.read` opens the whole application for an agent; `helpdesk.requests.read` lets every employee
@@ -32,9 +33,11 @@ const manifest: AppManifest = {
     ],
   },
   contextLinks: () => [
+    { id: 'helpdesk-new', labelKey: 'helpdesk.new', icon: 'i-lucide-plus', to: '/helpdesk/new', capability: REQUESTS_CREATE, anyCapabilities: [WRITE], pinned: true },
     { id: 'helpdesk-tickets', labelKey: 'helpdesk.nav.tickets', icon: 'i-lucide-life-buoy', to: '/helpdesk', capability: REQUESTS_READ, anyCapabilities: [READ] },
     { id: 'helpdesk-reports', labelKey: 'helpdesk.nav.reports', icon: 'i-lucide-chart-column', to: '/helpdesk/reports', capability: REPORTS, feature: 'helpdesk.reports' },
   ],
+  sidebar: helpdeskSidebar,
   // The queue is the landing of an agent and of an employee following their own requests.
   landing: [{ path: '/helpdesk', capability: REQUESTS_READ, anyCapabilities: [READ] }],
   // Merging needs both its capability and the merge sub-feature the server checks on the same route.

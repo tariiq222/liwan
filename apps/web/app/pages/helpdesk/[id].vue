@@ -18,6 +18,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
 const { me } = useMe()
+const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 // The edit page is a child route: this page draws the record only on the record's own path (a trailing slash included).
 const isDetail = computed(() => normalizedPath(route.path) === `${HELPDESK_LIST_PATH}/${route.params.id}`)
@@ -121,11 +122,11 @@ const reopen = () => run({ action: 'reopen' })
       </SharedRecordSection>
       <HelpdeskOpportunityCard :ticket-id="ticket.id" />
       <SharedRecordSection v-if="ticket.portal_link" variant="panel" :title="t('helpdesk.record.portal')" data-testid="helpdesk-portal-link">
+        <template #actions>
+          <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-copy" :disabled="!hydrated" :label="t('helpdesk.record.copy')" data-testid="helpdesk-portal-copy" @click="copyLink(ticket.portal_link)" />
+        </template>
         <p class="text-sm text-muted">{{ t('helpdesk.record.portalHint') }}</p>
-        <div class="mt-2 flex items-center gap-2">
-          <UInput :model-value="ticket.portal_link" readonly class="w-full" :aria-label="t('helpdesk.record.portal')" data-testid="helpdesk-portal-url" />
-          <UButton color="neutral" variant="outline" icon="i-lucide-copy" :label="t('helpdesk.record.copy')" :data-testid="'helpdesk-portal-copy'" @click="copyLink(ticket.portal_link)" />
-        </div>
+        <UInput :model-value="ticket.portal_link" readonly class="mt-2 w-full" :aria-label="t('helpdesk.record.portal')" data-testid="helpdesk-portal-url" />
       </SharedRecordSection>
       <SharedRecordSection v-if="ticket.related.length" variant="panel" :title="t('helpdesk.record.related')">
         <ul class="flex flex-col gap-2">
