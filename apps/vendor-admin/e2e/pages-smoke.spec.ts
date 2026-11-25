@@ -6,13 +6,14 @@ import { expectNoSecondH1, fitsWidth, login, navigateClient, open, RESTRICTED_EM
 const PLAN = '00000000-0000-4000-8000-000000000010'
 const BUNDLE = '00000000-0000-4000-8000-000000000020'
 const CATALOG_VERSION = '00000000-0000-4000-8000-000000000401'
+const CATALOG_APP = 'hr'
 
 const PAGES = [
   '/overview', '/customers', '/customers/cust-alpha', '/customers/cust-alpha/change', '/customers/cust-alpha/terms/new',
   ...['subscription', 'invoices', 'workspace', 'operations', 'history'].map(tab => `/customers/cust-alpha?tab=${tab}`), '/customers/new', '/operations', '/operations/op-1',
   '/plans', '/plans/new', `/plans/${PLAN}`, `/plans/${PLAN}/edit`,
   '/bundles', '/bundles/new', `/bundles/${BUNDLE}`, `/bundles/${BUNDLE}/edit`,
-  '/catalog', `/catalog/${CATALOG_VERSION}`, '/invoices', '/invoices/inv-1', '/ai-billing-settings', '/audit',
+  '/catalog', '/catalog/releases', `/catalog/releases/${CATALOG_VERSION}`, `/catalog/apps/${CATALOG_APP}`, '/invoices', '/invoices/inv-1', '/ai-billing-settings', '/audit',
 ]
 // Entries that only redirect: the destination is what renders.
 const REDIRECTS: Record<string, string> = { '/': '/overview', '/tenants/tenant-1': '/customers/cust-alpha' }

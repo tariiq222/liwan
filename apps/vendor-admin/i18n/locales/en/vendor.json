@@ -265,6 +265,9 @@
       },
       "tabs": "Liwan applications sections",
       "applications": "Applications",
+      "releases": "Releases",
+      "notPublishedTitle": "This version is not published yet.",
+      "toReleases": "Go to releases",
       "glossary": {
         "summary": "The difference between applications, bundles, and plans, in half a minute",
         "app": "Application",
@@ -276,22 +279,6 @@
         "plan": "Plan",
         "planText": "What the customer actually buys every month; it includes the applications you approved for them."
       },
-      "intro": "The commercial catalog is built in order: applications first, then bundles, then plans. Each step is made of the one before it.",
-      "stepsLabel": "Order of building the commercial catalog",
-      "steps": {
-        "apps": {
-          "title": "Applications",
-          "hint": "A release you validate and publish; bundles are built on it."
-        },
-        "bundles": {
-          "title": "Bundles",
-          "hint": "Priced applications from the published version."
-        },
-        "plans": {
-          "title": "Plans",
-          "hint": "The subscription that includes bundles and that customers buy."
-        }
-      },
       "version": "Version",
       "sellableApps": "Applications for sale",
       "imported": "Imported on",
@@ -299,11 +286,66 @@
       "details": "Applications version",
       "appsTitle": "Applications in this version",
       "noApps": "This version has no applications.",
+      "app": {
+        "title": "Application",
+        "description": "Description",
+        "details": "Application details",
+        "notSellable": "Not for sale",
+        "features": "Features",
+        "featuresTitle": "Application features",
+        "noFeatures": "No features are recorded for this application.",
+        "featureBoolean": "Toggle",
+        "featureLimit": "Limit",
+        "featureCeiling": "Ceiling: {value}",
+        "requires": "Requires",
+        "enforcement": "Enforced in",
+        "composition": "Composition",
+        "modules": "Modules",
+        "noModules": "No modules are recorded for this application.",
+        "requiresApps": "Required applications",
+        "conflictsWithApps": "Conflicting applications",
+        "pricing": "Pricing",
+        "pricingUnavailable": "Bundles and plans could not be loaded. Try again.",
+        "pricingNone": "No bundle prices this application.",
+        "plansNone": "No plan includes a bundle for this application.",
+        "history": "History"
+      },
+      "timeline": {
+        "published": "Published on",
+        "duration": "Time to publish",
+        "age": "Since publish",
+        "importedBy": "Imported by {name}",
+        "publishedBy": "Published by {name}",
+        "approve": "Review and publish",
+        "changes": "Changes",
+        "firstImport": "First import; there is no older version to compare with.",
+        "spanMinutes": "less than a minute | one minute | {count} minutes",
+        "spanHours": "less than an hour | one hour | {count} hours",
+        "spanDays": "less than a day | one day | {count} days"
+      },
+      "diff": {
+        "none": "No changes.",
+        "first": "First import",
+        "appsAdded": "{count} application added | {count} applications added",
+        "appsRemoved": "{count} application removed | {count} applications removed",
+        "featuresAdded": "{count} feature added | {count} features added",
+        "featuresRemoved": "{count} feature removed | {count} features removed",
+        "limitsChanged": "{count} limit changed | {count} limits changed",
+        "sellableChanged": "{count} sale flag changed | {count} sale flags changed",
+        "modulesChanged": "{count} module changed | {count} modules changed",
+        "appAdded": "New application",
+        "appsAddedList": "Applications added",
+        "appsRemovedList": "Applications removed",
+        "added": "Added",
+        "removed": "Removed",
+        "limitChange": "Limit {key}: from {from} to {to}",
+        "sellableOn": "Now for sale",
+        "sellableOff": "No longer for sale"
+      },
       "sellable": "For sale",
       "baseModules": "Base modules",
       "step": "Next step",
       "effects": {
-        "validate": "Checks that the version is sound and that its source is the current one, then marks it ready to approve.",
         "publish": "Approves the version and lets bundles be built on it. Needs a passkey confirmation."
       },
       "publishedTitle": "This version is published.",

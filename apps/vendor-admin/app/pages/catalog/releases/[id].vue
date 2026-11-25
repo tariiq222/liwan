@@ -2,6 +2,8 @@
 import { formatBusinessDate } from '@/utils/vendorTime'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { catalogLabel } from '@/utils/catalogLabels'
+import { catalogReturn } from '@/utils/vendorCatalog'
+import { catalogDiff } from '@/utils/catalogDiff'
 import { sellableTiers } from '@/utils/vendorCatalogVersions'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
@@ -10,8 +12,11 @@ const { t } = useI18n(); const route = useRoute()
 const id = computed(() => String(route.params.id))
 // The control plane has no single-entry read: the list is loaded and the entry found in it.
 const { data: versions, error: loadError, pending, refresh } = await useVendorCatalogVersions().load()
-const version = computed(() => versions.value?.find(item => item.id === id.value))
+const items = computed(() => versions.value ?? [])
+const version = computed(() => items.value.find(item => item.id === id.value))
 const error = computed(() => loadError.value ?? (versions.value && !version.value ? createError({ statusCode: 404, statusMessage: 'not_found' }) : null))
+// The record's list origin from the link, else its own tab (DESIGN.md §5).
+const back = computed(() => catalogReturn(route.query.returnTo, 'releases')); const backTo = computed(() => back.value.to)
 // A published version without a release cannot carry bundles yet; a later version needs its own release.
 const { data: releases, error: releasesError, refresh: refreshReleases } = await useAsyncData('vendor:catalog-releases', () => useVendorCommercial().releases())
 const hasRelease = computed(() => (releases.value ?? []).some(release => release.version === version.value?.version))
@@ -19,9 +24,14 @@ const needsRelease = computed(() => version.value?.status === 'published' && !re
 const tiers = computed(() => version.value?.solution.tiers ?? [])
 const sellableCount = computed(() => (version.value ? sellableTiers(version.value).length : 0))
 const baseModules = computed(() => version.value?.solution.base_modules ?? [])
+// The change this import introduces over the entry immediately before it by created_at (the list is newest first).
+const diff = computed(() => {
+  const index = items.value.findIndex(item => item.id === id.value)
+  return index >= 0 && items.value[index + 1] ? catalogDiff(version.value, items.value[index + 1]) : null
+})
 </script>
 <template>
-  <SharedRecordPage :title="version?.version ?? t('vendor.catalog.details')" back-to="/catalog" :back-label="t('vendor.catalog.applications')" :loading="pending" :error="error" @retry="refresh">
+  <SharedRecordPage :title="version?.version ?? t('vendor.catalog.details')" :back-to="backTo" :back-label="t(back.labelKey)" :loading="pending" :error="error" @retry="refresh">
     <template v-if="version">
       <VendorCatalogGlossary />
       <VendorCatalogFacts :facts="[{ key: 'sellable', label: t('vendor.catalog.sellableApps'), value: sellableCount }, { key: 'imported', label: t('vendor.catalog.imported'), value: formatBusinessDate(version.created_at) }]" class="mt-6">
@@ -36,6 +46,10 @@ const baseModules = computed(() => version.value?.solution.base_modules ?? [])
             <div v-if="tier.features?.length" class="mt-2 flex flex-wrap gap-2"><UBadge v-for="feature in tier.features" :key="feature" color="neutral" variant="subtle">{{ catalogLabel('feature', feature, t) }}</UBadge></div>
           </li>
         </ul>
+      </SharedRecordSection>
+      <SharedRecordSection :title="t('vendor.catalog.timeline.changes')" class="mt-6" data-testid="catalog-changes">
+        <p v-if="!diff" class="text-sm text-muted" data-testid="catalog-first-import">{{ t('vendor.catalog.timeline.firstImport') }}</p>
+        <VendorCatalogDiffDetail v-else :diff="diff" />
       </SharedRecordSection>
       <VendorCatalogVersionAction class="mt-6" :version="version" @done="refresh" />
       <VendorCatalogReleaseAction v-if="needsRelease" class="mt-6" :version="version.version" @done="refreshReleases" />

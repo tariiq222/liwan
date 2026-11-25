@@ -43,7 +43,10 @@ test('a new bundle asks for the catalog version from the published ones and crea
  })
  await navigateClient(page, '/bundles/new')
  const form = page.getByTestId('release-create'); await expect(form).toBeVisible()
- const version = page.getByTestId('release-version'); await expect(version).toContainText('2026.10')
+ // Two versions are published: the form asks which one this release is built from.
+ await form.getByRole('combobox').click()
+ await expect(page.getByRole('option')).toContainText(['2026.12', '2026.10'])
+ await page.getByRole('option', { name: '2026.10' }).click()
  await form.getByRole('textbox').fill('Start the first bundle'); await form.locator('button[type="submit"]').click()
  await expect.poll(() => created).toEqual({ catalog_version: '2026.10', reason: 'Start the first bundle' })
  await expect(page.getByTestId('release-create')).toHaveCount(0)
@@ -52,11 +55,11 @@ test('a new bundle asks for the catalog version from the published ones and crea
 test('without a published catalog version a new bundle says to publish one first and offers no form', async ({ page }) => {
  await open(page, '/overview')
  await page.route('**/api/vendor/v1/commercial/catalog/releases', route => route.fulfill({ json: { items: [], total: 0 } }))
- await page.route('**/api/vendor/v1/catalog', route => route.fulfill({ json: { items: [{ id: '00000000-0000-4000-8000-000000000401', version: '2026.12', status: 'draft', created_at: '2026-11-10T08:00:00Z', solution: { tiers: [] } }], total: 1 } }))
+ await page.route('**/api/vendor/v1/catalog', route => route.fulfill({ json: { items: [{ id: '00000000-0000-4000-8000-000000000401', version: '2026.12', status: 'validated', created_at: '2026-11-02T08:00:00Z', published_at: null, imported_by: 'operator', published_by: null, solution: { tiers: [] } }], total: 1 } }))
  await navigateClient(page, '/bundles/new')
  const alert = page.getByTestId('no-published-catalog'); await expect(alert).toBeVisible()
  await expect(page.getByTestId('release-create')).toHaveCount(0); await expect(page.locator('form')).toHaveCount(0)
- await alert.getByRole('link').click(); await expect(page).toHaveURL(/\/catalog$/)
+ await alert.getByRole('link').click(); await expect(page).toHaveURL(/\/catalog\/releases$/)
 })
 
 // LifecycleStatus is schema-limited and lifecycleBadge always returns a key today.

@@ -8,32 +8,41 @@ describe('catalogTabOf', () => {
     expect(catalogTabOf('/plans/new')?.key).toBe('plans')
     expect(catalogTabOf('/plans/p-1/edit/')?.key).toBe('plans')
     expect(catalogTabOf('/bundles/b-1')?.key).toBe('bundles')
-    expect(catalogTabOf('/catalog/c-1')?.key).toBe('catalog')
-    expect(catalogTabOf('/catalog?status=draft')?.key).toBe('catalog')
+    expect(catalogTabOf('/catalog/apps/pmo')?.key).toBe('catalog')
+    expect(catalogTabOf('/catalog?status=published')?.key).toBe('catalog')
+  })
+
+  it('reads the nested releases paths as the releases tab, not the applications tab under them', () => {
+    expect(catalogTabOf('/catalog/releases')?.key).toBe('releases')
+    expect(catalogTabOf('/catalog/releases/v-1')?.key).toBe('releases')
+    expect(catalogTabOf('/catalog/releases/v-1/')?.key).toBe('releases')
   })
 
   it('ignores paths outside the catalog and mere prefixes', () => {
     expect(catalogTabOf('/customers')).toBeNull()
     expect(catalogTabOf('/plansx')).toBeNull()
+    expect(catalogTabOf('/catalogx/releases')).toBeNull()
     expect(catalogTabOf('/')).toBeNull()
   })
 
   it('offers the tabs in the order things are built', () => {
-    expect(CATALOG_TABS.map(tab => tab.key)).toEqual(['catalog', 'bundles', 'plans'])
+    expect(CATALOG_TABS.map(tab => tab.key)).toEqual(['catalog', 'releases', 'bundles', 'plans'])
   })
 })
 
 describe('catalogReturn', () => {
   it('keeps a return to any catalog tab and names that tab', () => {
     expect(catalogReturn('/bundles/b-1?x=1', 'plans')).toEqual({ to: '/bundles/b-1?x=1', labelKey: 'vendor.bundles.title' })
-    expect(catalogReturn('/plans?status=draft', 'bundles')).toEqual({ to: '/plans?status=draft', labelKey: 'vendor.plans.title' })
-    expect(catalogReturn('/catalog/c-1', 'bundles')).toEqual({ to: '/catalog/c-1', labelKey: 'vendor.catalog.applications' })
+    expect(catalogReturn('/plans?status=published', 'bundles')).toEqual({ to: '/plans?status=published', labelKey: 'vendor.plans.title' })
+    expect(catalogReturn('/catalog/apps/pmo', 'bundles')).toEqual({ to: '/catalog/apps/pmo', labelKey: 'vendor.catalog.applications' })
+    expect(catalogReturn('/catalog/releases/v-1', 'bundles')).toEqual({ to: '/catalog/releases/v-1', labelKey: 'vendor.catalog.releases' })
   })
 
   it('falls back to the own list for anything else', () => {
     for (const value of [undefined, '', '//evil.com', 'https://evil.com/plans', '/customers', '/plansx', '/plans\\evil']) {
       expect(catalogReturn(value, 'bundles')).toEqual({ to: '/bundles', labelKey: 'vendor.bundles.title' })
     }
+    expect(catalogReturn(undefined, 'releases')).toEqual({ to: '/catalog/releases', labelKey: 'vendor.catalog.releases' })
   })
 })
 

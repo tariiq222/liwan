@@ -1,22 +1,34 @@
 import { describe, expect, it } from 'vitest'
 import ar from '../../../i18n/locales/ar/vendor.json'
 import en from '../../../i18n/locales/en/vendor.json'
-import { catalogActionErrorKey, catalogActionPath, nextCatalogAction, publishedVersions, sellableTiers, type CatalogVersion } from '../vendorCatalogVersions'
+import { catalogActionErrorKey, catalogActionPath, currentCatalogVersion, nextCatalogAction, publishedVersions, sellableTiers, type CatalogVersion } from '../vendorCatalogVersions'
 
-const version = (status: CatalogVersion['status'], tiers: NonNullable<CatalogVersion['solution']['tiers']> = []): CatalogVersion => ({ id: `c-${status}`, version: '2026.11', status, created_at: '2026-11-01T08:00:00Z', solution: { tiers } })
+const version = (status: CatalogVersion['status'], tiers: NonNullable<CatalogVersion['solution']['tiers']> = [], id = `c-${status}`): CatalogVersion => ({ id, version: '2026.11', status, created_at: '2026-11-01T08:00:00Z', solution: { tiers } })
 
 describe('nextCatalogAction', () => {
-  it('validates a draft, publishes a validated version and has no step after publishing', () => {
-    expect(nextCatalogAction('draft')).toBe('validate')
+  it('publishes a validated version and has no step after publishing', () => {
     expect(nextCatalogAction('validated')).toBe('publish')
     expect(nextCatalogAction('published')).toBeNull()
+  })
+})
+
+describe('currentCatalogVersion', () => {
+  it('prefers the newest published version over a newer import still waiting for publishing', () => {
+    const offer = currentCatalogVersion([version('validated', [], 'new-import'), version('published', [], 'offer')])
+    expect(offer?.id).toBe('offer')
+  })
+  it('falls back to the newest import when nothing is published yet', () => {
+    expect(currentCatalogVersion([version('validated', [], 'newest'), version('validated', [], 'older')])?.id).toBe('newest')
+  })
+  it('answers null for an empty list', () => {
+    expect(currentCatalogVersion([])).toBeNull()
   })
 })
 
 describe('sellableTiers', () => {
   it('lists only the applications flagged for sale and never core', () => {
     const tiers = [{ id: 'core', name: 'Core', sellable: true }, { id: 'crm', name: 'CRM', sellable: true }, { id: 'hr', name: 'HR', sellable: false }, { id: 'chat', name: 'Chat' }]
-    expect(sellableTiers(version('draft', tiers)).map(tier => tier.id)).toEqual(['crm'])
+    expect(sellableTiers(version('validated', tiers)).map(tier => tier.id)).toEqual(['crm'])
   })
   it('sells nothing when a version declares no tiers', () => {
     expect(sellableTiers({ solution: {} })).toEqual([])
@@ -24,8 +36,8 @@ describe('sellableTiers', () => {
 })
 
 describe('publishedVersions', () => {
-  it('keeps only published versions', () => {
-    expect(publishedVersions([version('draft'), version('validated'), version('published')]).map(item => item.status)).toEqual(['published'])
+  it('keeps only published versions, in the order the server sent them', () => {
+    expect(publishedVersions([version('validated', [], 'a'), version('published', [], 'b'), version('published', [], 'c')]).map(item => item.id)).toEqual(['b', 'c'])
   })
 })
 
@@ -36,7 +48,7 @@ describe('catalogActionPath', () => {
 })
 
 describe('catalogActionErrorKey', () => {
-  it('names the codes of the validate and publish routes in both languages', () => {
+  it('names the codes of the publish route in both languages', () => {
     for (const [code, key] of [['conflict', 'vendor.catalog.errors.conflict'], ['catalog_invalid', 'vendor.catalog.errors.catalog_invalid'], ['catalog_source_not_publishable', 'vendor.pricing.errors.catalog_source_not_publishable'], ['not_found', 'vendor.pricing.errors.not_found'], ['step_up_required', 'vendor.pricing.errors.step_up_required'], ['boom', 'vendor.pricing.errors.generic']]) {
       const resolved = catalogActionErrorKey({ data: { code } })
       expect(resolved, code).toBe(key)

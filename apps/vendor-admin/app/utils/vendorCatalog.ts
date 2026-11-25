@@ -1,22 +1,25 @@
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
-import type { PlanView } from './vendorCommercial'
+import type { BundleView, PlanView } from './vendorCommercial'
 
-/** The catalog section's tabs, in the order things are built (applications, bundles of them, plans of bundles): each keeps its own URL (links elsewhere point at them) and its own list filters. */
+/** The catalog section's tabs, in the order things are built (applications, their versions, bundles of them, plans of bundles): each keeps its own URL (links elsewhere point at them) and its own list filters. */
 export const CATALOG_TABS = [
   { key: 'catalog', to: '/catalog', labelKey: 'vendor.catalog.applications' },
+  { key: 'releases', to: '/catalog/releases', labelKey: 'vendor.catalog.releases' },
   { key: 'bundles', to: '/bundles', labelKey: 'vendor.bundles.title' },
   { key: 'plans', to: '/plans', labelKey: 'vendor.plans.title' },
 ] as const
 
 export type CatalogTabKey = (typeof CATALOG_TABS)[number]['key']
+export type CatalogTab = (typeof CATALOG_TABS)[number]
+
+// `/catalog/releases` sits under `/catalog`, so the longest prefix decides; a flat order would call it the applications tab.
+const TABS_BY_SPECIFICITY = [...CATALOG_TABS].sort((a, b) => b.to.length - a.to.length)
 
 /** The tab whose path prefix contains `path`; null outside the catalog section. */
-export function catalogTabOf(path: string): (typeof CATALOG_TABS)[number] | null {
+export function catalogTabOf(path: string): CatalogTab | null {
   const target = path.split(/[?#]/, 1)[0]!.replace(/\/+$/, '') || '/'
-  return CATALOG_TABS.find(tab => target === tab.to || target.startsWith(`${tab.to}/`)) ?? null
+  return TABS_BY_SPECIFICITY.find(tab => target === tab.to || target.startsWith(`${tab.to}/`)) ?? null
 }
-
-export type CatalogTab = (typeof CATALOG_TABS)[number]
 
 /** Where a record or form of a catalog tab goes back to: a path of any catalog tab (a plan opened from a bundle returns to that bundle), else the tab's own list. */
 export function catalogReturn(value: unknown, own: CatalogTabKey): { to: string, labelKey: string } {
@@ -48,12 +51,28 @@ export async function allPages<T>(fetchPage: (page: { limit: number, offset: num
   return out
 }
 
-/** The plan versions that include or offer this bundle version; null when the plans could not be loaded. */
-export async function plansUsingBundle(fetchPage: (page: { limit: number, offset: number }) => Promise<{ items: PlanView[], total: number }>, bundleRevisionId: string): Promise<PlanView[] | null> {
+/** The bundle revisions whose selections include this application, or null when the bundles could not be loaded. */
+export async function bundlesWithApp(fetchPage: (page: { limit: number, offset: number }) => Promise<{ items: BundleView[], total: number }>, appId: string): Promise<BundleView[] | null> {
   try {
-    const plans = await allPages(fetchPage)
-    return plans.filter(plan => [...plan.included_bundle_revision_ids, ...plan.optional_bundle_revision_ids].includes(bundleRevisionId))
+    const bundles = await allPages(fetchPage)
+    return bundles.filter(bundle => bundle.selections.some(selection => selection.app_id === appId))
   } catch {
     return null
   }
+}
+
+/** The plan versions that include or offer any of these bundle revisions, or null when the plans could not be loaded. */
+export async function plansUsingBundles(fetchPage: (page: { limit: number, offset: number }) => Promise<{ items: PlanView[], total: number }>, bundleRevisionIds: readonly string[]): Promise<PlanView[] | null> {
+  try {
+    const plans = await allPages(fetchPage)
+    const wanted = new Set(bundleRevisionIds)
+    return plans.filter(plan => [...plan.included_bundle_revision_ids, ...plan.optional_bundle_revision_ids].some(id => wanted.has(id)))
+  } catch {
+    return null
+  }
+}
+
+/** The plan versions that include or offer this bundle version; null when the plans could not be loaded. */
+export async function plansUsingBundle(fetchPage: (page: { limit: number, offset: number }) => Promise<{ items: PlanView[], total: number }>, bundleRevisionId: string): Promise<PlanView[] | null> {
+  return plansUsingBundles(fetchPage, [bundleRevisionId])
 }

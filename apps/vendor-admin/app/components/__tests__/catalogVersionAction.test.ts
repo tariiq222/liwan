@@ -13,21 +13,19 @@ function panel(allowed = true) {
 }
 
 describe('catalog version action', () => {
-  it('validates a draft and publishes a validated version, with the reason trimmed', async () => {
-    for (const [status, step] of [['draft', 'validate'], ['validated', 'publish']] as const) {
-      const { act, sfc } = panel(); const emit = vi.fn()
-      const setup = sfc.setup({ version: version(status) }, emit)
-      expect(setup.action.value).toBe(step)
-      setup.reason.value = '  Ready for sale  '
-      await setup.perform()
-      expect(act).toHaveBeenCalledWith('c-1', step, 'Ready for sale')
-      expect(emit).toHaveBeenCalledWith('done')
-    }
+  it('publishes a validated version, with the reason trimmed', async () => {
+    const { act, sfc } = panel(); const emit = vi.fn()
+    const setup = sfc.setup({ version: version('validated') }, emit)
+    expect(setup.action.value).toBe('publish')
+    setup.reason.value = '  Ready for sale  '
+    await setup.perform()
+    expect(act).toHaveBeenCalledWith('c-1', 'publish', 'Ready for sale')
+    expect(emit).toHaveBeenCalledWith('done')
   })
 
   it('asks for a reason of 3 to 1000 characters before calling the control plane', async () => {
     const { act, sfc } = panel(); const emit = vi.fn()
-    const setup = sfc.setup({ version: version('draft') }, emit)
+    const setup = sfc.setup({ version: version('validated') }, emit)
     setup.reason.value = 'ab'
     await setup.perform()
     expect(act).not.toHaveBeenCalled(); expect(setup.reasonError.value).toBe('vendor.pricing.reasonRequired'); expect(emit).not.toHaveBeenCalled()
@@ -37,18 +35,18 @@ describe('catalog version action', () => {
 
   it('shows a refusal through the catalog error map and does not report done', async () => {
     const { act, sfc } = panel(); const emit = vi.fn()
-    act.mockRejectedValueOnce({ data: { code: 'catalog_source_not_publishable' }, statusCode: 409 })
+    act.mockRejectedValueOnce({ data: { code: 'catalog_invalid' }, statusCode: 409 })
     const setup = sfc.setup({ version: version('validated') }, emit)
     setup.reason.value = 'Publish it'
     await setup.perform()
-    expect(catalogActionErrorKey(setup.failure.value)).toBe('vendor.pricing.errors.catalog_source_not_publishable')
+    expect(catalogActionErrorKey(setup.failure.value)).toBe('vendor.catalog.errors.catalog_invalid')
     expect(emit).not.toHaveBeenCalled()
   })
 
   it('renders nothing for a published version and no form without the catalog capability', async () => {
     const published = await panel().sfc.html({ version: version('published') })
     expect(published).not.toContain('catalog-action-form')
-    const blocked = await panel(false).sfc.html({ version: version('draft') })
+    const blocked = await panel(false).sfc.html({ version: version('validated') })
     expect(blocked).toContain('vendor.pricing.blocked.catalog'); expect(blocked).not.toContain('<form')
   })
 })

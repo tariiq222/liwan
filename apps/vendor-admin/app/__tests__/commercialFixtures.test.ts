@@ -54,28 +54,33 @@ describe('commercial mock read operations', () => {
 })
 
 describe('commercial mock catalog steps', () => {
-  const DRAFT = '00000000-0000-4000-8000-000000000401'
-  const VALIDATED = '00000000-0000-4000-8000-000000000402'
+  type CatalogRow = { id: string, status: string, created_at: string }
   const owner = { capabilities: ['vendor.read', 'vendor.catalog.manage'], body: { reason: 'Reviewed the source' } }
-  const statuses = () => (stubResponse('GET', '/v1/catalog').body as { items: { id: string, status: string }[] }).items.map(item => `${item.id.slice(-3)}:${item.status}`)
+  const catalog = () => (stubResponse('GET', '/v1/catalog').body as { items: CatalogRow[], total: number })
+  const validated = () => catalog().items.find(item => item.status === 'validated')!
+  const published = () => catalog().items.find(item => item.status === 'published')!
+  const statusOf = (id: string) => catalog().items.find(item => item.id === id)!.status
   afterEach(resetCommercial)
 
-  it('lists a draft, a validated and a published version, newest first', () => {
-    expect(statuses()).toEqual(['401:draft', '402:validated', 't-1:published'])
+  it('lists the imports newest first, with a validated version to publish and a published one as the offer', () => {
+    const body = catalog()
+    expect(body.total).toBe(body.items.length)
+    expect(body.items.map(item => item.created_at)).toEqual([...body.items.map(item => item.created_at)].sort().reverse())
+    expect(validated()).toBeTruthy()
+    expect(published()).toBeTruthy()
   })
 
-  it('validates a draft, then publishes a validated version, and refuses a step out of order', () => {
-    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/publish`, owner).status).toBe(409)
-    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/validate`, owner).status).toBe(200)
-    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/validate`, owner).status).toBe(409)
-    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/publish`, owner).status).toBe(200)
-    expect(stubResponse('POST', `/v1/catalog/${VALIDATED}/publish`, owner).status).toBe(200)
-    expect(statuses()).toEqual(['401:published', '402:published', 't-1:published'])
+  it('publishes a validated version, then refuses the same step again', () => {
+    const id = validated().id
+    expect(stubResponse('POST', `/v1/catalog/${id}/publish`, owner).status).toBe(200)
+    expect(statusOf(id)).toBe('published')
+    expect(stubResponse('POST', `/v1/catalog/${id}/publish`, owner).status).toBe(409)
   })
 
-  it('answers like the control plane for a missing entry, a short reason and a missing capability', () => {
-    expect(stubResponse('POST', '/v1/catalog/missing/validate', owner).status).toBe(404)
-    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/validate`, { ...owner, body: { reason: 'no' } }).status).toBe(422)
-    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/validate`, { ...owner, capabilities: ['vendor.read'] }).status).toBe(403)
+  it('answers like the control plane for a published entry, a missing entry, a short reason and a missing capability', () => {
+    expect(stubResponse('POST', `/v1/catalog/${published().id}/publish`, owner).status).toBe(409)
+    expect(stubResponse('POST', '/v1/catalog/missing/publish', owner).status).toBe(404)
+    expect(stubResponse('POST', `/v1/catalog/${validated().id}/publish`, { ...owner, body: { reason: 'no' } }).status).toBe(422)
+    expect(stubResponse('POST', `/v1/catalog/${validated().id}/publish`, { ...owner, capabilities: ['vendor.read'] }).status).toBe(403)
   })
 })

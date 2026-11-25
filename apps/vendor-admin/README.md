@@ -9,9 +9,12 @@ team that may use them. It is a separate Nuxt 4 application from the customer ap
 - It renders with the shared layers `@liwan/ui` and `@liwan/commercial-ui` and takes types and request signing from
   `@liwan/commercial-contracts`. It never imports `apps/web`, `odoo-addons`, `@liwan/contracts` or the control plane code,
   and never calls an Odoo route (rule `VA1` in `tools/arch_policy.py`). `apps/web` never imports this app.
-- There is no `/vendor` page prefix: pages are `/overview`, `/customers` (`/customers/new`, `/customers/{id}?tab=` and, for a workspace that has no commercial record, `/tenants/{id}`), `/operations`, `/catalog` (the imported application versions, validated and published here), `/bundles`, `/plans`,
-  `/invoices`, `/audit`, `/team`, `/login` and `/enroll`. The API prefix `/api/vendor/v1/**` names the upstream
-  control plane surface, not a page.
+- There is no `/vendor` page prefix. The catalog section has four tabs: `/catalog` (the applications, with
+  `/catalog/apps/{app}` for one application), `/catalog/releases` (the imported application versions, validated and
+  published at `/catalog/releases/{id}`), `/bundles` and `/plans`. The other pages are `/overview`, `/customers`
+  (`/customers/new`, `/customers/{id}?tab=` and, for a workspace that has no commercial record, `/tenants/{id}`),
+  `/operations`, `/invoices`, `/audit`, `/team`, `/login` and `/enroll`. The API prefix `/api/vendor/v1/**` names the
+  upstream control plane surface, not a page.
 
 ## How the BFF relates to the control plane
 

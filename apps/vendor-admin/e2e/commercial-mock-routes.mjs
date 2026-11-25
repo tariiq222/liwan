@@ -1,6 +1,6 @@
 // Stub control plane for the vendor admin BFF, which forwards /api/vendor/v1/<p> to /v1/<p>.
 // Read-only fixtures, including the POST quote preview; the one state the stub keeps is the catalog versions, whose
-// validate and publish steps it applies (resetCommercial restores them); every other state-changing request answers 501.
+// publish step it applies (resetCommercial restores them); every other state-changing request answers 501.
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -10,21 +10,25 @@ const withSavedCard = subscription => (subscription && process.env.LIWAN_MOCK_SA
   ? { ...subscription, auto_renew: { enabled: true, consent_at: '2026-10-01T08:00:00.000Z', payment_method: fixtures.savedCard } }
   : subscription)
 const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
-// The catalog versions as the control plane lists them, newest first; validate (draft -> validated) and publish (validated -> published) move them on.
+// The catalog versions as the control plane lists them, newest first; publish is the only step the contract still
+// has, and it stamps published_at and the actor that took it (resetCommercial restores them).
 let catalogVersions = structuredClone(fixtures.catalogVersions.items)
 export const resetCommercial = () => { catalogVersions = structuredClone(fixtures.catalogVersions.items) }
-const CATALOG_STEP = /^\/v1\/catalog\/([^/]+)\/(validate|publish)$/
-const CATALOG_STEPS = { validate: { from: 'draft', to: 'validated' }, publish: { from: 'validated', to: 'published' } }
-/** POST /v1/catalog/:id/(validate|publish): the control plane's refusals in the order it checks them. */
-function catalogStep(res, [, id, action], { capabilities, body }) {
+const CATALOG_PUBLISH = /^\/v1\/catalog\/([^/]+)\/publish$/
+const CATALOG_VALIDATE = /^\/v1\/catalog\/([^/]+)\/validate$/
+// The display name the control plane resolves a publish to; the stub has no vendor account behind the session.
+const PUBLISHED_BY = 'Vendor Admin'
+/** POST /v1/catalog/:id/publish: the control plane's refusals in the order it checks them, then the publish it records. */
+function catalogPublish(res, [, id], { capabilities, body }) {
   if (capabilities && !capabilities.includes('vendor.catalog.manage')) return json(res, 403, { code: 'forbidden', message: 'Forbidden' })
   const reason = typeof body?.reason === 'string' ? body.reason.trim() : ''
   if (reason.length < 3 || reason.length > 1000) return json(res, 422, { code: 'invalid', message: 'Invalid request body', field: 'reason' })
   const entry = catalogVersions.find(item => item.id === id)
   if (!entry) return json(res, 404, { code: 'not_found', message: 'Catalog entry not found' })
-  const step = CATALOG_STEPS[action]
-  if (entry.status !== step.from) return json(res, 409, { code: 'conflict', message: 'Catalog transition is unavailable' })
-  entry.status = step.to
+  if (entry.status !== 'validated') return json(res, 409, { code: 'conflict', message: 'Catalog transition is unavailable' })
+  entry.status = 'published'
+  entry.published_at = new Date().toISOString()
+  entry.published_by = PUBLISHED_BY
   return json(res, 200, entry)
 }
 const notFound = res => json(res, 404, { code: 'not_found', message: 'Not found' })
@@ -163,8 +167,10 @@ export function handleCommercial(req, res, url, { capabilities, body } = {}) {
   const path = url.pathname
   // Quote preview is a read operation transported as POST; it never creates an order.
   if (req.method === 'POST' && path === '/v1/commercial/quotes') return json(res, 200, fixtures.quote), true
-  const step = req.method === 'POST' ? CATALOG_STEP.exec(path) : null
-  if (step) return catalogStep(res, step, { capabilities, body }), true
+  const step = req.method === 'POST' ? CATALOG_PUBLISH.exec(path) : null
+  if (step) return catalogPublish(res, step, { capabilities, body }), true
+  // Import validates a version on its own and the validate endpoint is gone from the contract.
+  if (req.method === 'POST' && CATALOG_VALIDATE.test(path)) return notFound(res), true
   if (req.method !== 'GET') return json(res, 501, { code: 'not_implemented', message: 'The stub control plane is read-only' }), true
   const send = body => (body === undefined ? notFound(res) : json(res, 200, body))
   let m

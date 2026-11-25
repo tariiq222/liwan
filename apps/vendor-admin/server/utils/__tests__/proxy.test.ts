@@ -388,7 +388,9 @@ describe('vendor API proxy', () => {
   it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {
     expect(upstreamTimeoutMs('/v1/platform/ai-provider/models')).toBeGreaterThan(15_000)
     expect(upstreamTimeoutMs('/v1/platform/ai-provider/test')).toBeGreaterThan(40_000)
-    for (const path of ['/v1/platform/ai-provider', '/v1/platform/ai-provider/presets', '/v1/commercial/plans', '/v1/platform/ai-provider/models/x']) expect(upstreamTimeoutMs(path), path).toBe(UPSTREAM_TIMEOUT_MS)
+    // Publishing a catalog version re-runs the checker (up to 60 s); the console must wait past it.
+    expect(upstreamTimeoutMs('/v1/catalog/0000/publish')).toBeGreaterThan(60_000)
+    for (const path of ['/v1/platform/ai-provider', '/v1/platform/ai-provider/presets', '/v1/commercial/plans', '/v1/platform/ai-provider/models/x', '/v1/catalog', '/v1/catalog/0000/publish/extra']) expect(upstreamTimeoutMs(path), path).toBe(UPSTREAM_TIMEOUT_MS)
     const timeouts: number[] = []
     const spy = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => { timeouts.push(ms); return new AbortController().signal })
     try {

@@ -55,10 +55,12 @@ const ALLOWED = [
 ]
 // The AI provider probes call a third party, and the control plane allows them 15 s (models) and two 20 s asks (test), apps/control-plane
 // ai-provider/client.ts. The BFF must wait longer than that or it gives up with a 503 on a probe that is still running; the margin covers
-// name resolution and the audit write. The other routes keep the default.
+// name resolution and the audit write. Publishing a catalog version re-runs the catalog checker in the control plane (up to 60 s), so the
+// console waits 75 s for it. The other routes keep the default.
 const SLOW_UPSTREAM = [
   { pattern: /^\/v1\/platform\/ai-provider\/models$/, timeoutMs: 30_000 },
   { pattern: /^\/v1\/platform\/ai-provider\/test$/, timeoutMs: 55_000 },
+  { pattern: new RegExp(`^/v1/catalog/${SEGMENT}/publish$`), timeoutMs: 75_000 },
 ] as const
 
 /** The upstream timeout for a control-plane path (query ignored). */

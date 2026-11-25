@@ -36,7 +36,7 @@ describe('vendorAudit', () => {
     expect(auditSubjectTo(ref('tenant', { customer_id: ID, tenant_id: 't' }))).toEqual({ path: `/customers/${ID}`, query: { tab: 'workspace' } })
     expect(auditSubjectTo(ref('tenant', { tenant_id: 't 1' }))).toEqual({ path: '/tenants/t%201' })
     expect(auditSubjectTo(ref('plan'))).toEqual({ path: '/plans/s%2F1' })
-    expect(auditSubjectTo(ref('catalog'))).toEqual({ path: '/catalog/s%2F1' })
+    expect(auditSubjectTo(ref('catalog'))).toEqual({ path: '/catalog/releases/s%2F1' })
     expect(auditSubjectTo(ref('subscription', { customer_id: ID }))).toEqual({ path: `/customers/${ID}`, query: { tab: 'subscription' } })
     expect(auditSubjectTo(ref('invoice', { invoice_id: ID }))).toEqual({ path: `/invoices/${ID}` })
     expect(auditSubjectTo(ref('adjustment', { invoice_id: ID }))).toEqual({ path: `/invoices/${ID}` })

@@ -50,7 +50,7 @@ describe('vendor commercial pages: structure and gating', () => {
     const p = page('bundles/new.vue')
     expect(p).toContain('<USelect v-model="relVersion"'); expect(p).not.toContain('<UInput v-model="relVersion"')
     expect(p).toContain('publishedVersions(versions.value'); expect(p).toContain('list.length === 1')
-    expect(p).toContain('data-testid="no-published-catalog"'); expect(p).toContain('to="/catalog"')
+    expect(p).toContain('data-testid="no-published-catalog"'); expect(p).toContain('to="/catalog/releases"')
   })
   it('bundle detail lists every plan version using it, with its version and state, and says when plans could not load', () => {
     const p = page('bundles/[id].vue')

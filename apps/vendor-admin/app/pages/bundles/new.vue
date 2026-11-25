@@ -51,7 +51,7 @@ async function createRelease() {
         <div class="flex justify-end"><UButton type="submit" :loading="relBusy" :disabled="!hydrated || relBusy">{{ t('vendor.bundles.createRelease') }}</UButton></div>
       </form>
       <UAlert v-else-if="!releases.length" color="neutral" variant="subtle" :title="t('vendor.bundles.noPublishedCatalog')" :description="t('vendor.bundles.noPublishedCatalogHint')" data-testid="no-published-catalog">
-        <template #actions><UButton to="/catalog" color="neutral" variant="outline" size="sm">{{ t('vendor.bundles.openCatalog') }}</UButton></template>
+        <template #actions><UButton to="/catalog/releases" color="neutral" variant="outline" size="sm">{{ t('vendor.bundles.openCatalog') }}</UButton></template>
       </UAlert>
       <VendorBundleForm v-else :releases="releases" :busy="busy" :error="saveError" :reset-key="resetKey" :can-price="can('vendor.pricing.manage')" @save="save" @cancel="navigateTo(backTo)" />
     </SharedPageState>
