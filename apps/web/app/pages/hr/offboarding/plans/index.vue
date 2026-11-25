@@ -3,6 +3,7 @@ import PlanTable from '@/components/hr/lifecycle/PlanTable.vue'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import type { HrPlanListParams } from '@/composables/useHrOnboarding'
 import { useHrOffboardingPlans } from '@/composables/useHrOffboarding'
+import { hrPlanKpiQueries, hrPlanKpiTiles } from '@/utils/hrStaffingKpis'
 
 const NAMESPACE = 'hrOffboarding'
 const PAGE_SIZE = 25
@@ -25,6 +26,23 @@ const plans = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 const page = computed(() => Math.floor(offset.value / PAGE_SIZE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+
+// The tiles count the active and the inactive plans the endpoint filters by; the tile the list is showing reads
+// the list's own total, and the other asks one row.
+const { shown: kpisShown } = useKpiVisibility()
+const kpiQueries = hrPlanKpiQueries()
+const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)
+const activeReused = computed(() => active.value === 'true')
+const inactiveReused = computed(() => active.value === 'false')
+const activeCount = useHrOffboardingPlans(kpiQueries.active, computed(() => kpisEnabled.value && !activeReused.value))
+const inactiveCount = useHrOffboardingPlans(kpiQueries.inactive, computed(() => kpisEnabled.value && !inactiveReused.value))
+const kpiCounts = computed(() => ({
+  active: activeReused.value ? total.value : activeCount.data.value?.total ?? null,
+  inactive: inactiveReused.value ? total.value : inactiveCount.data.value?.total ?? null,
+}))
+const kpiTiles = computed(() => hrPlanKpiTiles(kpiCounts.value, t, NAMESPACE, '/hr/offboarding/plans'))
+const kpiLoading = computed(() => query.isLoading.value || activeCount.isLoading.value || inactiveCount.isLoading.value)
+
 const activeOptions = computed(() => [
   { value: 'true', label: t(`hrOffboarding.form.active`) },
   { value: 'false', label: t(`hrOffboarding.plans.activate`) },
@@ -78,6 +96,9 @@ function askToggle(plan: { id: number, name: string, active: boolean }) {
     :create-label="t(`hrOffboarding.plans.new`)"
     create-test-id="hr-offboarding-plan-new"
   >
+    <template v-if="!forbidden" #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t(`hrOffboarding.kpi.label`)" data-testid="hr-offboarding-plans-kpi-strip" />
+    </template>
     <SharedForbiddenState v-if="forbidden" :description="t(`hrOffboarding.errors.forbidden`)" />
     <SharedListCard v-else>
       <template #filters>
