@@ -42,6 +42,10 @@ disallow=all
 allow=opus,ulaw,alaw
 ; WebRTC defaults for a browser leg: ICE, DTLS-SRTP, rtcp-mux and the transport the offer used.
 webrtc=yes
+; The domain of this leg's From URI. Left empty, Asterisk fills it with the container's host name, and a host name that
+; starts with a digit (Docker's `258081f0e755`) is not a host the browser's SIP stack parses: JsSIP drops the INVITE
+; with "error parsing From header", so the callee never rings. The company host is a name the browser already trusts.
+from_domain={{HOST_NAME}}
 direct_media=no
 rtp_symmetric=yes
 force_rport=yes
@@ -101,6 +105,9 @@ type=endpoint
 context=from-extension
 disallow=all
 allow=ulaw,alaw,opus
+; Same From domain as the browser legs: a softphone that parses a digit-leading host name strictly would drop the
+; INVITE this leg sends it.
+from_domain={{HOST_NAME}}
 direct_media=no
 rtp_symmetric=yes
 force_rport=yes

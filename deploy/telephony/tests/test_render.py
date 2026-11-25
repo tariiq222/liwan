@@ -520,6 +520,17 @@ class AsteriskShape(unittest.TestCase):
                     self.assertEqual(1, len(endpoints), name)
                     self.assertIn(name, re.split(r'[,\s]+', endpoints[0]['aors']))
 
+    def test_every_browser_endpoint_sends_a_from_domain_the_browser_can_parse(self):
+        """Without `from_domain` Asterisk fills the From URI host with the container host name. Docker names are hex,
+        so most start with a digit, and JsSIP's grammar rejects such a host: the INVITE is dropped and the callee never
+        rings. The From domain must be the company host name, which the browser already trusts."""
+        with tempfile.TemporaryDirectory() as directory:
+            pjsip = (self.rendered(directory) / 'asterisk/pjsip.conf').read_text()
+        for template in ('endpoint-template', 'endpoint-plain'):
+            with self.subTest(template=template):
+                block = pjsip.split(f'[{template}](!)', 1)[1].split('\n[', 1)[0]
+                self.assertIn('from_domain=acme.liwan.example', block)
+
     def test_the_plain_sip_extension_exists_for_a_softphone(self):
         with tempfile.TemporaryDirectory() as directory:
             pjsip = (self.rendered(directory) / 'asterisk/pjsip.conf').read_text()
@@ -586,7 +597,10 @@ class LocalOverride(unittest.TestCase):
         overlay = self.local()
         ports = overlay['services']['asterisk']['ports']
         self.assertTrue(ports)
-        self.assertTrue(all(port.startswith('127.0.0.1:') for port in ports), ports)
+        # Chrome on macOS reaches `localhost` over ::1, so each listener is bound on both loopbacks. A wildcard
+        # (`0.0.0.0`, `::`) or a bare port is still refused: only these two hosts are loopback.
+        loopback = ('127.0.0.1:', '[::1]:')
+        self.assertTrue(all(port.startswith(loopback) for port in ports), ports)
         self.assertIn('127.0.0.1:8088:8088/tcp', ports)
         self.assertNotIn('8089', (PACKAGE / 'compose.local.yml').read_text())
         self.assertIn('bindport=8088', (PACKAGE / 'asterisk/http.conf.template').read_text())
