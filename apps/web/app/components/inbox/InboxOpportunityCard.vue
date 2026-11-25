@@ -71,7 +71,7 @@ const stageOf = (item: { stage: { name: string } | null }) => item.stage?.name ?
 <template>
   <SharedRecordSection v-if="visible" variant="panel" :title="t('inbox.opportunity.title')" data-testid="inbox-opportunity">
     <template v-if="opportunity" #actions>
-      <UButton :to="`/crm/opportunities/${opportunity.id}`" size="sm" color="neutral" variant="outline" icon="i-lucide-arrow-up-left" :label="t('inbox.opportunity.open')" data-testid="inbox-opportunity-open" />
+      <UButton :to="`/crm/opportunities/${opportunity.id}`" size="sm" color="neutral" variant="outline" icon="i-lucide-arrow-up-right" :ui="{ leadingIcon: 'rtl:-scale-x-100' }" :label="t('inbox.opportunity.open')" data-testid="inbox-opportunity-open" />
     </template>
     <div class="grid gap-3 text-sm">
       <template v-if="opportunity">

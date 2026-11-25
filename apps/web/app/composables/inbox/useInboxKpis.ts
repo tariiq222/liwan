@@ -2,8 +2,9 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { InboxCampaignListSchema, InboxConversationListSchema } from '@liwan/contracts'
 import { useQuery } from '@tanstack/vue-query'
+import { inboxQueueCountsKey } from '../../modules/inbox/sidebar'
 import {
-  INBOX_CAMPAIGN_KPI_KEYS, INBOX_CONVERSATION_KPI_KEYS, INBOX_ORDER_KPI_KEYS,
+  INBOX_CAMPAIGN_KPI_KEYS, INBOX_ORDER_KPI_KEYS,
   inboxCampaignKpiFilters, inboxCampaignKpiLinks, inboxCampaignTiles,
   inboxConversationKpiFilters, inboxConversationKpiLinks, inboxConversationTiles,
   inboxOrderKpiFilters, inboxOrderKpiLinks, inboxOrderTiles,
@@ -15,8 +16,11 @@ import { useInboxOrders } from './useInboxOrders'
 // The KPI tiles ask the list endpoints they belong to for one row under the page's scope, so a tile is the server's
 // own total and never a sum over the loaded page. Every key starts with 'inbox', so a conversation event refreshes them.
 
+/** The filters of one `limit=1` conversation count. */
+type ConversationQuery = Record<string, string | number>
+
 /** One `limit=1` count of the conversations endpoint, under the tile's own filters. */
-function useInboxConversationTotal(filters: MaybeRefOrGetter<Record<string, string | number>>, enabled: MaybeRefOrGetter<boolean>) {
+function useInboxConversationTotal(filters: MaybeRefOrGetter<ConversationQuery>, enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => ['inbox', 'conversations', 'kpi', toValue(filters)] as const),
@@ -26,19 +30,41 @@ function useInboxConversationTotal(filters: MaybeRefOrGetter<Record<string, stri
   })
 }
 
+/**
+ * The two open queue counts (unassigned, mine) in one query. The sidebar's rows read the same key over the same filter
+ * pair, so with no scope filter the page and the menu fetch each number once; the row ids are the sidebar's own.
+ */
+function useInboxQueueTotals(unassigned: MaybeRefOrGetter<ConversationQuery>, mine: MaybeRefOrGetter<ConversationQuery>, enabled: MaybeRefOrGetter<boolean>) {
+  const { $api } = useApi()
+  const { me } = useMe()
+  const owner = computed(() => ({ companyId: me.value?.company.id ?? null, userId: me.value?.id ?? null }))
+  return useQuery({
+    queryKey: computed(() => [...inboxQueueCountsKey(toValue(unassigned), toValue(mine)), owner.value] as const),
+    enabled: computed(() => toValue(enabled)),
+    retry: false,
+    queryFn: async () => {
+      const count = (query: ConversationQuery) => $api('/api/v1/inbox/conversations', { query, schema: InboxConversationListSchema })
+      const [openUnassigned, openMine] = await Promise.all([count(toValue(unassigned)), count(toValue(mine))])
+      return { 'inbox-unassigned': openUnassigned.total, 'inbox-mine': openMine.total }
+    },
+  })
+}
+
 /** The four tiles of the conversations page (open, pending, unassigned, mine). */
 export function useInboxConversationKpis(scope: MaybeRefOrGetter<InboxConversationKpiScope>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { t } = useI18n()
   const filters = computed(() => inboxConversationKpiFilters(toValue(scope)))
-  const queries = Object.fromEntries(INBOX_CONVERSATION_KPI_KEYS.map(key => [
-    key, useInboxConversationTotal(() => filters.value[key]!, enabled),
-  ])) as Record<typeof INBOX_CONVERSATION_KPI_KEYS[number], ReturnType<typeof useInboxConversationTotal>>
-  const tiles = computed<KpiTile[]>(() => inboxConversationTiles(
-    Object.fromEntries(INBOX_CONVERSATION_KPI_KEYS.map(key => [key, queries[key].data.value?.total])) as Partial<Record<typeof INBOX_CONVERSATION_KPI_KEYS[number], number>>,
-    inboxConversationKpiLinks(toValue(scope)),
-    t,
-  ))
-  const loading = computed(() => Object.values(queries).some(query => query.isLoading.value))
+  const open = useInboxConversationTotal(() => filters.value.open, enabled)
+  const pending = useInboxConversationTotal(() => filters.value.pending, enabled)
+  const queues = useInboxQueueTotals(() => filters.value.unassigned, () => filters.value.mine, enabled)
+  const counts = computed<Partial<Record<'open' | 'pending' | 'unassigned' | 'mine', number>>>(() => ({
+    open: open.data.value?.total,
+    pending: pending.data.value?.total,
+    unassigned: queues.data.value?.['inbox-unassigned'] ?? undefined,
+    mine: queues.data.value?.['inbox-mine'] ?? undefined,
+  }))
+  const tiles = computed<KpiTile[]>(() => inboxConversationTiles(counts.value, inboxConversationKpiLinks(toValue(scope)), t))
+  const loading = computed(() => open.isLoading.value || pending.isLoading.value || queues.isLoading.value)
   return { tiles, loading }
 }
 

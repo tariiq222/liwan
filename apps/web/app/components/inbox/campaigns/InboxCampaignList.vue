@@ -6,7 +6,7 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { CAMPAIGN_STATE_TONE, CAMPAIGN_STATES, deliveredPercent } from '@/composables/inbox/inboxCampaignPresentation'
 import {
   CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseCampaignListRoute, serializeCampaignListRoute, type CampaignListRoute,
-} from '@/composables/inbox/inboxCampaignRoute'
+} from '@/utils/inboxCampaignRoute'
 import { TEMPLATE_CATEGORY_TONE } from '@/composables/inbox/inboxTemplate'
 import { useInboxCampaignChannels, useInboxCampaignList } from '@/composables/inbox/useInboxCampaigns'
 

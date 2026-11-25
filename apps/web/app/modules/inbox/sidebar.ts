@@ -14,6 +14,19 @@ const outreachSection = { id: 'inbox-outreach', titleKey: 'inbox.sidebar.outreac
 const insightSection = { id: 'inbox-insight', titleKey: 'inbox.sidebar.insight' } as const
 
 /**
+ * The query root of the two open queues (`unassigned`, `mine`) as one counts query. The conversation KPI tiles open the
+ * same key over the same filter pair, so the page and the menu ask for each number once; the caller appends its owner.
+ */
+export const INBOX_QUEUE_COUNTS_KEY = ['inbox', 'conversations', 'queues'] as const
+
+/** One open queue's `limit=1` count; its row opens the same list without the limit. */
+const queueFilters = (assignee: 'unassigned' | 'me') => ({ state: 'open', assignee, limit: 1 })
+
+/** The counts query of the two open queues, with the filter pair that tells one scope from another. */
+export const inboxQueueCountsKey = (unassigned: Record<string, string | number>, mine: Record<string, string | number>) =>
+  [...INBOX_QUEUE_COUNTS_KEY, unassigned, mine] as const
+
+/**
  * The inbox sidebar: pinned create action (`inbox-new-campaign`), the conversations workspace with the agent's two
  * open queues (unassigned, mine), the orders, the campaigns with their audiences, and the reports. The numbers are the
  * server's `limit: 1` totals of the same queries the rows open, so a number always matches the list it leads to.
@@ -60,9 +73,9 @@ export const inboxSidebar: AppSidebarMenu = {
   counts: [
     {
       capability: 'inbox.conversations.read',
-      queryKey: ['inbox', 'conversations', 'sidebar'],
+      queryKey: inboxQueueCountsKey(queueFilters('unassigned'), queueFilters('me')),
       async load(api: AppSearchApi) {
-        const count = (assignee: string) => api('/api/v1/inbox/conversations', { query: { state: 'open', assignee, limit: 1 }, schema: InboxConversationListSchema })
+        const count = (assignee: 'unassigned' | 'me') => api('/api/v1/inbox/conversations', { query: queueFilters(assignee), schema: InboxConversationListSchema })
         const [unassigned, mine] = await Promise.all([count('unassigned'), count('me')])
         return { 'inbox-unassigned': unassigned.total, 'inbox-mine': mine.total }
       },

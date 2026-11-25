@@ -1,7 +1,8 @@
-import type { RouteLocationRaw } from 'vue-router'
+import type { LocationQuery, RouteLocationRaw } from 'vue-router'
 // Relative imports: the `@/` alias does not resolve for value imports under a
 // plain `vitest run`, and this module is unit-tested directly.
 import { parseChatListRoute, serializeChatListRoute } from '../../utils/chatState'
+import { parseCampaignListRoute, serializeCampaignListRoute } from '../../utils/inboxCampaignRoute'
 import { meetingCreateRoute } from '../../utils/meetingRoutes'
 import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
@@ -48,6 +49,14 @@ export function createListReturnTo(linkId: string, routePath: string, fullPath: 
  */
 export function createLinkTo(link: { id: string; to: RouteLocationRaw }, route: CreateActionRoute): RouteLocationRaw {
   if (link.id === 'new-chat') return { path: '/chat/new', query: serializeChatListRoute(parseChatListRoute(route.query)) }
+  if (link.id === 'inbox-new-campaign') {
+    // Standing on the campaigns list, the panel opens over it and keeps its filters (the campaign page reads them back
+    // from the address); anywhere else it is a plain create page.
+    const onCampaignList = (route.path.replace(/\/+$/, '') || '/') === '/inbox/campaigns'
+    return onCampaignList
+      ? { path: '/inbox/campaigns/new', query: serializeCampaignListRoute(parseCampaignListRoute(route.query as LocationQuery)) }
+      : { path: '/inbox/campaigns/new' }
+  }
   if (link.id === 'new-meeting') return meetingCreateRoute(createListReturnTo(link.id, route.path, route.fullPath, route.query), typeof route.query.project_id === 'string' ? route.query.project_id : undefined, typeof route.query.series_id === 'string' ? route.query.series_id : undefined)
   const target = typeof link.to === 'string' ? link.to : link.to.path
   if (!target) return link.to

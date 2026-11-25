@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { InboxAudience } from '@liwan/contracts'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import InboxContactImport from '@/components/inbox/campaigns/InboxContactImport.vue'
-import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseAudienceListRoute, serializeAudienceListRoute, type AudienceListRoute } from '@/composables/inbox/inboxCampaignRoute'
+import { CAMPAIGN_PAGE_SIZE, campaignPageOffset, parseAudienceListRoute, serializeAudienceListRoute, type AudienceListRoute } from '@/utils/inboxCampaignRoute'
 import { useInboxAudienceList } from '@/composables/inbox/useInboxCampaigns'
 
 // The saved audiences with their live counts, and below them the contact CSV import. Creating an audience is the

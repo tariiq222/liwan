@@ -30,7 +30,7 @@ import { campaignPollInterval, type CampaignAction } from './inboxCampaignPresen
 import {
   audienceListQuery, campaignListQuery, memberQuery, recipientQuery,
   type AudienceListRoute, type CampaignListRoute, type MemberRoute, type RecipientRoute,
-} from './inboxCampaignRoute'
+} from '../../utils/inboxCampaignRoute'
 
 // Every key starts with 'inbox', so the bus handler's invalidation of ['inbox'] refreshes the campaign screens too.
 export const inboxCampaignKeys = {

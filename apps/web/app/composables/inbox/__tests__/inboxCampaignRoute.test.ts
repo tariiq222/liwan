@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CAMPAIGN_PAGE_SIZE, campaignListQuery, campaignPageOffset, memberQuery, parseAudienceListRoute, parseCampaignListRoute, parseMemberRoute, parseRecipientRoute,
   recipientQuery, serializeCampaignListRoute, serializeMemberRoute, serializeRecipientRoute,
-} from '../inboxCampaignRoute'
+} from '../../../utils/inboxCampaignRoute'
 
 describe('campaign list route', () => {
   it('parses an empty query to the defaults and ignores values it does not know', () => {

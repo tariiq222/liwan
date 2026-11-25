@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import manifest from '../manifest'
 import { inboxSidebar } from '../sidebar'
 import { flatSidebar } from '../../../composables/nav/flatSidebar'
+import { inboxConversationKpiFilters } from '../../../utils/inboxKpis'
 import type { AppSearchApi, AppSidebarRoute } from '../../types'
 
 const route = (path: string, query: Record<string, unknown> = {}): AppSidebarRoute => ({ path, query })
@@ -58,6 +59,13 @@ describe('the inbox sidebar menu', () => {
     expect(await loader.load(api as unknown as AppSearchApi)).toEqual({ 'inbox-unassigned': 4, 'inbox-mine': 9 })
     expect(api).toHaveBeenCalledWith('/api/v1/inbox/conversations', expect.objectContaining({ query: { state: 'open', assignee: 'unassigned', limit: 1 } }))
     expect(api).toHaveBeenCalledWith('/api/v1/inbox/conversations', expect.objectContaining({ query: { state: 'open', assignee: 'me', limit: 1 } }))
+  })
+
+  it('asks for the two open queues under the key the conversation KPI tiles read', () => {
+    // A conversations page with no scope filter builds these exact filters; the caller appends its owner to both keys,
+    // so the page and the menu share one request pair instead of asking twice.
+    const filters = inboxConversationKpiFilters({})
+    expect(inboxSidebar.counts![0]!.queryKey).toEqual(['inbox', 'conversations', 'queues', filters.unassigned, filters.mine])
   })
 
   it('counts campaigns and audiences only behind the campaigns capability and sub-feature', async () => {

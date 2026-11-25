@@ -81,5 +81,5 @@ function clear() {
         <SharedPagination :page="page" :pages="pages" class="w-full" @update:page="update({ page: $event > 1 ? String($event) : undefined })" />
       </template>
     </SharedListCard>
-  </SharedPageContainer>
+  </SharedListPage>
 </template>

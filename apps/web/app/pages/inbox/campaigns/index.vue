@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import InboxCampaignList from '@/components/inbox/campaigns/InboxCampaignList.vue'
-import { parseCampaignListRoute } from '@/composables/inbox/inboxCampaignRoute'
+import { parseCampaignListRoute } from '@/utils/inboxCampaignRoute'
 import { useInboxCampaignKpis } from '@/composables/inbox/useInboxKpis'
 
 // The campaigns list. Creating a campaign is the route-backed panel at /inbox/campaigns/new over this page.

@@ -44,7 +44,7 @@ describe('conversation KPI tiles', () => {
     const tiles = inboxConversationTiles({ open: 12, pending: 0, unassigned: 3 }, links, t)
     expect(tiles.map(tile => tile.id)).toEqual([...INBOX_CONVERSATION_KPI_KEYS])
     expect(tiles.map(tile => [tile.value, tile.tone, tile.to, tile.clearTo])).toEqual([
-      [12, 'info', '/inbox?q=x&state=open', '/inbox?q=x'],
+      [12, 'neutral', '/inbox?q=x&state=open', '/inbox?q=x'],
       [0, 'neutral', '/inbox?q=x&state=pending', '/inbox?q=x'],
       [3, 'warning', '/inbox?q=x&state=open&assignee=unassigned', '/inbox?q=x'],
       [null, 'neutral', '/inbox?q=x&state=open&assignee=me', '/inbox?q=x'],
@@ -72,7 +72,7 @@ describe('order KPI filters and tiles', () => {
     expect(tiles.map(tile => [tile.id, tile.value, tile.tone, tile.clearTo])).toEqual([
       ['total', 20, 'neutral', undefined],
       ['cart', 2, 'warning', '/inbox/orders?channel_id=9'],
-      ['ordered', 8, 'info', '/inbox/orders?channel_id=9'],
+      ['ordered', 8, 'neutral', '/inbox/orders?channel_id=9'],
       ['paid', 5, 'success', '/inbox/orders?channel_id=9'],
     ])
   })
@@ -93,8 +93,8 @@ describe('campaign KPI filters and tiles', () => {
     expect(tiles.map(tile => [tile.id, tile.tone, tile.to])).toEqual([
       ['total', 'neutral', '/inbox/campaigns'],
       ['draft', 'neutral', '/inbox/campaigns?state=draft'],
-      ['scheduled', 'info', '/inbox/campaigns?state=scheduled'],
-      ['running', 'info', '/inbox/campaigns?state=running'],
+      ['scheduled', 'neutral', '/inbox/campaigns?state=scheduled'],
+      ['running', 'neutral', '/inbox/campaigns?state=running'],
       ['paused', 'neutral', '/inbox/campaigns?state=paused'],
     ])
     expect(inboxCampaignTiles({ paused: 2 }, links, t)[4]?.tone).toBe('warning')
