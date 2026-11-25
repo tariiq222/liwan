@@ -20,6 +20,14 @@ describe('milestones stay on their templates', () => {
   it('the delete confirmation follows the live list', () => {
     expect(read('components/pmo/projects/MilestoneTable.vue')).toContain('items.value.find(m => m.id === deleteId.value)')
   })
+  it('the KPI strip counts the rows the table loads, without a request of its own, and its tiles are not links', () => {
+    const page = read('pages/projects/[id]/milestones.vue')
+    for (const needle of ['<template #kpis>', 'useKpiVisibility', 'useMilestones', 'isMilestoneOverdue', 'data-testid="milestone-kpi-strip"']) expect(page).toContain(needle)
+    const start = page.indexOf('<template #kpis>')
+    const strip = page.slice(start, page.indexOf('</template>', start))
+    // No status filter exists on this list, so a tile must not claim one.
+    expect(strip).not.toContain(':to=')
+  })
   it('the edit page has no hand-built card', () => {
     const edit = read('pages/projects/[id]/milestones/[milestoneId]/edit.vue')
     expect(edit).toMatch(/<SharedFormSection[^>]* panel/)

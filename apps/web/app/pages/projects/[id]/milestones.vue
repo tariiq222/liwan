@@ -4,6 +4,8 @@ import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
+import { useMilestones } from '@/composables/useMilestones'
+import { isMilestoneOverdue } from '@/components/pmo/projects/milestoneState'
 import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
@@ -13,6 +15,16 @@ const projectId = computed(() => projectIdFromPath(route.path))
 const { data: projectData, isLoading, error, refetch } = useProject(projectId)
 // Same SSR contract as the frame: reveal the cached project only once hydrated.
 const project = computed(() => hydrated.value ? projectData.value : undefined)
+// The KPI tiles count the rows the table loads, so they read the same query and start with the table: the same key is
+// shared, so no second request goes out and the two never disagree about a milestone.
+const milestones = useMilestones(computed(() => project.value ? projectId.value : null))
+const milestoneRows = computed(() => milestones.data.value ?? [])
+const milestoneCounts = computed(() => ({
+  open: milestoneRows.value.filter(milestone => !milestone.is_reached).length,
+  completed: milestoneRows.value.filter(milestone => milestone.is_reached).length,
+  overdue: milestoneRows.value.filter(isMilestoneOverdue).length,
+}))
+const { shown: kpisShown } = useKpiVisibility()
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications']))
 const canCreate = computed(() => project.value?.can_manage === true && project.value.active)
@@ -40,6 +52,13 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestone
       :create-label="t('projects.milestones.new')"
       create-test-id="project-header-create"
     >
+      <template #kpis>
+        <section v-if="kpisShown && milestones.complete.value" class="liwan-kpi-grid" :aria-label="t('projects.milestones.kpi.label')" data-testid="milestone-kpi-strip">
+          <SharedMetricTile density="compact" icon="i-lucide-flag" :label="t('projects.milestones.kpi.open')" :value="milestoneCounts.open" value-dir="ltr" />
+          <SharedMetricTile density="compact" tone="success" icon="i-lucide-circle-check" :label="t('projects.milestones.kpi.completed')" :value="milestoneCounts.completed" value-dir="ltr" />
+          <SharedMetricTile density="compact" :tone="milestoneCounts.overdue > 0 ? 'danger' : 'neutral'" icon="i-lucide-circle-alert" :label="t('projects.milestones.kpi.overdue')" :value="milestoneCounts.overdue" value-dir="ltr" />
+        </section>
+      </template>
       <MilestoneTable v-if="project" :project-id="project.id" :can-manage="project.can_manage && project.active" />
       <SharedLoadingSkeleton v-else-if="isLoading || !hydrated" />
     </SharedListPage>

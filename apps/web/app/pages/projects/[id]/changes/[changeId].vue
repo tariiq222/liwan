@@ -28,6 +28,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
     :back-label="t('projects.changes.title')"
     :loading="item.isLoading.value"
     :error="item.error.value"
+    aside-first
     @retry="item.refetch"
   >
     <template v-if="item.data?.value?.can_edit && hydrated" #actions>
@@ -46,7 +47,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.impact_scope || '—' }}</p>
       </SharedRecordSection>
     </template>
-    <template v-if="item.data?.value" #summary>
+    <template v-if="item.data?.value" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.changes.fields.state')">
           <SharedStatusBadge :tone="CHANGE_STATE_TONE[item.data.value.state]" :label="t(`projects.changes.state.${item.data.value.state}`)" />

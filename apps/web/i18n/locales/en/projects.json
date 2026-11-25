@@ -272,7 +272,13 @@
       "actionsNamed": "Actions for milestone {name}",
       "nameRequired": "Enter a milestone name.",
       "editName": "Edit milestone name",
-      "menu": "Milestone actions"
+      "menu": "Milestone actions",
+      "kpi": {
+        "label": "Milestone metrics",
+        "open": "Open",
+        "completed": "Completed",
+        "overdue": "Overdue"
+      }
     },
     "updates": {
       "publish": "Publish update",

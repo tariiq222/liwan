@@ -26,6 +26,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
     :back-label="t('projects.refresh.workspace.registerTitle')"
     :loading="item.isLoading.value"
     :error="item.error.value"
+    aside-first
     @retry="item.refetch"
   >
     <template v-if="item.data?.value && access.data.value?.can_manage && hydrated" #actions>
@@ -46,7 +47,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
         </div>
       </SharedRecordSection>
     </template>
-    <template v-if="item.data?.value" #summary>
+    <template v-if="item.data?.value" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.governance.register.kind')">
           <SharedStatusBadge tone="neutral" :icon="item.data.value.kind === 'risk' ? 'i-lucide-triangle-alert' : 'i-lucide-circle-alert'" :label="t(`projects.governance.register.${item.data.value.kind}`)" />

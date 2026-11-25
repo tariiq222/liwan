@@ -26,6 +26,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${s
     :back-label="t('projects.governance.stakeholders')"
     :loading="item.isLoading.value"
     :error="notFound ? null : item.error.value"
+    aside-first
     @retry="item.refetch"
   >
     <template v-if="item.data?.value && access.data.value?.can_manage && hydrated" #actions>
@@ -38,7 +39,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${s
         <SharedSubCard><dt class="text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt><dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd></SharedSubCard>
       </dl>
     </SharedRecordSection>
-    <template v-if="item.data?.value" #summary>
+    <template v-if="item.data?.value" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.governance.stakeholder.internalUser')">
           <span v-if="item.data.value.user" class="inline-flex items-center gap-2"><SharedPersonAvatar :people="[item.data.value.user]" />{{ item.data.value.user.name }}</span>

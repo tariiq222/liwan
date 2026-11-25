@@ -16,7 +16,7 @@ describe('stakeholders stays on its templates', () => {
   })
   it('the record is a record page and the edit page has no hand-built card', () => {
     const record = read('pages/projects/[id]/stakeholders/[stakeholderId].vue')
-    for (const needle of ['<SharedRecordPage', '<SharedPropertiesPanel', 'data-testid="stakeholder-detail-edit"']) expect(record).toContain(needle)
+    for (const needle of ['<SharedRecordPage', '<SharedPropertiesPanel', 'data-testid="stakeholder-detail-edit"', '#aside']) expect(record).toContain(needle)
     expect(read('pages/projects/[id]/stakeholders/[stakeholderId]/edit.vue')).not.toContain('rounded-lg ring ring-default')
   })
 })
