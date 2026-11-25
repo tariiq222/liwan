@@ -61,7 +61,7 @@ function clearFilters() {
 <template>
   <SharedPageContainer data-testid="work-page">
     <SharedPageHeader :title="t('myTasks.work.title')">
-      <UButton v-if="can('tasks.tasks.create')" to="/my-tasks/new" size="sm" icon="i-lucide-plus" :label="t('myTasks.new')" data-testid="work-new-task" />
+      <UButton v-if="can('tasks.tasks.create')" to="/my-tasks/new" icon="i-lucide-plus" :label="t('myTasks.new')" data-testid="work-new-task" />
     </SharedPageHeader>
     <SharedSegmentedControl :disabled="!hydrated" :model-value="workspaceTab" :items="workspaceTabs" :label="t('myTasks.work.tabsLabel')" data-testid="workspace-tabs" class="self-start" @update:model-value="selectWorkspaceTab" />
     <!-- «المهام» is the personal task list itself, not a copy: the list keeps its own search, scope and view in the URL. -->

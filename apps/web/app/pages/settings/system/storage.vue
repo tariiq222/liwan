@@ -60,7 +60,7 @@ const total = computed(() => inventory.value?.total ?? 0)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const page = computed(() => Math.min(pages.value, offset.value / PAGE_SIZE + 1))
 const columns = computed<TableColumn<StorageRow>[]>(() => [
-  { accessorKey: 'name', header: t('settings.storage.name') },
+  { accessorKey: 'name', header: t('settings.storage.name'), meta: { title: true, class: { th: 'min-w-64', td: 'max-w-0' } } },
   { accessorKey: 'size_bytes', header: t('settings.storage.size') },
   { accessorKey: 'created_at', header: t('settings.storage.created') },
   { accessorKey: 'over_limit', header: t('settings.storage.state') },

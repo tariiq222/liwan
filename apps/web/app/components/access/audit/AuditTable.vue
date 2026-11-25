@@ -24,7 +24,7 @@ const when = (event: AccessAuditSummary) => formatLiwanDateTime(event.occurred_a
 const actionsFor = (event: AccessAuditSummary) => [{ label: t('access.view'), to: eventTo(event) }]
 const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'occurred_at', header: t('access.audit.columns.time') },
+  { accessorKey: 'occurred_at', header: t('access.audit.columns.time'), meta: { title: true } },
   { accessorKey: 'actor', header: t('access.audit.columns.actor') },
   { accessorKey: 'action', header: t('access.audit.columns.action') },
   { accessorKey: 'target', header: t('access.audit.columns.target') },

@@ -69,7 +69,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(retryTimer) })
   <SharedStandalonePage>
     <template #header>
       <SharedBrandWordmark size="md" />
-      <h1 class="font-display text-lg font-semibold text-highlighted">{{ t('subscription.activation.title') }}</h1>
+      <h1 class="text-2xl font-semibold text-highlighted">{{ t('subscription.activation.title') }}</h1>
     </template>
     <div v-if="delayedEnd" class="grid gap-3">
       <UAlert role="status" color="warning" variant="subtle" :title="t('subscription.activation.delayed', { date: formatDateTime(delayedEnd, 'Asia/Riyadh') })" />

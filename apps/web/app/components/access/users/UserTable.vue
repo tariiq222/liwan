@@ -36,7 +36,7 @@ const actionsFor = (user: AdminUserSummary): RowAction[] => [
 const showEmployee = computed(() => props.users.some(user => user.employee !== undefined))
 const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'name', header: t('access.users.columns.name') },
+  { accessorKey: 'name', header: t('access.users.columns.name'), meta: { title: true } },
   { accessorKey: 'login', header: t('access.users.columns.loginName') },
   ...(showEmployee.value ? [{ accessorKey: 'employee', header: t('access.users.columns.employee') }] : []),
   { accessorKey: 'roles', header: t('access.users.columns.roles') },
