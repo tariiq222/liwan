@@ -6,5 +6,10 @@ const page = useEntryListPage()
 </script>
 
 <template>
-  <SharedListPage v-bind="page"><EntryList /></SharedListPage>
+  <SharedListPage v-bind="page.header">
+    <template v-if="page.allowed" #kpis>
+      <SharedKpiStrip v-if="page.kpis.shown && !page.kpis.error" :tiles="page.kpis.tiles" :loading="page.kpis.loading" :label="page.kpis.label" data-testid="finance-entry-kpis" />
+    </template>
+    <EntryList />
+  </SharedListPage>
 </template>

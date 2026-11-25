@@ -45,8 +45,22 @@ describe('KPI params and tiles', () => {
   })
 
   it('builds one tile per state from the server totals, empty while a count is missing', () => {
-    const tiles = invoiceKpiTiles({ total: 12, draft: 3, posted: 8, cancel: undefined }, id => id)
+    const tiles = invoiceKpiTiles('out_refund', filters, { total: 12, draft: 3, posted: 8, cancel: undefined }, key => key)
     expect(tiles.map(tile => [tile.id, tile.value])).toEqual([['total', 12], ['draft', 3], ['posted', 8], ['cancel', null]])
     expect(tiles.find(tile => tile.id === 'draft')?.tone).toBe('warning')
+    expect(tiles[0]?.label).toBe('financeDocuments.kpi.total')
+  })
+
+  it('links every tile to the list with its filters, without the page or the selected state', () => {
+    const tiles = invoiceKpiTiles('out_refund', filters, { total: 1, draft: 1, posted: 0, cancel: 0 }, key => key)
+    const base = '/finance/sales/credit-notes?q=abc&partner_id=9&date_from=2026-03-01'
+    expect(tiles[0]).toMatchObject({ to: base })
+    expect(tiles[0]).not.toHaveProperty('clearTo')
+    expect(tiles.find(tile => tile.id === 'draft')).toMatchObject({ to: `${base}&state=draft`, clearTo: base })
+    for (const tile of tiles) {
+      const query = new URL(tile.to ?? '', 'https://liwan.local').searchParams
+      expect(query.has('page')).toBe(false)
+      expect(query.getAll('state')).toEqual(tile.id === 'total' ? [] : [tile.id])
+    }
   })
 })

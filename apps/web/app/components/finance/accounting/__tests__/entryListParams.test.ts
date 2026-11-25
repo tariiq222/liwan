@@ -45,7 +45,19 @@ describe('KPI params and tiles', () => {
   })
 
   it('draws one tile per count, empty until the server answers', () => {
-    const tiles = entryKpiTiles({ total: 9, draft: 2, posted: 6, cancel: undefined }, id => id)
+    const tiles = entryKpiTiles(filters, { total: 9, draft: 2, posted: 6, cancel: undefined }, key => key)
     expect(tiles.map(tile => [tile.id, tile.value])).toEqual([['total', 9], ['draft', 2], ['posted', 6], ['cancel', null]])
+  })
+
+  it('links every tile to the list with its filters, without the page or the selected state', () => {
+    const tiles = entryKpiTiles(filters, { total: 9, draft: 2, posted: 6, cancel: 1 }, key => key)
+    const base = '/finance/accounting/entries?q=abc&journal_id=9&date_from=2026-03-01'
+    expect(tiles[0]).toMatchObject({ to: base })
+    expect(tiles.find(tile => tile.id === 'cancel')).toMatchObject({ to: `${base}&state=cancel`, clearTo: base })
+    for (const tile of tiles) {
+      const query = new URL(tile.to ?? '', 'https://liwan.local').searchParams
+      expect(query.has('page')).toBe(false)
+      expect(query.getAll('state')).toEqual(tile.id === 'total' ? [] : [tile.id])
+    }
   })
 })

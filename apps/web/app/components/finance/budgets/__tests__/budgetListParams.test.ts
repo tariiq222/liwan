@@ -33,7 +33,16 @@ describe('budget list params', () => {
   })
 
   it('has one tile per state after the total, empty until the server answers', () => {
-    const tiles = budgetKpiTiles({ total: 6, draft: 2, confirmed: 3, cancelled: undefined }, id => id)
+    const filters = budgetFiltersFromQuery({ state: 'draft', q: 'x', page: '4' })
+    const tiles = budgetKpiTiles(filters, { total: 6, draft: 2, confirmed: 3, cancelled: undefined }, key => key)
     expect(tiles.map(tile => [tile.id, tile.value])).toEqual([['total', 6], ['draft', 2], ['confirmed', 3], ['cancelled', null]])
+  })
+
+  it('links every tile to the list with its search, without the page or the selected state', () => {
+    const filters = budgetFiltersFromQuery({ state: 'draft', q: 'x', page: '4' })
+    const tiles = budgetKpiTiles(filters, { total: 6, draft: 2, confirmed: 3, cancelled: 1 }, key => key)
+    expect(tiles[0]).toMatchObject({ to: '/finance/budgets?q=x' })
+    expect(tiles.find(tile => tile.id === 'confirmed')).toMatchObject({ to: '/finance/budgets?q=x&state=confirmed', clearTo: '/finance/budgets?q=x' })
+    expect(budgetKpiTiles(budgetFiltersFromQuery({}), { total: 0, draft: 0, confirmed: 0, cancelled: 0 }, key => key)[0]?.to).toBe('/finance/budgets')
   })
 })

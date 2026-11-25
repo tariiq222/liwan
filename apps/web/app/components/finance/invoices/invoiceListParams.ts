@@ -1,6 +1,7 @@
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import type { FinanceInvoice } from '@liwan/contracts'
-import type { FinanceMoveType } from './invoiceKinds'
+import { financeListKpiTiles, financeStateTiles } from '../../../utils/financeKpis'
+import { INVOICE_KINDS, type FinanceMoveType } from './invoiceKinds'
 import { queryText, queryDay } from '../../../utils/routeQuery'
 
 export const INVOICE_PAGE_SIZE = 25
@@ -74,15 +75,18 @@ export function invoiceSummaryParams(moveType: FinanceMoveType, filters: Invoice
 
 export type InvoiceKpiCounts = Record<'total' | InvoiceStateFilter, number | undefined>
 
-/** The strip above a list: the counts the server reports for the list's filters, one tile per state. */
-export function invoiceKpiTiles(counts: InvoiceKpiCounts, label: (id: 'total' | InvoiceStateFilter) => string): KpiTile[] {
-  const tone = { total: 'neutral', draft: 'warning', posted: 'success', cancel: 'neutral' } as const
-  const icon = { total: 'i-lucide-files', draft: 'i-lucide-file-pen', posted: 'i-lucide-file-check', cancel: 'i-lucide-file-x' } as const
-  return (['total', ...INVOICE_STATES] as const).map(id => ({
-    id,
-    label: label(id),
-    value: counts[id] ?? null,
-    icon: icon[id],
-    tone: tone[id],
-  }))
+const INVOICE_KPI_STATES = [
+  { id: 'draft', icon: 'i-lucide-file-pen', tone: 'warning' },
+  { id: 'posted', icon: 'i-lucide-file-check', tone: 'success' },
+  { id: 'cancel', icon: 'i-lucide-file-x', tone: 'neutral' },
+] as const
+
+/** The strip above a list: one tile per state, linked to the list's own filters. */
+export function invoiceKpiTiles(moveType: FinanceMoveType, filters: InvoiceListFilters, counts: InvoiceKpiCounts, t: (key: string) => string): KpiTile[] {
+  return financeListKpiTiles(
+    financeStateTiles(INVOICE_KPI_STATES, 'i-lucide-files', id => t(`financeDocuments.kpi.${id}`)),
+    counts,
+    INVOICE_KINDS[moveType].listPath,
+    { q: filters.q, partner_id: filters.partnerId ?? undefined, date_from: filters.dateFrom ?? undefined, date_to: filters.dateTo ?? undefined },
+  )
 }

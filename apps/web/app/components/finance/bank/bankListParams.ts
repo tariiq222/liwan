@@ -1,5 +1,7 @@
+import { kpiLink } from '@liwan/ui/app/utils/kpiLink'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 import { queryDay, queryPositiveInt } from '../../../utils/routeQuery'
+import { BANK_STATEMENTS_PATH } from './bankModel'
 
 export const BANK_PAGE_SIZE = 25
 
@@ -55,8 +57,18 @@ export function bankKpiParams(filters: BankListFilters | null): BankListParams {
 
 export type BankKpiId = 'all' | 'filtered'
 
-/** The strip above the list: every statement, and (only while a filter applies) the ones the filters keep. */
-export function bankKpiTiles(counts: Record<BankKpiId, number | undefined>, filtered: boolean, label: (id: BankKpiId) => string): KpiTile[] {
-  const ids: BankKpiId[] = filtered ? ['all', 'filtered'] : ['all']
-  return ids.map(id => ({ id, label: label(id), value: counts[id] ?? null, icon: id === 'all' ? 'i-lucide-landmark' : 'i-lucide-list-filter', tone: 'neutral' }))
+/**
+ * The strip above the list: every statement linked to the list without the filters, and (only while a filter applies)
+ * the statements the filters keep, linked to the list with them and clearing back to all statements.
+ */
+export function bankKpiTiles(filters: BankListFilters, counts: Record<BankKpiId, number | null | undefined>, label: (id: BankKpiId) => string): KpiTile[] {
+  const tiles: KpiTile[] = [
+    { id: 'all', label: label('all'), value: counts.all ?? null, icon: 'i-lucide-landmark', tone: 'neutral', to: BANK_STATEMENTS_PATH },
+  ]
+  if (bankActiveFilterCount(filters) > 0) {
+    const kept = kpiLink(BANK_STATEMENTS_PATH, { journal_id: filters.journalId ?? undefined, date_from: filters.dateFrom ?? undefined, date_to: filters.dateTo ?? undefined })
+    tiles.push({ id: 'filtered', label: label('filtered'), value: counts.filtered ?? null, icon: 'i-lucide-list-filter', tone: 'neutral', to: kept, clearTo: BANK_STATEMENTS_PATH })
+  }
+  return tiles
 }
+

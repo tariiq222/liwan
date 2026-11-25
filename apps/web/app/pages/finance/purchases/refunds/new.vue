@@ -8,7 +8,12 @@ const page = useInvoiceCreatePage('in_refund')
 </script>
 
 <template>
-  <SharedListPage v-bind="page.list"><InvoiceList move-type="in_refund" background /></SharedListPage>
+  <SharedListPage v-bind="page.list.header">
+    <template v-if="page.list.allowed" #kpis>
+      <SharedKpiStrip v-if="page.list.kpis.shown && !page.list.kpis.error" :tiles="page.list.kpis.tiles" :loading="page.list.kpis.loading" :label="page.list.kpis.label" data-testid="finance-invoice-kpis" />
+    </template>
+    <InvoiceList move-type="in_refund" background />
+  </SharedListPage>
   <SharedCreatePanel size="wide" :title="page.title" :back-to="page.backTo">
     <InvoiceForm v-if="page.allowed" move-type="in_refund" :back-to="page.backTo" @saved="page.saved" />
     <SharedForbiddenState v-else :description="t('financeDocuments.forbidden')" />

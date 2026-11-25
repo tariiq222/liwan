@@ -1,6 +1,8 @@
 import type { FinanceBudget } from '@liwan/contracts'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
+import { financeListKpiTiles, financeStateTiles } from '../../../utils/financeKpis'
 import { queryPositiveInt, queryText } from '../../../utils/routeQuery'
+import { BUDGETS_PATH } from './budgetPaths'
 
 export const BUDGET_PAGE_SIZE = 25
 export const BUDGET_STATES = ['draft', 'confirmed', 'cancelled'] as const satisfies readonly FinanceBudget['state'][]
@@ -53,16 +55,18 @@ export function budgetSummaryParams(filters: BudgetListFilters) {
 export type BudgetKpiId = 'total' | BudgetStateFilter
 export type BudgetKpiCounts = Record<BudgetKpiId, number | undefined>
 
-const KPI_TONE = { total: 'neutral', draft: 'warning', confirmed: 'success', cancelled: 'neutral' } as const
-const KPI_ICON = { total: 'i-lucide-target', draft: 'i-lucide-file-pen', confirmed: 'i-lucide-circle-check', cancelled: 'i-lucide-circle-x' } as const
+const BUDGET_KPI_STATES = [
+  { id: 'draft', icon: 'i-lucide-file-pen', tone: 'warning' },
+  { id: 'confirmed', icon: 'i-lucide-circle-check', tone: 'success' },
+  { id: 'cancelled', icon: 'i-lucide-circle-x', tone: 'neutral' },
+] as const
 
-/** The strip above the list: the counts the server reports for the list's filters, one tile per state. */
-export function budgetKpiTiles(counts: BudgetKpiCounts, label: (id: BudgetKpiId) => string): KpiTile[] {
-  return (['total', ...BUDGET_STATES] as const).map(id => ({
-    id,
-    label: label(id),
-    value: counts[id] ?? null,
-    icon: KPI_ICON[id],
-    tone: KPI_TONE[id],
-  }))
+/** The strip above the list: one tile per state, linked to the list's own filters. */
+export function budgetKpiTiles(filters: BudgetListFilters, counts: BudgetKpiCounts, t: (key: string) => string): KpiTile[] {
+  return financeListKpiTiles(
+    financeStateTiles(BUDGET_KPI_STATES, 'i-lucide-target', id => t(`financeBudgets.kpi.${id}`)),
+    counts,
+    BUDGETS_PATH,
+    { q: filters.q },
+  )
 }

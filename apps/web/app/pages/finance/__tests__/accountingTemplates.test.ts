@@ -33,11 +33,10 @@ const locale = (code: string) => JSON.parse(readFileSync(resolve(locales, `${cod
 
 describe('the finance accounting pages stay on their templates', () => {
   it.each([
-    ['pages/finance/accounting/entries/index.vue', ['<SharedListPage', 'v-bind="page"']],
-    ['components/finance/accounting/useEntryListPage.ts', ['kpiToggle: true', "kind: 'count'", "can('finance.entries.manage')", 'returnTo']],
-    ['components/finance/accounting/EntryList.vue', ['<SharedListCard', 'embedded', '<SharedFilterBar', '<SharedDateField', '<SharedDataTable', ' bare', '<SharedRecordNumber', '#mobile-row', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', '<EntryKpiStrip', 'useKpiVisibility']],
-    ['components/finance/accounting/EntryKpiStrip.vue', ['<SharedKpiStrip']],
-    ['pages/finance/accounting/entries/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<EntryList background']],
+    ['pages/finance/accounting/entries/index.vue', ['<SharedListPage', 'v-bind="page.header"', '#kpis', '<SharedKpiStrip', 'data-testid="finance-entry-kpis"']],
+    ['components/finance/accounting/useEntryListPage.ts', ['useKpiVisibility', "kind: 'count'", "can('finance.entries.manage')", 'returnTo']],
+    ['components/finance/accounting/EntryList.vue', ['<SharedListCard', 'embedded', '<SharedFilterBar', '<SharedDateField', '<SharedDataTable', ' bare', '<SharedRecordNumber', '#mobile-row', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState']],
+    ['pages/finance/accounting/entries/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<SharedKpiStrip', '<EntryList background']],
     ['components/finance/accounting/EntryForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', 'color="error" variant="subtle"', ':error=']],
     ['pages/finance/accounting/entries/[id].vue', ['<SharedRecordPage', '#aside', '#actions']],
     ['components/finance/accounting/useEntryRecord.ts', ["kind: 'category'", 'statusTag(', 'readFinanceActions(']],

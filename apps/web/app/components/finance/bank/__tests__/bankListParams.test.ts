@@ -28,10 +28,17 @@ describe('bank list params', () => {
     expect(bankKpiParams(null)).toEqual({ limit: 1, offset: 0 })
   })
 
-  it('shows the filtered tile only while a filter applies', () => {
-    const label = (id: string) => id
-    expect(bankKpiTiles({ all: 6, filtered: 2 }, false, label).map(tile => tile.id)).toEqual(['all'])
-    expect(bankKpiTiles({ all: 6, filtered: 2 }, true, label).map(tile => [tile.id, tile.value])).toEqual([['all', 6], ['filtered', 2]])
-    expect(bankKpiTiles({ all: undefined, filtered: undefined }, false, label)[0]?.value).toBeNull()
+  it('shows the filtered tile only while a filter applies, linking it back to all statements', () => {
+    const all = bankFiltersFromQuery({})
+    const allTiles = bankKpiTiles(all, { all: 6, filtered: undefined }, id => id)
+    expect(allTiles.map(tile => [tile.id, tile.value, tile.to])).toEqual([['all', 6, '/finance/bank/statements']])
+    expect(allTiles[0]).not.toHaveProperty('clearTo')
+
+    const filters = bankFiltersFromQuery({ journal_id: '3', date_from: '2026-01-01' })
+    const tiles = bankKpiTiles(filters, { all: 6, filtered: 2 }, id => id)
+    expect(tiles.map(tile => [tile.id, tile.value])).toEqual([['all', 6], ['filtered', 2]])
+    expect(tiles[0]).toMatchObject({ to: '/finance/bank/statements' })
+    expect(tiles[1]).toMatchObject({ to: '/finance/bank/statements?journal_id=3&date_from=2026-01-01', clearTo: '/finance/bank/statements' })
+    expect(bankKpiTiles(filters, { all: undefined, filtered: undefined }, id => id)[0]?.value).toBeNull()
   })
 })

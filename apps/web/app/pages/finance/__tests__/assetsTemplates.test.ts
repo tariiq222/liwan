@@ -31,12 +31,11 @@ const locale = (code: string) => JSON.parse(readFileSync(resolve(locales, `${cod
 
 describe('the finance assets pages stay on their templates', () => {
   it.each([
-    ['pages/finance/assets/index.vue', ['<SharedListPage', 'v-bind="page"', '#actions', '<AssetComputeButton']],
-    ['components/finance/assets/useAssetListPage.ts', ['kpiToggle: true', "kind: 'count'", "can('finance.assets.manage')", 'returnTo']],
-    ['components/finance/assets/AssetList.vue', ['<SharedListCard', 'embedded', '<SharedFilterBar', '<SharedDataTable', ' bare', '<SharedRecordNumber', '#mobile-row', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', '<AssetKpiStrip', 'useKpiVisibility', '<AssetComputeSection']],
-    ['components/finance/assets/AssetKpiStrip.vue', ['<SharedKpiStrip']],
+    ['pages/finance/assets/index.vue', ['<SharedListPage', 'v-bind="page.header"', '#kpis', '<SharedKpiStrip', 'data-testid="finance-asset-kpis"', '#actions', '<AssetComputeButton']],
+    ['components/finance/assets/useAssetListPage.ts', ['useKpiVisibility', "kind: 'count'", "can('finance.assets.manage')", 'returnTo']],
+    ['components/finance/assets/AssetList.vue', ['<SharedListCard', 'embedded', '<SharedFilterBar', '<SharedDataTable', ' bare', '<SharedRecordNumber', '#mobile-row', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', '<AssetComputeSection']],
     ['components/finance/assets/AssetComputeSection.vue', ['<SharedInlineConfirm', '<SharedDateField', '<UAlert']],
-    ['pages/finance/assets/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<AssetList background']],
+    ['pages/finance/assets/new.vue', ['<SharedCreatePanel', '<SharedForbiddenState', '<SharedKpiStrip', '<AssetList background']],
     ['components/finance/assets/AssetForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', '<SharedDateField', '<PartnerPicker', 'color="error" variant="subtle"', ':error=']],
     ['pages/finance/assets/[id].vue', ['<SharedRecordPage', '#aside', '#actions']],
     ['components/finance/assets/useAssetRecord.ts', ["kind: 'category'", 'statusTag(', 'readFinanceActions(']],

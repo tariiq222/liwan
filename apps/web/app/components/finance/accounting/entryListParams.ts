@@ -1,6 +1,8 @@
 import type { JournalEntry } from '@liwan/contracts'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
+import { financeListKpiTiles, financeStateTiles } from '../../../utils/financeKpis'
 import { queryDay, queryPositiveInt, queryText } from '../../../utils/routeQuery'
+import { ENTRIES_PATH } from './entryPaths'
 
 export const ENTRY_PAGE_SIZE = 25
 export const ENTRY_STATES = ['draft', 'posted', 'cancel'] as const satisfies readonly JournalEntry['state'][]
@@ -68,16 +70,18 @@ export function entrySummaryParams(filters: EntryListFilters) {
 export type EntryKpiId = 'total' | EntryStateFilter
 export type EntryKpiCounts = Record<EntryKpiId, number | undefined>
 
-const KPI_TONE = { total: 'neutral', draft: 'warning', posted: 'success', cancel: 'neutral' } as const
-const KPI_ICON = { total: 'i-lucide-notebook-pen', draft: 'i-lucide-file-pen', posted: 'i-lucide-file-check', cancel: 'i-lucide-file-x' } as const
+const ENTRY_KPI_STATES = [
+  { id: 'draft', icon: 'i-lucide-file-pen', tone: 'warning' },
+  { id: 'posted', icon: 'i-lucide-file-check', tone: 'success' },
+  { id: 'cancel', icon: 'i-lucide-file-x', tone: 'neutral' },
+] as const
 
-/** The strip above the list: the counts the server reports for the list's filters, one tile per state. */
-export function entryKpiTiles(counts: EntryKpiCounts, label: (id: EntryKpiId) => string): KpiTile[] {
-  return (['total', ...ENTRY_STATES] as const).map(id => ({
-    id,
-    label: label(id),
-    value: counts[id] ?? null,
-    icon: KPI_ICON[id],
-    tone: KPI_TONE[id],
-  }))
+/** The strip above the list: one tile per state, linked to the list's own filters. */
+export function entryKpiTiles(filters: EntryListFilters, counts: EntryKpiCounts, t: (key: string) => string): KpiTile[] {
+  return financeListKpiTiles(
+    financeStateTiles(ENTRY_KPI_STATES, 'i-lucide-notebook-pen', id => t(`financeAccounting.kpi.${id}`)),
+    counts,
+    ENTRIES_PATH,
+    { q: filters.q, journal_id: filters.journalId ?? undefined, date_from: filters.dateFrom ?? undefined, date_to: filters.dateTo ?? undefined },
+  )
 }

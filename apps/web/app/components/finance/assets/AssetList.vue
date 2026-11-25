@@ -7,7 +7,6 @@ import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import Money from '../invoices/Money.vue'
 import { listReturnTo, useListLocation } from '../invoices/listLocation'
 import AssetComputeSection from './AssetComputeSection.vue'
-import AssetKpiStrip from './AssetKpiStrip.vue'
 import { ASSET_PAGE_SIZE, ASSET_STATES, assetActiveFilterCount, assetFiltersFromQuery, assetListParams } from './assetListParams'
 import { ASSETS_PATH, assetRecordPath } from './assetPaths'
 import { ASSET_STATE_TONE } from './assetTones'
@@ -19,7 +18,6 @@ import type { AssetComputeState } from './useAssetCompute'
 const props = defineProps<{ background?: boolean; compute?: AssetComputeState }>()
 const { t } = useI18n()
 const { can } = useAccess()
-const { shown: kpisShown } = useKpiVisibility()
 const allowed = computed(() => can('finance.assets.read'))
 const { hydrated, filterQuery, search, update } = useRouteListFilters({
   background: () => props.background,
@@ -71,7 +69,6 @@ const dash = computed(() => t('app.notAvailable'))
   <SharedForbiddenState v-if="!allowed" :description="t('financeAssets.forbidden')" />
   <div v-else class="liwan-page-stack">
     <AssetComputeSection v-if="compute" :compute="compute" />
-    <AssetKpiStrip v-if="kpisShown" :filters="filters" />
     <SharedListCard>
       <template #filters>
         <SharedFilterBar embedded class="w-full" :active-count="activeCount" :default-open="!!filters.state || !!filters.profileId" :disabled="!hydrated" @clear="clearFilters">
