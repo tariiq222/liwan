@@ -259,10 +259,16 @@
     "catalog": {
       "tiers": {
         "core": "Core",
+        "pmo": "Projects",
         "projects": "Projects",
         "people": "People",
-        "pmo": "Projects",
-        "hr": "People",
+        "hr": "Human resources",
+        "crm": "CRM",
+        "inbox": "Customer messages",
+        "finance": "Finance",
+        "appointments": "Appointments",
+        "sales": "Sales",
+        "helpdesk": "Support desk",
         "messaging": "Messaging"
       },
       "tabs": "Liwan applications sections",

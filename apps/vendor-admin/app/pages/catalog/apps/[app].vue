@@ -180,17 +180,17 @@ const retry = () => Promise.all([refresh(), refreshUsage()])
           <span class="grid size-8 shrink-0 place-items-center rounded-control bg-elevated text-muted" aria-hidden="true">
             <UIcon name="i-lucide-tag" class="size-4" />
           </span>
-          <span class="min-w-0 flex-1">
-            <span dir="ltr" class="block font-medium tabular-nums text-highlighted" data-testid="catalog-app-history-link">{{ item.entry.version }}</span>
-            <span class="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
+          <div class="min-w-0 flex-1">
+            <div dir="ltr" class="font-medium tabular-nums text-highlighted" data-testid="catalog-app-history-link">{{ item.entry.version }}</div>
+            <div class="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted">
               <UIcon name="i-lucide-calendar" class="size-3.5 shrink-0" aria-hidden="true" />
               <span>{{ formatBusinessDate(item.entry.created_at) }}</span>
               <template v-if="!item.diff"><span aria-hidden="true">·</span><span data-testid="catalog-app-history-first">{{ t('vendor.catalog.timeline.firstImport') }}</span></template>
               <template v-else-if="!item.appChanges"><span aria-hidden="true">·</span><span>{{ t('vendor.catalog.diff.none') }}</span></template>
               <template v-else-if="item.diffInline"><span aria-hidden="true">·</span><VendorCatalogDiffDetail :diff="item.diff" :app-id="appId" class="min-w-0" /></template>
-            </span>
+            </div>
             <VendorCatalogDiffDetail v-if="item.diff && item.appChanges && !item.diffInline" :diff="item.diff" :app-id="appId" class="mt-2" />
-          </span>
+          </div>
           <SharedStatusBadge size="sm" :tone="lifecycleBadge(item.entry).tone" :label="t(lifecycleBadge(item.entry).labelKey)" />
           <UIcon name="i-lucide-chevron-left" class="size-4 shrink-0 text-muted ltr:rotate-180" aria-hidden="true" />
         </NuxtLink>
