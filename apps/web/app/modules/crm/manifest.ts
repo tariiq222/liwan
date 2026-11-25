@@ -3,15 +3,13 @@ import { crmBellTitleInApp } from '../../utils/crmBell'
 import type { AppManifest } from '../types'
 import { crmAppCard } from './appCard'
 import { opportunitiesSearch } from './search'
-
-// The package sub-feature the server also requires for imports (`controllers/imports.py`), on top of `crm.leads.import`.
-// The create command carries no key of its own: the palette gates it by its target route's rule.
-const IMPORT_FEATURE = 'crm.import'
+import { crmSidebar, IMPORT_FEATURE } from './sidebar'
 
 const manifest: AppManifest = {
   id: 'crm',
   feature: 'crm.enabled',
   routePrefixes: ['/crm'],
+  sidebar: crmSidebar,
   // An opportunity lists its quotations (the Sales bridge): a quotation opened from it goes back to it.
   recordListSources: [{ pattern: /^\/crm\/opportunities\/[1-9]\d*$/, capability: 'crm.leads.read' }],
   rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 85 }],

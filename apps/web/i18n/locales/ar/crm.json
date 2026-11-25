@@ -180,6 +180,13 @@
     "opportunities": {
       "createManualOnly": "في التوزيع اليدوي ينشئ الفرص من يملك صلاحية الإسناد فقط.",
       "callAction": "اتصل بـ {name}",
+      "kpi": {
+        "label": "مؤشرات الفرص",
+        "open": "مفتوحة",
+        "won": "مُباعة",
+        "lost": "خاسرة",
+        "due": "متابعة مستحقة"
+      },
       "list": {
         "new": "إضافة {term}",
         "search": "ابحث بالاسم أو الهاتف أو البريد",
@@ -279,7 +286,8 @@
         "probabilitySaved": "تم حفظ الاحتمال",
         "customFieldsSaved": "تم حفظ الحقول",
         "notes": "الملاحظات",
-        "wonAmount": "قيمة البيع"
+        "wonAmount": "قيمة البيع",
+        "expectedAmount": "القيمة المتوقعة"
       },
       "call": {
         "title": "تسجيل اتصال",

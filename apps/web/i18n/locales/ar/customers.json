@@ -21,6 +21,12 @@
     "restoreHint": "يعود العميل إلى القائمة.",
     "rowActions": "إجراءات العميل {name}",
     "sharedByAllBranches": "مشترك بين كل الفروع",
+    "kpi": {
+      "label": "مؤشرات العملاء",
+      "total": "الإجمالي",
+      "active": "النشطون",
+      "archived": "المؤرشفون"
+    },
     "columns": {
       "name": "الاسم",
       "phone": "الجوال",

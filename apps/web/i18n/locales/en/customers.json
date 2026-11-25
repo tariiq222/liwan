@@ -21,6 +21,12 @@
     "restoreHint": "The customer returns to the list.",
     "rowActions": "Actions for customer {name}",
     "sharedByAllBranches": "Shared by every branch",
+    "kpi": {
+      "label": "Customer metrics",
+      "total": "Total",
+      "active": "Active",
+      "archived": "Archived"
+    },
     "columns": {
       "name": "Name",
       "phone": "Phone",

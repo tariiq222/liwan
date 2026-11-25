@@ -1,4 +1,5 @@
 import type { AppManifest } from '../types'
+import { customersSidebar } from './sidebar'
 
 // Customers is a shared service with a directory of its own and a settings page. The tenant does not buy it: the server
 // derives `customers.enabled` from the applications that use customers and carries it in the platform features while
@@ -8,6 +9,7 @@ const manifest: AppManifest = {
   id: 'customers',
   feature: 'customers.enabled',
   routePrefixes: ['/customers'],
+  sidebar: customersSidebar,
   appCard: { category: 'sales', plan: 'included', surface: 'mint' },
   rail: [{ id: 'customers', labelKey: 'customers.title', icon: 'i-lucide-contact-round', to: '/customers', order: 88 }],
   nav: [{ to: '/customers', labelKey: 'customers.title', icon: 'i-lucide-contact-round', shortcut: '4', capability: 'customers.read' }],

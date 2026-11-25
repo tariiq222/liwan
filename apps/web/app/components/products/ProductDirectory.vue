@@ -10,6 +10,7 @@ import ProductTable from './ProductTable.vue'
 // `background` is the list behind the create panel: it reads its filters from the panel's returnTo. The page owns the
 // SharedListPage shell.
 const props = defineProps<{ background?: boolean }>()
+const emit = defineEmits<{ 'update:total': [value: number | undefined] }>()
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
@@ -19,6 +20,9 @@ const state = computed(() => parseProductListQuery(filterQuery.value))
 const query = useProducts(state)
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+// A placeholder keeps the previous filter's rows while the next page loads, so its total is not this list's count.
+const kpiTotal = computed(() => (query.isPlaceholderData.value ? undefined : query.data.value?.total))
+watch(kpiTotal, value => emit('update:total', value), { immediate: true })
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PRODUCT_PAGE_SIZE)))
 useLastPageClamp({ page: () => state.value.page, total: () => query.data.value?.total, pageSize: PRODUCT_PAGE_SIZE })
 const activeCount = computed(() => Number(Boolean(state.value.q)) + Number(state.value.type !== null))

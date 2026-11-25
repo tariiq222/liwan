@@ -14,7 +14,7 @@ const meta = {
   component: SalesOrderDirectory,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/sales/index.vue:17', 'بطاقة المبيعات: البحث، المصدر، «مستنداتي فقط» والمرحلة والصفحة، وكلها في عنوان الصفحة.'),
+    ...storyContext('apps/web/app/pages/sales/index.vue:27', 'بطاقة المبيعات: البحث، المصدر، «مستنداتي فقط» والمرحلة والصفحة، وكلها في عنوان الصفحة.'),
     msw: { handlers: { api: [reader] } },
   },
 } satisfies Meta<typeof SalesOrderDirectory>

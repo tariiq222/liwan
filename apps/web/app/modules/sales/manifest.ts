@@ -1,4 +1,5 @@
 import type { AppManifest } from '../types'
+import { salesSidebar } from './sidebar'
 
 // Sales: staff quotations and orders, and the online orders other channels made (read-only here). The tenant buys it as
 // its own application behind `sales.enabled`. Writing a quotation is `sales.quotations.manage`; the record page shows
@@ -7,6 +8,7 @@ const manifest: AppManifest = {
   id: 'sales',
   feature: 'sales.enabled',
   routePrefixes: ['/sales'],
+  sidebar: salesSidebar,
   // An order lists its invoices (the Finance bridge): an invoice opened from it goes back to it.
   recordListSources: [{ pattern: /^\/sales\/[1-9]\d*$/, capability: 'sales.read' }],
   appCard: { category: 'sales', plan: 'addon', surface: 'sand' },

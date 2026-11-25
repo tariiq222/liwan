@@ -7,7 +7,7 @@ const item = opportunities[0]!
 const meta = {
   title: 'CRM/CrmOpportunityMoveSheet',
   component: CrmOpportunityMoveSheet,
-  parameters: storyContext('apps/web/app/components/crm/opportunity/CrmOpportunityList.vue:109', 'شيت نقل بطاقة في لوحة المراحل: يسأل الحقول المطلوبة فقط ثم يؤكد النقل.'),
+  parameters: storyContext('apps/web/app/components/crm/opportunity/CrmOpportunityList.vue:111', 'شيت نقل بطاقة في لوحة المراحل: يسأل الحقول المطلوبة فقط ثم يؤكد النقل.'),
   args: { stages, packages, lostReasons, move: { item, to: stages[3]!, revert: () => undefined } },
 } satisfies Meta<typeof CrmOpportunityMoveSheet>
 export default meta

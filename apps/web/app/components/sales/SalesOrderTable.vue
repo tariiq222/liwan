@@ -12,12 +12,12 @@ const emit = defineEmits<{ retry: [] }>()
 const { t, locale } = useI18n()
 
 const NUMBER_LINK = 'block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-function column(id: string, header: string, width: string, fit = true): TableColumn<SalesOrderListItem> {
+function column(id: string, header: string, width: string, fit = true, title = false): TableColumn<SalesOrderListItem> {
   const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<SalesOrderListItem>['meta'] }
+  return { id, header, meta: { ...(title ? { title: true } : {}), class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<SalesOrderListItem>['meta'] }
 }
 const columns = computed<TableColumn<SalesOrderListItem>[]>(() => [
-  column('number', t('sales.columns.number'), 'w-[136px] min-w-[136px]'),
+  column('number', t('sales.columns.number'), 'w-[136px] min-w-[136px]', true, true),
   column('customer', t('sales.columns.customer'), 'min-w-[200px]', false),
   column('salesperson', t('sales.columns.salesperson'), 'w-[160px] min-w-[160px]', false),
   column('date', t('sales.columns.date'), 'w-[120px] min-w-[120px]'),
