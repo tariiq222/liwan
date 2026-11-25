@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import manifest from '../manifest'
-import { crmSidebar } from '../sidebar'
+import { crmSidebar, IMPORT_FEATURE } from '../sidebar'
 import type { AppSearchApi, AppSidebarRoute } from '../../types'
 
 const route = (path: string, query: Record<string, unknown> = {}): AppSidebarRoute => ({ path, query })
@@ -39,5 +39,6 @@ describe('the CRM sidebar menu', () => {
     expect(api).toHaveBeenNthCalledWith(2, '/api/v1/crm/imports', expect.objectContaining({ query: { limit: 1 } }))
     expect(opportunities!.queryKey.slice(0, 1)).toEqual(['crm'])
     expect(imports!.queryKey.slice(0, 1)).toEqual(['crm'])
+    expect(imports!.feature).toBe(IMPORT_FEATURE)
   })
 })

@@ -3,6 +3,7 @@ import type { AppManifest } from '../types'
 import { operationBellHref, operationBellTitleInApp } from './bell'
 import { operationPersonalEntry } from './personal'
 import { pendingReviewAttention } from './attention'
+import { operationsSidebar } from './sidebar'
 const manifest: AppManifest = {
   id: 'operations', feature: null, routePrefixes: ['/operations', '/account/requests'],
   appCard: { category: 'team', plan: 'included', surface: 'sand' },
@@ -22,6 +23,7 @@ const manifest: AppManifest = {
     { id: 'operation-pending', labelKey: 'operations.nav.pending', icon: 'i-lucide-list-checks', to: '/operations/pending', capability: 'operations.requests.read' },
     { id: 'operation-monitoring', labelKey: 'operations.nav.monitoring', icon: 'i-lucide-eye', to: '/operations/monitoring', capability: 'operations.monitoring.read' },
   ],
+  sidebar: operationsSidebar,
   landing: [
     { path: '/operations', capability: 'operations.requests.read' },
     { path: '/operations/pending', capability: 'operations.requests.read' },

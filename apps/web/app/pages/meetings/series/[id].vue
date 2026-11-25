@@ -279,9 +279,7 @@ function setHistoryPage(page: number) {
         <UButton color="neutral" variant="outline" square icon="i-lucide-ellipsis" :aria-label="t('app.actions')" :disabled="!hydrated" data-testid="meeting-series-more-actions" />
       </UDropdownMenu>
     </template>
-    <template #tabs>
-      <SharedRouteTabs data-testid="meeting-series-tabs" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
-    </template>
+    <template #tabs><SharedRouteTabs data-testid="meeting-series-tabs" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" /></template>
 
     <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">
       <UAlert v-if="endError" role="alert" color="error" variant="subtle" :title="endError" />
@@ -412,8 +410,8 @@ function setHistoryPage(page: number) {
       </section>
     </div>
 
-    <template v-if="query.data.value" #summary>
-      <SharedPropertiesPanel>
+    <template v-if="query.data.value" #aside>
+      <SharedPropertiesPanel :title="t('states.details')" data-testid="meeting-series-properties">
         <SharedPropertyRow :label="t('meetingsUi.project')" :value="query.data.value.project?.name" />
         <SharedPropertyRow :label="t('meetingsUi.secretary')" :value="query.data.value.secretary?.name" />
         <SharedPropertyRow :label="t('meetingsUi.location')" :value="query.data.value.location" />

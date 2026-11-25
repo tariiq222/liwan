@@ -18,6 +18,7 @@ NAMING_KEY = b'naming-key-for-tests'
 REQUEST_A = '687674dc-5789-4a99-b151-12d69f010cc3'
 REQUEST_B = '5f1c6f9e-0d68-4a5b-9d0c-2a52d3a1c001'
 KEY_DELAY = 420  # a new OCI key works after about 7 minutes
+POLICY_VERSION_DATE = '2026-11-25'
 ENV = {'OCI_TENANCY_OCID': TENANCY, 'OCI_USER_OCID': USER, 'OCI_FINGERPRINT': FINGERPRINT, 'OCI_COMPARTMENT_OCID': COMPARTMENT,
        'OCI_REGION': 'me-jeddah-1', 'OCI_NAMESPACE': 'tenantns'}
 
@@ -35,6 +36,9 @@ class FakeOci:
         self.objects = {}
         self.uploads = {}
         self.created = []
+        self.user_payloads = []  # the body of every `createUser`, built by the same function the real call sends
+        self.policy_compartments = []  # the compartment of every policy lookup or creation
+        self.policy_updates = []  # the body of every policy update
         self.fail = None  # an OciError code raised by every call
         self.deny_all = False  # the service refuses every key, whatever the policies say
 
@@ -94,11 +98,15 @@ class FakeOci:
         return self._by_name(self.users, name)
 
     def create_user(self, name):
+        self.user_payloads.append(oci.user_payload(TENANCY, name))
         user = {'id': 'u-' + name, 'name': name}
         self.users[user['id']] = user
         self.keys[user['id']] = []
         self.created.append(('user', name))
         return user
+
+    def set_capabilities(self, user_id):
+        self.created.append(('capabilities', user_id))
 
     def find_group(self, name):
         return self._by_name(self.groups, name)
@@ -145,15 +153,20 @@ class FakeOci:
                 del self.policies[name]
                 self.created.append(('policy_delete', policy_id))
 
-    def find_policy(self, name):
+    def find_policy(self, compartment, name):
+        self.policy_compartments.append(compartment)
         return self._by_name(self.policies, name)
 
-    def create_policy(self, name, statements):
-        self.policies[name] = {'id': 'p-' + name, 'name': name, 'statements': list(statements)}
+    def create_policy(self, compartment, name, statements):
+        self.policy_compartments.append(compartment)
+        # OCI answers a null version date for a policy created without one, and the update then carries an empty string.
+        self.policies[name] = {'id': 'p-' + name, 'name': name, 'compartmentId': compartment,
+                               'statements': list(statements), 'versionDate': None}
         self.created.append(('policy', name))
         return self.policies[name]
 
-    def update_policy(self, policy_id, statements):
+    def update_policy(self, policy_id, statements, version_date):
+        self.policy_updates.append({'statements': list(statements), 'versionDate': version_date})
         next(p for p in self.policies.values() if p['id'] == policy_id)['statements'] = list(statements)
         self.created.append(('policy_update', policy_id))
 
@@ -248,10 +261,27 @@ class EnsureTest(unittest.TestCase):
         self.assertEqual(name, result['bucket'])
         self.assertEqual('https://tenantns.compat.objectstorage.me-jeddah-1.oraclecloud.com', result['endpointUrl'])
         self.assertEqual([], result['keys'])
-        self.assertEqual({'bucket', 'user', 'group', 'member', 'policy'}, {kind for kind, _ in self.api.created})
+        self.assertEqual({'bucket', 'user', 'capabilities', 'group', 'member', 'policy'}, {kind for kind, _ in self.api.created})
         statements = self.api.policies[name]['statements']
         self.assertTrue(all(f"target.bucket.name = '{name}'" in s and f'group {name}' in s for s in statements))
         self.assertTrue(any('read buckets' in s for s in statements) and any('manage objects' in s for s in statements))
+
+    def test_the_created_user_carries_an_email_derived_from_the_tenant_name(self):
+        # OCI refuses a user without an email (error.identity.user.primaryEmailNotSpecified), which this fake recorded as absent before.
+        handle(provisioner(self.api, self.clock), 'ensure')
+        name = oci.resource_name('acme', NAMING_KEY)
+        payload = self.api.user_payloads[0]
+        self.assertEqual(name, payload['name'])
+        self.assertEqual(f'{name}@{oci.USER_EMAIL_DOMAIN}', payload['email'])
+
+    def test_two_tenants_get_two_different_user_addresses(self):
+        prov = provisioner(self.api, self.clock)
+        handle(prov, 'ensure', 'acme')
+        handle(prov, 'ensure', 'other')
+        emails = [payload['email'] for payload in self.api.user_payloads]
+        self.assertEqual(2, len(emails))
+        self.assertEqual(len(emails), len(set(emails)))
+        self.assertTrue(all(email.endswith('@' + oci.USER_EMAIL_DOMAIN) for email in emails))
 
     def test_a_repeated_ensure_creates_nothing(self):
         prov = provisioner(self.api, self.clock)
@@ -264,9 +294,34 @@ class EnsureTest(unittest.TestCase):
         prov = provisioner(self.api, self.clock)
         handle(prov, 'ensure')
         policy = next(iter(self.api.policies.values()))
+        self.assertIsNone(policy['versionDate'])  # what OCI answers for a policy created without one
         policy['statements'] = ['Allow any-user to manage all-resources in tenancy']
         handle(prov, 'ensure')
+        # The refusal branch this test replaced made every policy created by this code unrepairable: the null version date has to travel
+        # as the empty string the service reads as "current behaviour".
         self.assertTrue(all('target.bucket.name' in s for s in policy['statements']))
+        self.assertEqual([{'statements': policy['statements'], 'versionDate': ''}], self.api.policy_updates)
+
+    def test_a_drifted_policy_that_carries_a_version_date_sends_it(self):
+        prov = provisioner(self.api, self.clock)
+        handle(prov, 'ensure')
+        policy = next(iter(self.api.policies.values()))
+        policy['versionDate'] = POLICY_VERSION_DATE
+        policy['statements'] = ['Allow any-user to manage all-resources in tenancy']
+        handle(prov, 'ensure')
+        self.assertEqual([{'statements': policy['statements'], 'versionDate': POLICY_VERSION_DATE}], self.api.policy_updates)
+
+    def test_a_new_user_gets_its_capabilities_restricted(self):
+        handle(provisioner(self.api, self.clock), 'ensure')
+        self.assertIn(('capabilities', 'u-' + oci.resource_name('acme', NAMING_KEY)), self.api.created)
+
+    def test_the_policy_is_created_and_found_in_the_storage_compartment(self):
+        prov = provisioner(self.api, self.clock)
+        handle(prov, 'ensure')
+        handle(prov, 'ensure')  # the second pass finds the policy the first one created
+        self.assertIn(('policy', oci.resource_name('acme', NAMING_KEY)), self.api.created)
+        self.assertTrue(self.api.policy_compartments)
+        self.assertEqual({COMPARTMENT}, set(self.api.policy_compartments))
 
     def test_the_fixed_policy_is_one_statement_set_for_every_tenant_and_makes_no_group(self):
         prov = provisioner(self.api, self.clock, 'fixed')
@@ -504,6 +559,49 @@ class RestTest(unittest.TestCase):
         self.assertIn('x-content-sha256: ' + headers['x-content-sha256'], self.signed[0])
         self.assertEqual('NoPublicAccess', json.loads(body)['publicAccessType'])
 
+    def test_create_user_sends_the_email_and_the_tenancy_compartment(self):
+        transport = FakeTransport(200, b'{"id":"u1"}')
+        self.rest(transport).create_user('lw-abc')
+        method, url, _, body = transport.calls[0]
+        self.assertEqual('POST', method)
+        self.assertTrue(url.endswith('/20160918/users'))
+        payload = json.loads(body)
+        self.assertEqual(TENANCY, payload['compartmentId'])
+        self.assertEqual('lw-abc@liwanos.com', payload['email'])
+
+    def test_set_capabilities_closes_every_way_in_but_customer_secret_keys(self):
+        transport = FakeTransport(200, b'{}')
+        self.rest(transport).set_capabilities('u1')
+        method, url, _, body = transport.calls[0]
+        self.assertEqual('PUT', method)
+        self.assertTrue(url.endswith('/20160918/users/u1/capabilities'))
+        # Every flag explicit: a later edit that re-opens one, or drops it back to a service default of true, fails here.
+        self.assertEqual({'canUseConsolePassword': False, 'canUseApiKeys': False, 'canUseAuthTokens': False,
+                          'canUseSmtpCredentials': False, 'canUseDBCredentials': False, 'canUseOAuth2ClientCredentials': False,
+                          'canUseCustomerSecretKeys': True}, json.loads(body))
+
+    def test_create_policy_sends_the_storage_compartment_not_the_tenancy(self):
+        transport = FakeTransport(200, b'{"id":"p1"}')
+        self.rest(transport).create_policy(COMPARTMENT, 'lw-p', ['Allow group x to read buckets in compartment id y'])
+        self.assertEqual(COMPARTMENT, json.loads(transport.calls[0][3])['compartmentId'])
+
+    def test_find_policy_asks_inside_the_storage_compartment_not_the_tenancy(self):
+        transport = FakeTransport(200, b'[]')
+        self.rest(transport).find_policy(COMPARTMENT, 'lw-p')
+        method, url, _, body = transport.calls[0]
+        self.assertEqual('GET', method)
+        self.assertIn('compartmentId=' + COMPARTMENT, url)
+        self.assertNotIn(TENANCY, url)
+        self.assertIsNone(body)
+
+    def test_update_policy_sends_the_version_date_with_the_statements(self):
+        transport = FakeTransport(200, b'{}')
+        self.rest(transport).update_policy('p1', ['s1'], '')
+        method, url, _, body = transport.calls[0]
+        self.assertEqual('PUT', method)
+        self.assertTrue(url.endswith('/20160918/policies/p1'))
+        self.assertEqual({'statements': ['s1'], 'versionDate': ''}, json.loads(body))
+
     def test_statuses_map_to_codes(self):
         for status, body, code in ((401, b'{}', 'oci_refused'), (403, b'{}', 'oci_refused'), (400, b'{"code":"LimitExceeded"}', 'limit_reached'),
                                    (429, b'{}', 'oci_unreachable'), (503, b'{}', 'oci_unreachable'), (400, b'{"code":"InvalidParameter"}', 'oci_refused')):
@@ -599,7 +697,7 @@ class RestTest(unittest.TestCase):
     def test_only_the_two_oracle_hosts_are_ever_called(self):
         transport = FakeTransport(200, b'[]')
         rest = self.rest(transport)
-        rest.find_user('x'), rest.find_group('x'), rest.find_policy('x'), rest.list_keys('u'), rest.get_bucket('ns', 'b')
+        rest.find_user('x'), rest.find_group('x'), rest.find_policy(COMPARTMENT, 'x'), rest.list_keys('u'), rest.get_bucket('ns', 'b')
         hosts = {call[1].split('/')[2] for call in transport.calls}
         self.assertEqual({'identity.me-jeddah-1.oci.oraclecloud.com', 'objectstorage.me-jeddah-1.oraclecloud.com'}, hosts)
 

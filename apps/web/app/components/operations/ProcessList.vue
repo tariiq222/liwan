@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { OperationProcess } from '@liwan/contracts'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useOperationProcesses } from '@/composables/operations/useOperations'
 import { operationListLocation, safeOperationReturnTo } from '@/composables/operations/forms'
 import { operationsStateTone } from '@/composables/operations/state'
@@ -28,21 +27,11 @@ function clearFilters() {
   void update({ q: undefined, page: undefined })
 }
 
-const WIDTH = {
-  number: 'w-[48px] min-w-[48px] px-2',
-  title: 'min-w-[240px]',
-  stages: 'w-[144px] min-w-[144px]',
-  state: 'w-[144px] min-w-[144px]',
-}
-function column(id: string, header: TableColumn<OperationProcess>['header'], width: string, fit = false): TableColumn<OperationProcess> {
-  const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<OperationProcess>['meta'] }
-}
+// Reading order: the title (strongest text) with its muted record number below, then stage count and state.
 const columns = computed<TableColumn<OperationProcess>[]>(() => [
-  column('record_number', () => recordNumberHeader(t), WIDTH.number, true),
-  column('name', t('operations.name'), WIDTH.title),
-  column('stages', t('operations.stages'), WIDTH.stages, true),
-  column('state', t('operations.state'), WIDTH.state, true),
+  { accessorKey: 'name', header: t('operations.name'), meta: { title: true, class: { th: 'min-w-64', td: 'max-w-0' } } },
+  { id: 'stages', header: t('operations.stages'), meta: { class: { th: 'w-36 text-start', td: 'w-36 whitespace-nowrap' } } },
+  { accessorKey: 'state', header: t('operations.state'), meta: { class: { th: 'w-36 text-start', td: 'w-36 whitespace-nowrap' } } },
 ])
 </script>
 
@@ -51,27 +40,41 @@ const columns = computed<TableColumn<OperationProcess>[]>(() => [
   <SharedListCard v-else>
     <template #filters>
       <SharedFilterBar embedded class="w-full" :active-count="Number(!!committedSearch)" :disabled="!hydrated" @clear="clearFilters">
-        <template #search><form @submit.prevent="update({ q: search.trim() || undefined, page: undefined })"><UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('operations.searchProcesses')" :aria-label="t('operations.searchProcesses')" :disabled="!hydrated" /></form></template>
+        <template #search>
+          <form @submit.prevent="update({ q: search.trim() || undefined, page: undefined })">
+            <UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('operations.searchProcesses')" :aria-label="t('operations.searchProcesses')" :disabled="!hydrated" />
+          </form>
+        </template>
       </SharedFilterBar>
     </template>
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
-    <SharedEmptyState :icon="committedSearch ? 'i-lucide-filter-x' : 'i-lucide-workflow'" v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t(committedSearch ? 'app.noResults' : 'operations.emptyProcesses')" />
-    <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,568px)] [&_table]:table-fixed">
-      <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="processTo" :loading="query.isPending.value" :caption="t('operations.nav.processes')">
-        <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>
-        <template #name-cell="{ row }">
-          <NuxtLink :to="processTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name" @click.stop>{{ row.original.name }}</NuxtLink>
-        </template>
-        <template #stages-cell="{ row }"><span class="text-sm text-muted">{{ t('operations.stageCount', { count: row.original.steps.length }, row.original.steps.length) }}</span></template>
-        <template #state-cell="{ row }"><SharedStatusBadge :tone="operationsStateTone(row.original.state)" :label="t(`operations.states.${row.original.state}`)" /></template>
-        <template #mobile-row="{ row }">
-          <NuxtLink :to="processTo(row)" class="flex min-w-0 flex-col gap-2">
-            <span class="flex min-w-0 items-center gap-2"><SharedRecordNumber :value="row.id" /><span class="min-w-0 truncate font-semibold text-highlighted">{{ row.name }}</span></span>
-            <span class="flex items-center justify-between gap-2"><span class="text-sm text-muted">{{ t('operations.stageCount', { count: row.steps.length }, row.steps.length) }}</span><SharedStatusBadge :tone="operationsStateTone(row.state)" :label="t(`operations.states.${row.state}`)" /></span>
-          </NuxtLink>
-        </template>
-      </SharedDataTable>
-    </div>
+    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" :icon="committedSearch ? 'i-lucide-filter-x' : 'i-lucide-workflow'" class="m-(--liwan-card-pad-dense)" :title="t(committedSearch ? 'app.noResults' : 'operations.emptyProcesses')">
+      <template v-if="committedSearch" #action>
+        <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('filterCard.clear')" @click="clearFilters" />
+      </template>
+    </SharedEmptyState>
+    <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="processTo" :loading="query.isPending.value" :caption="t('operations.nav.processes')">
+      <template #name-cell="{ row }">
+        <NuxtLink :to="processTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name" @click.stop>{{ row.original.name }}</NuxtLink>
+        <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+          <SharedRecordNumber :value="row.original.id" />
+        </div>
+      </template>
+      <template #stages-cell="{ row }"><span class="text-sm text-muted">{{ t('operations.stageCount', { count: row.original.steps.length }, row.original.steps.length) }}</span></template>
+      <template #state-cell="{ row }"><SharedStatusBadge :tone="operationsStateTone(row.original.state)" :label="t(`operations.states.${row.original.state}`)" /></template>
+      <template #mobile-row="{ row }">
+        <NuxtLink :to="processTo(row)" class="grid min-w-0 gap-2 focus-visible:outline-none">
+          <div class="flex min-w-0 items-start justify-between gap-2">
+            <span class="min-w-0 break-words font-semibold text-highlighted">{{ row.name }}</span>
+            <SharedStatusBadge :tone="operationsStateTone(row.state)" :label="t(`operations.states.${row.state}`)" class="shrink-0" />
+          </div>
+          <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+            <SharedRecordNumber :value="row.id" />
+            <span>{{ t('operations.stageCount', { count: row.steps.length }, row.steps.length) }}</span>
+          </div>
+        </NuxtLink>
+      </template>
+    </SharedDataTable>
     <template v-if="!query.error.value && items.length" #footer>
       <SharedListFooter :count-label="t('operations.footer.results', { shown: items.length, total }, total)" :page="page" :pages="pages" :disabled="!hydrated || query.isFetching.value" @update:page="value => update({ page: String(value) })" />
     </template>

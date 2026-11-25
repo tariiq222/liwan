@@ -29,6 +29,7 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/meetings/index.vue', ['}), kpisShown)']],
     ['pages/meetings/series.vue', ['useMeetingSeriesKpis(kpisShown)']],
     ['pages/meetings/follow-up.vue', ['}), kpisShown)']],
+    ['pages/operations/self/index.vue', ['computed(() => allowed.value && kpisShown.value)']],
     ['pages/customers/index.vue', ['useCustomerKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
     ['pages/products/index.vue', ['useProductListKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
     ['pages/sales/index.vue', ['useSalesListKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],

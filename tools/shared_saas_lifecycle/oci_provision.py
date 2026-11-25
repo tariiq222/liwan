@@ -18,7 +18,10 @@ two files: the provisioning API key and the naming key. The naming key makes the
 (HMAC of the tenant id), so a repeated call finds what an earlier call created without any stored mapping.
 
 Calls are signed with the OCI HTTP signature scheme (RSA-SHA256). The signature is computed by the `openssl` binary of the
-image, so no Python dependency is added. Endpoint host names and IAM write semantics are not yet proven on the real account.
+image, so no Python dependency is added. The endpoint host names and every IAM write this module makes are proven on the real
+account: users, groups, policies in the storage compartment, customer secret keys, and the capabilities restriction verified
+live on 2026-11-25 (console password refused, customer secret keys allowed). The access rule of the shared `fixed` policy mode
+is the one thing still unproven there.
 """
 from __future__ import annotations
 
@@ -44,6 +47,9 @@ MAX_RESPONSE = 1 << 20
 HTTP_TIMEOUT = 30
 IAM_API = '/20160918'
 KEY_NAME_PREFIX = 'lw-'
+# OCI refuses an IAM user without an email (`error.identity.user.primaryEmailNotSpecified`). The address only has to be valid and unique
+# in the tenancy: the user signs API calls and nothing reads its mail, so the tenant's own `lw-` name is the local part.
+USER_EMAIL_DOMAIN = 'liwanos.com'
 FIXED_POLICY_NAME = 'lw-tenant-bucket-access'
 POLICY_MODES = ('per_tenant', 'fixed')
 OPERATIONS = ('ensure', 'issue', 'inspect', 'delete_key', 'drop')
@@ -94,6 +100,13 @@ def resource_name(tenant_id, naming_key):
     """`lw-` and 24 hex digits of HMAC-SHA256(naming key, tenant id): opaque, deterministic, valid for a bucket and an IAM name."""
     digest = hmac.new(naming_key, b'liwan-tenant-storage-v1:' + tenant_id.encode(), hashlib.sha256).hexdigest()
     return KEY_NAME_PREFIX + digest[:24]
+
+
+def user_payload(compartment, name):
+    """The body of one IAM `createUser`. The email is derived from the same `lw-` name, which is unique per tenant, so the address is
+    unique too without a per-tenant mailbox."""
+    return {'compartmentId': compartment, 'name': name, 'description': 'LiwanOS tenant storage',
+            'email': f'{name}@{USER_EMAIL_DOMAIN}'}
 
 
 def policy_statements(mode, compartment, bucket, group):
@@ -327,8 +340,16 @@ class OciRest:
         return self._find('users', self.config.tenancy, name)
 
     def create_user(self, name):
-        return self._identity('POST', '/users', payload={
-            'compartmentId': self.config.tenancy, 'name': name, 'description': 'LiwanOS tenant storage'})
+        return self._identity('POST', '/users', payload=user_payload(self.config.tenancy, name))
+
+    def set_capabilities(self, user_id):
+        """A tenant user only signs S3-compatible requests: customer secret keys are the single capability it needs, and every other way
+        to authenticate is closed. In an identity-domain tenancy the domain mails an activation link to the address a user is created
+        with, so a console password would open a human login path to the tenant's bucket. Every flag is sent explicitly, so a service
+        default cannot re-open one: the request model names the DB flag `canUseDBCredentials`, unlike the response's `canUseDbCredentials`."""
+        return self._identity('PUT', f'/users/{user_id}/capabilities', payload={
+            'canUseConsolePassword': False, 'canUseApiKeys': False, 'canUseAuthTokens': False, 'canUseSmtpCredentials': False,
+            'canUseDBCredentials': False, 'canUseOAuth2ClientCredentials': False, 'canUseCustomerSecretKeys': True})
 
     def find_group(self, name):
         return self._find('groups', self.config.tenancy, name)
@@ -371,16 +392,20 @@ class OciRest:
             raise OciError('oci_refused')
         return answer
 
-    def find_policy(self, name):
-        return self._find('policies', self.config.tenancy, name)
+    def find_policy(self, compartment, name):
+        """Policies are looked up, created and updated in the storage compartment, never the tenancy root: the provisioning identity
+        is only granted policy management there, and every statement acts on that compartment."""
+        return self._find('policies', compartment, name)
 
-    def create_policy(self, name, statements):
+    def create_policy(self, compartment, name, statements):
         return self._identity('POST', '/policies', payload={
-            'compartmentId': self.config.tenancy, 'name': name, 'statements': statements,
+            'compartmentId': compartment, 'name': name, 'statements': statements,
             'description': 'LiwanOS tenant storage'})
 
-    def update_policy(self, policy_id, statements):
-        return self._identity('PUT', '/policies/' + policy_id, payload={'statements': statements})
+    def update_policy(self, policy_id, statements, version_date):
+        # The service refuses a changed statement set without a version date; an empty string means "current behaviour", which is what a
+        # policy created without one answers.
+        return self._identity('PUT', '/policies/' + policy_id, payload={'statements': statements, 'versionDate': version_date})
 
     # Customer secret keys
     def list_keys(self, user_id):
@@ -437,6 +462,8 @@ class Provisioner:
         if user is None:
             created = api.create_user(name)
             user = api.find_user(name) if created is None or created.get('conflict') else created
+            if user and isinstance(user.get('id'), str):
+                api.set_capabilities(user['id'])
         if not user or not isinstance(user.get('id'), str):
             raise OciError('oci_refused')
         group_name = name
@@ -453,13 +480,15 @@ class Provisioner:
         else:
             policy_name = FIXED_POLICY_NAME
         statements = policy_statements(config.policy_mode, config.compartment, name, group_name)
-        policy = api.find_policy(policy_name)
+        policy = api.find_policy(config.compartment, policy_name)
         if policy is None:
-            created = api.create_policy(policy_name, statements)
-            if created is None or (created.get('conflict') and api.find_policy(policy_name) is None):
+            created = api.create_policy(config.compartment, policy_name, statements)
+            if created is None or (created.get('conflict') and api.find_policy(config.compartment, policy_name) is None):
                 raise OciError('oci_refused')
         elif sorted(policy.get('statements') or []) != sorted(statements):
-            api.update_policy(policy['id'], statements)
+            # A policy created without a version date answers null, which the service reads as "current behaviour": an empty string
+            # carries that meaning on the update, where both parameters are required together.
+            api.update_policy(policy['id'], statements, policy.get('versionDate') or '')
         return {'bucket': name, 'endpointUrl': config.endpoint_url(namespace), 'keys': self._keys(user)}
 
     def _user(self, name):
@@ -562,7 +591,7 @@ class Provisioner:
                     self.api.remove_membership(membership_id)
             policy_removed = group_removed = False
             if self.config.policy_mode == 'per_tenant':
-                policy = self.api.find_policy(name)
+                policy = self.api.find_policy(self.config.compartment, name)
                 if policy and isinstance(policy.get('id'), str):
                     self.api.delete_policy(policy['id'])
                     policy_removed = True
