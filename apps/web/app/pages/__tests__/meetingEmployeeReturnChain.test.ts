@@ -21,7 +21,7 @@ import { useMeetingListQuerySync } from '../../composables/useMeetingListQuerySy
 
 const root = resolve(import.meta.dirname, '../..')
 const read = (file: string) => readFileSync(resolve(root, file), 'utf8')
-const emptyQuery = () => ({ data: Vue.ref(undefined), isLoading: Vue.ref(false), isFetching: Vue.ref(false), isPending: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn(), mutateAsync: vi.fn(async () => ({})) })
+const emptyQuery = () => ({ data: Vue.ref(undefined), isLoading: Vue.ref(false), isPlaceholderData: Vue.ref(false), isFetching: Vue.ref(false), isPending: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn(), mutateAsync: vi.fn(async () => ({})) })
 async function load(file: string, url: RouteLocationRaw) {
   const router = createRouter({ history: createMemoryHistory(), routes: [
     ...['/meetings/series/:id/edit', '/meetings/series/:id', '/meetings/:id/resolutions/:resolutionId/edit', '/meetings/:id/resolutions/new', '/meetings/:id/:child', '/meetings/:id', '/hr/employees/:employeeId/edit', '/hr/employees/:employeeId', '/:pathMatch(.*)*'].map(path => ({ path, component: {} })),

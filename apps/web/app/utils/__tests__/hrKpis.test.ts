@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isKpiTileActive, resolveKpiTileTo } from '@liwan/ui/app/utils/kpiTile'
 import { departmentKpiTiles, employeeKpiTiles, hrLeaveKpiQueries, hrLeaveKpiTiles } from '../hrKpis'
 
 const t = (key: string) => key
@@ -46,13 +47,29 @@ describe('leave KPI tiles', () => {
     expect(queries.approved).toEqual({ scope: 'all', state: ['validate'], limit: 1, offset: 0 })
   })
 
-  it('links the pending tile to the list default and clears it to every request', () => {
+  it('links the pending tile to the list default without a clear target, and the approved tile nowhere', () => {
     const tiles = hrLeaveKpiTiles({ pending: 3, approved: undefined }, t)
     expect(tiles.map(tile => [tile.id, tile.value, tile.to, tile.clearTo])).toEqual([
-      ['pending', 3, '/hr/leave', '/hr/leave?scope=all'],
+      ['pending', 3, '/hr/leave', undefined],
       ['approved', null, undefined, undefined],
     ])
     expect(tiles[0]?.tone).toBe('warning')
     expect(hrLeaveKpiTiles({ pending: 0, approved: 4 }, t)[0]?.tone).toBe('neutral')
+  })
+
+  it('keeps the pending list when its active tile is clicked on the default view', () => {
+    const tiles = hrLeaveKpiTiles({ pending: 3, approved: 1 }, t)
+    const pending = tiles[0]!
+    // `/hr/leave` is the list's own pending view, so the tile is already active on a first visit…
+    expect(isKpiTileActive(pending, '/hr/leave')).toBe(true)
+    // …and clicking it never flips the list to every request.
+    expect(resolveKpiTileTo(pending, true, tiles)).toBe('/hr/leave')
+  })
+
+  it('lands on the pending list from ?scope=all', () => {
+    const tiles = hrLeaveKpiTiles({ pending: 3, approved: 1 }, t)
+    const pending = tiles[0]!
+    expect(isKpiTileActive(pending, '/hr/leave?scope=all')).toBe(false)
+    expect(resolveKpiTileTo(pending, false, tiles)).toBe('/hr/leave')
   })
 })

@@ -85,7 +85,10 @@ export function hrLeaveKpiQueries(): Record<'pending' | 'approved', HrLeaveKpiQu
   }
 }
 
-/** The leave list's tiles: the pending queue (the list's own default view; a second click clears it to every request) and the approved requests. */
+/**
+ * The leave list's tiles: the pending queue and the approved requests. Pending is the list's own default view, so its
+ * tile is active there and carries no `clearTo`: clicking it keeps the pending list instead of clearing to every request.
+ */
 export function hrLeaveKpiTiles(counts: { pending?: number; approved?: number }, t: Translate): KpiTile[] {
   return [
     {
@@ -95,7 +98,6 @@ export function hrLeaveKpiTiles(counts: { pending?: number; approved?: number },
       tone: counts.pending ? 'warning' : 'neutral',
       value: counts.pending ?? null,
       to: '/hr/leave',
-      clearTo: '/hr/leave?scope=all',
     },
     {
       id: 'approved',

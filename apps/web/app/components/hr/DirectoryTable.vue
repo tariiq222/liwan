@@ -72,7 +72,7 @@ const params = computed(() => {
   }
 })
 
-const { data, isLoading, error, refetch } = useHrEmployees(params)
+const { data, isLoading, isPlaceholderData, error, refetch } = useHrEmployees(params)
 const { data: deptData } = useHrDepartments()
 
 const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
@@ -91,11 +91,15 @@ const scopes = computed(() => [
 ])
 const showActions = computed(() => canManage.value || canArchive.value)
 
-// Report the list's state to the page: its server total once the first page arrives, and whether anything narrows it
-// (a search, a department, or the archived scope) so the page asks for a separate headcount only when it must.
-watch([listTotal, data, hasActiveFilters, archived], () => {
-  reportedTotal.value = data.value ? listTotal.value : null
-  reportedFiltered.value = hasActiveFilters.value || archived.value
+// Report the list's state to the page: its server total once the first page arrives, and whether the committed query
+// narrows it (a search, a department, or the archived scope) so the page asks for a separate headcount only when it
+// must. The figure comes from the committed route query, not the search box's live text, and a placeholder page (the
+// previous result kept while the next loads) reports no total at all: the tile never shows a count the current query
+// no longer matches.
+const committedFiltered = computed(() => params.value.q !== undefined || params.value.department_id !== undefined || params.value.archived !== undefined)
+watch([data, isPlaceholderData, committedFiltered], () => {
+  reportedTotal.value = data.value && !isPlaceholderData.value ? listTotal.value : null
+  reportedFiltered.value = committedFiltered.value
 }, { immediate: true })
 
 watch(() => [route.query.q, route.query.department_id, route.query.archived, route.query.offset], ([q, department, archivedQuery, nextOffset]) => {

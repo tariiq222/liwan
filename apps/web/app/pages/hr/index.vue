@@ -32,7 +32,9 @@ const kpiTiles = computed(() => employeeKpiTiles({
   expiring: canManage.value ? expiring.data.value?.total ?? null : undefined,
   expiryDays: HR_EXPIRY_WINDOWS[0],
 }, t, n))
-const kpiLoading = computed(() => !reuseListTotal.value && headcount.isLoading.value)
+// The strip shows skeletons while the figure it will show is still unknown: the reused list total before the first page
+// arrives, and the separate headcount query once a filter narrowed the list.
+const kpiLoading = computed(() => (listTotal.value === null && !listFiltered.value) || headcount.isLoading.value)
 const initialDepartmentId = typeof route.query.department_id === 'string' ? Number(route.query.department_id) : NaN
 const selectedDepartmentId = ref<number | null>(Number.isSafeInteger(initialDepartmentId) && initialDepartmentId > 0 ? initialDepartmentId : null)
 // The create panel's own back trip is literal (employees/new.vue drops a referrer's returnTo and keeps
