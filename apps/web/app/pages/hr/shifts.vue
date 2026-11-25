@@ -168,7 +168,7 @@ async function confirmRemove() {
       />
     </template>
 
-    <template v-if="canRead" #kpis>
+    <template v-if="hydrated && canRead" #kpis>
       <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :skeleton-count="2" :label="t('hrShifts.kpi.label')" data-testid="hr-shifts-kpis" />
     </template>
 

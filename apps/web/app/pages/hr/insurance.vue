@@ -144,7 +144,7 @@ async function reloadProviders() {
     :create-label="t(section === 'plans' ? 'hrInsurance.newPlan' : 'hrInsurance.newEnrollment')"
     create-test-id="hr-insurance-new"
   >
-    <template #kpis>
+    <template v-if="hydrated" #kpis>
       <InsuranceSummaryStrip v-if="kpisShown && section !== 'plans'" />
       <SharedKpiStrip
         v-else-if="kpisShown"

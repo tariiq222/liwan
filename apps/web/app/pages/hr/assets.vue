@@ -170,7 +170,7 @@ function equipmentTo(row: HrEquipment) {
       <UButton color="neutral" variant="outline" icon="i-lucide-tags" :to="categoriesTo" :disabled="!hydrated" :label="t('hrAssets.categories.title')" data-testid="hr-asset-categories" />
     </template>
 
-    <template v-if="can('hr.assets.read')" #kpis>
+    <template v-if="hydrated && can('hr.assets.read')" #kpis>
       <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :skeleton-count="3" :label="t('hrAssets.kpi.label')" data-testid="hr-assets-kpis" />
     </template>
 
