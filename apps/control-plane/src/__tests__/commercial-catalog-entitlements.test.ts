@@ -33,11 +33,12 @@ suite('catalog entitlement follow', () => {
   }
   async function publish(solution: unknown) {
     const created = await publishResponse(solution)
-    if (created.status === 201) return created.body
-    // The release is published either way; a 409 names the subscriptions the push could not move.
-    expect(created.status, JSON.stringify(created.body)).toBe(409)
-    expect(created.body.release?.id, JSON.stringify(created.body)).toBeTruthy()
-    return created.body.release
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    expect(created.body.id, JSON.stringify(created.body)).toBeTruthy()
+    return created.body
+  }
+  async function catalogOrders(id: string) {
+    return (await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'catalog-release:%'", [id])).rows[0].n as number
   }
   function catalog(ceiling: number | 'drop' | 'drop-limit', extra = false) {
     const solution = JSON.parse(JSON.stringify(base))
@@ -112,6 +113,17 @@ suite('catalog entitlement follow', () => {
   })
   afterAll(async () => { await pool.end() })
 
+  it('returns 201 and creates no order when a republished release leaves the feature map unchanged', async () => {
+    const before = await appliedOf(pushSub.id)
+    const created = await publishResponse(catalog(5))
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    expect(created.body.id).toBeTruthy()
+    const after = await appliedOf(pushSub.id)
+    expect(after.target_revision_id).toBeNull()
+    expect(after.snapshot.entitlement.features).toEqual(before.snapshot.entitlement.features)
+    expect(await catalogOrders(pushSub.id)).toBe(0)
+  })
+
   it('delivers a raised owned limit after the push, never a new application, and not twice', async () => {
     const before = await appliedOf(pushSub.id)
     expect(before.snapshot.entitlement.features[LIMIT]).toBe(5)
@@ -125,12 +137,11 @@ suite('catalog entitlement follow', () => {
     expect(delivered.entitlement.features[LIMIT]).toBe(20)
     expect(delivered.bundle_revision_ids).toEqual(before.snapshot.bundle_revision_ids)
     expect(delivered.entitlement.features[NEW_APP]).toBe(false)
-    const orders = async () => (await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'catalog-release:%'", [pushSub.id])).rows[0].n
-    expect(await orders()).toBe(1)
+    expect(await catalogOrders(pushSub.id)).toBe(1)
     const second = await pushCatalogEntitlement(pool, { id: raised.id })
     expect(second.pushed).toBe(0)
     expect(second.failed).toBe(0)
-    expect(await orders()).toBe(1)
+    expect(await catalogOrders(pushSub.id)).toBe(1)
   })
 
   it('recompiles the renewal entitlement and keeps the pinned price', async () => {
@@ -193,13 +204,12 @@ suite('catalog entitlement follow', () => {
   it('reports a failed push and creates no order when a release removes an owned application', async () => {
     const bought = await subscribe(plan.id)
     const created = await publishResponse(catalog('drop'))
-    expect(created.status).toBe(409)
-    expect(created.body.code).toBe('catalog_entitlement_push_failed')
-    expect(created.body.release.id).toBeTruthy()
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    expect(created.body.id).toBeTruthy()
     expect(created.body.failures).toEqual(expect.arrayContaining([
       expect.objectContaining({ subscription_id: bought.id, code: 'unknown_app' }),
     ]))
-    expect((await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'catalog-release:%'", [bought.id])).rows[0].n).toBe(0)
+    expect(await catalogOrders(bought.id)).toBe(0)
     expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1', [bought.id])).rows[0].target_revision_id).toBeNull()
     expect((await pool.query("SELECT reason FROM audit_events WHERE action='catalog_release.entitlement_incompatible' AND subject=$1", [bought.id])).rows[0].reason).toBe('unknown_app')
   })
@@ -209,11 +219,11 @@ suite('catalog entitlement follow', () => {
     const tenant = (await pool.query('SELECT tenant_id FROM subscriptions WHERE id=$1', [bought.id])).rows[0].tenant_id
     await recordUsage(pool, { tenant_id: tenant, observed_at: new Date(), metrics: { [LIMIT]: 5 }, limit_gates: { [LIMIT]: ['pmo.enabled'] }, source: 'catalog-follow' })
     const created = await publishResponse(catalog('drop-limit'))
-    expect(created.status).toBe(409)
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
     expect(created.body.failures).toEqual(expect.arrayContaining([
       expect.objectContaining({ subscription_id: bought.id, code: 'downgrade_below_usage', field: LIMIT, used: 5 }),
     ]))
-    expect((await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'catalog-release:%'", [bought.id])).rows[0].n).toBe(0)
+    expect(await catalogOrders(bought.id)).toBe(0)
     expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1', [bought.id])).rows[0].target_revision_id).toBeNull()
   })
 })

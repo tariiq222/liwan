@@ -57,11 +57,11 @@ export async function commercialHttp(pool: Pool, input: CommercialInput) {
       const body = parseBody(input.raw, catalogReleaseCreateSchema)
       const r = await createRelease(pool, actor, body)
       // A published release is what a customer's entitlement follows: the subscriptions that own a workspace
-      // are pushed to it now. The release row is already committed, so a push failure never rolls the publish
-      // back — but a subscription that could not move is not a clean success.
+      // are pushed to it now. The release row is already committed, so a push failure never fails the publish.
+      // A subscription that could not move is named on the release body; the audit row is already written.
       if (r.created) {
         const push = await pushCatalogEntitlement(pool, r.release)
-        if (push.failed) return { status: 409, data: { code: 'catalog_entitlement_push_failed', release: r.release, failures: push.failures } }
+        if (push.failures.length) return { status: 201, data: { ...r.release, failures: push.failures } }
       }
       return { status: r.created ? 201 : 200, data: r.release }
     }

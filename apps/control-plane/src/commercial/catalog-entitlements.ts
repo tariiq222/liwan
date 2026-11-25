@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { riyadhDate, type BundleRevision, type CatalogApplication, type CatalogRelease, type CustomerTermsRevision, type EntitlementSnapshot, type PlanRevision } from '@liwan/commercial-contracts'
+import { AI_ENTITLEMENT_KEYS, riyadhDate, USERS_LIMIT_KEY, type BundleRevision, type CatalogApplication, type CatalogRelease, type CustomerTermsRevision, type EntitlementSnapshot, type PlanRevision } from '@liwan/commercial-contracts'
 import { CommercialError, computeQuote } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { digestOf, CommercialHttpError } from './lifecycle.js'
@@ -27,6 +27,40 @@ type CompileSources = {
  * counts as a failure: returning the pin is not "no change".
  */
 const INCOMPATIBLE_ACTION = 'catalog_release.entitlement_incompatible'
+/** Platform limits the compiler derives itself. Copying one onto the pinned plan is `platform_limit_derived`, not a fill. */
+const DERIVED_PLATFORM_KEYS = new Set<string>([USERS_LIMIT_KEY, 'storage.limit_mb', 'branches.extra_limit', ...AI_ENTITLEMENT_KEYS])
+
+/**
+ * A digest also covers the release id and the compiler version. Neither is a delivery: only a different feature map is.
+ */
+export function entitlementFeaturesChanged(previous: EntitlementSnapshot['features'] | undefined, next: EntitlementSnapshot['features']): boolean {
+  const before = previous ?? {}
+  const keys = new Set([...Object.keys(before), ...Object.keys(next)])
+  for (const key of keys) if (before[key] !== next[key]) return true
+  return false
+}
+
+/**
+ * The pinned plan was published against an older release, so it may not name a platform key the latest release requires.
+ * This recompile only: copy that key from the entitlement the subscription already holds, when the value is a number or
+ * null. A key the previous entitlement does not have is left missing, and the compiler still refuses it.
+ */
+function planForRecompile(plan: PlanRevision, release: CatalogRelease, previous: EntitlementSnapshot['features'] | undefined): PlanRevision {
+  if (!previous) return plan
+  const limits = { ...plan.platform_limits }
+  let filled = false
+  for (const app of release.applications) {
+    if (app.selectable) continue
+    for (const feature of app.features) {
+      if (feature.kind !== 'limit' || DERIVED_PLATFORM_KEYS.has(feature.key) || Object.hasOwn(limits, feature.key)) continue
+      const value = previous[feature.key]
+      if (typeof value !== 'number' && value !== null) continue
+      limits[feature.key] = value
+      filled = true
+    }
+  }
+  return filled ? { ...plan, platform_limits: limits } : plan
+}
 
 export async function recordEntitlementIncompatibility(db: Pick<Pool | PoolClient, 'query'>, input: {
   subscriptionId: string; code: string; releaseId: string; used?: number
@@ -39,7 +73,7 @@ export async function recordEntitlementIncompatibility(db: Pick<Pool | PoolClien
 }
 
 export async function recompiledEntitlementOn(client: Pick<PoolClient, 'query'>, sources: CompileSources,
-  quantities: { users: number; storage_mb: number }, extraBranches: number,
+  quantities: { users: number; storage_mb: number }, extraBranches: number | undefined,
   pinned: EntitlementSnapshot | undefined, subject: string,
   options?: { onIncompatible?: 'throw' | 'pin' }): Promise<EntitlementSnapshot> {
   const latest = await latestPublishedRelease(client)
@@ -47,7 +81,7 @@ export async function recompiledEntitlementOn(client: Pick<PoolClient, 'query'>,
   const against = latest.id === sources.release.id ? sources
     : { ...sources, release: latest, bundles: sources.bundles.map(b => ({ ...b, catalog_release_id: latest.id })) }
   try {
-    return compilePurchasedEntitlement({ ...against, quantities, extraBranches })
+    return compilePurchasedEntitlement({ ...against, plan: planForRecompile(against.plan, against.release, pinned?.features), quantities, extraBranches })
   } catch (error) {
     if (!(error instanceof CommercialError) || !pinned) throw error
     // The push must not see the pin as an equal digest. Renewal keeps it, and the refusal is a row, not only a log.
@@ -76,8 +110,8 @@ export function ownedEntitlementKeys(release: Pick<CatalogRelease, 'applications
 }
 
 /**
- * Delivers the latest release to every subscription that owns a workspace: each one whose recomputed entitlement
- * digest differs from its applied revision gets a new revision and a zero-due change order, and the existing
+ * Delivers the latest release to every subscription that owns a workspace: each one whose recomputed feature map
+ * differs from its applied revision gets a new revision and a zero-due change order, and the existing
  * fulfilment path queues the reconfigure job for it — the tenant write stays in that one path. Nothing is granted:
  * the recompile names exactly the revisions the snapshot owns, so an application the release adds is never added to
  * `bundle_revision_ids` (its keys stay closed). Idempotent: a subscription whose entitlement is current, or that
@@ -130,8 +164,10 @@ export async function pushCatalogEntitlement(pool: Pool, release: Pick<CatalogRe
         sources.policy = policyWire(policy)
         const pricing = await pricingOf(client, snapshot)
         const { extra_branches: extraBranches, ...quantities } = purchasedQuantities(sources.plan, snapshot, pricing)
-        const entitlement = await recompiledEntitlementOn(client, sources, quantities, extraBranches, snapshot.entitlement, subject, { onIncompatible: 'throw' })
-        if (entitlement.digest === snapshot.entitlement.digest) return false
+        // A normal entitlement stores the plan ceiling, not the purchased count. Overwriting it (null → 0) is not a catalog change.
+        const entitlement = await recompiledEntitlementOn(client, sources, quantities, snapshot.trial_end ? extraBranches : undefined, snapshot.entitlement, subject, { onIncompatible: 'throw' })
+        // A compiler-version or release-id change alone is not a delivery: it would open a zero-due order and block cancel and renewal.
+        if (!entitlementFeaturesChanged(snapshot.entitlement.features, entitlement.features)) return false
         // A lowered or removed limit below current use is refused here, naming the count, instead of a delivery that would block the tenant.
         await assertDowngradeFitsUsage(client, { tenant_id: sub.tenant_id, subscription_id: sub.id,
           previous: snapshot.entitlement.features ?? {}, target: entitlement.features, now,
