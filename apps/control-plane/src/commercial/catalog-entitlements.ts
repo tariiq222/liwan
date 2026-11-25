@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { riyadhDate, type BundleRevision, type CatalogRelease, type CustomerTermsRevision, type EntitlementSnapshot, type PlanRevision } from '@liwan/commercial-contracts'
+import { riyadhDate, type BundleRevision, type CatalogApplication, type CatalogRelease, type CustomerTermsRevision, type EntitlementSnapshot, type PlanRevision } from '@liwan/commercial-contracts'
 import { CommercialError, computeQuote } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { digestOf, CommercialHttpError } from './lifecycle.js'
@@ -22,13 +22,26 @@ type CompileSources = {
  * release and what it itself declares move (a new key of an owned application, a raised ceiling, the modules of
  * the whole release). The pinned bundle rows are re-pointed to that release in memory only, so the compiler
  * validates their content against it; the subscription keeps naming the same revisions it owns, and nothing in
- * the recompile can add one. A release that no longer carries what the subscription owns (a dropped application,
- * a removed limit) refuses to compile: the recompile then falls back to the pinned entitlement and logs, because
- * a catalog change must never break billing — the publish-time fan-out reports the incompatibility instead.
+ * the recompile can add one. A release that no longer carries what the subscription owns refuses to compile.
+ * Renewal keeps the pinned entitlement so billing does not break, and writes the same visible refusal the push
+ * counts as a failure: returning the pin is not "no change".
  */
+const INCOMPATIBLE_ACTION = 'catalog_release.entitlement_incompatible'
+
+export async function recordEntitlementIncompatibility(db: Pick<Pool | PoolClient, 'query'>, input: {
+  subscriptionId: string; code: string; releaseId: string; used?: number
+}) {
+  await db.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [
+    randomUUID(), 'system:catalog', INCOMPATIBLE_ACTION, input.subscriptionId, input.code,
+    JSON.stringify({ release_id: input.releaseId, subscription_id: input.subscriptionId, code: input.code,
+      ...(input.used === undefined ? {} : { used: input.used }) }),
+  ])
+}
+
 export async function recompiledEntitlementOn(client: Pick<PoolClient, 'query'>, sources: CompileSources,
   quantities: { users: number; storage_mb: number }, extraBranches: number,
-  pinned: EntitlementSnapshot | undefined, subject: string): Promise<EntitlementSnapshot> {
+  pinned: EntitlementSnapshot | undefined, subject: string,
+  options?: { onIncompatible?: 'throw' | 'pin' }): Promise<EntitlementSnapshot> {
   const latest = await latestPublishedRelease(client)
   if (!latest) throw new CommercialHttpError('release_missing', 422, 'catalog_release_id')
   const against = latest.id === sources.release.id ? sources
@@ -37,9 +50,29 @@ export async function recompiledEntitlementOn(client: Pick<PoolClient, 'query'>,
     return compilePurchasedEntitlement({ ...against, quantities, extraBranches })
   } catch (error) {
     if (!(error instanceof CommercialError) || !pinned) throw error
+    // The push must not see the pin as an equal digest. Renewal keeps it, and the refusal is a row, not only a log.
+    if (options?.onIncompatible === 'throw') throw error
+    const subscriptionId = subject.startsWith('subscription ') ? subject.slice('subscription '.length) : subject
+    await recordEntitlementIncompatibility(client, { subscriptionId, code: error.code, releaseId: latest.id })
     console.error(JSON.stringify({ event: 'commercial_entitlement_recompile_fallback', subject, error: error.code, release: latest.id }))
     return pinned
   }
+}
+
+/** Keys the usage check may treat as a downgrade: applications the subscription owns, including a limit the release dropped. */
+export function ownedEntitlementKeys(release: Pick<CatalogRelease, 'applications'>, bundles: Pick<BundleRevision, 'selections'>[],
+  previous: EntitlementSnapshot['features']): string[] {
+  const selected = new Set(bundles.flatMap(bundle => bundle.selections.map(selection => selection.app_id)))
+  const owned = (app: CatalogApplication) => !app.selectable || selected.has(app.id)
+    || app.features.some(feature => feature.kind === 'boolean' && previous[feature.key] === true)
+  const keys = new Set<string>()
+  for (const app of release.applications) if (owned(app)) for (const feature of app.features) keys.add(feature.key)
+  for (const [key, value] of Object.entries(previous)) {
+    if (typeof value !== 'number') continue
+    const app = release.applications.find(candidate => candidate.features.some(feature => feature.key === key))
+    if (!app || owned(app)) keys.add(key)
+  }
+  return [...keys]
 }
 
 /**
@@ -48,13 +81,24 @@ export async function recompiledEntitlementOn(client: Pick<PoolClient, 'query'>,
  * fulfilment path queues the reconfigure job for it — the tenant write stays in that one path. Nothing is granted:
  * the recompile names exactly the revisions the snapshot owns, so an application the release adds is never added to
  * `bundle_revision_ids` (its keys stay closed). Idempotent: a subscription whose entitlement is current, or that
- * already carries a pending revision or order, is not a candidate. Per-subscription failures are logged and skipped,
- * like the renewal sweep; the next renewal recompiles anyway.
+ * already carries a pending revision or order, is not a candidate. An incompatible recompile is a failure, not an
+ * unchanged entitlement: no revision and no order, and the refusal is recorded where the publish response can name it.
  */
+export type CatalogPushFailure = { subscription_id: string; code: string; field?: string; used?: number }
+
+function pushFailure(subscriptionId: string, error: unknown): CatalogPushFailure {
+  const coded = error as { code?: string; field?: string; detail?: { used?: string } }
+  const code = String(coded?.code ?? (error instanceof Error ? error.message : 'catalog_push_failed')).slice(0, 200)
+  const used = coded?.detail?.used
+  return { subscription_id: subscriptionId, code, ...(coded?.field ? { field: coded.field } : {}),
+    ...(used !== undefined && Number.isFinite(Number(used)) ? { used: Number(used) } : {}) }
+}
+
 export async function pushCatalogEntitlement(pool: Pool, release: Pick<CatalogRelease, 'id'>, { now = new Date() }: { now?: Date } = {}) {
   // The predicates are the ones a change order may be written under: the same rules `acceptQuoteOn` enforces per
   // customer, applied in bulk. A subscription whose period already ended renews into the release instead.
-  let pushed = 0, failed = 0, candidates: { id: string; customer_id: string; revision: number; snapshot: Record<string, any> }[] = []
+  let pushed = 0, failed = 0, failures: CatalogPushFailure[] = []
+  let candidates: { id: string; customer_id: string; revision: number; snapshot: Record<string, any> }[] = []
   try {
     candidates = (await pool.query(`SELECT s.id, s.customer_id, s.revision, sr.snapshot
       FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
@@ -67,7 +111,7 @@ export async function pushCatalogEntitlement(pool: Pool, release: Pick<CatalogRe
   } catch (error) {
     // The release is already published; the sweep must never fail it. The next renewal recompiles regardless.
     console.error(JSON.stringify({ event: 'commercial_catalog_push_failed', release_id: release.id, error: error instanceof Error ? error.message : String(error) }))
-    return { pushed, failed, candidates: 0 }
+    return { pushed, failed, candidates: 0, failures }
   }
   for (const candidate of candidates) {
     try {
@@ -86,11 +130,12 @@ export async function pushCatalogEntitlement(pool: Pool, release: Pick<CatalogRe
         sources.policy = policyWire(policy)
         const pricing = await pricingOf(client, snapshot)
         const { extra_branches: extraBranches, ...quantities } = purchasedQuantities(sources.plan, snapshot, pricing)
-        const entitlement = await recompiledEntitlementOn(client, sources, quantities, extraBranches, snapshot.entitlement, subject)
+        const entitlement = await recompiledEntitlementOn(client, sources, quantities, extraBranches, snapshot.entitlement, subject, { onIncompatible: 'throw' })
         if (entitlement.digest === snapshot.entitlement.digest) return false
-        // A lowered limit below current use is refused here, naming the count, instead of a delivery that would block the tenant.
+        // A lowered or removed limit below current use is refused here, naming the count, instead of a delivery that would block the tenant.
         await assertDowngradeFitsUsage(client, { tenant_id: sub.tenant_id, subscription_id: sub.id,
-          previous: snapshot.entitlement.features ?? {}, target: entitlement.features, now })
+          previous: snapshot.entitlement.features ?? {}, target: entitlement.features, now,
+          ownedKeys: ownedEntitlementKeys(sources.release, sources.bundles, snapshot.entitlement.features ?? {}) })
         const today = riyadhDate(now)
         const quote = computeQuote({ ...sources, kind: 'change', cadence: snapshot.cadence,
           requested_extra_branches: extraBranches, requested_users: quantities.users, requested_storage_mb: quantities.storage_mb,
@@ -121,9 +166,12 @@ export async function pushCatalogEntitlement(pool: Pool, release: Pick<CatalogRe
       if (done) pushed++
     } catch (error) {
       failed++
-      const code = String((error as { code?: string })?.code ?? (error instanceof Error ? error.message : 'catalog_push_failed')).slice(0, 200)
-      console.error(JSON.stringify({ event: 'commercial_catalog_push_failed', subscription_id: candidate.id, release_id: release.id, error: code }))
+      const failure = pushFailure(candidate.id, error)
+      failures.push(failure)
+      console.error(JSON.stringify({ event: 'commercial_catalog_push_failed', subscription_id: candidate.id, release_id: release.id, error: failure.code }))
+      // Outside the rolled-back order transaction: the refusal stays visible after the release is already published.
+      await recordEntitlementIncompatibility(pool, { subscriptionId: candidate.id, code: failure.code, releaseId: release.id, used: failure.used })
     }
   }
-  return { pushed, failed, candidates: candidates.length }
+  return { pushed, failed, candidates: candidates.length, failures }
 }

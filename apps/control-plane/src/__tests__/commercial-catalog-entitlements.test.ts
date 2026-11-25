@@ -7,6 +7,7 @@ import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { pushCatalogEntitlement } from '../commercial/catalog-entitlements.js'
 import { buildRenewalOn } from '../commercial/renewals.js'
+import { recordUsage } from '../commercial/usage.js'
 import { migrate, transaction } from '../db.js'
 
 const suite = url ? describe.sequential : describe.skip
@@ -23,25 +24,30 @@ suite('catalog entitlement follow', () => {
   let plan: any, bundleId: string, raised: any
   let pushSub: { id: string }
 
-  async function publish(solution: unknown) {
+  async function publishResponse(solution: unknown) {
     const version = `commercial-${randomUUID()}`
     const raw = JSON.stringify(solution)
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)",
       [randomUUID(), version, solution, createHash('sha256').update(raw).digest('hex')])
-    const created = await api('POST', '/catalog/releases', { catalog_version: version, reason: REASON })
-    expect(created.status, JSON.stringify(created.body)).toBe(201)
-    return created.body
+    return api('POST', '/catalog/releases', { catalog_version: version, reason: REASON })
   }
-  function catalog(ceiling: number | 'drop', extra = false) {
+  async function publish(solution: unknown) {
+    const created = await publishResponse(solution)
+    if (created.status === 201) return created.body
+    // The release is published either way; a 409 names the subscriptions the push could not move.
+    expect(created.status, JSON.stringify(created.body)).toBe(409)
+    expect(created.body.release?.id, JSON.stringify(created.body)).toBeTruthy()
+    return created.body.release
+  }
+  function catalog(ceiling: number | 'drop' | 'drop-limit', extra = false) {
     const solution = JSON.parse(JSON.stringify(base))
+    const projects = solution.tiers.find((t: any) => t.id === 'projects')
     if (ceiling === 'drop') solution.tiers = solution.tiers.filter((t: any) => t.id !== 'projects')
-    else {
-      const projects = solution.tiers.find((t: any) => t.id === 'projects')
-      projects.features = projects.features.map((f: string) => f.startsWith('limit:projects.max_projects') ? `limit:projects.max_projects:${ceiling}` : f)
-    }
+    else if (ceiling === 'drop-limit') projects.features = projects.features.filter((f: string) => !f.startsWith('limit:projects.max_projects'))
+    else projects.features = projects.features.map((f: string) => f.startsWith('limit:projects.max_projects') ? `limit:projects.max_projects:${ceiling}` : f)
     if (extra) solution.tiers.push({
       id: 'fieldwork', name: 'Fieldwork', description: 'An application a later release adds', sellable: true,
-      modules: ['liwan_fieldwork'], features: ['boolean:fieldwork.enabled'],
+      modules: ['liwan_fieldwork'], features: ['boolean:fieldwork.enabled', 'limit:fieldwork.max_jobs:0'],
     })
     return solution
   }
@@ -164,6 +170,8 @@ suite('catalog entitlement follow', () => {
     const bought = await subscribe(plan.id)
     const applied = await appliedOf(bought.id)
     await publish(catalog('drop'))
+    const incompatibilities = async () => (await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='catalog_release.entitlement_incompatible' AND subject=$1", [bought.id])).rows[0].n
+    const recorded = await incompatibilities()
     const logged: string[] = []
     const spy = vi.spyOn(console, 'error').mockImplementation(line => { logged.push(String(line)) })
     let renewal: Awaited<ReturnType<typeof renew>>
@@ -179,5 +187,33 @@ suite('catalog entitlement follow', () => {
     const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [renewal!.order.quote_id])).rows[0].payload
     expect(quote.entitlement_digest).toBe(applied.snapshot.entitlement.digest)
     expect((await appliedOf(bought.id)).snapshot.entitlement.digest).toBe(applied.snapshot.entitlement.digest)
+    expect(await incompatibilities()).toBe(recorded + 1)
+  })
+
+  it('reports a failed push and creates no order when a release removes an owned application', async () => {
+    const bought = await subscribe(plan.id)
+    const created = await publishResponse(catalog('drop'))
+    expect(created.status).toBe(409)
+    expect(created.body.code).toBe('catalog_entitlement_push_failed')
+    expect(created.body.release.id).toBeTruthy()
+    expect(created.body.failures).toEqual(expect.arrayContaining([
+      expect.objectContaining({ subscription_id: bought.id, code: 'unknown_app' }),
+    ]))
+    expect((await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'catalog-release:%'", [bought.id])).rows[0].n).toBe(0)
+    expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1', [bought.id])).rows[0].target_revision_id).toBeNull()
+    expect((await pool.query("SELECT reason FROM audit_events WHERE action='catalog_release.entitlement_incompatible' AND subject=$1", [bought.id])).rows[0].reason).toBe('unknown_app')
+  })
+
+  it('refuses a release that removes a limit the customer exceeds and creates no change order', async () => {
+    const bought = await subscribe(plan.id)
+    const tenant = (await pool.query('SELECT tenant_id FROM subscriptions WHERE id=$1', [bought.id])).rows[0].tenant_id
+    await recordUsage(pool, { tenant_id: tenant, observed_at: new Date(), metrics: { [LIMIT]: 5 }, limit_gates: { [LIMIT]: ['pmo.enabled'] }, source: 'catalog-follow' })
+    const created = await publishResponse(catalog('drop-limit'))
+    expect(created.status).toBe(409)
+    expect(created.body.failures).toEqual(expect.arrayContaining([
+      expect.objectContaining({ subscription_id: bought.id, code: 'downgrade_below_usage', field: LIMIT, used: 5 }),
+    ]))
+    expect((await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'catalog-release:%'", [bought.id])).rows[0].n).toBe(0)
+    expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1', [bought.id])).rows[0].target_revision_id).toBeNull()
   })
 })
