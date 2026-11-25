@@ -11,7 +11,7 @@ import StatusBadge from '@liwan/ui/app/components/shared/data/StatusBadge.vue'
 import { storyContext } from '../../support/context'
 
 // The applicant record of /hr/recruitment/<id>: stage and priority controls, the inline
-// confirmations of refuse/reset/hire and the aside facts. Static fixtures, no requests.
+// confirmations of refuse/reset/hire and the aside facts (contact details first). Static fixtures, no requests.
 const applicant: HrApplicant = {
   id: 7, partner_name: 'ليلى الحربي', email_from: 'layla@example.com', partner_phone: '+966500000000',
   job: { id: 3, name: 'مهندس واجهات' }, department: { id: 1, name: 'الهندسة' },
@@ -24,7 +24,7 @@ const meta = {
   component: RecordPage,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/recruitment/[applicantId].vue:106', 'سجل المتقدم: بطاقة الهوية بحالة التوظيف، وضبط المرحلة والتقييم في المكان، وتأكيدات داخلية للرفض وإعادة المرحلة والتعيين، ووقائع السجل في الشريط الجانبي.'),
+    ...storyContext('apps/web/app/pages/hr/recruitment/[applicantId].vue:106', 'سجل المتقدم: بطاقة الهوية بحالة التوظيف، وضبط المرحلة والتقييم في المكان، وتأكيدات داخلية للرفض وإعادة المرحلة والتعيين، وبيانات التواصل ووقائع السجل في الشريط الجانبي.'),
   },
   args: { title: applicant.partner_name, backTo: '/hr/recruitment' },
   render: args => ({
@@ -58,16 +58,12 @@ const meta = {
           </UFormField>
         </div>
       </RecordSection>
-      <RecordSection variant="panel" :title="t('hrRecruitment.detail.contact')">
+      <template #aside>
         <PropertiesPanel>
           <PropertyRow :label="t('hrRecruitment.form.email')" :value="applicant.email_from" />
           <PropertyRow :label="t('hrRecruitment.form.phone')" :value="applicant.partner_phone" />
           <PropertyRow :label="t('hrRecruitment.form.availability')" :value="applicant.availability" />
           <PropertyRow :label="t('hrRecruitment.detail.appliedOn')" value="18/10/2026 11:00" />
-        </PropertiesPanel>
-      </RecordSection>
-      <template #aside>
-        <PropertiesPanel>
           <PropertyRow :label="t('hrRecruitment.columns.job')" :value="applicant.job?.name" />
           <PropertyRow :label="t('hrRecruitment.detail.department')" :value="applicant.department?.name" />
           <PropertyRow :label="t('hrRecruitment.detail.employee')" :value="t('hrRecruitment.detail.noEmployee')" />

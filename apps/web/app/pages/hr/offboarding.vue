@@ -37,7 +37,7 @@ const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + 
 // the list's own total, and the other asks one row.
 const { shown: kpisShown } = useKpiVisibility()
 const kpiQueries = hrDepartureKpiQueries()
-const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)
+const kpisEnabled = computed(() => !forbidden.value && isListRoute.value && kpisShown.value)
 const clearedReused = computed(() => cleared.value === 'true')
 const unclearedReused = computed(() => cleared.value === 'false')
 const clearedCount = useHrDepartures(

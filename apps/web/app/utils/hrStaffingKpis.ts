@@ -85,7 +85,10 @@ export function hrJobKpiTiles(counts: { open?: number | null; closed?: number | 
   ]
 }
 
-/** The onboarding run tiles: the runs still open and the runs already done, matching the list's `state` filter. */
+/**
+ * The onboarding run tiles: the runs still open and the runs already done, matching the list's `state` filter.
+ * Offboarding has no runs list (its list is the departures), so the labels and links are onboarding's own.
+ */
 export function hrRunKpiQueries(): Record<'open' | 'done', HrRunListParams> {
   return {
     open: { state: 'open', limit: KPI_LIMIT, offset: 0 },
@@ -93,11 +96,11 @@ export function hrRunKpiQueries(): Record<'open' | 'done', HrRunListParams> {
   }
 }
 
-export function hrRunKpiTiles(counts: { open?: number | null; done?: number | null }, t: Translate, namespace: string): KpiTile[] {
+export function hrRunKpiTiles(counts: { open?: number | null; done?: number | null }, t: Translate): KpiTile[] {
   return [
     {
       id: 'open',
-      label: t(`${namespace}.kpi.runs.open`),
+      label: t('hrOnboarding.kpi.runs.open'),
       icon: 'i-lucide-user-plus',
       tone: 'neutral',
       value: counts.open ?? null,
@@ -106,7 +109,7 @@ export function hrRunKpiTiles(counts: { open?: number | null; done?: number | nu
     },
     {
       id: 'done',
-      label: t(`${namespace}.kpi.runs.done`),
+      label: t('hrOnboarding.kpi.runs.done'),
       icon: 'i-lucide-circle-check',
       tone: 'success',
       value: counts.done ?? null,

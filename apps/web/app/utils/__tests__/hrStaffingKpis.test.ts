@@ -68,7 +68,7 @@ describe('job tiles', () => {
 
 describe('lifecycle tiles', () => {
   it('links the open and done runs to the onboarding state filter', () => {
-    const tiles = hrRunKpiTiles({ open: 5, done: 9 }, t, 'hrOnboarding')
+    const tiles = hrRunKpiTiles({ open: 5, done: 9 }, t)
     expect(tiles.map(tile => [tile.id, tile.to, tile.clearTo, tile.label])).toEqual([
       ['open', '/hr/onboarding?state=open', '/hr/onboarding', 'hrOnboarding.kpi.runs.open'],
       ['done', '/hr/onboarding?state=done', '/hr/onboarding', 'hrOnboarding.kpi.runs.done'],

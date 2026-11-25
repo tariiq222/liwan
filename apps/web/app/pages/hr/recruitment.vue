@@ -6,6 +6,7 @@ import {
   hrApplicantBadge,
   hrApplicantPriorityKey,
   type HrApplicant,
+  type HrApplicantInput,
   type HrApplicantStatusFilter,
 } from '@/composables/useHrRecruitment'
 import { hrApplicantKpiQueries, hrApplicantKpiTiles } from '@/utils/hrStaffingKpis'
@@ -74,10 +75,10 @@ const kpisEnabled = computed(() => isListRoute.value && kpisShown.value)
 const allReused = computed(() => status.value === 'all')
 const ongoingReused = computed(() => status.value === 'ongoing')
 const hiredReused = computed(() => status.value === 'hired')
-const kpiScope = computed(() => ({
+const kpiScope = computed<HrApplicantInput>(() => ({
   q: search.value.trim() || undefined,
-  job_id: jobId.value ?? undefined,
-  stage_id: stageId.value ?? undefined,
+  jobId: jobId.value,
+  stageId: stageId.value,
 }))
 const allCount = useHrRecruitmentApplicants(
   computed(() => ({ ...kpiQueries.all, ...kpiScope.value })),

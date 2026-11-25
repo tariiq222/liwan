@@ -3,7 +3,7 @@ import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import WarningTable from '@/components/hr/warnings/WarningTable.vue'
 import { HR_WARNING_STATES, type HrWarningState } from '@liwan/contracts'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
-import { HR_WARNINGS_PAGE_SIZE, type HrWarning } from '@/composables/useHrWarnings'
+import { HR_WARNINGS_PAGE_SIZE, type HrWarning, type HrWarningInput } from '@/composables/useHrWarnings'
 import { hrWarningKpiQueries, hrWarningKpiTiles } from '@/utils/hrStaffingKpis'
 
 const route = useRoute()
@@ -61,9 +61,9 @@ const kpisEnabled = computed(() => isListRoute.value && kpisShown.value)
 const issuedReused = computed(() => state.value === 'issued')
 const acknowledgedReused = computed(() => state.value === 'acknowledged')
 const contestedReused = computed(() => state.value === 'contested')
-const kpiScope = computed(() => ({
-  employee_id: employeeId.value ?? undefined,
-  type_id: typeId.value ?? undefined,
+const kpiScope = computed<HrWarningInput>(() => ({
+  employeeId: employeeId.value,
+  typeId: typeId.value,
 }))
 const issuedCount = useHrWarningList(
   computed(() => ({ ...kpiQueries.issued, ...kpiScope.value })),

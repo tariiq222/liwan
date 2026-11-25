@@ -36,7 +36,7 @@ const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 // list's own total, and the other asks one row.
 const { shown: kpisShown } = useKpiVisibility()
 const kpiQueries = hrRunKpiQueries()
-const kpisEnabled = computed(() => !forbidden.value && kpisShown.value)
+const kpisEnabled = computed(() => !forbidden.value && isListRoute.value && kpisShown.value)
 const openReused = computed(() => state.value === 'open')
 const doneReused = computed(() => state.value === 'done')
 const openCount = useHrOnboardingRuns(kpiQueries.open, computed(() => kpisEnabled.value && !openReused.value))
@@ -45,7 +45,7 @@ const kpiCounts = computed(() => ({
   open: openReused.value ? total.value : openCount.data.value?.total ?? null,
   done: doneReused.value ? total.value : doneCount.data.value?.total ?? null,
 }))
-const kpiTiles = computed(() => hrRunKpiTiles(kpiCounts.value, t, NAMESPACE))
+const kpiTiles = computed(() => hrRunKpiTiles(kpiCounts.value, t))
 const kpiLoading = computed(() => query.isLoading.value || openCount.isLoading.value || doneCount.isLoading.value)
 
 const stateOptions = computed(() => [
