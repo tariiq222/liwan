@@ -1,0 +1,320 @@
+<!doctype html>
+<!--
+  TEST TOOL, not product UI. This page exists to prove the phase-1 voice path of a company's telephony package
+  (docs/superpowers/specs/2026-10-28-liwan-telephony-design.md section 13): register a test extension over wss, call a
+  number, hang up. It is not the LiwanOS softphone, it has no product behaviour, no card lookup and no TURN
+  configuration (temporary TURN credentials belong to the product session, not to a test page).
+
+  Serve it from https://, or from http://localhost, or the browser refuses microphone access. The default WebSocket URL
+  is the local stack's plain ws://localhost:8088/ws (not ws://127.0.0.1, which Chrome blocks under its proxy-bypass rule
+  and which closes with code 1006); a deployment uses wss://<host>/ws, which the shared edge forwards to Asterisk
+  (design 11.2).
+
+  JsSIP 3.12.0 is loaded from cdnjs at the exact version and its published Subresource Integrity hash.
+-->
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Liwan telephony test page (test tool)</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; color: #111; }
+    h1 { font-size: 1.25rem; }
+    .tool { border: 2px dashed #b45309; background: #fffbeb; padding: .75rem 1rem; }
+    fieldset { border: 1px solid #d4d4d4; margin: 1rem 0; padding: .75rem 1rem; }
+    label { display: block; margin: .5rem 0; }
+    input { width: 100%; box-sizing: border-box; font: inherit; padding: .35rem .5rem; }
+    .note { display: block; margin-top: .25rem; color: #525252; font-size: .85rem; }
+    .note[hidden] { display: none; }
+    .note.error { color: #b91c1c; }
+    .incoming { border: 2px solid #1d4ed8; background: #eff6ff; margin: 1rem 0; padding: .75rem 1rem; }
+    .incoming p { margin: 0 0 .5rem; }
+    button { font: inherit; margin: .25rem .5rem .25rem 0; padding: .35rem .9rem; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #state { font-family: ui-monospace, monospace; background: #f5f5f5; border: 1px solid #d4d4d4; padding: .5rem; min-height: 1.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Liwan telephony test page</h1>
+  <p class="tool"><strong>TEST TOOL — not product UI.</strong> It types an extension password into a plain page and keeps
+    it only for this tab. Use a test extension, never a colleague's.</p>
+
+  <form id="settings" autocomplete="off">
+    <fieldset>
+      <legend>Account</legend>
+      <label>WebSocket URL
+        <input id="ws-url" value="ws://localhost:8088/ws" spellcheck="false" required>
+        <small class="note">Local stack: the plain listener on 8088. Keep <code>localhost</code>, not
+          <code>127.0.0.1</code>: Chrome blocks that host under its proxy-bypass rule and the socket closes with code
+          1006. A deployment uses <code>wss://&lt;host&gt;/ws</code>, which the shared edge forwards here.</small>
+      </label>
+      <label>Extension
+        <input id="extension" value="101" inputmode="numeric" required>
+      </label>
+      <label>Password
+        <input id="password" type="password" required>
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Call</legend>
+      <label>Number to call (an extension such as 102, or E.164 as dialled, e.g. +9665…)
+        <input id="number" placeholder="102 or +9665…" spellcheck="false">
+        <small class="note" id="number-hint" hidden></small>
+        <small class="note error" id="call-error" hidden></small>
+      </label>
+      <button id="register" type="button">Register</button>
+      <button id="unregister" type="button">Unregister</button>
+      <button id="reset" type="button">Reset</button>
+      <button id="call" type="button">Call</button>
+      <button id="hangup" type="button">Hang up</button>
+    </fieldset>
+  </form>
+
+  <p>State: <span id="state" role="status" aria-live="polite">idle</span></p>
+  <div id="incoming" class="incoming" role="alertdialog" aria-labelledby="incoming-title" hidden>
+    <p id="incoming-title">Incoming call from <strong id="incoming-caller"></strong></p>
+    <button id="answer" type="button">Answer</button>
+    <button id="reject" type="button">Reject</button>
+  </div>
+  <audio id="remote" autoplay></audio>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jssip/3.12.0/jssip.min.js"
+          integrity="sha512-r/56cPG6CuT9+qu+thVVk1snQ23fyL+SjiH26g4IJJIcTIUBTNMM3O92xzZ7oJ2wjj1oZilCUtPgovgQ14A0dg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    'use strict';
+
+    const $ = (id) => document.getElementById(id);
+    const remote = $('remote');
+    let ua = null;
+    let session = null;
+    // idle (no UA), connecting, connected, registered, unregistered, failed (connection or registration).
+    // Register is allowed only with no UA or after a failed/unregistered one, and it always stops the old UA first, so
+    // a retry never reuses a dead transport.
+    let phase = 'idle';
+    // True once the user edits the number field, so the extension-based prefill never overwrites their input.
+    let numberTyped = false;
+    // Set while this tab terminates its own call, so a user reject or hang-up does not read as a failed call.
+    let terminating = false;
+
+    function uaStatus() {
+      if (!ua) return 'none';
+      const names = { [JsSIP.UA.C.STATUS_INIT]: 'init', [JsSIP.UA.C.STATUS_READY]: 'ready',
+        [JsSIP.UA.C.STATUS_USER_CLOSED]: 'closed', [JsSIP.UA.C.STATUS_NOT_READY]: 'not ready' };
+      const status = names[ua.status] || 'unknown ' + ua.status;
+      return status + (ua.isRegistered() ? ', registered' : ', not registered');
+    }
+
+    function state(text) {
+      $('state').textContent = new Date().toLocaleTimeString() + ' — ' + text + ' [UA: ' + uaStatus() + ']';
+    }
+
+    function refresh() {
+      $('register').disabled = ua !== null && phase !== 'unregistered' && phase !== 'failed';
+      $('reset').disabled = ua === null;
+      const extension = $('extension').value.trim();
+      const other = extension === '101' ? '102' : extension === '102' ? '101' : '';
+      $('number-hint').hidden = !other;
+      $('number-hint').textContent = other ? 'Hint: call ' + other + ' to ring the other browser extension.' : '';
+      // Prefill the other test extension, but never overwrite a number the user typed (numberTyped).
+      if (other && !numberTyped) {
+        $('number').value = other;
+      } else if (!other && !numberTyped) {
+        $('number').value = '';
+      }
+    }
+
+    function hideIncoming() {
+      $('incoming').hidden = true;
+      $('incoming-caller').textContent = '';
+    }
+
+    function showIncoming(call) {
+      const uri = call.remote_identity.uri;
+      $('incoming-caller').textContent = uri.user || uri.toString();
+      $('incoming').hidden = false;
+    }
+
+    function callError(text) {
+      $('call-error').hidden = !text;
+      $('call-error').textContent = text || '';
+    }
+
+    function hangup() {
+      if (session) {
+        terminating = true;
+        session.terminate();
+        session = null;
+      }
+      hideIncoming();
+    }
+
+    function watch(call) {
+      session = call;
+      terminating = false;
+      call.on('peerconnection', (data) => {
+        data.peerconnection.addEventListener('track', (event) => {
+          remote.srcObject = event.streams[0];
+        });
+      });
+      call.on('confirmed', () => { hideIncoming(); state('in call'); });
+      call.on('ended', () => { hideIncoming(); state('call ended'); session = null; });
+      call.on('failed', (event) => {
+        hideIncoming();
+        state('call failed: ' + event.cause);
+        if (!terminating) callError('Call failed: ' + event.cause);
+        session = null;
+      });
+    }
+
+    function stopUa() {
+      hangup();
+      if (ua) {
+        ua.unregister({ all: true });
+        ua.stop();
+        ua = null;
+      }
+      phase = 'idle';
+      refresh();
+    }
+
+    $('extension').addEventListener('input', refresh);
+
+    $('number').addEventListener('input', () => { numberTyped = true; });
+
+    $('register').addEventListener('click', () => {
+      if (ua && phase !== 'unregistered' && phase !== 'failed') {
+        state('register is blocked while ' + phase + ', use Unregister or Reset');
+        return;
+      }
+      if (ua) {
+        // A failed attempt leaves its UA behind with its old transport: stop it and build a fresh one.
+        ua.stop();
+        ua = null;
+      }
+      const wsUrl = $('ws-url').value.trim();
+      const extension = $('extension').value.trim();
+      let host;
+      try {
+        host = new URL(wsUrl).hostname;
+      } catch (error) {
+        state('bad WebSocket URL: ' + error.message);
+        return;
+      }
+      const current = new JsSIP.UA({
+        sockets: [new JsSIP.WebSocketInterface(wsUrl)],
+        uri: 'sip:' + extension + '@' + host,
+        password: $('password').value,
+        register: true,
+        session_timers: false
+      });
+      ua = current;
+      phase = 'connecting';
+      refresh();
+
+      current.on('connecting', () => {
+        if (ua !== current) return;
+        phase = 'connecting';
+        refresh();
+        state('connecting to ' + wsUrl);
+      });
+      current.on('connected', () => {
+        if (ua !== current) return;
+        phase = 'connected';
+        refresh();
+        state('websocket open, registering as ' + extension);
+      });
+      current.on('registered', () => {
+        if (ua !== current) return;
+        phase = 'registered';
+        refresh();
+        state('registered as ' + extension);
+      });
+      current.on('unregistered', () => {
+        if (ua !== current || phase === 'failed') return;
+        phase = 'unregistered';
+        refresh();
+        state('unregistered as ' + extension);
+      });
+      current.on('registrationFailed', (event) => {
+        if (ua !== current) return;
+        phase = 'failed';
+        refresh();
+        const response = event.response;
+        state('registration failed: ' + event.cause + (response ? ' (' + response.status_code + ')' : ''));
+      });
+      current.on('disconnected', (event) => {
+        if (ua !== current || current.status === JsSIP.UA.C.STATUS_USER_CLOSED) return;
+        phase = 'failed';
+        // Stop the failed UA so JsSIP's automatic reconnection cannot overwrite this state; Register retries fresh.
+        current.stop();
+        refresh();
+        // 1006 is the browser's "closed abnormally": an unreachable host, a refused port or a broken upgrade.
+        const cause = event.reason || (event.code === 1006 ? 'connection failed, was the host or port reachable? (1006)'
+          : event.code ? 'closed with code ' + event.code : 'no reason given');
+        state('disconnected from ' + $('ws-url').value.trim() + ': ' + cause);
+      });
+      current.on('newRTCSession', (event) => {
+        if (event.originator === 'remote') {
+          watch(event.session);
+          state('incoming call from ' + event.session.remote_identity.uri.user);
+          showIncoming(event.session);
+        }
+      });
+      current.start();
+    });
+
+    $('unregister').addEventListener('click', () => {
+      if (!ua) {
+        state('nothing to unregister');
+        return;
+      }
+      stopUa();
+      state('unregistered');
+    });
+
+    $('reset').addEventListener('click', () => {
+      stopUa();
+      $('state').textContent = '';
+    });
+
+    $('call').addEventListener('click', () => {
+      callError('');
+      if (!ua || !ua.isRegistered()) {
+        state('register first');
+        return;
+      }
+      const number = $('number').value.trim().replace(/\s+/g, '');
+      if (!number) {
+        state('enter a number');
+        return;
+      }
+      const target = 'sip:' + number + '@' + new URL($('ws-url').value.trim()).hostname;
+      watch(ua.call(target, { mediaConstraints: { audio: true, video: false } }));
+      state('calling ' + number);
+    });
+
+    $('answer').addEventListener('click', () => {
+      if (!session) return;
+      session.answer({ mediaConstraints: { audio: true, video: false } });
+      hideIncoming();
+    });
+
+    $('reject').addEventListener('click', () => {
+      if (session) {
+        terminating = true;
+        session.terminate();
+      }
+      hideIncoming();
+    });
+
+    $('hangup').addEventListener('click', () => {
+      hangup();
+      state('hang up');
+    });
+
+    refresh();
+    state('idle');
+  </script>
+</body>
+</html>

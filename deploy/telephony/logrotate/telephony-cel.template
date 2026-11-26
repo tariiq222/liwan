@@ -1,0 +1,18 @@
+# Rendered by deploy/telephony/render.py for company {{COMPANY_ID}}.
+# The CEL CSV of this package's own log volume, which the agent tails for reconciliation (design 4.6). Asterisk 22's CEL
+# custom backend has no rotation or size limit of its own, so the package records the policy here; install this file as
+# /etc/logrotate.d/liwan-telephony-{{COMPANY_ID}} on the package host (README, "Reconciliation and the CEL file").
+# The path is Docker's default volume root; if the host's data root differs, change the first line.
+#
+# The agent identifies the file by its device, inode and a digest of its first bytes, and reads from zero when that
+# identity changes, so a truncation is safe: the rewritten file is a new identity. Rows written between the copy and
+# the truncation are lost from reconciliation, but they were already delivered on the live stream, which is primary.
+/var/lib/docker/volumes/{{COMPANY_ID}}-telephony-logs/_data/cel-custom.csv {
+    su root root
+    daily
+    maxsize 50M
+    rotate 7
+    missingok
+    notifempty
+    copytruncate
+}

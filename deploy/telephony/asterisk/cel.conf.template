@@ -1,0 +1,18 @@
+; Rendered by deploy/telephony/render.py from the company's env file.
+; Channel Event Logging is the reconciliation source of design 4.6: the agent tails the CSV that cel_custom.conf writes
+; and rebuilds a call leg that the live ARI stream lost. CEL is what makes a lost event recoverable, so it is on for
+; every company package, not an option.
+[general]
+enable=yes
+; The applications whose APP_START and APP_END events are logged; Dial is the one this dialplan runs for a call.
+apps=dial
+; The lifecycle events the agent reads: a leg starts (CHAN_START), is answered (ANSWER) and ends (HANGUP/CHAN_END).
+; The bridge events and LINKEDID_END are kept because they cost one row per call; every row adds up in the file the
+; agent tails, so the list stays narrower than ALL.
+events=CHAN_START,CHAN_END,ANSWER,HANGUP,APP_START,APP_END,BRIDGE_ENTER,BRIDGE_EXIT,LINKEDID_END
+; The agent parses eventtime with "%Y-%m-%d %H:%M:%S" and reads it as UTC (apps/pbx-agent/src/pbx_agent/events.py).
+; Without this option CEL writes epoch seconds and microseconds, which the agent cannot parse.
+dateformat=%Y-%m-%d %H:%M:%S
+; UTC comes from TZ=UTC on this container, not from a CEL option: Asterisk 22.11.0 formats the CEL eventtime from local
+; time, and `usegmtime` is the CDR/RADIUS spelling of that switch, not a cel.conf [general] option. Setting it here
+; would make the whole file fail to load and silently stop CEL, so the guarantee is the container's time zone.

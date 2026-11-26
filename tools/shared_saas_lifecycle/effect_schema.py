@@ -254,10 +254,30 @@ TENANT_STORAGE_EFFECT = shape(
     {'schemaVersion': literal(1), 'operation': literal('ensure', 'verify', 'rotate', 'drop'), 'tenantId': TENANT_ID,
      'database': RESOURCE, 'requestId': UUID})
 
+# The company's telephony allocation: the host, the SIP port and the RTP block the control plane decided. `ensure` records
+# it; every other operation reads the record already in the effect's state directory.
+TELEPHONY_ALLOCATION = shape({'host': HOST, 'sipPort': integer(1, 65535), 'rtpStart': integer(1024, 65535),
+                              'rtpEnd': integer(1024, 65535)})
+_TELEPHONY = shape({'schemaVersion': literal(1), 'operation': literal('ensure', 'verify', 'suspend', 'resume', 'drop'),
+                    'tenantId': TENANT_ID, 'requestId': UUID}, {'allocation': TELEPHONY_ALLOCATION})
+
+
+def tenant_telephony_effect(request):
+    _TELEPHONY(request)
+    allocation = request.get('allocation')
+    if request['operation'] == 'ensure':
+        if allocation is None or allocation['rtpStart'] > allocation['rtpEnd']:
+            raise SchemaError
+    elif allocation is not None:
+        raise SchemaError
+    return request
+
+
 SCHEMAS = {
     'odoo_effect': ODOO_EFFECT, 'odoo_backup': odoo_backup, 'subscription_effect': subscription_effect,
     'admin_password_effect': ADMIN_PASSWORD_EFFECT, 'tenant_status_effect': TENANT_STATUS_EFFECT,
     'tenant_drop_effect': TENANT_DROP_EFFECT, 'tenant_storage_effect': TENANT_STORAGE_EFFECT,
+    'tenant_telephony_effect': tenant_telephony_effect,
 }
 
 

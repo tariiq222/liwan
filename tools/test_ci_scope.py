@@ -90,6 +90,30 @@ class StagesForTest(unittest.TestCase):
             self.assert_stages(path, ALL)
             self.assertEqual(ci_scope.matching_rule(path)[0], ci_scope.UNMAPPED)
 
+    def test_telephony_changes_run_only_the_python_unit_tests(self):
+        # apps/pbx-agent and deploy/telephony are covered by `python3 -m unittest` (deploy/ci/static.sh:31, :39 and
+        # `npm test` at :78, whose tools discovery is package.json:11), so `static` is the unit-test stage for them.
+        for path in ('apps/pbx-agent/src/pbx_agent/app.py', 'apps/pbx-agent/tests/test_events.py',
+                     'apps/pbx-agent/Dockerfile', 'deploy/telephony/render.py', 'deploy/telephony/tests/test_render.py',
+                     'deploy/telephony/compose.yml', 'tools/shared_saas_lifecycle/tenant_telephony_effect.py'):
+            with self.subTest(path=path):
+                self.assert_stages(path, ('static',))
+                stages = ci_scope.stages_for([path])
+                self.assertFalse(set(stages) & set(ci_scope.ODOO_STAGES), stages)
+                self.assertFalse({'control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo',
+                                  'rtl-stories', 'ai-service', 'upgrade', 'restore-drill'} & set(stages), stages)
+
+    def test_telephony_deploy_change_selects_no_browser_stage_before_merge(self):
+        stages = ci_scope.pull_request_stages(['deploy/telephony/compose.yml'], None)
+        self.assertEqual(stages, ('static',))
+        pbx = ci_scope.pull_request_stages(['apps/pbx-agent/src/pbx_agent/app.py'], None)
+        self.assertEqual(pbx, ('static',))
+
+    def test_the_telephony_rules_do_not_widen_their_neighbours(self):
+        self.assert_stages('deploy/backup/cli.py', ALL)
+        self.assert_stages('deploy/telephony_like.py', ALL)   # only the tree and the one effect file are mapped
+        self.assert_stages('tools/shared_saas_lifecycle/tenant_storage_effect.py', ALL)
+
     def test_root_only_patterns_do_not_match_nested_files(self):
         self.assert_stages('apps/web/package.json', WEB)
         self.assert_stages('apps/web/.npmrc', WEB)

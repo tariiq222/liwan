@@ -871,9 +871,10 @@ class GateRequestSchemaTests(GateCase):
 
 
 class EntryPointTests(unittest.TestCase):
-    def test_effect_map_is_exactly_the_seven_modules(self):
+    def test_effect_map_is_exactly_the_registered_modules(self):
         self.assertEqual(sorted(gate.EFFECTS), ['admin_password_effect', 'odoo_backup', 'odoo_effect', 'subscription_effect',
-                                                'tenant_drop_effect', 'tenant_status_effect', 'tenant_storage_effect'])
+                                                'tenant_drop_effect', 'tenant_status_effect', 'tenant_storage_effect',
+                                                'tenant_telephony_effect'])
         for name, module in gate.EFFECTS.items():
             self.assertEqual(module, 'tools.shared_saas_lifecycle.' + name)
             self.assertTrue((Path(__file__).parent / (name + '.py')).is_file())

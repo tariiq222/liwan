@@ -1,0 +1,197 @@
+; Rendered by deploy/telephony/render.py from the company's env file into the directory Compose runs. Never commit the
+; rendered file: it holds the ARI and extension passwords. Asterisk is the one source of call state (design 2), and the
+; endpoints, the trunk and the transports below are the static phase-1 configuration (README, "Static configuration
+; first"). PJSIP realtime is the next step, documented in the README.
+
+; --- Transports ---
+
+[transport-udp]
+type=transport
+protocol=udp
+bind=0.0.0.0:5060
+; The transport names the operator's address in the SDP and the Contact, never the container's private one. The RTP
+; block is published there in every mode (design 12.3): in the credentials mode the provider sends its media to that
+; address too. The SIP port is public only for IP authentication or mode-b devices, so in the credentials mode the
+; provider's inbound INVITE depends on how it delivers the call (on the registration flow, or to the Contact); that is
+; one of the phase-1 line tests.
+external_signaling_address={{STATIC_ADDRESS}}
+external_media_address={{STATIC_ADDRESS}}
+
+[transport-tcp]
+type=transport
+protocol=tcp
+bind=0.0.0.0:5060
+external_signaling_address={{STATIC_ADDRESS}}
+external_media_address={{STATIC_ADDRESS}}
+
+[transport-ws]
+type=transport
+protocol=ws
+; The WebSocket transport rides the HTTP server of http.conf (bindport 8088), so it names the address only.
+bind=0.0.0.0
+; The browser reaches this listener as wss through the shared edge, which terminates TLS on the company host and
+; forwards /ws here (design 11.2, 12.8). Plain ws on the private network is deliberate: no certificate lives on the PBX
+; host. The ARI websocket is served by the same listener and is never published.
+
+; --- Browser endpoints: the WebRTC template and the two test extensions 101 and 102 (design 13, phase 1) ---
+
+[endpoint-template](!)
+type=endpoint
+context=from-extension
+disallow=all
+allow=opus,ulaw,alaw
+; WebRTC defaults for a browser leg: ICE, DTLS-SRTP, rtcp-mux and the transport the offer used.
+webrtc=yes
+; The domain of this leg's From URI. Left empty, Asterisk fills it with the container's host name, and a host name that
+; starts with a digit (Docker's `258081f0e755`) is not a host the browser's SIP stack parses: JsSIP drops the INVITE
+; with "error parsing From header", so the callee never rings. The company host is a name the browser already trusts.
+from_domain={{HOST_NAME}}
+direct_media=no
+rtp_symmetric=yes
+force_rport=yes
+rewrite_contact=yes
+dtmf_mode=rfc4733
+; A device with one contact (max_contacts below) reports busy while a call is up, so the dialplan can play the
+; "not available" message instead of a second ring.
+device_state_busy_at=1
+
+[101](endpoint-template)
+aors=101
+auth=auth101
+callerid=Extension 101 <101>
+
+[auth101]
+type=auth
+auth_type=userpass
+username=101
+password={{EXTENSION_101_PASSWORD}}
+
+; The AOR carries the extension number, not a name of its own: the registrar matches the endpoint's aors list against
+; the user of the REGISTER's To URI, which is the extension. An AOR called aor101 never matches 101 and the
+; registration is refused with `AOR '' not found for endpoint '101'`. Asterisk holds the sections of different types
+; apart, so the endpoint and this AOR share one name without a conflict.
+[101]
+type=aor
+max_contacts=1
+remove_existing=yes
+; A mode-b device must renew its registration within 120 seconds so a package move can be recovered (design 12.3,
+; 12.4); the same ceiling keeps a browser session short-lived.
+default_expiration=120
+maximum_expiration=120
+
+[102](endpoint-template)
+aors=102
+auth=auth102
+callerid=Extension 102 <102>
+
+[auth102]
+type=auth
+auth_type=userpass
+username=102
+password={{EXTENSION_102_PASSWORD}}
+
+[102]
+type=aor
+max_contacts=1
+remove_existing=yes
+default_expiration=120
+maximum_expiration=120
+
+; --- The plain SIP test extension (design 13, phase 1) ---
+; 103 is for a softphone such as Linphone with its default settings: no ICE, no DTLS-SRTP and no rtcp-mux are required,
+; which the WebRTC template above would require and default Linphone does not offer.
+[endpoint-plain](!)
+type=endpoint
+context=from-extension
+disallow=all
+allow=ulaw,alaw,opus
+; Same From domain as the browser legs: a softphone that parses a digit-leading host name strictly would drop the
+; INVITE this leg sends it.
+from_domain={{HOST_NAME}}
+direct_media=no
+rtp_symmetric=yes
+force_rport=yes
+rewrite_contact=yes
+dtmf_mode=rfc4733
+device_state_busy_at=1
+
+[103](endpoint-plain)
+aors=103
+auth=auth103
+callerid=Extension 103 <103>
+
+[auth103]
+type=auth
+auth_type=userpass
+username=103
+password={{EXTENSION_103_PASSWORD}}
+
+[103]
+type=aor
+max_contacts=1
+remove_existing=yes
+default_expiration=120
+maximum_expiration=120
+
+; --- The line: the company's own SIP trunk from its provider (design D4, 12.3) ---
+; Liwan is not a carrier: the address, the credentials, the accepted number format and the codecs are the company's
+; contract with the provider, collected with the checklist in the README.
+
+[trunk]
+type=endpoint
+context=from-trunk
+disallow=all
+allow={{TRUNK_CODECS}}
+direct_media=no
+rtp_symmetric=yes
+force_rport=yes
+rewrite_contact=yes
+; The From user the provider assigned. It is also what the provider sees as the outbound From, so it can override the
+; caller id the dialplan sets; which of the two the provider shows is a phase-1 line check (README).
+from_user={{TRUNK_FROM_USER}}
+from_domain={{TRUNK_HOST}}
+; No callerid on the endpoint: it would replace the From number of every inbound call with the company's number and
+; the customer card would never match. Outbound caller id is set in the dialplan.
+aors=trunk-aor
+; @if LIWAN_TELEPHONY_TRUNK_CREDENTIALS
+outbound_auth=trunk-auth
+; @endif
+
+[trunk-aor]
+type=aor
+contact=sip:{{TRUNK_HOST}}:{{TRUNK_PORT}}
+
+; @if LIWAN_TELEPHONY_TRUNK_CREDENTIALS
+; The provider authenticates Asterisk by username and password: Asterisk registers out and keeps the registration
+; alive, and the provider returns inbound calls over that binding.
+[trunk-auth]
+type=auth
+auth_type=userpass
+username={{TRUNK_USERNAME}}
+password={{TRUNK_PASSWORD}}
+
+[trunk-registration]
+type=registration
+transport=transport-udp
+outbound_auth=trunk-auth
+server_uri=sip:{{TRUNK_HOST}}:{{TRUNK_PORT}}
+client_uri=sip:{{TRUNK_USERNAME}}@{{TRUNK_HOST}}:{{TRUNK_PORT}}
+; The Contact user the provider returns calls to; the PJSIP default is not the registered identity, so it is explicit.
+; It is the company's number (a DID), which the inbound context matches as a plain extension; a provider that sends the
+; registration username instead is a phase-1 line check (README).
+contact_user={{TRUNK_CALLER_ID}}
+retry_interval=60
+forbidden_retry_interval=600
+expiration=600
+line=yes
+endpoint=trunk
+; @endif
+
+; @if LIWAN_TELEPHONY_TRUNK_IP_AUTH
+; The provider authenticates this host by address: its own allowlist holds the address the operator gave it (the
+; published address when the SIP port is public), and every call from that address is the trunk.
+[trunk-identify]
+type=identify
+endpoint=trunk
+match={{TRUNK_HOST}}
+; @endif

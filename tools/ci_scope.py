@@ -67,6 +67,12 @@ SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', '
 WEB_UI_STAGES = ('image', 'e2e-mock', 'rtl-stories')
 # The Playwright specs and their support files run in the mock build, against real Odoo and on the Storybook build.
 WEB_E2E_STAGES = ('e2e-mock', 'e2e-odoo', 'rtl-stories')
+# The telephony package and its tenant effect: the static stage is the one that runs Python unit tests
+# (`python3 -B -m unittest` at deploy/ci/static.sh:31, :39 and :68, and `npm test` at :78, which package.json:11
+# points at `unittest discover -s tools`). No Odoo test, web build or browser journey reads them, and no image in
+# deploy/production-images.json builds from these paths, so they never select `image` on a pull request.
+TELEPHONY_STATIC = ('apps/pbx-agent/*', 'deploy/telephony/*',
+                    'tools/shared_saas_lifecycle/tenant_telephony_effect.py')
 UNMAPPED = '(no rule: all stages)'
 
 # First match wins, so the paths that need every stage come first. `*` also crosses `/`, hence
@@ -86,6 +92,10 @@ RULES = (
     ('deploy/ci/lib/docs-static.sh', ()),
     ('deploy/alerts.py', ()),                # the alert sender: read by deploy/test_alerts.py and OPERATIONS.md, no image, stage or app
     ('deploy/test_*.py', ()),                # top-level deploy tests, run only by `unittest deploy/test_*.py` in the static job
+    # The telephony package (apps/pbx-agent, deploy/telephony) and its tenant effect: `static` is the stage that runs
+    # the Python unit tests (deploy/ci/static.sh:31/39/68, `npm test` at :78). Nothing here builds a telephony image,
+    # starts Odoo, builds the web app or drives a browser.
+    *((pattern, ()) for pattern in TELEPHONY_STATIC),
     ('deploy/*', STAGES),                    # deploy/ci/*.sh, ci-test.sh, classification.py, the image Dockerfile
     ('odoo-addons/*', STAGES),               # the Odoo steps, the image and the static ruff run
     ('packages/contracts/*', STAGES),
@@ -170,6 +180,8 @@ def affected_modules(paths: list[str], release: list[str], addons: Path = app_is
 
 def feeds_image_build(path: str) -> bool:
     """True for a file whose change can break an image build, whatever folder it sits in."""
+    if any(fnmatchcase(path, pattern) for pattern in TELEPHONY_STATIC):
+        return False
     name = path.rsplit('/', 1)[-1]
     return (name == 'Dockerfile' or name.startswith('Dockerfile.') or name == '.dockerignore'
             or (name.startswith(('docker-compose', 'compose')) and name.endswith(('.yml', '.yaml')))

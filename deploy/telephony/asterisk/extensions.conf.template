@@ -1,0 +1,117 @@
+; Rendered by deploy/telephony/render.py from the company's env file. Phase 1 dialplan: the three test extensions (101
+; and 102 browsers, 103 a plain SIP softphone), the trunk in both directions, MixMonitor named by the channel's linkedid
+; under the recording policy, and a spoken "not available" when the line is busy, unreachable or inside a move window
+; (design 4.2, 4.3, 12.2). No IVR, queues or recording announcement yet: they are absent on purpose, not stubbed
+; (README, "Not in this package yet").
+
+[general]
+static=yes
+writeprotect=yes
+clearglobalvars=no
+
+[globals]
+; The control plane flips LINE_STATE to `moving` for the length of a company move, and a new caller then hears the
+; unavailable message instead of a ring (design 12.2).
+LINE_STATE={{LINE_STATE}}
+; `always`, `on_demand` or `off`, the company's recording policy (design section 7).
+RECORDING_POLICY={{RECORDING_POLICY}}
+RECORDINGS_DIR=/var/spool/asterisk/monitor
+; A sound name from /var/lib/asterisk/sounds; `ss-noservice` ships with Asterisk, and a company prompt can be dropped
+; in beside it and named here.
+UNAVAILABLE_SOUND={{UNAVAILABLE_SOUND}}
+TRUNK_CALLER_ID={{TRUNK_CALLER_ID}}
+TRUNK_DIAL_PREFIX={{TRUNK_DIAL_PREFIX}}
+
+[from-extension]
+; The test extensions (design 13, phase 1), then the trunk for anything else. `_+X.` keeps the plus of an E.164 number
+; the browser or the softphone sent.
+exten => _10[123],1,Goto(internal,${EXTEN},1)
+exten => _X.,1,Goto(outbound,${EXTEN},1)
+exten => _+X.,1,Goto(outbound,${EXTEN},1)
+
+[internal]
+exten => _10[123],1,NoOp(Internal call from ${CALLERID(num)} to ${EXTEN})
+ same => n,GotoIf($["${LINE_STATE}"="available"]?dial)
+ same => n,Gosub(line-unavailable,s,1)
+ same => n,Hangup()
+ same => n(dial),Gosub(record-call,s,1)
+ same => n,Dial(PJSIP/${EXTEN},30)
+ same => n,GotoIf($["${DIALSTATUS}"="ANSWER"]?done)
+ same => n,Gosub(line-unavailable,s,1)
+ same => n(done),Hangup()
+
+[outbound]
+; The dialled number, with the provider's prefix when it wants one; the plus of an E.164 number is kept as dialled.
+; `_X.` and `_+X.` match any character after the first, so `&` or `/` reaches this context and `Dial` would read it as
+; another destination (a second number, or another endpoint that then receives the trunk's digest). The number must be
+; digits and an optional plus and nothing else: FILTER(0-9+,...) strips everything else, and a value that changes when
+; filtered is refused instead of being dialled in its cleaned form.
+exten => _X.,1,GotoIf($["${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"]?reject)
+ same => n,Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
+ same => n,Goto(dial-outbound,s,1)
+ same => n(reject),Hangup()
+exten => _+X.,1,GotoIf($["${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"]?reject)
+ same => n,Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
+ same => n,Goto(dial-outbound,s,1)
+ same => n(reject),Hangup()
+
+[dial-outbound]
+exten => s,1,NoOp(Outbound call to ${DIAL_NUMBER})
+ same => n,GotoIf($["${LINE_STATE}"="available"]?dial)
+ same => n,Gosub(line-unavailable,s,1)
+ same => n,Hangup()
+ same => n(dial),Set(CALLERID(num)=${TRUNK_CALLER_ID})
+ same => n,Gosub(record-call,s,1)
+ same => n,Dial(PJSIP/${DIAL_NUMBER}@trunk,60)
+ same => n,GotoIf($["${DIALSTATUS}"="ANSWER"]?done)
+ same => n,Gosub(line-unavailable,s,1)
+ same => n(done),Hangup()
+
+[from-trunk]
+; The provider may send the Contact user it registered (`s` when the contact has no user), a DID without the plus, or
+; a full E.164 number with it. Every DID rings 101 in phase 1: routing by number is a phase-2 setting (design 5).
+exten => s,1,Gosub(inbound-call,s,1(${EXTEN}))
+ same => n,Hangup()
+exten => _X.,1,Gosub(inbound-call,s,1(${EXTEN}))
+ same => n,Hangup()
+exten => _+X.,1,Gosub(inbound-call,s,1(${EXTEN}))
+ same => n,Hangup()
+; Anything else the provider addresses to the registered contact (a letter-starting username, say) rings 101 as well
+; in phase 1. The pattern needs at least two characters, so the single-character special extensions cannot reach it.
+exten => _[a-zA-Z].,1,Gosub(inbound-call,s,1(${EXTEN}))
+ same => n,Hangup()
+; The exact h wins over every pattern above: a pattern that matched it would re-enter inbound-call and ring 101 on
+; every hangup, a phantom call and a phantom leg in Odoo.
+exten => h,1,NoOp()
+
+[inbound-call]
+exten => s,1,NoOp(Inbound call from ${CALLERID(num)} to ${ARG1})
+ same => n,GotoIf($["${LINE_STATE}"="available"]?ring)
+ same => n,Gosub(line-unavailable,s,1)
+ same => n,Return()
+ same => n(ring),Gosub(record-call,s,1)
+ same => n,Dial(PJSIP/101,30)
+ same => n,GotoIf($["${DIALSTATUS}"="ANSWER"]?done)
+ same => n,Gosub(line-unavailable,s,1)
+ same => n(done),Return()
+
+; `always` records both legs of a bridged call; `off` records nothing; `on_demand` records only a channel that carries
+; RECORDING_REQUESTED=yes (the product sets it through pbx-agent; this package carries the agent but never sets it).
+; The file is named by the channel's linkedid, the call key every event is matched on (design 4.4, 4.5), read with
+; CHANNEL(linkedid): there is no plain linkedid channel variable. The `b` option records only while the call is bridged,
+; so a missed call leaves no recording.
+[record-call]
+exten => s,1,GotoIf($["${RECORDING_POLICY}"="off"]?done)
+ same => n,GotoIf($["${RECORDING_POLICY}"="on_demand"]?on-demand)
+ same => n,Goto(start)
+ same => n(on-demand),GotoIf($["${RECORDING_REQUESTED}"="yes"]?start)
+ same => n,Goto(done)
+ same => n(start),MixMonitor(${RECORDINGS_DIR}/${CHANNEL(linkedid)}.wav,b)
+ same => n(done),Return()
+
+; Busy, unreachable or moving: answer, play the message, return; the caller hangs up with the line. Answering first
+; creates the media path to the browser or to the provider, which a ringing channel has not opened yet.
+[line-unavailable]
+exten => s,1,Answer()
+ same => n,Playback(${UNAVAILABLE_SOUND})
+ same => n,Return()
