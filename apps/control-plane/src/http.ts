@@ -10,6 +10,7 @@ import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
 import { expectBeats, readHealth, recordAvailability } from './service-health.js'
 import { CommercialHttpError } from './commercial/lifecycle.js'
+import { assertCatalogCompatible, CatalogGateError, catalogGatePayload } from './commercial/catalog-gate.js'
 import { invitationPublicHttp, invitationVendorHttp, verifiedAcceptTenant } from './commercial/invitation-http.js'
 import { FIND_WORKSPACE_BODY_LIMIT, FIND_WORKSPACE_PATH, workspaceLookupHandler } from './commercial/workspace-lookup-http.js'
 import { humanCheckFromEnv, type HumanCheck } from './signup/human-check.js'
@@ -725,19 +726,23 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const input = parseJson(raw, reasonRequestSchema)
         requireStepUp(auth)
         const id = catalogMatch[1]
-        const current = await pool.query('SELECT status,source_sha256 FROM catalog_entries WHERE id=$1', [id])
+        const current = await pool.query('SELECT status,source_sha256,version FROM catalog_entries WHERE id=$1', [id])
         if (!current.rowCount) throw new ApiError(404, 'not_found', 'Catalog entry not found')
         if (current.rows[0].status !== 'validated') throw new ApiError(409, 'conflict', 'Catalog transition is unavailable')
         // A8: publish re-checks the source, not only import. An entry stored from a catalog file that has since
         // changed, or from an earlier catalog that is no longer the publishable one, would publish a version that sells
         // nothing (or the wrong thing); refuse it with the same code the import uses.
-        try { await requirePublishableSource(config.repositoryRoot, current.rows[0].source_sha256) }
+        let source
+        try { source = await requirePublishableSource(config.repositoryRoot, current.rows[0].source_sha256) }
         catch { throw new ApiError(409, 'catalog_source_not_publishable', 'Catalog source is no longer publishable; import a new version') }
         // Validation may be long past and the repository can have moved on: re-run the check so a stale or broken
         // catalog is never published, and let the row stay exactly as it is.
         try { await runCatalogCheck(config) }
         catch { throw new ApiError(422, 'catalog_invalid', 'Trusted catalog validation failed') }
+        const candidateSolution = JSON.parse(source.bytes.toString('utf8')) as Record<string, unknown>
+        const currentVersion = String(current.rows[0].version)
         const result = await transaction(pool, async (client) => {
+          await assertCatalogCompatible(client, candidateSolution, currentVersion)
           const row = await client.query("UPDATE catalog_entries SET status='published',published_at=now() WHERE id=$1 AND status='validated' RETURNING id,version,status,solution,created_at,published_at", [id])
           if (!row.rowCount) throw new ApiError(409, 'conflict', 'Catalog changed concurrently')
           await audit(client, auth.actor, 'catalog.publish', id, input.reason)
@@ -755,7 +760,18 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
     } catch (error) {
       const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing','shared_job_not_recoverable','shared_job_not_abandonable','shared_reconciliation_required','tenant_unavailable'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
       const failure = error instanceof UnsupportedRecoveryOperation || error instanceof UnsupportedAbandonOperation ? new ApiError(409, error.message, error.detail) : known ?? (error instanceof PackageError ? new ApiError(error.status,error.code,error.detail??'Package request rejected',error.field) : error instanceof z.ZodError ? new ApiError(422,'invalid','Invalid request body',String(error.issues[0]?.path[0]??'body')) : error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
-      if (error instanceof CommercialHttpError) return respond(res, error.status, { code: error.code, message: error.code, ...(error.field ? { field: error.field } : {}), ...(error.issues.length ? { issues: error.issues } : {}), ...(Object.keys(error.detail).length ? { detail: error.detail } : {}) })
+      if (error instanceof CatalogGateError) return respond(res, error.status, catalogGatePayload(error))
+      if (error instanceof CommercialHttpError) {
+        const affectedCount = error.issues.find(i => i.affected_count !== undefined)?.affected_count
+        return respond(res, error.status, {
+          code: error.code,
+          message: error.code,
+          ...(error.field ? { field: error.field } : {}),
+          ...(error.issues.length ? { issues: error.issues } : {}),
+          ...(Object.keys(error.detail).length ? { detail: error.detail } : {}),
+          ...(affectedCount !== undefined ? { affected_count: affectedCount } : {}),
+        })
+      }
       return respond(res, failure.status, { code: failure.code, message: failure.message, ...(failure.field ? { field: failure.field } : {}) })
     }
   }

@@ -6,6 +6,7 @@ import { CommercialHttpError } from './lifecycle.js'
 type Features = Record<string, boolean | number | null>
 const BRANCH_LIMIT = 'branches.extra_limit'
 const FRESH_MS = 15 * 60 * 1000
+export const USAGE_MAX_AGE_MS = FRESH_MS
 /** How long a tenant's older usage samples are kept. Every reader takes the latest sample only, and that one is never deleted. */
 export const USAGE_SNAPSHOT_RETENTION_DAYS = 30
 

@@ -574,6 +574,7 @@
         "catalog": {
           "imported": "Applications release imported",
           "publish": "Applications release published",
+          "sync_failed": "Applications release sync failed",
           "validate": "Applications release validated"
         },
         "catalog_release": {
@@ -1149,7 +1150,12 @@
         "onboarding_first_order_only": "The onboarding fee applies to a paid first order only. Take the change or renewal without it, and record it as a separate order if it is due.",
         "onboarding_unavailable": "No onboarding fee is set. Set it in Billing settings before quoting onboarding.",
         "catalog_source_not_publishable": "Only the current applications release source can be published. Rebuild the release from its source, then validate and publish it again.",
-        "tenant_required": "This subscription has no workspace linked yet, so the change cannot be reserved. Finish provisioning the workspace, then repeat the action."
+        "tenant_required": "This subscription has no workspace linked yet, so the change cannot be reserved. Finish provisioning the workspace, then repeat the action.",
+        "plan_addon_in_use": "Active subscriptions still use one or more add-ons removed from this plan revision. Keep them for existing subscribers or restore the add-on before publishing.",
+        "catalog_app_in_use": "This applications release removes an application still used by a published bundle or an active subscription. Keep the application in the release or retire its bundles and subscriptions first.",
+        "catalog_feature_removed": "This applications release removes a feature still selected by a published bundle or granted on an active subscription. Restore the feature in the release before publishing.",
+        "catalog_limit_removed": "This applications release removes a limit key still referenced by a published plan, a published bundle, or an active subscription. Keep the limit key in the release before publishing.",
+        "catalog_limit_below_usage": "This applications release lowers a limit ceiling below a tenant's current usage, or fresh usage data is unavailable for an affected tenant. Refresh usage or raise the ceiling before publishing."
       },
       "keys": {
         "ai_allowance_monthly": "Included monthly AI allowance",

@@ -135,8 +135,13 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
 7. Upgrade every tenant database (`tools/upgrade_log_guard.py` on its log, then `deploy/odoo/upgrade_smoke.py`), then
    migrate the control plane, then create the AI service's control tables
    (`compose run --rm ai python -m liwan_ai_service.store --initialize-control`, idempotent; skipped when `AI_DATABASE_URL`
-   is empty in every place compose reads it: the process environment and release config, then the shared env file). The `ai` service validates them when it starts and refuses to start without them, and the
-   per-tenant provisioning creates them only after the first start; failure reason `ai_control_initialization_failed`.
+   is empty in every place compose reads it: the process environment and release config, then the shared env file; the `ai`
+   service validates them when it starts and refuses to start without them, and the per-tenant provisioning creates them only
+   after the first start; failure reason `ai_control_initialization_failed`), then sync the commercial catalog
+   (`compose --profile admin run --rm --pull never -T control-admin catalog-sync <version> <reason>`; the version is
+   `release-` plus the tag with `/` replaced by `-`, or `commit-` plus the first 12 characters of the commit when there is no
+   tag; a non-zero exit is `catalog_sync_failed` and rolls the release back; running it last ensures a failed AI control
+   initialization never leaves a newly published catalog behind).
 8. Bring `db` up alone and run the database role check again (a first deploy included), so no application connects with a bad role. Then start `control-api` and `vendor-console` first (their project creates the networks the shared stack joins as external:
    the control ingress, the edge's own control network and the console's `admin_edge`, so a fresh host needs this
    order; the console waits for the API's health). The console's health gates the customer release: a console that fails
