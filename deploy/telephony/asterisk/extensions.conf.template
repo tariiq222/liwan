@@ -42,10 +42,18 @@ exten => _10[123],1,NoOp(Internal call from ${CALLERID(num)} to ${EXTEN})
 
 [outbound]
 ; The dialled number, with the provider's prefix when it wants one; the plus of an E.164 number is kept as dialled.
-exten => _X.,1,Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
+; `_X.` and `_+X.` match any character after the first, so `&` or `/` reaches this context and `Dial` would read it as
+; another destination (a second number, or another endpoint that then receives the trunk's digest). The number must be
+; digits and an optional plus and nothing else: FILTER(0-9+,...) strips everything else, and a value that changes when
+; filtered is refused instead of being dialled in its cleaned form.
+exten => _X.,1,GotoIf($["${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"]?reject)
+ same => n,Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
  same => n,Goto(dial-outbound,s,1)
-exten => _+X.,1,Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
+ same => n(reject),Hangup()
+exten => _+X.,1,GotoIf($["${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"]?reject)
+ same => n,Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
  same => n,Goto(dial-outbound,s,1)
+ same => n(reject),Hangup()
 
 [dial-outbound]
 exten => s,1,NoOp(Outbound call to ${DIAL_NUMBER})

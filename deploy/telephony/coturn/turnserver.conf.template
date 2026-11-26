@@ -6,7 +6,10 @@
 # TURN REST (an expiry as the username, its HMAC under the secret below as the password), so there is no static user
 # and no user database here.
 
-listening-port={{TURN_PORT}}
+# The listener is always 3478 inside the container: compose.yml publishes the operator's
+# LIWAN_TELEPHONY_TURN_PORT on it and its healthcheck probes it, so the variable moves only the host side of the
+# mapping and a company that picks another host port does not leave the listener somewhere nobody probes.
+listening-port=3478
 listening-ip=0.0.0.0
 # The public address of the package host: the only address a peer sees, because the relay ports below are published
 # one-to-one on it by compose.yml.
@@ -31,6 +34,17 @@ stale-nonce=600
 # No multicast relays, no loopback peers, no telnet CLI; the log goes to the container's bounded json file.
 no-multicast-peers
 no-loopback-peers
+#
+# The relay exists for browser media only: coturn forwards a browser's media and must never become a way onto the
+# company's internal network or its cloud metadata. Every private range a peer could otherwise reach is denied, and TCP
+# relaying is off, so an allocation carries only UDP media to a public peer. Asterisk advertises
+# LIWAN_TELEPHONY_STATIC_ADDRESS, so the browser leg reaches it as a public peer and never as a private one.
+# The listener itself stays on 3478/tcp; `no-tcp-relay` does not close it.
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+no-tcp-relay
 no-cli
 simple-log
 log-file=stdout

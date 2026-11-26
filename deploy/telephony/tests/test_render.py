@@ -492,6 +492,26 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('exten => _10[123],1,Goto(internal,${EXTEN},1)', extensions)
         self.assertIn('Dial(PJSIP/${DIAL_NUMBER}@trunk,60)', extensions)
 
+    def test_the_outbound_number_is_filtered_and_a_value_that_changes_is_refused_before_any_dial(self):
+        """`_X.` and `_+X.` match `&` and `/`, so an extension of `123&456` would become two Dial destinations, and
+        `123/103` another endpoint that then reaches the trunk. The dialplan keeps only digits and a plus, and hangs up
+        when the filtered value differs, before any Dial is reached."""
+        with tempfile.TemporaryDirectory() as directory:
+            extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
+        block = extensions.split('[outbound]', 1)[1].split('[dial-outbound]', 1)[0]
+        self.assertIn('FILTER(0-9+,${EXTEN})', block)
+        # The comparison is the guard: a value the filter changes must not be dialled even in its clean form.
+        self.assertIn('${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"', block)
+        self.assertIn('Hangup()', block)
+        guard = block.index('FILTER(0-9+,${EXTEN})')
+        # Every Goto that reaches the dialling context comes after the guard, so no Dial runs on an unfiltered value.
+        self.assertGreater(block.index('Goto(dial-outbound,s,1)'), guard)
+        for pattern in ('_X.,', '_+X.,'):
+            with self.subTest(pattern=pattern):
+                first = next(line for line in block.splitlines() if line.startswith(f'exten => {pattern}'))
+                self.assertIn('GotoIf(', first)
+                self.assertIn('?reject)', first)
+
     def test_every_reference_names_a_section_of_the_type_it_needs(self):
         """A name that exists as another type is not a reference: `aors=aor101` with `[aor101]` is only caught here."""
         for auth in ('credentials', 'ip'):
@@ -585,6 +605,48 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('tlsenable=no', http)
         self.assertIn('bindport=8088', http)
         self.assertEqual(['5060', '8088'], compose['services']['asterisk']['expose'])
+
+
+class CoturnShape(unittest.TestCase):
+    """coturn's rendered turnserver.conf: one fixed listener inside the container, and a relay that cannot reach the
+    company's private network."""
+
+    def rendered(self, directory, **overrides):
+        out = Path(directory) / 'package'
+        self.assertEqual(0, run('--env', write_env(directory, {**FIXED, **overrides}), '--out', out)[0])
+        return (out / 'coturn/turnserver.conf').read_text()
+
+    def test_the_listener_is_3478_inside_the_container_whatever_the_published_host_port(self):
+        """compose.yml publishes LIWAN_TELEPHONY_TURN_PORT on container port 3478 and its healthcheck probes 3478, so a
+        company that picks another host port must still find the listener on 3478; only the host side moves."""
+        for turn_port in ('3478', '5349', '1043'):
+            with self.subTest(turn_port=turn_port), tempfile.TemporaryDirectory() as directory:
+                text = self.rendered(directory, LIWAN_TELEPHONY_TURN_PORT=turn_port)
+                self.assertIn('listening-port=3478', text)
+                # No other listening port is written, so the host mapping and the healthcheck cannot disagree with it.
+                self.assertEqual(['listening-port=3478'],
+                                 [line for line in text.splitlines() if line.startswith('listening-port=')])
+                if turn_port != '3478':
+                    self.assertNotIn(f'listening-port={turn_port}', text)
+
+    def test_the_relay_denies_the_private_ranges_and_carries_only_udp_media(self):
+        """The relay is for browser media only. A peer in a private range would be a path from the browser leg onto the
+        company's internal network or its link-local metadata, so every private range is denied and no TCP relay is
+        allowed."""
+        with tempfile.TemporaryDirectory() as directory:
+            text = self.rendered(directory)
+        lines = text.splitlines()
+        for peer in ('denied-peer-ip=10.0.0.0-10.255.255.255',
+                     'denied-peer-ip=172.16.0.0-172.31.255.255',
+                     'denied-peer-ip=192.168.0.0-192.168.255.255',
+                     'denied-peer-ip=169.254.0.0-169.254.255.255',
+                     'no-tcp-relay'):
+            with self.subTest(line=peer):
+                self.assertIn(peer, lines)
+        # The restrictions sit with the other peer limits, all after the credentials and the relay range.
+        self.assertLess(text.index('static-auth-secret='), text.index('denied-peer-ip='))
+        self.assertIn('no-loopback-peers', lines)
+        self.assertIn('no-multicast-peers', lines)
 
 
 class LocalOverride(unittest.TestCase):
