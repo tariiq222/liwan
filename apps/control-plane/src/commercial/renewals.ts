@@ -3,10 +3,10 @@ import { paidTrialLines, trialLedger } from './trial-ledger.js'
 import { deletionClockRunningSql } from './tenant-deletion-read.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { addCadence, riyadhDate } from '@liwan/commercial-contracts'
+import { addCadence, riyadhDate, type Quote } from '@liwan/commercial-contracts'
 import { computeQuote } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
-import { loadQuoteSources, pricingOf } from './quote-sources.js'
+import { latestPublishedBundlePrices, loadQuoteSources, pricingBaseline, pricingOf } from './quote-sources.js'
 import { dateOnly } from './date-only.js'
 import { policyWire } from './policies.js'
 import { issueInvoiceFromQuote } from './invoices.js'
@@ -20,6 +20,33 @@ import { recompiledEntitlementOn } from './catalog-entitlements.js'
 import { holdsFreeBaseLockSql, owesAtRenewal, purchasedQuantities } from './free-base.js'
 
 const date = (v: any): string => dateOnly(v)
+
+/** The price the current period was billed at: the previous renewal's quote once one exists, otherwise the applied baseline. */
+async function billedBundleMinor(client: PoolClient, subscriptionId: string, snapshot: Record<string, any>) {
+  const row = (await client.query(`SELECT q.payload FROM renewals r JOIN orders o ON o.id=r.order_id
+    JOIN commercial_quotes q ON q.id=o.quote_id WHERE r.subscription_id=$1 AND r.kind='renewal' AND r.status<>'superseded'
+    ORDER BY r.period_start DESC, r.created_at DESC LIMIT 1`, [subscriptionId])).rows[0]
+  if (!row) return (snapshot.pricing?.bundle_minor ?? {}) as Record<string, number>
+  return pricingBaseline(row.payload, { extra_branches: 0, users: 0, storage_mb: 0 }).bundle_minor
+}
+
+/** One notice per changed add-on and published revision, in the renewal's transaction. A repeat of the same revision inserts nothing. */
+async function enqueuePriceChanges(client: PoolClient, input: {
+  subscriptionId: string; bundles: { id: string; bundle_id: string; name: string }[]; quote: Quote
+  billed: Record<string, number>; latest: Map<string, { id: string }>; invoiceId?: string
+}) {
+  const charged = pricingBaseline(input.quote, { extra_branches: 0, users: 0, storage_mb: 0 }).bundle_minor
+  for (const bundle of input.bundles) {
+    if (!input.quote.lines.some(line => line.key === `price_change:${bundle.bundle_id}`)) continue
+    const published = input.latest.get(bundle.bundle_id)
+    if (!published) continue
+    const money = (minor: number) => ({ currency: input.quote.due_now.currency, exponent: input.quote.due_now.exponent, minor })
+    await enqueueBillingNotice(client, `price_changed:${input.subscriptionId}:${bundle.bundle_id}:${published.id}`, {
+      type: 'price_changed', subscription_id: input.subscriptionId, invoice_id: input.invoiceId,
+      price_change: { name: bundle.name, previous: money(input.billed[bundle.id] ?? 0), next: money(charged[bundle.id] ?? 0) },
+    })
+  }
+}
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
   const instant = new Date(at).getTime()
   if (!Number.isSafeInteger(days) || days < 0 || !Number.isFinite(instant)) throw new Error('invalid_trial')
@@ -56,12 +83,21 @@ export async function buildRenewalOn(client: PoolClient, sub: Record<string, any
     ? trialLedger(await paidTrialLines(client, sub.id, now), pricing, sources.plan, pricing.paid_extra_branches).paid_through
     : sub.trial_paid_through ?? undefined
   const { extra_branches: extraBranches, ...quantities } = purchasedQuantities(sources.plan, snapshot, pricing)
+  // A trial checkout still prices the revision it owns. A renewal reads the latest published price of each owned
+  // add-on; terms, applied in computeQuote, still win. The owned revision id is not replaced.
+  const livePrice = !trialCheckout && !sub.trial_paid_through
+  const latest = livePrice ? await latestPublishedBundlePrices(client, sources.bundles.map(b => b.bundle_id), sub.customer_id) : new Map()
+  const catalogPrices = livePrice ? Object.fromEntries(sources.bundles.flatMap(b => {
+    const published = latest.get(b.bundle_id)
+    return published ? [[b.id, published.prices]] : []
+  })) : undefined
+  const billed = livePrice ? await billedBundleMinor(client, sub.id, snapshot) : undefined
   // A catalog follow delivers a feature change when the release is published. Generating a renewal must not open a
   // target revision: cancel and void treat that as a paid change in flight. A trial checkout still advances, as before.
   const recomputed = await recompiledEntitlementOn(client, sources, quantities, extraBranches, snapshot.entitlement, `subscription ${sub.id}`)
   const entitlement = trialCheckout ? recomputed : snapshot.entitlement
   const entitlementMoved = trialCheckout && entitlement.digest !== snapshot.entitlement?.digest
-  const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,
+  const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,catalog_prices:catalogPrices,billed_bundle_minor:billed,
     requested_extra_branches: extraBranches, requested_users: quantities.users, requested_storage_mb: quantities.storage_mb,
     paid_through: paidThrough,
     effective_date:start,period:{start,end},ids:{ id:randomUUID(),customer_id:sub.customer_id,subscription_id:sub.id,expected_subscription_revision:sub.revision },
@@ -88,6 +124,7 @@ export async function buildRenewalOn(client: PoolClient, sub: Record<string, any
     || (await client.query("SELECT 1 FROM free_base_locks WHERE subscription_id=$1 AND state='done' AND period_start=$2", [sub.id, start])).rowCount
   const invoice = await issueInvoiceFromQuote(client, { order, quote, dueDays: immediate ? 0 : undefined })
   await client.query('UPDATE renewals SET order_id=$2,invoice_id=$3 WHERE id=$1', [renewalId,order.id,invoice?.id ?? null])
+  if (livePrice) await enqueuePriceChanges(client, { subscriptionId: sub.id, bundles: sources.bundles, quote, billed: billed ?? {}, latest, invoiceId: invoice?.id })
   if (!invoice) {
     if (trialCheckout) await markTrialCheckoutPaidOn(client, row, now,
       { actor: `customer:${sub.customer_id}`, reason: 'First paid period already covered; nothing was charged' })

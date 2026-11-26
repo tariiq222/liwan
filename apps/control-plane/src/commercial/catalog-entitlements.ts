@@ -184,7 +184,7 @@ export async function pushCatalogEntitlement(pool: Pool, release: Pick<CatalogRe
         const subject = `subscription ${sub.id}`
         const sources = await loadQuoteSources(client, sub.customer_id, snapshot, snapshot)
         if (!snapshot.terms_revision_id) sources.terms = null
-        // The price the subscription pays stays pinned: the quote reads the revision the snapshot names, exactly like a renewal.
+        // A catalog follow buys nothing. Renewal is the invoice, and it prices an owned add-on from the latest published revision; this quote keeps the revision the snapshot names.
         const policy = (await client.query('SELECT * FROM pricing_policy_revisions WHERE id=$1', [snapshot.policy_revision_id])).rows[0]
         if (!policy) throw new Error('pinned_policy_missing')
         sources.policy = policyWire(policy)
