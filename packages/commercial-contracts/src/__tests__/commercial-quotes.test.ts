@@ -65,10 +65,10 @@ describe('computeQuote', () => {
     const raised = computeQuote(base({ requested_extra_branches: 0, bundles: [owned], catalog_prices: catalog, billed_bundle_minor: { [owned.id]: 10000 } }))
     const change = raised.lines.find(l => l.key === `price_change:${owned.bundle_id}`)!
     expect(change.kind).toBe('adjustment')
-    expect(change.amount.minor).toBe(70000)
+    expect(change.amount.minor).toBe(0)
     expect(change.description).toContain('100.00 SAR')
     expect(change.description).toContain('800.00 SAR')
-    expect(raised.lines.find(l => l.key === `bundle:${owned.id}`)!.amount.minor).toBe(10000)
+    expect(raised.lines.find(l => l.key === `bundle:${owned.id}`)!.amount.minor).toBe(80000)
     expect(raised.due_now.minor).toBe(Math.round(130000 * 1.15))
     expect(quoteSchema.safeParse({ ...raised, entitlement_digest: 'a'.repeat(64) }).success).toBe(true)
     const again = computeQuote(base({ requested_extra_branches: 0, bundles: [owned], catalog_prices: catalog, billed_bundle_minor: { [owned.id]: 80000 } }))

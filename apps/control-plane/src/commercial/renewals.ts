@@ -245,7 +245,7 @@ export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Dat
         const due = oldest.due_at
         const grace = row.grace_ends_at ?? new Date(new Date(due).getTime() + Number(row.grace_days) * 86_400_000)
         const elapsed = new Date(grace).getTime() <= now.getTime()
-        if (elapsed && Number(oldest.total_minor) === 0 && row.snapshot.pricing?.base_minor === 0 && await rearmUnpaidTrialLock(client, id, now)) return row.state as string
+        if (elapsed && row.snapshot.pricing?.base_minor === 0 && await rearmUnpaidTrialLock(client, id, now)) return row.state as string
         const next = row.auto_suspend && elapsed ? 'suspended' : 'past_due'
         if (row.state !== next || !row.grace_ends_at)
           await client.query('UPDATE subscriptions SET state=$2,grace_ends_at=$3,revision=revision+1 WHERE id=$1', [id, next, grace])

@@ -185,10 +185,8 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     add('onboarding', 'onboarding', 'Onboarding', 1, input.onboarding.amount.minor, 'now', plan.id, period.start, period.end)
   }
 
-  // A renewal whose catalog price moved shows the change on its own line. The bundle line stays the price the
-  // current period was billed at when the catalog rose, and the adjustment is the difference, so the two sum to
-  // the new price already added to the total. A drop cannot be a negative line: the bundle line is the new price
-  // and the adjustment only names both amounts. Terms never produce a line.
+  // A renewal whose catalog price moved names the change on its own line. The bundle line stays the price
+  // charged now, already in the total, so the adjustment is a label and never a second charge. Terms produce no line.
   if (kind === 'new' && input.billed_bundle_minor && input.catalog_prices) {
     const shown = (minor: number) => `${(minor / 10 ** exponent).toFixed(exponent)} ${currency}`
     for (const { b, amount, included } of bundleAmounts) {
@@ -196,12 +194,7 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
       const previous = input.billed_bundle_minor[b.id] ?? 0
       const next = amount.minor
       if (previous === next) continue
-      const raised = next > previous
-      if (raised) {
-        const line = lines.find(l => l.key === `bundle:${b.id}` && l.kind === 'bundle')
-        if (line) line.amount = money(previous)
-      }
-      add(`price_change:${b.bundle_id}`, 'adjustment', `${b.name}: ${shown(previous)} → ${shown(next)}`, 1, raised ? next - previous : 0, 'now', b.id, period.start, period.end)
+      add(`price_change:${b.bundle_id}`, 'adjustment', `${b.name}: ${shown(previous)} → ${shown(next)}`, 1, 0, 'now', b.id, period.start, period.end)
     }
   }
 

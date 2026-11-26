@@ -104,8 +104,8 @@ suite('renewal invoices the latest published add-on price', () => {
     expect(renewal.order_target).toBe(renewal.applied_revision_id)
     expect(renewal.subscription_target).toBeNull()
     const renewalLines = await linesOf(renewal.id)
-    expect(renewalLines.filter(l => l.key === `price_change:${bundle.bundle_id}`)).toEqual([{ key: `price_change:${bundle.bundle_id}`, kind: 'adjustment', amount_minor: '3000' }])
-    expect(renewalLines.find(l => l.kind === 'bundle')!.amount_minor).toBe('5000')
+    expect(renewalLines.filter(l => l.key === `price_change:${bundle.bundle_id}`)).toEqual([{ key: `price_change:${bundle.bundle_id}`, kind: 'adjustment', amount_minor: '0' }])
+    expect(renewalLines.find(l => l.kind === 'bundle')!.amount_minor).toBe('8000')
     const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [renewal.quote_id])).rows[0].payload
     expect(pricingBaseline(quote, { extra_branches: 0, users: 1, storage_mb: 0 }).bundle_minor[bundle.id]).toBe(8000)
     expect((await notices(sub.id)).rows).toHaveLength(1)
