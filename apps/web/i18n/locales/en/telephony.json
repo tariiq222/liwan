@@ -1,0 +1,39 @@
+{
+  "telephony": {
+    "title": "Telephony",
+    "calls": {
+      "description": "Every call in one log, linked to the customer and the employee",
+      "empty": "No calls yet",
+      "detail": "Call details",
+      "recording": "Recording",
+      "listen": "Listen to the recording",
+      "noRecording": "This call has no recording",
+      "canNotListen": "You cannot listen to recordings",
+      "count": "{shown} of {total} calls"
+    },
+    "direction": { "in": "Incoming", "out": "Outgoing", "internal": "Internal" },
+    "state": {
+      "ringing": "Ringing",
+      "answered": "Answered",
+      "missed": "Missed",
+      "rejected": "Rejected",
+      "failed": "Failed",
+      "ended": "Ended"
+    },
+    "filter": { "all": "All directions", "allStates": "All states" },
+    "column": {
+      "started": "Time",
+      "direction": "Direction",
+      "number": "Number",
+      "state": "State",
+      "duration": "Duration"
+    },
+    "nav": { "calls": "Calls" },
+    "settings": {
+      "lines": "Lines",
+      "routing": "Routing",
+      "extensions": "Extensions",
+      "recording": "Recording"
+    }
+  }
+}

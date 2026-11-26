@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="liwan_telephony_call_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.call: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_call"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <!-- A user who only has telephony.use sees the calls they took part in. The company-wide log needs
+             telephony.calls.read_all, which adds its own rule. -->
+        <record id="liwan_telephony_call_own_rule" model="ir.rule">
+            <field name="name">liwan.telephony.call: own calls</field>
+            <field name="model_id" ref="model_liwan_telephony_call"/>
+            <field name="groups" eval="[Command.set([ref('group_cap_telephony_use')])]"/>
+            <field name="domain_force">[('user_id', '=', user.id)]</field>
+        </record>
+        <record id="liwan_telephony_line_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.line: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_line"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <record id="liwan_telephony_extension_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.extension: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_extension"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <record id="liwan_telephony_settings_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.settings: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_settings"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <record id="liwan_telephony_recording_access_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.recording.access: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_recording_access"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+    </data>
+</odoo>

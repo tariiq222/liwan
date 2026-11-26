@@ -1,0 +1,48 @@
+{
+  "telephony": {
+    "title": "الاتصالات",
+    "calls": {
+      "description": "كل مكالمة في سجل واحد مربوط بالعميل والموظف",
+      "empty": "لا توجد مكالمات بعد",
+      "detail": "تفاصيل المكالمة",
+      "recording": "التسجيل",
+      "listen": "استمع للتسجيل",
+      "noRecording": "لا يوجد تسجيل لهذه المكالمة",
+      "canNotListen": "لا تملك صلاحية الاستماع للتسجيلات",
+      "count": "{shown} من {total} مكالمة"
+    },
+    "direction": {
+      "in": "واردة",
+      "out": "صادرة",
+      "internal": "داخلية"
+    },
+    "state": {
+      "ringing": "يرن",
+      "answered": "تم الرد",
+      "missed": "فائتة",
+      "rejected": "مرفوضة",
+      "failed": "فاشلة",
+      "ended": "منتهية"
+    },
+    "filter": {
+      "all": "كل الاتجاهات",
+      "allStates": "كل الحالات"
+    },
+    "column": {
+      "started": "الوقت",
+      "direction": "الاتجاه",
+      "number": "الرقم",
+      "state": "الحالة",
+      "duration": "المدة"
+    },
+    "nav": {
+      "calls": "المكالمات"
+    },
+    "settings": {
+      "lines": "الخطوط",
+      "routing": "التوجيه",
+      "extensions": "التمثيلات",
+      "recording": "التسجيل"
+    }
+  }
+}
