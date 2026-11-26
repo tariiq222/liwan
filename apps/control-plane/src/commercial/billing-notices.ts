@@ -8,7 +8,7 @@ import { MIN_CHARGE_MINOR } from './payment-adapter.js'
 import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
 
 export const BILLING_NOTICE_KIND = 'billing.notice'
-export type BillingNoticeType = 'renewal_upcoming' | 'overdue' | 'suspension_warning' | 'suspended' | 'payment_received' | 'payment_refunded' | 'card_charge_failed' | 'card_charge_skipped' | 'card_expiring'
+export type BillingNoticeType = 'renewal_upcoming' | 'overdue' | 'suspension_warning' | 'suspended' | 'payment_received' | 'payment_refunded' | 'card_charge_failed' | 'card_charge_skipped' | 'card_expiring' | 'price_changed'
 /** Why an automatic charge that was promised, or due, cannot be made: the invoice is paid by hand. */
 export type SkipReason = 'card_unusable' | 'plan_not_allowed' | 'amount_below_minimum' | 'charge_refused'
 type Money = { minor: number; currency: string; exponent: number }
@@ -20,7 +20,9 @@ type Payload = { type: BillingNoticeType; subscription_id: string; invoice_id?: 
   /** `card_expiring`: the saved card the notice is about, and the last day it is valid. */
   payment_method_id?: string; expires_on?: string
   /** `payment_refunded`: the payment was a trial checkout that was reverted before delivery, so the trial goes on. */
-  trial_reverted?: boolean }
+  trial_reverted?: boolean
+  /** `price_changed`: the add-on whose published price the renewal invoice charges, and the two amounts. */
+  price_change?: { name: string; previous: Money; next: Money } }
 
 /**
  * Queues one billing notice. The dedupe key names the event (the invoice, the renewal date, the grace end and the
@@ -206,6 +208,13 @@ export function billingNotice(payload: Payload, daysLeft: number, facts: Partial
     payment_received: { subject: 'استلمنا دفعتك في LiwanOS',
       ar: `استلمنا دفعتك${payload.amount ? ` بقيمة ${formatMoney(payload.amount, 'ar')}` : ''}.${invoice ? ` ${receiptText(invoice, 'ar')}` : ''} شكرًا لك.`,
       en: `We received your payment${payload.amount ? ` of ${formatMoney(payload.amount, 'en')}` : ''}.${invoice ? ` ${receiptText(invoice, 'en')}` : ''} Thank you.` },
+    price_changed: { subject: 'تغيّر سعر إضافة في اشتراكك في LiwanOS',
+      ar: payload.price_change
+        ? `سعر ${payload.price_change.name} في فاتورة التجديد هو ${formatMoney(payload.price_change.next, 'ar')} بدل ${formatMoney(payload.price_change.previous, 'ar')}. فاتورة الفترة الحالية لم تتغيّر.`
+        : 'تغيّر سعر إضافة في فاتورة التجديد. فاتورة الفترة الحالية لم تتغيّر.',
+      en: payload.price_change
+        ? `The renewal invoice charges ${formatMoney(payload.price_change.next, 'en')} for ${payload.price_change.name} instead of ${formatMoney(payload.price_change.previous, 'en')}. The invoice for the current period is unchanged.`
+        : 'An add-on price changed on the renewal invoice. The invoice for the current period is unchanged.' },
     payment_refunded: { subject: 'استرددنا دفعتك في LiwanOS',
       ar: `سجّلنا استرداد دفعتك${payload.amount ? ` بقيمة ${formatMoney(payload.amount, 'ar')}` : ''}.${payload.trial_reverted && trialEnds ? ` تجربتك مستمرة حتى ${trialEnds}، ولم يتغيّر شيء في تطبيقاتك.` : ''}`,
       en: `We recorded a refund of your payment${payload.amount ? ` of ${formatMoney(payload.amount, 'en')}` : ''}.${payload.trial_reverted && trialEnds ? ` Your trial continues until ${trialEnds}, and nothing changed in your apps.` : ''}` },
@@ -287,6 +296,7 @@ function stillTrue(payload: Payload, ctx: Context, today: string): boolean {
       && riyadhDate(ctx.grace_ends_at) === payload.grace_ends_on && daysBetween(today, payload.grace_ends_on!) >= 1
     case 'renewal_upcoming': return ctx.state === 'active' && !ctx.manual_suspension && !ctx.locked && owesAtRenewal(ctx.pricing)
       && ctx.renewal_on === payload.renewal_on && daysBetween(today, payload.renewal_on!) >= 1
+    case 'price_changed': return ctx.state !== 'cancelled' && ctx.invoice_status !== 'void'
   }
 }
 

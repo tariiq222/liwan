@@ -59,6 +59,25 @@ describe('computeQuote', () => {
     expect(quoteRequestSchema.safeParse({ kind: 'new', plan_revision_id: id(4), bundle_revision_ids: [], cadence: M, requested_extra_branches: 0, due_now: 1 }).success).toBe(false)
     expect(planRevisionSchema.safeParse({ ...plan(), trial_days: undefined }).success).toBe(false)
   })
+  it('a raised catalog price is its own line and does not charge the difference twice; terms suppress it', () => {
+    const owned = bundle(2, 80000)
+    const catalog = { [owned.id]: owned.prices }
+    const raised = computeQuote(base({ requested_extra_branches: 0, bundles: [owned], catalog_prices: catalog, billed_bundle_minor: { [owned.id]: 10000 } }))
+    const change = raised.lines.find(l => l.key === `price_change:${owned.bundle_id}`)!
+    expect(change.kind).toBe('adjustment')
+    expect(change.amount.minor).toBe(0)
+    expect(change.description).toContain('100.00 SAR')
+    expect(change.description).toContain('800.00 SAR')
+    expect(raised.lines.find(l => l.key === `bundle:${owned.id}`)!.amount.minor).toBe(80000)
+    expect(raised.due_now.minor).toBe(Math.round(130000 * 1.15))
+    expect(quoteSchema.safeParse({ ...raised, entitlement_digest: 'a'.repeat(64) }).success).toBe(true)
+    const again = computeQuote(base({ requested_extra_branches: 0, bundles: [owned], catalog_prices: catalog, billed_bundle_minor: { [owned.id]: 80000 } }))
+    expect(again.lines.some(l => l.kind === 'adjustment')).toBe(false)
+    const terms = { id: id(9), customer_id: 'c1', reason: 'agreed', bundle_prices: { [owned.id]: { cadence: M, amount: sar(10000) } } }
+    const agreed = computeQuote(base({ requested_extra_branches: 0, bundles: [owned], catalog_prices: catalog, billed_bundle_minor: { [owned.id]: 10000 }, terms }))
+    expect(agreed.lines.some(l => l.kind === 'adjustment')).toBe(false)
+    expect(agreed.due_now.minor).toBe(Math.round(60000 * 1.15))
+  })
   it('included bundle is covered by base price: line 0, no price needed; optional still charged', () => {
     const p = plan({ included_bundle_revision_ids: [id(2)], optional_bundle_revision_ids: [id(3)] })
     const q = computeQuote(base({ plan: p, requested_extra_branches: 0, bundles: [bundle(2, 30000), bundle(3, 20000)] }))

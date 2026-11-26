@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg'
-import { paidStorageGb, paidUnits, type Quote } from '@liwan/commercial-contracts'
+import { paidStorageGb, paidUnits, type Price, type Quote } from '@liwan/commercial-contracts'
 import { loadCustomerTerms } from './customer-terms.js'
 import { policyWire } from './policies.js'
 import { CommercialHttpError } from './lifecycle.js'
@@ -38,6 +38,30 @@ export async function loadQuoteSources(client: Pick<PoolClient, 'query'>, custom
   return { plan: planRevision(row), bundles, release, terms, policy: policyWire(policyResult.rows[0]) }
 }
 
+/** Bundle amounts of one cycle, plus a price-change adjustment, so a raised catalog price is what the next period records. */
+function bundleMinorOf(lines: Quote['lines']) {
+  const minor: Record<string, number> = Object.fromEntries(lines.filter(l => l.kind === 'bundle').map(l => [l.source_revision_id, l.amount.minor]))
+  for (const line of lines) if (line.kind === 'adjustment' && line.key.startsWith('price_change:'))
+    minor[line.source_revision_id] = (minor[line.source_revision_id] ?? 0) + line.amount.minor
+  return minor
+}
+
+/**
+ * The latest published revision of each owned add-on, for renewal pricing only. The subscription keeps naming
+ * the revision it owns; this row is read for its price and never written onto the snapshot.
+ */
+export async function latestPublishedBundlePrices(client: Pick<PoolClient, 'query'>, bundleIds: string[], customerId: string) {
+  const ids = [...new Set(bundleIds)]
+  if (!ids.length) return new Map<string, { id: string; prices: Price[] }>()
+  const rows = (await client.query(
+    `SELECT DISTINCT ON (bundle_id) bundle_id, id, prices FROM bundle_revisions
+     WHERE bundle_id = ANY($1::uuid[]) AND status='published' AND (audience_customer_id IS NULL OR audience_customer_id=$2)
+     ORDER BY bundle_id, version DESC`,
+    [ids, customerId],
+  )).rows as { bundle_id: string; id: string; prices: Price[] }[]
+  return new Map(rows.map(row => [row.bundle_id, { id: row.id, prices: row.prices }]))
+}
+
 export function pricingBaseline(quote: Quote, included: { extra_branches: number; users: number; storage_mb: number }) {
   // Persisted quotes do not include request kind. The full base line identifies
   // the target cycle: initial (including reselection) uses now; changes use renewal.
@@ -49,7 +73,7 @@ export function pricingBaseline(quote: Quote, included: { extra_branches: number
   return { plan_revision_id: quote.plan_revision_id, bundle_revision_ids: quote.bundle_revision_ids,
     paid_extra_branches: paidUnits(quote.requested_extra_branches, included.extra_branches), base_minor: lines.find(l => l.kind === 'base')?.amount.minor ?? 0,
     paid_users: paidUnits(quote.requested_users, included.users), paid_storage_gb: paidStorageGb(quote.requested_storage_mb, included.storage_mb),
-    bundle_minor: Object.fromEntries(lines.filter(l => l.kind === 'bundle').map(l => [l.source_revision_id, l.amount.minor])),
+    bundle_minor: bundleMinorOf(lines),
     branch_unit_minor: branch && branch.quantity ? branch.amount.minor / branch.quantity : 0,
     user_unit_minor: users && users.quantity ? users.amount.minor / users.quantity : 0,
     storage_unit_minor: storage && storage.quantity ? storage.amount.minor / storage.quantity : 0 }
