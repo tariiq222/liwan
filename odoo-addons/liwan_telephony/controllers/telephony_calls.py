@@ -60,14 +60,13 @@ class TelephonyCallsController(http.Controller):
     @http.route('/api/v1/telephony/lookup', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('telephony.enabled', operation='read')
-    def lookup(self, number, **_):
+    def lookup(self, **_):
         """The caller card: the partner this number belongs to and the last calls with it."""
         _require('telephony.use')
+        number = request.httprequest.args.get('number')
         if not number:
             raise ApiError(422, 'invalid', 'A number is required.')
         partner = request.env['res.partner'].search([('phone', '=', number)], limit=1)
-        if not partner:
-            partner = request.env['res.partner'].search([('mobile', '=', number)], limit=1)
         calls = request.env['liwan.telephony.call'].search(
             [('remote_number', '=', number)], limit=5, order='started_at desc',
         )

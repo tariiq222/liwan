@@ -11,9 +11,11 @@
     'depends': ['liwan_api'],
     'data': [
         'security/telephony_capability_groups.xml',
-        'security/telephony_rules.xml',
         'security/ir.model.access.csv',
+        'security/telephony_rules.xml',
         'data/telephony_access_permissions.xml',
+        'data/telephony_roles.xml',
+        'data/telephony_events_user.xml',
     ],
     'installable': True,
     'application': False,

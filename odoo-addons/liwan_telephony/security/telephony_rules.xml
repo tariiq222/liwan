@@ -34,5 +34,19 @@
             <field name="model_id" ref="model_liwan_telephony_recording_access"/>
             <field name="domain_force">[('company_id', '=', company_id)]</field>
         </record>
+        <!-- The machine route's account writes the call and the receipt of the company it carries; it is never a
+             person's identity, so it is not a user rule but the company one above plus this explicit grant. -->
+        <record id="liwan_telephony_call_events_rule" model="ir.rule">
+            <field name="name">liwan.telephony.call: machine events</field>
+            <field name="model_id" ref="model_liwan_telephony_call"/>
+            <field name="groups" eval="[Command.set([ref('group_telephony_events')])]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+        </record>
+        <record id="liwan_telephony_event_events_rule" model="ir.rule">
+            <field name="name">liwan.telephony.event: machine events</field>
+            <field name="model_id" ref="model_liwan_telephony_event"/>
+            <field name="groups" eval="[Command.set([ref('group_telephony_events')])]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+        </record>
     </data>
 </odoo>

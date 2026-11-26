@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import LiwanTelephonyCase
+from .common import LiwanTelephonyCase, set_feature
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -9,7 +9,8 @@ class TestTelephonyCalls(LiwanTelephonyCase):
 
     def setUp(self):
         super().setUp()
-        self.env['liwan.feature.registry']._liwan_set_feature('telephony.enabled', True)
+        set_feature(self, 'telephony.enabled')
+        set_feature(self, 'telephony.recording')
 
     def test_the_call_shape_is_whitelisted(self):
         self.authenticate('telephony_manager', 'telephony_manager_pass_123')

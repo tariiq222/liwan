@@ -1,7 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import new_test_user
 
-from odoo.addons.liwan_api.tests.common import LiwanApiCase
+from odoo.addons.liwan_api.tests.common import OPERATOR_CONTEXT, LiwanApiCase
+
+
+def set_feature(case, key, enabled=True):
+    """Switch one feature on the tenant profile the way the operator does."""
+    profile = case.env.ref('liwan_platform.tenant_profile')
+    profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
+        'features': {**(profile.features or {}), key: enabled},
+    })
 
 
 class LiwanTelephonyCase(LiwanApiCase):

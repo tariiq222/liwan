@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The account the machine route runs as (design D5). It is inactive and has no password: the route activates it for
+     the one request, after the derived key is verified, so an unauthenticated caller never reaches a record as it. -->
+<odoo>
+    <data noupdate="1">
+        <record id="user_telephony_events" model="res.users">
+            <field name="name">Telephony events</field>
+            <field name="login">liwan_telephony_events</field>
+            <field name="active" eval="False"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="company_ids" eval="[Command.set([ref('base.main_company')])]"/>
+            <field name="group_ids" eval="[Command.set([ref('liwan_telephony.group_telephony_events')])]"/>
+        </record>
+    </data>
+</odoo>

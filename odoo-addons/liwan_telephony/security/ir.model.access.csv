@@ -11,3 +11,5 @@ access_settings_manage,liwan.telephony.settings.manage,model_liwan_telephony_set
 access_recording_access_read,liwan.telephony.recording.access.read,model_liwan_telephony_recording_access,group_cap_telephony_recordings_listen,1,0,0,0
 access_recording_access_manage,liwan.telephony.recording.access.manage,model_liwan_telephony_recording_access,group_cap_telephony_manage,1,1,1,0
 access_event_manage,liwan.telephony.event.manage,model_liwan_telephony_event,group_cap_telephony_manage,1,0,1,0
+access_call_events,liwan.telephony.call.events,model_liwan_telephony_call,group_telephony_events,1,1,1,0
+access_event_events,liwan.telephony.event.events,model_liwan_telephony_event,group_telephony_events,1,0,1,0

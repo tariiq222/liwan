@@ -8,6 +8,7 @@ cannot be replayed after that window, and the ``event_id`` makes a retry inside 
 """
 import hashlib
 import hmac
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -60,26 +61,37 @@ class TelephonyEventsController(http.Controller):
     @http.route(
         '/api/v1/telephony/events',
         type='json2',
-        auth='public',
+        auth='telephony_events',
         methods=['POST'],
         save_session=False,
         csrf=False,
     )
     @api_handler
     @requires_feature('telephony.enabled', operation='write')
-    def receive_event(self, payload=None, timestamp=None, signature=None, **_):
-        """Apply one event, once. The body is the agent's envelope (contracts/src/telephony/event.ts)."""
-        _verify(request.httprequest.get_data(), timestamp, signature)
+    def receive_event(self, **_):
+        """Apply one event, once. The body is the agent's envelope (contracts/src/telephony/event.ts).
+
+        The agent signs ``timestamp + "\n" + body`` where the body is the same JSON it posts with an empty signature
+        field, so the route reads the raw body and the fields itself instead of trusting a re-serialised copy.
+        """
+        raw = request.httprequest.get_data() or b'{}'
+        try:
+            envelope = json.loads(raw)
+        except ValueError:
+            raise ApiError(422, 'invalid', 'The body is not JSON.') from None
+        _verify(raw, envelope.get('timestamp'), envelope.get('signature'))
+        env = request.env
+        payload = envelope.get('payload')
         if not isinstance(payload, dict) or not payload.get('event_id'):
             raise ApiError(422, 'invalid', 'An event with an event_id is required.')
         call = payload.get('call') or {}
         linkedid = call.get('linkedid')
         if not linkedid:
             raise ApiError(422, 'invalid', 'The event names no call.')
-        Event = request.env['liwan.telephony.event']
+        Event = env['liwan.telephony.event']
         if Event.search_count([('event_id', '=', payload['event_id'])]):
             return {'applied': False, 'reason': 'already applied'}
-        Call = request.env['liwan.telephony.call']
+        Call = env['liwan.telephony.call']
         record = Call.search([('linkedid', '=', linkedid)], limit=1)
         values = Call._liwan_from_event(payload)
         if record:

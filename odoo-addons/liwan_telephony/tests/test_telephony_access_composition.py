@@ -9,12 +9,12 @@ class TestTelephonyAccessComposition(LiwanTelephonyCase):
 
     def test_the_four_capabilities_exist(self):
         service = self.env['liwan.access.service']
-        keys = set(service._liwan_capability_definitions())
+        keys = {entry['key'] for entry in service._liwan_capability_definitions()}
         for key in (
             'telephony.use', 'telephony.calls.read_all',
             'telephony.recordings.listen', 'telephony.manage',
         ):
-            self.assertIn(key, [entry['key'] for entry in keys])
+            self.assertIn(key, keys)
 
     def test_listening_is_not_implied_by_reading(self):
         dependencies = self.env['liwan.access.service']._liwan_permission_dependencies()
