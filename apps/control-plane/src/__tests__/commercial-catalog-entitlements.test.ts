@@ -184,10 +184,9 @@ suite('catalog entitlement follow', () => {
     expect(renewal!.order.due_now.minor).toBe(bought.quote.next_renewal.minor)
     expect(renewal!.order.due_now.minor).toBeLessThan(90000)
     expect(renewal!.invoice!.total.minor).toBe(bought.quote.next_renewal.minor)
-    const next = await snapshotOf(renewal!.order.target_revision_id)
-    expect(next.entitlement.digest).not.toBe(applied.snapshot.entitlement.digest)
-    expect(next.entitlement.features[LIMIT]).toBe(20)
-    expect(next.plan_revision_id).toBe(applied.snapshot.plan_revision_id)
+    // A renewal does not open a target revision. The catalog push delivers the feature change.
+    expect(renewal!.order.target_revision_id).toBe(applied.applied_revision_id)
+    expect((await appliedOf(bought.id)).target_revision_id).toBeNull()
   })
 
   it('keeps the pinned entitlement when the latest release refuses to compile', async () => {

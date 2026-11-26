@@ -56,11 +56,11 @@ export async function buildRenewalOn(client: PoolClient, sub: Record<string, any
     ? trialLedger(await paidTrialLines(client, sub.id, now), pricing, sources.plan, pricing.paid_extra_branches).paid_through
     : sub.trial_paid_through ?? undefined
   const { extra_branches: extraBranches, ...quantities } = purchasedQuantities(sources.plan, snapshot, pricing)
-  // The entitlement follows the latest published release for what the subscription owns; plan, policy, terms and price stay pinned.
-  const entitlement = await recompiledEntitlementOn(client, sources, quantities, extraBranches, snapshot.entitlement, `subscription ${sub.id}`)
-  // A recompiled entitlement is a new snapshot: the applied revision is immutable, so a renewal whose entitlement moved
-  // delivers through its own revision, exactly like a trial checkout. An unchanged one keeps the fast path.
-  const entitlementMoved = trialCheckout || entitlement.digest !== snapshot.entitlement?.digest
+  // A catalog follow delivers a feature change when the release is published. Generating a renewal must not open a
+  // target revision: cancel and void treat that as a paid change in flight. A trial checkout still advances, as before.
+  const recomputed = await recompiledEntitlementOn(client, sources, quantities, extraBranches, snapshot.entitlement, `subscription ${sub.id}`)
+  const entitlement = trialCheckout ? recomputed : snapshot.entitlement
+  const entitlementMoved = trialCheckout && entitlement.digest !== snapshot.entitlement?.digest
   const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,
     requested_extra_branches: extraBranches, requested_users: quantities.users, requested_storage_mb: quantities.storage_mb,
     paid_through: paidThrough,
