@@ -6,6 +6,8 @@ import { url, client, money, monthly } from './commercial-helpers.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { pushCatalogEntitlement } from '../commercial/catalog-entitlements.js'
+import { pendingChangeRefusal } from '../commercial/cancellation-rules.js'
+import { processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { buildRenewalOn } from '../commercial/renewals.js'
 import { recordUsage } from '../commercial/usage.js'
 import { migrate, transaction } from '../db.js'
@@ -132,12 +134,23 @@ suite('catalog entitlement follow', () => {
     // Publishing the release is the push: the route delivers it before the response returns.
     raised = await publish(catalog(20, true))
     const after = await appliedOf(pushSub.id)
-    const delivered = await snapshotOf(after.target_revision_id)
+    const sub = (await pool.query('SELECT * FROM subscriptions WHERE id=$1', [pushSub.id])).rows[0]
+    const follow = (await pool.query("SELECT target_revision_id FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'catalog-release:%'", [pushSub.id])).rows[0]
+    const delivered = await snapshotOf(follow.target_revision_id)
+    expect(after.target_revision_id).toBeNull()
+    expect(await pendingChangeRefusal(pool, sub)).toBeNull()
     expect(after.snapshot.entitlement.features[LIMIT]).toBe(5)
     expect(delivered.entitlement.features[LIMIT]).toBe(20)
     expect(delivered.bundle_revision_ids).toEqual(before.snapshot.bundle_revision_ids)
     expect(delivered.entitlement.features[NEW_APP]).toBe(false)
     expect(await catalogOrders(pushSub.id)).toBe(1)
+    const tenant = sub.tenant_id as string
+    const slug = `t${tenant.replaceAll('-', '')}`
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)',
+      [tenant, slug, `${slug}.test`, `liwan_scratch_${slug.slice(1)}`])
+    await processFulfillmentOutbox(pool)
+    expect((await pool.query("SELECT count(*)::int AS n FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure' AND payload->'authority'->>'target_revision_id'=$2", [tenant, follow.target_revision_id])).rows[0].n).toBe(1)
+    expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1', [pushSub.id])).rows[0].target_revision_id).toBeNull()
     const second = await pushCatalogEntitlement(pool, { id: raised.id })
     expect(second.pushed).toBe(0)
     expect(second.failed).toBe(0)

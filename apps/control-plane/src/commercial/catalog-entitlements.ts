@@ -110,11 +110,37 @@ export function ownedEntitlementKeys(release: Pick<CatalogRelease, 'applications
 }
 
 /**
+ * A catalog follow is not a change the customer bought. The order keeps this key prefix so `pendingChangeRefusal`
+ * and quote acceptance ignore it; a paid `change` or `renewal` key does not match. `target_revision_id` stays null.
+ */
+export const CATALOG_FOLLOW_KEY_PREFIX = 'catalog-release:'
+
+export function isCatalogFollowKey(key: string | null | undefined): boolean {
+  return typeof key === 'string' && key.startsWith(CATALOG_FOLLOW_KEY_PREFIX)
+}
+
+/**
+ * The follow may still be delivered while the subscription target stays null, and only while the applied revision
+ * is the one the follow was computed from. A paid change that has taken the target since, or moved what is applied,
+ * is stale and must not be overwritten.
+ */
+export function catalogFollowMayDeliver(order: {
+  idempotency_key?: string | null
+  subscription_target?: string | null
+  applied_revision_id?: string | null
+  expected_applied_revision_id?: string | null
+}): boolean {
+  return isCatalogFollowKey(order.idempotency_key) && !order.subscription_target
+    && !!order.applied_revision_id && order.applied_revision_id === order.expected_applied_revision_id
+}
+
+/**
  * Delivers the latest release to every subscription that owns a workspace: each one whose recomputed feature map
- * differs from its applied revision gets a new revision and a zero-due change order, and the existing
+ * differs from its applied revision gets a new revision and a zero-due follow order, and the existing
  * fulfilment path queues the reconfigure job for it — the tenant write stays in that one path. Nothing is granted:
  * the recompile names exactly the revisions the snapshot owns, so an application the release adds is never added to
- * `bundle_revision_ids` (its keys stay closed). Idempotent: a subscription whose entitlement is current, or that
+ * `bundle_revision_ids` (its keys stay closed). The follow does not set `target_revision_id` and its order key is
+ * not a customer change in flight. Idempotent: a subscription whose entitlement is current, or that
  * already carries a pending revision or order, is not a candidate. An incompatible recompile is a failure, not an
  * unchanged entitlement: no revision and no order, and the refusal is recorded where the publish response can name it.
  */
@@ -188,12 +214,15 @@ export async function pushCatalogEntitlement(pool: Pool, release: Pick<CatalogRe
         const revisionId = randomUUID(), orderId = randomUUID()
         await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)',
           [revisionId, sub.id, sub.revision + 1, JSON.stringify({ ...applied, entitlement, quote_id: quote.id }), quote.id])
+        // The revision guard refuses a revision-only write. Occupy sub.revision+1, then clear the target in the same
+        // transaction so a catalog follow is not a customer change in flight. The committed row has a null target.
         await client.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [sub.id, revisionId])
+        await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [sub.id, revisionId])
         await client.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,
           payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
           VALUES($1,$2,$3,'change',$4,$5,$6,'not_required','queued',$7,$8,$9,0,$10,$11)`,
         [orderId, sub.customer_id, sub.id, quote.id, revisionId, sub.applied_revision_id, `${today}T00:00:00+03:00`,
-          `catalog-release:${release.id}:${sub.id}`, digestOf({ subscription_id: sub.id, release_id: release.id, entitlement_digest: entitlement.digest }),
+          `${CATALOG_FOLLOW_KEY_PREFIX}${release.id}:${sub.id}`, digestOf({ subscription_id: sub.id, release_id: release.id, entitlement_digest: entitlement.digest }),
           quote.due_now.currency, quote.due_now.exponent])
         await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: orderId, dedupe_key: revisionId,
           payload: { order_id: orderId, subscription_id: sub.id, target_revision_id: revisionId } })
