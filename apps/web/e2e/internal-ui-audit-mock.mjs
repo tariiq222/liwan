@@ -5,7 +5,7 @@ import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { financeGapsPreview } from './finance-documents-ui-preview-data.mjs'
-import { capabilitiesForRequest, featuresOffForRequest } from './mock-capabilities.mjs'
+import { capabilitiesForRequest, featuresOffForRequest, opsDeskForRequest } from './mock-capabilities.mjs'
 import { hrInsurancePreviewWrite, hrWarningsPreviewWrite } from './hr-areas-ui-preview-data.mjs'
 import { crmPreviewWrite } from './crm-ui-preview-data.mjs'
 import { INBOX_CAPABILITIES, INBOX_FEATURES, inboxPreviewData, resetInboxPreview } from './inbox-ui-preview-data.mjs'
@@ -692,7 +692,18 @@ async function handle(req, res) {
       const closedPlatform = platform && off.length
         ? { ...platform, readable_features: without(platform.readable_features), writable_features: without(platform.writable_features) }
         : platform
-      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform: closedPlatform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, INTEGRATIONS_READ, INTEGRATIONS_MANAGE, ...INBOX_CAPABILITIES, ...CUSTOMERS_CAPABILITIES, ...PRODUCTS_CAPABILITIES, ...SALES_CAPABILITIES]), AI_USE, 'ai.settings.manage'] })
+      // `mock_caps=ops_desk` also switches on the three staff applications the audit photographs, for that request only.
+      const opsDesk = opsDeskForRequest(cookie)
+      const staffFeatures = opsDesk ? Object.fromEntries(opsDesk.features.map(feature => [feature, true])) : {}
+      const staffPlatform = closedPlatform && opsDesk
+        ? {
+            ...closedPlatform,
+            readable_features: [...new Set([...closedPlatform.readable_features, ...Object.keys(staffFeatures)])],
+            writable_features: [...new Set([...closedPlatform.writable_features, ...Object.keys(staffFeatures)])],
+          }
+        : closedPlatform
+      const withStaff = { ...base, entitlements: { ...base.entitlements, ...staffFeatures }, modules: opsDesk ? [...base.modules, 'liwan_operations', 'liwan_helpdesk', 'liwan_appointments'] : base.modules }
+      return json(res, 200, { ...withStaff, ...(noPolicy ? {} : { platform: staffPlatform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, INTEGRATIONS_READ, INTEGRATIONS_MANAGE, ...INBOX_CAPABILITIES, ...CUSTOMERS_CAPABILITIES, ...PRODUCTS_CAPABILITIES, ...SALES_CAPABILITIES]), AI_USE, 'ai.settings.manage'] })
     }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)
