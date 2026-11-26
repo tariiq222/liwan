@@ -48,13 +48,16 @@ const WIDTH = {
   state: 'w-[144px] min-w-[144px]',
   date: 'w-[128px] min-w-[128px]',
 }
-function column(id: string, header: TableColumn<OperationRequestSummary>['header'], width: string, fit = false): TableColumn<OperationRequestSummary> {
+function column(id: string, header: TableColumn<OperationRequestSummary>['header'], width: string, fit = false, title = false): TableColumn<OperationRequestSummary> {
   const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<OperationRequestSummary>['meta'] }
+  return { id, header, meta: { ...(title ? { title: true } : {}), class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<OperationRequestSummary>['meta'] }
 }
+// The name carries `meta.title`: `SharedDataTable` measures the table's minimum from that column, and without it the
+// record number's 48px stood in for the title and the table ran 91px past its card at 1440 (the last column needed a
+// scroll inside the frame that is not meant to have one).
 const columns = computed<TableColumn<OperationRequestSummary>[]>(() => [
   column('record_number', () => recordNumberHeader(t), WIDTH.number, true),
-  column('name', t('operations.name'), WIDTH.title),
+  column('name', t('operations.name'), WIDTH.title, false, true),
   column('process', t('operations.process'), WIDTH.process),
   ...(!props.personal ? [column('requester', t('operations.requester'), WIDTH.requester, true)] : []),
   column('state', t('operations.state'), WIDTH.state, true),

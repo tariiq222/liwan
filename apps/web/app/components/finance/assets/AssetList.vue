@@ -56,7 +56,7 @@ const numeric = { class: { th: 'text-end', td: 'text-end' } }
 const columns = computed<TableColumn<FinanceAsset>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { id: 'code', header: t('financeAssets.columns.code') },
-  { id: 'name', header: t('financeAssets.columns.name') },
+  { id: 'name', header: t('financeAssets.columns.name'), meta: { title: true } },
   { id: 'date_start', header: t('financeAssets.columns.dateStart') },
   { id: 'purchase_value', header: t('financeAssets.columns.purchaseValue'), meta: numeric },
   { id: 'value_residual', header: t('financeAssets.columns.valueResidual'), meta: numeric },
@@ -92,8 +92,8 @@ const dash = computed(() => t('app.notAvailable'))
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>
             <template #code-cell="{ row }"><bdi class="tabular-nums">{{ row.original.code || dash }}</bdi></template>
             <template #name-cell="{ row }">
-              <NuxtLink :to="recordTo(row.original)" class="font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :data-testid="`finance-asset-row-${row.original.id}`" @click="!hydrated && $event.preventDefault()">{{ row.original.name }}</NuxtLink>
-              <p class="text-sm text-muted">{{ row.original.profile.name }}</p>
+              <NuxtLink :to="recordTo(row.original)" class="block min-w-0 truncate font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name" :data-testid="`finance-asset-row-${row.original.id}`" @click="!hydrated && $event.preventDefault()">{{ row.original.name }}</NuxtLink>
+              <p class="truncate text-sm text-muted" :title="row.original.profile.name">{{ row.original.profile.name }}</p>
             </template>
             <template #date_start-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date_start }}</bdi></template>
             <template #purchase_value-cell="{ row }"><Money :amount="row.original.purchase_value" :currency="row.original.currency" /></template>

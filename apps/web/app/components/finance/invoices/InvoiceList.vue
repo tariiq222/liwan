@@ -64,7 +64,7 @@ function setDate(key: 'date_from' | 'date_to', value: string | null) {
 
 const columns = computed<TableColumn<FinanceInvoice>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { id: 'name', header: t('financeDocuments.columns.number') },
+  { id: 'name', header: t('financeDocuments.columns.number'), meta: { title: true } },
   { id: 'partner', header: t(`financeDocuments.kinds.${props.moveType}.partner`) },
   { id: 'invoice_date', header: t('financeDocuments.columns.date') },
   { id: 'invoice_date_due', header: t('financeDocuments.columns.dueDate') },
@@ -107,7 +107,7 @@ const label = (invoice: FinanceInvoice) => invoiceTitle(invoice, t('financeDocum
         <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t(`financeDocuments.kinds.${moveType}.title`)">
           <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }">
-            <NuxtLink :to="recordTo(row.original)" class="font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :data-testid="`finance-invoice-row-${row.original.id}`" @click="!hydrated && $event.preventDefault()"><bdi>{{ label(row.original) }}</bdi></NuxtLink>
+            <NuxtLink :to="recordTo(row.original)" class="block min-w-0 truncate font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="label(row.original)" :data-testid="`finance-invoice-row-${row.original.id}`" @click="!hydrated && $event.preventDefault()"><bdi>{{ label(row.original) }}</bdi></NuxtLink>
           </template>
           <template #partner-cell="{ row }">{{ row.original.partner?.name ?? dash }}</template>
           <template #invoice_date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.invoice_date ?? dash }}</bdi></template>
