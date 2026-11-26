@@ -15,6 +15,7 @@ import { onboardSharedTenant } from '../shared/onboarding.js'
 import { commercialEnrollmentActor } from '../shared/commercial-enrollment-authority.js'
 import { enqueueOutbox } from './outbox.js'
 import type { SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
+import { catalogFollowMayDeliver } from './catalog-entitlements.js'
 import { keptAtTrialEnd } from './free-base.js'
 import { hasReachableManager } from './orders.js'
 import { deliveredEntitlement } from './ai-ledger.js'
@@ -89,7 +90,7 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     const receipt = input.receipt
     if (receipt.order_id !== order.id || receipt.target_revision_id !== order.target_revision_id || receipt.observed_entitlement_digest !== (input.verifiedDigest ?? order.snapshot.entitlement.digest)) throw new Error('observed_mismatch')
     if (order.fulfillment_state === 'applied') return { applied: true, replay: true }
-    if (order.subscription_target !== order.target_revision_id && !(order.kind==='renewal' && !order.subscription_target && order.applied_revision_id===order.target_revision_id)) throw new Error('stale_target')
+    if (order.subscription_target !== order.target_revision_id && !(order.kind==='renewal' && !order.subscription_target && order.applied_revision_id===order.target_revision_id) && !catalogFollowMayDeliver(order)) throw new Error('stale_target')
     // A recovered receipt may arrive before a worker persisted its started state.
     const started = order.fulfillment_state === 'queued' ? nextOrderState(order, { type: 'fulfillment_started' }) : order
     const next = nextOrderState(started, { type: 'fulfillment_applied', receipt, target_revision_id: order.target_revision_id })
@@ -311,7 +312,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
           return {order_id:order.id as string}
         }
         const renewalFromTrial=order.kind==='renewal' && !order.subscription_target && order.applied_revision_id===order.target_revision_id
-        if(order.subscription_target!==order.target_revision_id && !renewalFromTrial)throw Error('stale_target')
+        if(order.subscription_target!==order.target_revision_id && !renewalFromTrial && !catalogFollowMayDeliver(order))throw Error('stale_target')
         const binding=await client.query('SELECT * FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true FOR SHARE',[order.tenant_id])
         if(!binding.rowCount)throw Error('tenant_unavailable')
         const b=binding.rows[0]

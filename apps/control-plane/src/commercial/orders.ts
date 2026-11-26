@@ -7,6 +7,7 @@ import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
 import { requireCapability } from './authorization.js'
 import { appliedPeriod } from './quotes.js'
 import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
+import { CATALOG_FOLLOW_KEY_PREFIX } from './catalog-entitlements.js'
 import { compilePurchasedEntitlement, unresolvedFreeBaseLock } from './free-base.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
@@ -203,7 +204,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   if (subscription.revision !== input.expected_subscription_revision || quote.expected_subscription_revision !== subscription.revision || (quote.subscription_id && quote.subscription_id !== subscription.id)) throw new CommercialHttpError('revision_conflict', 409)
   // A hosted attempt may settle later. Keep its accepted target authoritative
   // until the prior order is applied or explicitly cancelled.
-  const pending = await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' LIMIT 1", [subscription.id])
+  const pending = await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' AND idempotency_key NOT LIKE $2 LIMIT 1", [subscription.id, `${CATALOG_FOLLOW_KEY_PREFIX}%`])
   if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
   // Once the trial end date has passed and the lapse has not run yet, no new order is accepted: otherwise an order could keep
   // arriving against the trial configuration and the wait for the lapse would never end.

@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
+import { catalogFollowMayDeliver } from '../commercial/catalog-entitlements.js'
 import { applyReceipt, failFulfillmentOn, type SubscriptionReceipt } from '../commercial/fulfillment.js'
 import { deliveredEntitlement, observeTenantNext, pushAiIfStale } from '../commercial/ai-ledger.js'
 import { PRE_WRITE_REFUSALS, recoverableTrialPredecessors } from './commercial-recovery.js'
@@ -73,7 +74,8 @@ async function withLiveAiFeatures(client:PoolClient,job:SharedReconfigureJob):Pr
 }
 export async function assertReconfigureAuthority(client:PoolClient,job:SharedReconfigureJob) {
   if(job.authority.ai_push)return assertAiPushAuthority(client,job)
-  const result=await client.query(`SELECT s.applied_revision_id,s.target_revision_id,r.snapshot,o.payment_state,o.fulfillment_state,o.cancelled
+  const result=await client.query(`SELECT s.applied_revision_id,s.target_revision_id,r.snapshot,o.payment_state,o.fulfillment_state,o.cancelled,
+      o.idempotency_key,o.expected_applied_revision_id
     FROM subscriptions s JOIN orders o ON o.subscription_id=s.id JOIN subscription_revisions r ON r.id=$3
     WHERE s.tenant_id=$1 AND o.id=$2 AND r.subscription_id=s.id FOR SHARE OF s,o`,[job.controlTenantId,job.authority.order_id,job.authority.target_revision_id])
   const row=result.rows[0]
@@ -85,7 +87,10 @@ export async function assertReconfigureAuthority(client:PoolClient,job:SharedRec
   // A paid trial renewal legitimately reuses the applied revision while the order is still
   // queued, so accepting only `target_revision_id` would mark it stale before the effect runs.
   const renewalOfApplied = row.target_revision_id === null && row.applied_revision_id === job.authority.target_revision_id
-  if((job.restore || row.fulfillment_state==='applied' || renewalOfApplied ? row.applied_revision_id : row.target_revision_id)!==job.authority.target_revision_id)throw Error('stale_target')
+  const catalogFollow = catalogFollowMayDeliver({ ...row, subscription_target: row.target_revision_id })
+  const authoritative = job.restore || row.fulfillment_state==='applied' || renewalOfApplied ? row.applied_revision_id
+    : catalogFollow ? job.authority.target_revision_id : row.target_revision_id
+  if(authoritative!==job.authority.target_revision_id)throw Error('stale_target')
   if(row.snapshot.entitlement?.digest!==job.authority.entitlement.digest)throw Error('observed_mismatch')
   const predecessors = job.authority.recoverable_predecessors
   if (predecessors) {

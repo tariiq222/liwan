@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { catalogApplicationsFromSolution, catalogDigest } from '@liwan/commercial-contracts/server'
-import { catalogReleaseViewSchema, type CatalogReleaseView } from '@liwan/commercial-contracts'
+import { catalogReleaseViewSchema, type CatalogRelease, type CatalogReleaseView } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, iso, type CommercialActor } from './lifecycle.js'
 
@@ -19,6 +19,11 @@ export async function getRelease(pool: Pool | { query: Pool['query'] }, id: stri
   const r = await pool.query('SELECT * FROM catalog_releases WHERE id=$1', [id])
   if (!r.rowCount) throw new CommercialHttpError('release_missing', 404)
   return view(r.rows[0])
+}
+/** The newest published release: what an entitlement follows when nothing pins one. */
+export async function latestPublishedRelease(pool: Pool | { query: Pool['query'] }): Promise<CatalogRelease | null> {
+  const r = await pool.query('SELECT * FROM catalog_releases ORDER BY created_at DESC,id LIMIT 1')
+  return r.rows[0] ? view(r.rows[0]) as unknown as CatalogRelease : null
 }
 const ZERO = '00000000-0000-4000-8000-000000000000'
 export async function createRelease(pool: Pool, actor: CommercialActor, input: { catalog_version: string; reason: string }) {

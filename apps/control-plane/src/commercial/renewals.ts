@@ -16,8 +16,8 @@ import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
 import { enqueueBillingNotice } from './billing-notices.js'
 import { rearmUnpaidTrialLock } from './free-base-lock.js'
-import { loadRelease } from './bundles.js'
-import { compilePurchasedEntitlement, holdsFreeBaseLockSql, owesAtRenewal, purchasedQuantities } from './free-base.js'
+import { recompiledEntitlementOn } from './catalog-entitlements.js'
+import { holdsFreeBaseLockSql, owesAtRenewal, purchasedQuantities } from './free-base.js'
 
 const date = (v: any): string => dateOnly(v)
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
@@ -56,8 +56,11 @@ export async function buildRenewalOn(client: PoolClient, sub: Record<string, any
     ? trialLedger(await paidTrialLines(client, sub.id, now), pricing, sources.plan, pricing.paid_extra_branches).paid_through
     : sub.trial_paid_through ?? undefined
   const { extra_branches: extraBranches, ...quantities } = purchasedQuantities(sources.plan, snapshot, pricing)
-  const entitlement = trialCheckout ? compilePurchasedEntitlement({ ...sources,
-    release: await loadRelease(client, snapshot.entitlement.catalog_release_id), quantities, extraBranches }) : snapshot.entitlement
+  // A catalog follow delivers a feature change when the release is published. Generating a renewal must not open a
+  // target revision: cancel and void treat that as a paid change in flight. A trial checkout still advances, as before.
+  const recomputed = await recompiledEntitlementOn(client, sources, quantities, extraBranches, snapshot.entitlement, `subscription ${sub.id}`)
+  const entitlement = trialCheckout ? recomputed : snapshot.entitlement
+  const entitlementMoved = trialCheckout && entitlement.digest !== snapshot.entitlement?.digest
   const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,
     requested_extra_branches: extraBranches, requested_users: quantities.users, requested_storage_mb: quantities.storage_mb,
     paid_through: paidThrough,
@@ -66,10 +69,10 @@ export async function buildRenewalOn(client: PoolClient, sub: Record<string, any
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id,sub.customer_id,JSON.stringify(quote),quote.digest,quote.expires_at])
   // Odoo may already have materialized the restricted policy for the trial revision. A paid
   // conversion advances the revision, so the host applies the whole purchased policy again.
-  const targetRevision = trialCheckout ? randomUUID() : sub.applied_revision_id
-  if (trialCheckout) {
+  const targetRevision = entitlementMoved ? randomUUID() : sub.applied_revision_id
+  if (entitlementMoved) {
     const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...applied } = snapshot
-    const converted = { ...applied, period_start: start, period_end: end, entitlement, trial_end: true, quote_id: quote.id }
+    const converted = { ...applied, period_start: start, period_end: end, entitlement, quote_id: quote.id, ...(trialCheckout ? { trial_end: true } : {}) }
     await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)',
       [targetRevision, sub.id, sub.revision + 1, JSON.stringify(converted), quote.id])
     await client.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [sub.id, targetRevision])

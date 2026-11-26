@@ -7,6 +7,7 @@ import { transaction } from '../db.js'
 import { CommercialHttpError, toIssue } from './lifecycle.js'
 import { bundleRevision, loadRelease } from './bundles.js'
 import { loadQuoteSources, pricingOf } from './quote-sources.js'
+import { latestPublishedRelease } from './catalog-releases.js'
 import { planIssues, planRevision } from './plans.js'
 import { getPolicy } from './policies.js'
 import { assertDowngradeFitsUsage } from './usage.js'
@@ -52,11 +53,11 @@ export async function previewQuote(pool: Pool, value: unknown, now: Date = new D
       if (r.audience_customer_id !== null && r.audience_customer_id !== customer) throw bad('bundle_missing', 'bundle_revision_ids', 404)
     }
     const planIds: string[] = [...planRow.included_bundle_revision_ids, ...planRow.optional_bundle_revision_ids]
+    // A new sale with no bundle names no release: the quote compiles against the newest release, the catalog it sells.
     let releaseId: string | undefined = bundleRows[0]?.catalog_release_id
     if (!releaseId && planIds.length) releaseId = (await client.query('SELECT catalog_release_id FROM bundle_revisions WHERE id=$1', [planIds[0]])).rows[0]?.catalog_release_id
-    if (!releaseId) releaseId = (await client.query('SELECT id FROM catalog_releases ORDER BY created_at DESC,id LIMIT 1')).rows[0]?.id
-    if (!releaseId) throw bad('release_missing', 'catalog_release_id')
-    const release = await loadRelease(client, releaseId)
+    const release = releaseId ? await loadRelease(client, releaseId) : await latestPublishedRelease(client)
+    if (!release) throw bad('release_missing', 'catalog_release_id')
     const policy = await getPolicy(pool, planRow.policy_revision_id).catch(() => { throw bad('policy_missing', 'policy_revision_id') })
     const plan = planRevision(planRow), bundles = bundleRows.map(r => bundleRevision(r))
     try {

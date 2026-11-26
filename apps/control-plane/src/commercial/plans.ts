@@ -4,6 +4,7 @@ import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, customerCountSql, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
 import { DERIVED_LIMITS, priceIssues, bundleRevision, loadRelease } from './bundles.js'
+import { latestPublishedRelease } from './catalog-releases.js'
 import { compileEntitlements, CommercialError } from '@liwan/commercial-contracts/server'
 
 export const PLAN_KIND: Kind = { table: 'plan_revisions', parent: 'commercial_plans', parentCol: 'plan_id', label: 'plan' }
@@ -46,9 +47,9 @@ async function entitlementIssues(client: Pool | PoolClient, row: Row, bundleRows
   const out: Issue[] = []
   for (const k of Object.keys(row.platform_limits ?? {})) if (DERIVED_LIMITS.includes(k)) out.push({ code: 'platform_limit_derived', field: 'platform_limits' })
   if (out.length) return out
-  if (!releaseId) releaseId = (await client.query('SELECT id FROM catalog_releases ORDER BY created_at DESC,id LIMIT 1')).rows[0]?.id ?? null
-  if (!releaseId) return [{ code: 'release_missing', field: 'catalog_release_id' }]
-  const release = await loadRelease(client, releaseId)
+  // A plan that names no bundle is validated against the newest release, the catalog a sale of it would compile against.
+  const release = releaseId ? await loadRelease(client, releaseId) : await latestPublishedRelease(client)
+  if (!release) return [{ code: 'release_missing', field: 'catalog_release_id' }]
   const plan = planRevision(row)
   const bundles = bundleRows.map(bundleRevision)
   for (const set of [bundles, bundles.filter(b => inc.includes(b.id))]) {

@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg'
+import { CATALOG_FOLLOW_KEY_PREFIX } from './catalog-entitlements.js'
 import { owesAtRenewal, unresolvedFreeBaseLock } from './free-base.js'
 
 /**
@@ -12,9 +13,9 @@ export async function paidRenewalInFlight(client: Pick<PoolClient, 'query'>, sub
     AND NOT o.cancelled AND o.fulfillment_state<>'applied' AND o.payment_state IN ('paid','not_required') LIMIT 1${lock ? ' FOR UPDATE OF o' : ''}`, [subscriptionId])).rowCount === 1
 }
 
-/** A paid change still on its way blocks ending the subscription: the lock cannot replace a configuration that is about to change. */
+/** A paid change still on its way blocks ending the subscription: the lock cannot replace a configuration that is about to change. A catalog follow is not one. */
 export async function pendingChangeRefusal(client: Pick<PoolClient, 'query'>, sub: Record<string, any>): Promise<'subscription_change_pending' | null> {
-  const pending = sub.target_revision_id || (await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND kind<>'renewal' AND fulfillment_state<>'applied' LIMIT 1", [sub.id])).rowCount
+  const pending = sub.target_revision_id || (await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND kind<>'renewal' AND fulfillment_state<>'applied' AND idempotency_key NOT LIKE $2 LIMIT 1", [sub.id, `${CATALOG_FOLLOW_KEY_PREFIX}%`])).rowCount
   return pending ? 'subscription_change_pending' : null
 }
 

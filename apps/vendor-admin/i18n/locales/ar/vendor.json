@@ -577,7 +577,8 @@
           "validate": "التحقق من إصدار تطبيقات"
         },
         "catalog_release": {
-          "created": "إنشاء إصدار حزم"
+          "created": "إنشاء إصدار حزم",
+          "entitlement_incompatible": "تعذّر نقل استحقاق الاشتراك إلى الإصدار"
         },
         "customer": {
           "admin_login_changed": "تغيير البريد المسجّل للعميل"
