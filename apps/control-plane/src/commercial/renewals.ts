@@ -237,13 +237,15 @@ export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Dat
           JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
           WHERE s.id=$1 AND s.state IN ('active','past_due') AND NOT s.manual_suspension
           AND NOT ${holdsFreeBaseLockSql('s')} FOR UPDATE OF s SKIP LOCKED`, [id])).rows[0]
-        if (!row || !owesAtRenewal(row.snapshot.pricing)) return
-        const oldest = (await client.query("SELECT id,due_at FROM invoices WHERE subscription_id=$1 AND status='issued' AND due_at<$2 ORDER BY due_at,id LIMIT 1", [id, now])).rows[0]
+        if (!row) return
+        const oldest = (await client.query("SELECT id,due_at,total_minor FROM invoices WHERE subscription_id=$1 AND status='issued' AND due_at<$2 ORDER BY due_at,id LIMIT 1", [id, now])).rows[0]
         if (!oldest) return
+        // The applied snapshot can still price a free plan after a catalog rise. An issued invoice is what is owed.
+        if (!owesAtRenewal(row.snapshot.pricing) && Number(oldest.total_minor) === 0) return
         const due = oldest.due_at
         const grace = row.grace_ends_at ?? new Date(new Date(due).getTime() + Number(row.grace_days) * 86_400_000)
         const elapsed = new Date(grace).getTime() <= now.getTime()
-        if (elapsed && row.snapshot.pricing?.base_minor === 0 && await rearmUnpaidTrialLock(client, id, now)) return row.state as string
+        if (elapsed && Number(oldest.total_minor) === 0 && row.snapshot.pricing?.base_minor === 0 && await rearmUnpaidTrialLock(client, id, now)) return row.state as string
         const next = row.auto_suspend && elapsed ? 'suspended' : 'past_due'
         if (row.state !== next || !row.grace_ends_at)
           await client.query('UPDATE subscriptions SET state=$2,grace_ends_at=$3,revision=revision+1 WHERE id=$1', [id, next, grace])

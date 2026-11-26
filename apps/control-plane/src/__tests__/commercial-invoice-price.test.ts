@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { url, setup, client, money, monthly } from './commercial-helpers.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { acceptQuote } from '../commercial/orders.js'
-import { generateRenewals } from '../commercial/renewals.js'
+import { applyDunning, generateRenewals } from '../commercial/renewals.js'
 import { pricingBaseline } from '../commercial/quote-sources.js'
 import { createCustomerTerms } from '../commercial/customer-terms.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
@@ -142,5 +142,28 @@ suite('renewal invoices the latest published add-on price', () => {
     expect(renewal.total_minor).toBe('15000')
     expect(await linesOf(renewal.id)).not.toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'adjustment' })]))
     expect((await notices(order.subscription_id)).rows).toEqual([])
+  })
+
+  it('duns an issued renewal after a catalog rise on a free plan', async () => {
+    const bundle = await publish('bundles', {
+      name: `Free-plan add-on ${randomUUID()}`, description: 'Optional add-on', audience: { kind: 'public' }, catalog_release_id: releaseId,
+      selections: [{ app_id: selectable.app, feature_keys: [selectable.feature] }], domain_limits: {},
+      prices: [{ cadence: monthly, amount: money(0) }],
+    })
+    const plan = await publish('plans', {
+      name: `Free plan ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
+      prices: [{ cadence: monthly, amount: money(0) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [bundle.id],
+      included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
+      included_users: 1, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
+      user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
+      policy_revision_id: POLICY, trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true,
+    })
+    const sub = await subscribe(plan.id, bundle.id)
+    await raise(bundle, 8000)
+    await renew()
+    const renewal = (await pool.query('SELECT i.id,i.due_at FROM renewals r JOIN invoices i ON i.id=r.invoice_id WHERE r.subscription_id=$1', [sub.id])).rows[0]
+    const dunned = await applyDunning(pool, { now: new Date(new Date(renewal.due_at).getTime() + 86_400_000) })
+    expect(dunned).toEqual([{ subscription_id: sub.id, state: 'past_due' }])
+    expect((await pool.query('SELECT state FROM subscriptions WHERE id=$1', [sub.id])).rows[0].state).toBe('past_due')
   })
 })
