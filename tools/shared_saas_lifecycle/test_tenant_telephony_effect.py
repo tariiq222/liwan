@@ -4,6 +4,7 @@ import io
 import json
 import os
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -191,6 +192,78 @@ class OtherCompanyTest(Case):
         self.run_op('drop', tenant_id='globex')
         self.assertEqual('active', self.run_op('ensure')['state'])
         self.assertFalse(os.path.exists(self.path(suffix='.dropped')))
+
+
+class AllocationLockTest(Case):
+    def test_a_second_company_ensure_waits_while_the_allocation_lock_is_held(self):
+        """Two companies share one host's SIP port and RTP space: their `ensure` never scans and writes at once."""
+        started, finished = threading.Event(), threading.Event()
+        outcome = {}
+
+        def ensure_globex():
+            started.set()
+            try:
+                outcome['answer'] = self.run_op('ensure', tenant_id='globex',
+                                                allocation=allocation(host='globex.example.test', sipPort=5080))
+            finally:
+                finished.set()
+
+        with effect.allocation_lock(self.state_dir):
+            worker = threading.Thread(target=ensure_globex)
+            worker.start()
+            self.assertTrue(started.wait(5))
+            self.assertFalse(finished.wait(0.5))  # blocked before its own conflict scan and write
+            self.assertFalse(os.path.exists(self.path('globex')))
+        self.assertTrue(finished.wait(5))
+        worker.join(5)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual('active', outcome['answer']['state'])
+        self.assertTrue(os.path.exists(self.path('globex')))
+
+    def test_the_allocation_lock_is_a_file_under_the_state_directory(self):
+        self.run_op('ensure')
+        self.assertTrue(os.path.isfile(os.path.join(self.state_dir, effect.STATE_DIRECTORY, effect.ALLOCATION_LOCK)))
+
+    def test_another_company_ensure_is_not_refused_by_the_allocation_lock(self):
+        """It waits for the lock, so the answer is the allocation's, never `operation_in_progress`."""
+        self.run_op('ensure', tenant_id='globex', allocation=allocation(host='globex.example.test', sipPort=5080))
+        self.assertEqual('active', self.run_op('ensure')['state'])
+
+
+class AtomicWriteTest(Case):
+    def test_a_failed_replace_leaves_the_previous_record_intact(self):
+        self.run_op('ensure')
+        before = self.body()
+        with patch.object(effect.os, 'replace', side_effect=OSError('crash before rename')):
+            self.assertEqual('runtime_invalid', self.code_of('suspend'))
+        self.assertEqual(before, self.body())
+        self.assertEqual('active', self.run_op('verify')['state'])  # the record still parses and still answers
+        self.assertEqual(sorted(['acme.json', 'acme.lock', effect.ALLOCATION_LOCK]),
+                         sorted(os.listdir(os.path.dirname(self.path()))))
+
+    def test_a_failed_replace_on_a_new_company_creates_no_record(self):
+        with patch.object(effect.os, 'replace', side_effect=OSError('crash before rename')):
+            self.assertEqual('runtime_invalid', self.code_of('ensure'))
+        self.assertFalse(os.path.exists(self.path()))
+        self.assertEqual('state_missing', self.code_of('verify'))  # no partial body that would refuse every later ensure
+
+    def test_the_record_is_written_to_a_temporary_sibling_before_the_rename(self):
+        seen = []
+        syncs = []
+        real_replace, real_fsync = os.replace, os.fsync
+
+        def replace(source, destination):
+            with open(source, 'rb') as handle:
+                seen.append((os.path.basename(source), os.path.dirname(source), json.loads(handle.read())))
+            return real_replace(source, destination)
+
+        with patch.object(effect.os, 'replace', replace), patch.object(effect.os, 'fsync', lambda fd: (syncs.append(fd), real_fsync(fd))[1]):
+            self.run_op('ensure')
+        self.assertEqual(1, len(syncs))  # forced to disk before the record takes its name
+        self.assertEqual(1, len(seen))
+        self.assertEqual(('.acme.json.tmp', os.path.dirname(self.path())), seen[0][:2])
+        self.assertEqual('acme', seen[0][2]['tenantId'])  # the whole body was written before the rename
+        self.assertFalse(os.path.exists(self.path() + '.tmp'))
 
 
 class LockAndRequestTest(Case):

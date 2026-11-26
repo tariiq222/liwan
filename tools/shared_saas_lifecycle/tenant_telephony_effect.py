@@ -7,7 +7,7 @@ decides: the company host, the SIP port the provider and devices reach, and the 
 effect only records that decision, so a later phase can render and move a package from it; it starts no container,
 reaches no network and writes no Asterisk configuration.
 
-Operations, all idempotent and none waits:
+Operations, all idempotent:
 
 - `ensure`: record the allocation it is given in `<tenant-telephony>/<tenantId>.json` and answer `active`/`verified`.
   A record of this company holding the same allocation is idempotent and left alone; anything else that occupies the
@@ -23,7 +23,11 @@ Operations, all idempotent and none waits:
 State is the only truth here: one JSON file per company under the effect-owned `tenant-telephony` state directory,
 plus the dropped marker, both written 0600 by the effect account. Every operation runs under one advisory lock per
 company (`<tenantId>.lock`), so two runs for one company never interleave; a `drop` that meets a run in flight
-answers `operation_in_progress` and is retried. A refusal is `{"error_code": ...}`: `request_invalid`,
+answers `operation_in_progress` and is retried. An `ensure` additionally takes the directory lock (`.allocation.lock`)
+around its conflict scan and its write, so two companies can never record the same SIP port or overlapping RTP block.
+A record is written to a temporary sibling, forced to disk and renamed over its name, so a crash mid-write leaves the
+previous record whole instead of a partial one that every later `ensure` would refuse. A refusal is
+`{"error_code": ...}`: `request_invalid`,
 `existing_target_refused`, `state_missing`, `state_invalid`, `operation_in_progress`, `authority_lost`,
 `runtime_invalid`, `runtime_path_invalid` or `script_failed`. Every file access goes through
 `odoo_effect.no_symlink`, so a link in the state directory is refused, and the marker is cleared only by an explicit
@@ -40,7 +44,7 @@ import signal
 import stat
 import sys
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from tools.shared_saas_lifecycle import odoo_effect
 from tools.shared_saas_lifecycle.odoo_effect import MAX_OUTPUT, EffectError
@@ -51,6 +55,7 @@ EFFECT_CODES = frozenset({'request_invalid', 'operation_in_progress', 'authority
                           'script_failed'})
 ERROR_CODES = FAILURE_CODES | EFFECT_CODES
 STATE_DIRECTORY = 'tenant-telephony'  # beside `reservations`, `tenant-storage`...: owned by the effect account (init-host.sh), 0700
+ALLOCATION_LOCK = '.allocation.lock'  # one `ensure` at a time across companies: the SIP port and RTP block are shared by every record
 STATE_SCHEMA_VERSION = 1
 MAX_STATE = 4096
 TENANT_ID = re.compile(r'[a-z][a-z0-9_-]{0,62}')
@@ -109,23 +114,24 @@ def dropped_marker(state_dir, tenant_id):
 
 
 @contextmanager
-def tenant_lock(state_dir, tenant_id):
-    """One operation per company at a time, across processes: an advisory lock the kernel drops when the effect dies."""
+def _advisory_lock(state_dir, name, blocking):
+    """One lock under the state directory, dropped by the kernel when the effect dies. A taken company lock answers
+    `operation_in_progress`; the allocation lock waits instead, since it guards a scan and a write that must happen."""
     directory = state_directory(state_dir)
     try:
         directory.mkdir(mode=0o700, exist_ok=True)
     except OSError:
         raise EffectError('runtime_invalid') from None
-    path = odoo_effect.no_symlink(directory / (tenant_id + '.lock'))
+    path = odoo_effect.no_symlink(directory / name)
     try:
         fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
     except OSError:
         raise EffectError('runtime_invalid') from None
     try:
         try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(fd, fcntl.LOCK_EX if blocking else fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as error:
-            if error.errno in (errno.EAGAIN, errno.EACCES):
+            if error.errno in (errno.EAGAIN, errno.EACCES) and not blocking:
                 raise EffectError('operation_in_progress') from None
             raise EffectError('runtime_invalid') from None
         yield
@@ -133,20 +139,47 @@ def tenant_lock(state_dir, tenant_id):
         os.close(fd)
 
 
+@contextmanager
+def tenant_lock(state_dir, tenant_id):
+    """One operation per company at a time, across processes: an advisory lock the kernel drops when the effect dies."""
+    with _advisory_lock(state_dir, tenant_id + '.lock', blocking=False):
+        yield
+
+
+@contextmanager
+def allocation_lock(state_dir):
+    """One `ensure` at a time across companies: every record shares the host's SIP port and RTP space, so the conflict
+    scan and the write it guards must not interleave with another company's. It waits rather than refusing with
+    `operation_in_progress` (`ensure` is the one operation that must record its allocation), and the kernel releases it
+    if the holder dies."""
+    with _advisory_lock(state_dir, ALLOCATION_LOCK, blocking=True):
+        yield
+
+
 def _write(path, value):
-    """Write the whole record under its final name: the effect account owns it, and only it can read or replace it."""
+    """Write the whole record under its final name: the effect account owns it, and only it can read or replace it. The
+    body goes to a temporary sibling, is forced to disk, then renamed over the record, so a crash mid-write leaves the
+    previous record whole and no partial body ever refuses a later `ensure`."""
     body = json.dumps(value, separators=(',', ':')).encode()
+    temporary = path.parent / ('.' + path.name + '.tmp')
     try:
         path.parent.mkdir(mode=0o700, exist_ok=True)
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
     except OSError:
         raise EffectError('runtime_invalid') from None
     try:
         view = memoryview(body)
         while view:
             view = view[os.write(fd, view):]
+        os.fsync(fd)
     finally:
         os.close(fd)
+    try:
+        os.replace(temporary, path)
+    except OSError:
+        with suppress(OSError):
+            os.unlink(temporary)  # the record keeps its previous body; the leftover temporary is ours alone to remove
+        raise EffectError('runtime_invalid') from None
 
 
 def _shape_ok(value):
@@ -239,6 +272,12 @@ class TenantTelephonyEffect:
         return record
 
     def _ensure(self, request):
+        # The directory lock covers the conflict scan and the write: another company's `ensure` cannot slip its own
+        # record between them and hand this one a target that is already taken.
+        with allocation_lock(self.state_dir):
+            return self._ensure_locked(request)
+
+    def _ensure_locked(self, request):
         path = state_file(self.state_dir, request['tenantId'])
         try:
             record = read_state(path)
