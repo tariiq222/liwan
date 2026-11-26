@@ -32,11 +32,16 @@ const needsRelease = computed(() => version.value?.status === 'published' && !re
 const tiers = computed(() => version.value?.solution.tiers ?? [])
 // One readable row per application: features through the shared helpers (never a raw descriptor; an unparseable one hides),
 // and a description that would repeat a chip's wording drops so the row reads once.
+const featureText = (kind: 'boolean' | 'limit', key: string) => {
+  const descriptor = `${kind}:${key}`
+  const label = catalogLabel('feature', descriptor, t)
+  return label === descriptor ? key.replace(/[._-]+/g, ' ') : label
+}
 const rows = computed(() => tiers.value.map(tier => {
   const features = (tier.features ?? []).map(raw => {
     const parsed = parseFeature(raw)
     if (parsed.kind === 'opaque') return null
-    const label = catalogLabel('feature', `${parsed.kind}:${parsed.key}`, t)
+    const label = featureText(parsed.kind, parsed.key)
     return parsed.kind === 'limit' && parsed.ceiling !== undefined ? `${label}: ${limitLabel(parsed.ceiling, t, parsed.key)}` : label
   }).filter((text): text is string => !!text)
   const description = tier.description && !features.includes(tier.description) ? tier.description : null

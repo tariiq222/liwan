@@ -5,6 +5,7 @@ const DRAFT = '00000000-0000-4000-8000-000000000401'
 const VALIDATED = '00000000-0000-4000-8000-000000000402'
 const PUBLISHED = 'cat-1'
 const PMO_BUNDLE = '00000000-0000-4000-8000-000000000020'
+const HR_BUNDLE = '00000000-0000-4000-8000-000000000021'
 
 test.beforeEach(async ({ page }) => { await login(page) })
 
@@ -68,15 +69,22 @@ test('a draft version record says a new import validates it and offers no action
   await expect(page.getByTestId('catalog-action-submit')).toHaveCount(0)
 })
 
-test('an application records its add-on price and opens the add-on form on its selection', async ({ page }) => {
+test('an application records its add-on price and opens the published add-on record for a new revision', async ({ page }) => {
   await open(page, '/catalog/apps/pmo'); await expectNoSecondH1(page)
   await expect(page.locator('[data-template="record"]')).toHaveCount(1)
   await expect(page.getByTestId('catalog-app-features')).toBeVisible()
   await expect(page.getByTestId('catalog-app-bundle-link')).toHaveCount(1)
   await expect(page.getByTestId('catalog-app-addon-price')).toContainText(/50\.00/)
   const settings = page.getByTestId('catalog-app-settings')
+  await expect(settings).toHaveText('إصدار جديد')
+  await expect(settings).toHaveAttribute('href', new RegExp(`/bundles/${PMO_BUNDLE}\\?returnTo=`))
+})
+
+test('an editable add-on opens its own form rather than a read-only record', async ({ page }) => {
+  await open(page, '/catalog/apps/hr')
+  const settings = page.getByTestId('catalog-app-settings')
   await expect(settings).toHaveText('إعدادات')
-  await expect(settings).toHaveAttribute('href', new RegExp(`/bundles/${PMO_BUNDLE}/edit\\?returnTo=`))
+  await expect(settings).toHaveAttribute('href', new RegExp(`/bundles/${HR_BUNDLE}/edit\\?returnTo=`))
 })
 
 test('an application with no add-on says so and opens a new add-on on that application', async ({ page }) => {

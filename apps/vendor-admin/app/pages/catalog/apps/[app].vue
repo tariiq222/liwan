@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { formatBusinessDate } from '@/utils/vendorTime'
-import { lifecycleBadge, limitLabel } from '@/utils/vendorCommercial'
+import { isEditable, lifecycleBadge, limitLabel } from '@/utils/vendorCommercial'
 import { catalogLabel, tierLabel } from '@/utils/catalogLabels'
 import { catalogDiff, parseFeature } from '@/utils/catalogDiff'
-import { currentCatalogVersion, type CatalogVersionTier } from '@/utils/vendorCatalogVersions'
+import { currentCatalogVersion } from '@/utils/vendorCatalogVersions'
 import { bundlesWithApp, plansUsingBundles } from '@/utils/vendorCatalog'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import type { BundleView } from '@/utils/vendorCommercial'
@@ -25,27 +25,53 @@ const { data: releases } = await useAsyncData('vendor:catalog-releases', () => a
 const name = computed(() => (tier.value ? tierLabel(tier.value.id, tier.value.name, t, te) : ''))
 const sellable = computed(() => tier.value?.sellable === true && tier.value.id !== 'core')
 const modules = computed(() => releaseApp.value?.modules ?? tier.value?.modules ?? [])
+// An add-on is only built from an application the release offers for selection; a version with no release of its own leaves
+// the solution's sellable flag as the one signal.
+const selectable = computed(() => (releaseApp.value ? releaseApp.value.selectable : sellable.value))
+
+// A feature reads by its catalogue label when one exists; an unknown descriptor falls back to its key as words, and one that
+// still carries a colon is machine text and shows nothing.
+const keyText = (key: string) => (key.includes(':') ? null : key.replace(/[._-]+/g, ' ').trim())
+const featureText = (descriptor: string, key: string) => {
+  const label = catalogLabel('feature', descriptor, t)
+  return label === descriptor ? keyText(key) : label
+}
 
 type AppFeature = { key: string; kind: 'boolean' | 'limit' | null; ceiling?: number; requires: string[]; enforcementRefs: string[]; label: string }
 const features = computed<AppFeature[]>(() => {
   const app = releaseApp.value
-  if (app) return app.features.map(feature => ({
-    key: feature.key,
-    kind: feature.kind,
-    ...(feature.ceiling !== undefined ? { ceiling: feature.ceiling } : {}),
-    requires: feature.requires,
-    enforcementRefs: feature.enforcement_refs,
-    label: catalogLabel('feature', `${feature.kind}:${feature.key}`, t),
-  }))
+  if (app) return app.features.flatMap(feature => {
+    const label = featureText(`${feature.kind}:${feature.key}`, feature.key)
+    if (!label) return []
+    const item: AppFeature = {
+      key: feature.key,
+      kind: feature.kind,
+      ...(feature.ceiling !== undefined ? { ceiling: feature.ceiling } : {}),
+      requires: feature.requires,
+      enforcementRefs: feature.enforcement_refs,
+      label,
+    }
+    return [item]
+  })
   // No release yet: the solution's descriptors are read leniently, and the fields only a release carries stay absent.
   const limits = tier.value?.limits ?? {}
-  return (tier.value?.features ?? []).map(raw => {
+  return (tier.value?.features ?? []).flatMap(raw => {
     const parsed = parseFeature(raw)
+    const label = featureText(raw, parsed.kind === 'opaque' ? raw : parsed.key)
+    if (!label) return []
     const kind = parsed.kind === 'opaque' ? null : parsed.kind
     const ceiling = parsed.kind === 'limit'
       ? parsed.ceiling ?? (typeof limits[parsed.key] === 'number' ? limits[parsed.key] : undefined)
       : undefined
-    return { key: parsed.kind === 'opaque' ? raw : parsed.key, kind, ...(ceiling !== undefined ? { ceiling } : {}), requires: [], enforcementRefs: [], label: catalogLabel('feature', raw, t) }
+    const item: AppFeature = {
+      key: parsed.kind === 'opaque' ? raw : parsed.key,
+      kind,
+      ...(ceiling !== undefined ? { ceiling } : {}),
+      requires: [],
+      enforcementRefs: [],
+      label,
+    }
+    return [item]
   })
 })
 const sellableBadge = computed(() => (sellable.value
@@ -78,9 +104,19 @@ const { data: usage, error: usageError, pending: usagePending, refresh: refreshU
   },
   { watch: [appId] },
 )
-// The add-on that prices this application: the newest bundle revision whose selections include it, of any status.
-const addon = computed<BundleView | null>(() => (usage.value?.bundles ?? []).reduce<BundleView | null>(
-  (newest, bundle) => (newest && newest.version >= bundle.version ? newest : bundle), null))
+// The add-on that prices this application: an editable revision first (newest by edit_revision), because only a draft or a
+// validated revision opens a form that saves; else the newest published one, whose record starts a new revision.
+const newestRevision = (a: BundleView, b: BundleView) => b.edit_revision - a.edit_revision
+  || b.created_at.localeCompare(a.created_at) || b.version - a.version
+const newestPublished = (a: BundleView, b: BundleView) => b.created_at.localeCompare(a.created_at) || b.version - a.version
+const addon = computed<BundleView | null>(() => {
+  const bundles = usage.value?.bundles ?? []
+  const editable = bundles.filter(isEditable)
+  if (editable.length) return [...editable].sort(newestRevision)[0] ?? null
+  return bundles.filter(bundle => bundle.status === 'published').sort(newestPublished)[0] ?? null
+})
+// The bundles and plans load together and a caught failure reads as null, so a null usage is "could not load", never "none".
+const addonsUnavailable = computed(() => !usagePending.value && (usage.value === null || !!usageError.value))
 // Its price and cadence, beside the settings action; an add-on with no price says so rather than reading as free.
 const addonPrice = computed(() => {
   const bundle = addon.value
@@ -88,20 +124,26 @@ const addonPrice = computed(() => {
   return bundle.prices.map(price => `${formatCommercialMoney(price.amount, locale.value)} · ${cadenceLabel(price.cadence, t)}`).join(' · ')
     || t('vendor.pricing.prices.none')
 })
-// The existing add-on form for this application, or a new add-on already selecting it.
-const settingsTo = computed(() => (addon.value
-  ? { path: `/bundles/${encodeURIComponent(addon.value.id)}/edit`, query: { returnTo: route.fullPath } }
-  : { path: '/bundles/new', query: { app: appId.value, returnTo: route.fullPath } }))
+// The add-on's own form when it is editable, its record when it is published, or a new add-on already selecting this application.
+const settingsTo = computed(() => {
+  const bundle = addon.value
+  if (!bundle) return { path: '/bundles/new', query: { app: appId.value, returnTo: route.fullPath } }
+  return isEditable(bundle)
+    ? { path: `/bundles/${encodeURIComponent(bundle.id)}/edit`, query: { returnTo: route.fullPath } }
+    : { path: `/bundles/${encodeURIComponent(bundle.id)}`, query: { returnTo: route.fullPath } }
+})
+const settingsLabel = computed(() => (addon.value && !isEditable(addon.value) ? t('vendor.pricing.actions.revisions') : t('vendor.catalog.app.settings')))
 // The dependencies only a release records: neither shows on the solution's own descriptors.
 const hasDependencies = computed(() => !!releaseApp.value && (releaseApp.value.requires_apps.length > 0 || releaseApp.value.conflicts_with_apps.length > 0))
 const retry = () => Promise.all([refresh(), refreshUsage()])
 </script>
 <template>
-  <SharedRecordPage :title="name || t('vendor.catalog.app.details')" back-to="/catalog" :back-label="t('vendor.catalog.applications')" :loading="pending || usagePending" :error="error ?? usageError" @retry="retry">
+  <SharedRecordPage :title="name || t('vendor.catalog.app.details')" back-to="/catalog" :back-label="t('vendor.catalog.applications')" :loading="pending || usagePending" :error="error" @retry="retry">
     <template #actions>
       <div class="flex flex-wrap items-center gap-3">
-        <span v-if="usage" class="text-sm text-muted" data-testid="catalog-app-addon-price">{{ addonPrice ?? t('vendor.catalog.app.noAddon') }}</span>
-        <UButton :to="settingsTo" color="neutral" variant="outline" data-testid="catalog-app-settings">{{ t('vendor.catalog.app.settings') }}</UButton>
+        <span v-if="addonsUnavailable" class="text-sm text-muted" data-testid="catalog-app-addons-unavailable">{{ t('vendor.catalog.app.addonsUnavailable') }}</span>
+        <span v-else-if="usage" class="text-sm text-muted" data-testid="catalog-app-addon-price">{{ addonPrice ?? t('vendor.catalog.app.noAddon') }}</span>
+        <UButton v-if="selectable" :to="addonsUnavailable ? undefined : settingsTo" :disabled="addonsUnavailable" color="neutral" variant="outline" data-testid="catalog-app-settings">{{ settingsLabel }}</UButton>
       </div>
     </template>
     <template v-if="tier" #summary>

@@ -263,7 +263,13 @@
         "projects": "Projects",
         "people": "People",
         "hr": "Human resources",
-        "messaging": "Messaging"
+        "messaging": "Messaging",
+        "finance": "Finance",
+        "crm": "Customer management",
+        "inbox": "Customer inbox",
+        "appointments": "Appointments",
+        "sales": "Sales",
+        "helpdesk": "Helpdesk"
       },
       "tabs": "Liwan applications sections",
       "applications": "Applications",
@@ -311,6 +317,7 @@
         "conflictsWithApps": "Conflicting applications",
         "settings": "Settings",
         "noAddon": "No add-on",
+        "addonsUnavailable": "The add-ons could not be loaded, so an add-on cannot be opened or created now.",
         "pricing": "Pricing",
         "pricingUnavailable": "Bundles and plans could not be loaded. Try again.",
         "pricingNone": "No bundle prices this application.",
@@ -880,7 +887,8 @@
       "usedByUnavailable": "Plans could not be loaded.",
       "noPublishedCatalog": "No published applications version",
       "noPublishedCatalogHint": "A bundle is built on a published version. Publish a version from the Applications page first, then come back to create the bundle.",
-      "openCatalog": "Open Applications"
+      "openCatalog": "Open Applications",
+      "appNotSelectable": "This application cannot be added in any released catalog, so the form starts without it."
     },
     "plans": {
       "help": "A plan is what the customer buys every month: it sets the bundles included at no extra cost and the optional ones priced when chosen.",
