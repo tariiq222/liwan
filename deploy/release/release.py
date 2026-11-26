@@ -1060,6 +1060,28 @@ class Releaser:
         except CommandFailed:
             raise ReleaseError('control_migrate_failed') from None
         self.initialize_ai_control(checkout)
+        self.sync_catalog(run, checkout)
+
+    def sync_catalog(self, run: dict, checkout: Path) -> None:
+        """Publish this release's commercial catalog as the final upgrade step, after the control schema is migrated
+        and AI control tables are initialized. A tag
+        (``run['tag']``, or the tag in ``run['ref']``) becomes ``release-`` plus the rest with every ``/`` replaced by
+        ``-``; without one the version is ``commit-`` plus the first 12 characters of the commit. Idempotent in the
+        control plane. A non-zero exit fails the release, the same way a failed migration does."""
+        tag = run.get('tag')
+        if not tag and str(run.get('ref', '')).startswith('refs/tags/'):
+            tag = run['ref'].removeprefix('refs/tags/')
+        if tag:
+            version = 'release-' + tag.removeprefix('release/').replace('/', '-')
+        else:
+            version = f'commit-{run["commit"][:12]}'
+        reason = f'Release {tag or run["commit"][:12]}'
+        try:
+            self.run_command(self.control_compose(checkout) + ['--profile', 'admin', 'run', '--rm', '--pull',
+                                                               'never', '-T', 'control-admin', 'catalog-sync',
+                                                               version, reason], env=self.child_env)
+        except CommandFailed:
+            raise ReleaseError('catalog_sync_failed') from None
 
     def initialize_ai_control(self, checkout: Path) -> None:
         """The ai service validates its control tables when it starts and refuses to start without them; the per-tenant

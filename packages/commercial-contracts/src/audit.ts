@@ -16,7 +16,7 @@ export const AUDIT_ACTIONS = [
   'auth.failed', 'auth.locked', 'auth.passkey_registered', 'auth.signed_in', 'auth.signed_out', 'auth.step_up',
   'auto_renew.disabled', 'auto_renew.enabled', 'auto_renew.not_enabled', 'billing.settings_updated',
   'bundle.created', 'bundle.deleted', 'bundle.edit', 'bundle.publish', 'bundle.restore', 'bundle.revision_created', 'bundle.validate', 'bundle.withdraw',
-  'catalog.imported', 'catalog.publish', 'catalog.validate', 'catalog_release.created', 'catalog_release.entitlement_incompatible',
+  'catalog.imported', 'catalog.publish', 'catalog.sync_failed', 'catalog.validate', 'catalog_release.created', 'catalog_release.entitlement_incompatible',
   'customer.admin_login_changed', 'customer_terms.created', 'free_base_lock.failed', 'invitation.reissued',
   'invoice.credit_pending', 'invoice.credit_refunded', 'invoice.refund_requested', 'invoice.voided', 'invoices.exported', 'order.accepted', 'order.cancelled',
   'payment.bank_transfer_duplicate', 'payment.bank_transfer_received', 'payment.card_not_saved', 'payment.direct_payment_missing', 'payment.duplicate_charge', 'payment.duplicate_refunded',

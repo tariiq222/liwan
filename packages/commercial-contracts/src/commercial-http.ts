@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { bundleRevisionSchema, catalogReleaseSchema, listEnvelopeSchema, planRevisionSchema, quoteRequestSchema, quoteSchema, pricingPolicySchema } from './commercial/schemas.js'
+import { bundleRevisionSchema, catalogReleaseSchema, lifecycleActionSchema, listEnvelopeSchema, planRevisionSchema, quoteRequestSchema, quoteSchema, pricingPolicySchema } from './commercial/schemas.js'
 
 const digest = z.string().regex(/^[a-f0-9]{64}$/)
-export const commercialIssueSchema = z.strictObject({ code: z.string(), field: z.string().optional() })
+export const commercialIssueSchema = z.strictObject({ code: z.string(), field: z.string().optional(), affected_count: z.number().int().min(0).optional() })
 const viewExtras = {
   content_digest: digest, validated_digest: digest.nullable(), customer_count: z.number().int().min(0),
   created_at: z.string(), published_at: z.string().nullable(), issues: z.array(commercialIssueSchema),
@@ -18,9 +18,11 @@ export const catalogReleaseListSchema = listEnvelopeSchema(catalogReleaseViewSch
 export const pricingPolicyViewSchema = pricingPolicySchema
 export const quoteViewSchema = quoteSchema
 export const bundleRevisionCloneSchema = z.strictObject({ edit_revision: z.number().int().positive(), reason: z.string().trim().min(3).max(1000) })
+export const planPublishActionSchema = lifecycleActionSchema.extend({ keep_for_existing: z.boolean().optional() })
 
 export type CommercialIssue = z.infer<typeof commercialIssueSchema>
 export type BundleView = z.infer<typeof bundleViewSchema>
 export type PlanView = z.infer<typeof planViewSchema>
 export type CatalogReleaseView = z.infer<typeof catalogReleaseViewSchema>
 export type QuotePreviewRequest = z.infer<typeof quotePreviewRequestSchema>
+export type PlanPublishAction = z.infer<typeof planPublishActionSchema>

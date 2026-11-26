@@ -289,6 +289,8 @@ class FakeRunner:
             Path(argv[argv.index('--output') + 1]).write_text(json.dumps({'services': {}, 'imageTag': tag}))
             failing = {NEW: case.fail_render, OLD: case.fail_restore_render}
             return (1, 'render failed') if failing.get(tag) else (0, '')
+        if 'catalog-sync' in argv:
+            return (1, 'catalog sync failed') if case.fail_catalog_sync else (0, '')
         if '--initialize-control' in argv:
             return (1, 'AI initialization failed') if case.fail_ai_initialization else (0, '')
         if argv[0] == 'npm':  # npm writes its hidden lockfile last, so it marks a complete install
@@ -462,6 +464,7 @@ class ReleaseTest(unittest.TestCase):
         self.external = ''
         self.fail_npm = False
         self.fail_ai_initialization = False
+        self.fail_catalog_sync = False
         self.pull_failures = {}
         self.alert_result = (0, '')
         self.worker_ready = True
@@ -1773,6 +1776,62 @@ class ReleaseTest(unittest.TestCase):
         restart = int(re.search(r'^RestartSec=(\d+)$', unit, re.MULTILINE).group(1))
         self.assertTrue(0 < release.WORKER_SETTLE_SECONDS < restart)  # a crashed worker is still auto-restarting at the check
 
+    # --- the commercial catalog ----------------------------------------------------------------------------
+    def catalog_syncs(self):
+        return [call for call in self.runner.calls if 'catalog-sync' in call]
+
+    def test_catalog_sync_runs_as_the_final_upgrade_step_with_the_release_tag(self):
+        shared = self.root / 'shared.env'
+        shared.write_text(shared.read_text() + 'AI_DATABASE_URL=postgresql://liwan_ai:pw@db:5432/liwan_ai\n')
+        self.assertEqual(self.main(), release.EXIT_OK)
+        calls = self.runner.calls
+        migrate = next(i for i, call in enumerate(calls) if 'control-migrate' in call)
+        initialize = next(i for i, call in enumerate(calls) if '--initialize-control' in call)
+        sync_index = next(i for i, call in enumerate(calls) if 'catalog-sync' in call)
+        up = next(i for i, call in enumerate(calls) if 'up' in call and '--wait' in call)
+        self.assertEqual(sync_index, initialize + 1)
+        self.assertLess(migrate, initialize)
+        self.assertLess(sync_index, up)
+        sync = calls[sync_index]
+        self.assertEqual(sync[sync.index('--profile'):], [
+            '--profile', 'admin', 'run', '--rm', '--pull', 'never', '-T', 'control-admin', 'catalog-sync',
+            'release-19.0.1.0.7', 'Release release/19.0.1.0.7'])
+        self.assertEqual(self.runner.envs[sync_index], self.runner.envs[migrate])
+        self.assertIsNotNone(self.runner.envs[sync_index])
+
+    def test_catalog_sync_prefers_an_explicit_tag_and_falls_back_to_the_commit(self):
+        recorded = []
+
+        class Stub:
+            child_env = {'LIWAN_MAINTENANCE_DIR': '/tmp/marker'}
+
+            def control_compose(self, checkout):
+                return ['docker', 'compose', '-p', 'liwan-control']
+
+            def run_command(self, argv, env=None):
+                recorded.append((argv, env))
+
+        checkout = self.root / 'checkout'
+        release.Releaser.sync_catalog(Stub(), {'tag': 'release/19.0.1.0.11/rc', 'ref': 'refs/tags/ignored',
+                                                'commit': 'c' * 40}, checkout)
+        release.Releaser.sync_catalog(Stub(), {'commit': 'd' * 40}, checkout)
+        tagged, bare = recorded
+        self.assertEqual(tagged[0][-2:], ['release-19.0.1.0.11-rc', 'Release release/19.0.1.0.11/rc'])
+        self.assertEqual(bare[0][-2:], ['commit-' + 'd' * 12, 'Release ' + 'd' * 12])
+        self.assertEqual(tagged[1], Stub.child_env)
+
+    def test_a_failed_catalog_sync_rolls_the_release_back_and_does_not_continue(self):
+        shared = self.root / 'shared.env'
+        shared.write_text(shared.read_text() + 'AI_DATABASE_URL=postgresql://liwan_ai:pw@db:5432/liwan_ai\n')
+        self.fail_catalog_sync = True
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back catalog_sync_failed')
+        self.assertEqual(self.served(), OLD)
+        self.assertTrue(self.commands('control-migrate'))
+        self.assertEqual(len(self.ai_initializations()), 1)
+        self.assertEqual(len(self.catalog_syncs()), 1)
+        self.assertFalse([call for call in self.runner.calls if 'up' in call and call[-1] == 'db'])
+
     # --- the AI control state ----------------------------------------------------------------------------
     def ai_initializations(self):
         return [call for call in self.runner.calls if '--initialize-control' in call]
@@ -1786,9 +1845,11 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(initialize[initialize.index('run'):], [
             'run', '--rm', '--pull', 'never', '-T', 'ai', 'python', '-m', 'liwan_ai_service.store', '--initialize-control'])
         migrate = next(i for i, call in enumerate(calls) if 'control-migrate' in call)
+        sync = next(i for i, call in enumerate(calls) if 'catalog-sync' in call)
         up = next(i for i, call in enumerate(calls) if 'up' in call and '--wait' in call)
         self.assertLess(migrate, calls.index(initialize))
-        self.assertLess(calls.index(initialize), up)
+        self.assertLess(calls.index(initialize), sync)
+        self.assertLess(sync, up)
 
     def test_a_failed_ai_initialisation_rolls_the_release_back_with_its_own_reason(self):
         shared = self.root / 'shared.env'
@@ -1797,6 +1858,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main(), release.EXIT_FAILED)
         self.assertEqual(self.result(), 'rolled back ai_control_initialization_failed')
         self.assertEqual(self.served(), OLD)
+        self.assertEqual(self.catalog_syncs(), [])
 
     def test_an_ai_database_given_through_the_release_environment_counts_as_configured(self):
         # compose also reads the process environment (the release config and the process), so the skip must see it too

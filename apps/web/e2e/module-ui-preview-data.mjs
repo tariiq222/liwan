@@ -12,7 +12,6 @@ import { financeReportsPreviewData } from './finance-reports-ui-preview-data.mjs
 import { hrPayrollPreviewData } from './hr-payroll-ui-preview-data.mjs'
 import { hrPreviewData } from './hr-ui-preview-data.mjs'
 import { crmPreviewData } from './crm-ui-preview-data.mjs'
-import { opsDeskPreviewData } from './ops-desk-ui-preview-data.mjs'
 
 export const moduleUiCapabilities = [
   'crm.leads.read',
@@ -459,8 +458,14 @@ export function moduleUiPreviewData(path, url) {
   const normalizedPath = String(path || '/').replace(/\/+$/, '') || '/'
   const parsedUrl = url instanceof URL ? url : new URL(String(url || 'http://preview.local'), 'http://preview.local')
 
-  const opsDesk = opsDeskPreviewData(normalizedPath, parsedUrl)
-  if (opsDesk !== undefined) return opsDesk
+  // The three staff surfaces the design audit photographs (`mock_caps=ops_desk`): the lists answer with an honest empty
+  // envelope so the real empty state is what gets captured, not an error page.
+  if (normalizedPath === '/api/v1/operations/requests') return page([], parsedUrl)
+  if (normalizedPath === '/api/v1/operations/processes') return page([], parsedUrl)
+  if (normalizedPath === '/api/v1/helpdesk/summary') return { open: 0, unassigned: 0, mine: 0, overdue: 0 }
+  if (normalizedPath === '/api/v1/helpdesk/tickets' || normalizedPath === '/api/v1/helpdesk/requests') return page([], parsedUrl)
+  if (normalizedPath === '/api/v1/appointments/bookings') return page([], parsedUrl)
+  if (normalizedPath === '/api/v1/appointments/types') return page([], parsedUrl)
   if (normalizedPath === '/api/v1/people' || normalizedPath === '/api/v1/crm/agents') return PEOPLE
   if (normalizedPath === '/api/v1/meetings') return page(filterMeetings(parsedUrl), parsedUrl)
   if (normalizedPath === '/api/v1/meetings/resolutions') return page(filterResolutions(parsedUrl), parsedUrl)

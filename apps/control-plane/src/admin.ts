@@ -6,6 +6,10 @@ import { getConfig } from './config.js'
 import { migrate, transaction } from './db.js'
 import { readKnownSource } from './shared/catalog-source.js'
 import { runCatalogCheck } from './shared/catalog-check.js'
+import { assertCatalogCompatible, CatalogGateError } from './commercial/catalog-gate.js'
+import { createRelease } from './commercial/catalog-releases.js'
+import { pushCatalogEntitlement } from './commercial/catalog-entitlements.js'
+import { CommercialHttpError } from './commercial/lifecycle.js'
 import { lockOwners, normalizeEmail } from './admin-auth/accounts.js'
 import { assertLoopbackDatabase, ensureDevOwner } from './admin-auth/dev-owner.js'
 import { inviteAccount, issueReset } from './admin-auth/enrollment.js'
@@ -28,6 +32,19 @@ function uuid(text: string | undefined): string {
 /** PostgreSQL refused a second row for one unique key: a concurrent import of the same version stored it first. */
 function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === '23505'
+}
+async function recordCatalogSyncFailed(version: string, error: unknown): Promise<void> {
+  const code = error instanceof CatalogGateError || error instanceof CommercialHttpError
+    ? error.code
+    : typeof (error as { code?: unknown } | null)?.code === 'string'
+      ? String((error as { code: string }).code)
+      : (error instanceof Error ? error.message : 'catalog_sync_failed').slice(0, 200)
+  const affectedCount = error instanceof CatalogGateError ? error.affected_count : 0
+  const safeCode = code || 'catalog_sync_failed'
+  await pool.query(
+    'INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+    [randomUUID(), 'operator', 'catalog.sync_failed', version, safeCode, JSON.stringify({ code: safeCode, affected_count: affectedCount })],
+  )
 }
 try {
   await migrate(pool)
@@ -109,6 +126,70 @@ try {
         await importOver(raced.rows[0])
       }
     }
+  } else if (command === 'catalog-sync') {
+    const [version, why] = args
+    if (!version || !/^[a-zA-Z0-9._-]{1,100}$/.test(version)) throw new Error('valid catalog version required')
+    const whyReason = reason(why)
+    const at = args.indexOf('--source')
+    const sourceArg = at >= 0 ? args[at + 1] : undefined
+    try {
+      const resolved = await readKnownSource(config.repositoryRoot, sourceArg)
+      await runCatalogCheck({ python: config.python, repositoryRoot: config.repositoryRoot })
+      const source = resolved.bytes
+      const sourceSha256 = createHash('sha256').update(source).digest('hex')
+      const solution = JSON.parse(source.toString('utf8')) as Record<string, unknown>
+      const lockClient = await pool.connect()
+      let locked = false
+      try {
+        await lockClient.query("SELECT pg_advisory_lock(hashtextextended('catalog-sync:' || $1, 0))", [version])
+        locked = true
+        const existing = await pool.query('SELECT id,status,source_sha256 FROM catalog_entries WHERE version=$1', [version])
+        let alreadySynced = false
+        let alreadyPublished = false
+        if (existing.rowCount) {
+          const row = existing.rows[0] as { id: string; status: string; source_sha256: string }
+          if (row.source_sha256 !== sourceSha256) {
+            throw Object.assign(new Error(`catalog version ${version} already exists with different source bytes`), { code: 'catalog_source_mismatch' })
+          }
+          if (row.status === 'published') {
+            alreadyPublished = true
+            const existingRelease = await pool.query('SELECT id FROM catalog_releases WHERE catalog_version=$1', [version])
+            if (existingRelease.rowCount) {
+              const releaseId = String(existingRelease.rows[0].id)
+              const push = await pushCatalogEntitlement(pool, { id: releaseId })
+              process.stdout.write(`${JSON.stringify({ status: 'already_synced', version, release_id: releaseId, pushed: push.pushed, failed: push.failed })}\n`)
+              alreadySynced = true
+            }
+          }
+        }
+        if (!alreadySynced) {
+          await transaction(pool, async (client) => {
+            await assertCatalogCompatible(client, solution, version)
+            if (!existing.rowCount) {
+              const id = randomUUID()
+              await client.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256,published_at) VALUES($1,$2,'published',$3,$4,now())", [id, version, solution, sourceSha256])
+              await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'operator', 'catalog.imported', id, whyReason])
+              await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'operator', 'catalog.publish', id, whyReason])
+            } else if (!alreadyPublished) {
+              const rowId = String(existing.rows[0].id)
+              await client.query("UPDATE catalog_entries SET status='published',published_at=now() WHERE id=$1 AND status IN ('draft','validated')", [rowId])
+              await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'operator', 'catalog.publish', rowId, whyReason])
+            }
+          })
+          const r = await createRelease(pool, { issuer: 'operator', actorUid: 0 }, { catalog_version: version, reason: whyReason })
+          const push = await pushCatalogEntitlement(pool, r.release)
+          process.stdout.write(`${JSON.stringify({ status: 'synced', version, release_id: r.release.id, pushed: push.pushed, failed: push.failed })}\n`)
+        }
+      } finally {
+        if (locked) {
+          try { await lockClient.query("SELECT pg_advisory_unlock(hashtextextended('catalog-sync:' || $1, 0))", [version]) } catch { /* connection closing */ }
+        }
+        lockClient.release()
+      }
+    } catch (error) {
+      await recordCatalogSyncFailed(version, error)
+      throw error
+    }
   } else if (command === 'approve-restore') {
     const [tenantText, backupId, why] = args
     const tenantId = uuid(tenantText)
@@ -121,7 +202,7 @@ try {
       await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),'operator','restore.approved',tenantId,reason(why)])
     })
     process.stdout.write(`${id}\n`)
-  } else throw new Error('commands: bootstrap-owner, dev-owner (local development only), reset-account (the recovery path for a lost or last owner), catalog-import, approve-restore')
+  } else throw new Error('commands: bootstrap-owner, dev-owner (local development only), reset-account (the recovery path for a lost or last owner), catalog-import, catalog-sync, approve-restore')
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : 'admin command failed'}\n`)
   process.exitCode = 1

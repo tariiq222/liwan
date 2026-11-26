@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, storageStepsAligned, STORAGE_STEP_MISALIGNED, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
+import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, planPublishActionSchema, storageStepsAligned, STORAGE_STEP_MISALIGNED, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, customerCountSql, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
 import { DERIVED_LIMITS, priceIssues, bundleRevision, loadRelease } from './bundles.js'
@@ -203,7 +203,11 @@ async function withdrawOtherAvailable(client: PoolClient, actor: CommercialActor
     await audit(client, actor, 'plan.withdrawn_by_publish', row.id, reason, { predecessor_id: predecessor.id, plan_id: row.plan_id })
 }
 export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string, action: Action, value: unknown) {
-  const input: Record<string, any> = action === 'edit' ? parsePlanInput<Record<string, any>>(planEditSchema, value) : lifecycleActionSchema.parse(value)
+  const input: Record<string, any> = action === 'edit'
+    ? parsePlanInput<Record<string, any>>(planEditSchema, value)
+    : action === 'publish'
+      ? planPublishActionSchema.parse(value)
+      : lifecycleActionSchema.parse(value)
   return transaction(pool, async client => {
     const row = await lockRevision(client, PLAN_KIND, id, input.edit_revision)
     const reason: string = input.reason
@@ -235,6 +239,55 @@ export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string,
       if (issues.length) throw new CommercialHttpError('invalid', 422, issues[0]!.field, issues)
       if (action === 'validate') { if (!(await client.query("UPDATE plan_revisions SET status='validated',validated_digest=content_digest,edit_revision=edit_revision+1 WHERE id=$1 AND edit_revision=$2", [id, row.edit_revision])).rowCount) throw new CommercialHttpError('revision_conflict', 409) }
       else {
+        const currentPublished = await client.query(
+          "SELECT id, included_bundle_revision_ids, optional_bundle_revision_ids FROM plan_revisions WHERE plan_id=$1 AND id<>$2 AND status='published' AND available",
+          [row.plan_id, id],
+        )
+        if (currentPublished.rowCount && !input.keep_for_existing) {
+          const oldIncludedRevIds = [...new Set<string>(currentPublished.rows.flatMap((r: Row) => r.included_bundle_revision_ids))]
+          const oldOptionalRevIds = [...new Set<string>(currentPublished.rows.flatMap((r: Row) => r.optional_bundle_revision_ids))]
+          const oldRevIds = [...new Set<string>([...oldIncludedRevIds, ...oldOptionalRevIds])]
+          const newRevIds = [...new Set<string>([...row.included_bundle_revision_ids, ...row.optional_bundle_revision_ids])]
+          if (oldRevIds.length) {
+            const bundleRows = await client.query('SELECT id, bundle_id FROM bundle_revisions WHERE id=ANY($1::uuid[])', [[...new Set([...oldRevIds, ...newRevIds])]])
+            const revToBundle = new Map<string, string>(bundleRows.rows.map((b: Row) => [String(b.id), String(b.bundle_id)]))
+            const oldIncludedBundleIds = new Set(oldIncludedRevIds.map(r => revToBundle.get(r)).filter((x): x is string => Boolean(x)))
+            const oldBundleIds = new Set(oldRevIds.map(r => revToBundle.get(r)).filter((x): x is string => Boolean(x)))
+            const newBundleIds = new Set(newRevIds.map(r => revToBundle.get(r)).filter((x): x is string => Boolean(x)))
+            const removedBundleIds = [...oldBundleIds].filter(bid => !newBundleIds.has(bid))
+            if (removedBundleIds.length) {
+              const affected = await client.query(
+                `SELECT count(DISTINCT s.id)::int AS n
+                 FROM subscriptions s
+                 JOIN subscription_revisions sr ON sr.id = s.applied_revision_id
+                 JOIN plan_revisions pr ON pr.id::text = sr.snapshot->>'plan_revision_id'
+                 WHERE s.state IN ('active', 'past_due', 'trialing')
+                   AND s.applied_revision_id IS NOT NULL
+                   AND pr.plan_id = $1
+                   AND EXISTS (
+                     SELECT 1
+                     FROM bundle_revisions br
+                     WHERE br.bundle_id = ANY($2::uuid[])
+                       AND sr.snapshot->'bundle_revision_ids' @> to_jsonb(br.id::text)
+                   )`,
+                [row.plan_id, removedBundleIds],
+              )
+              const affectedCount = Number(affected.rows[0]?.n ?? 0)
+              if (affectedCount > 0) {
+                const field = removedBundleIds.every(bid => !oldIncludedBundleIds.has(bid))
+                  ? 'optional_bundle_revision_ids'
+                  : 'included_bundle_revision_ids'
+                throw new CommercialHttpError(
+                  'plan_addon_in_use',
+                  409,
+                  field,
+                  [{ code: 'plan_addon_in_use', field, affected_count: affectedCount }],
+                  { affected_count: String(affectedCount) },
+                )
+              }
+            }
+          }
+        }
         await client.query("UPDATE plan_revisions SET status='published',available=true,published_at=now(),edit_revision=edit_revision+1 WHERE id=$1", [id])
         await withdrawOtherAvailable(client, actor, row, reason)
         for (const b of new Set<string>([...row.included_bundle_revision_ids, ...row.optional_bundle_revision_ids]))
@@ -251,7 +304,12 @@ export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string,
       await client.query('UPDATE plan_revisions SET available=$2,edit_revision=edit_revision+1 WHERE id=$1', [id, action === 'restore'])
       if (action === 'restore') await withdrawOtherAvailable(client, actor, row, reason)
     }
-    await audit(client, actor, `plan.${action}`, id, reason ?? 'Save plan draft', { edit_revision: row.edit_revision, next_edit_revision: row.edit_revision + 1, previous_digest: row.content_digest })
+    await audit(client, actor, `plan.${action}`, id, reason ?? 'Save plan draft', {
+      edit_revision: row.edit_revision,
+      next_edit_revision: row.edit_revision + 1,
+      previous_digest: row.content_digest,
+      ...(action === 'publish' && input.keep_for_existing ? { keep_for_existing: true } : {}),
+    })
     return view(client, id)
   })
 }
