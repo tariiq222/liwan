@@ -2,18 +2,26 @@
 import type { CatalogRelease } from '@liwan/commercial-contracts'
 import { appName, bundleLimitKeys, bundleDraftFromView, dependencyHints, emptyBundleDraft, grantedFeatures, keyLabel, commercialFailure, commercialErrorKey, fieldIssue, limitFromDraft, priceRowErrors, type BundleDraft, type BundleView, type LimitDraft } from '@/utils/vendorCommercial'
 import { sellableApps } from '@/utils/vendorEntitlement'
-const props = withDefaults(defineProps<{ releases: CatalogRelease[]; initial?: BundleView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean; canPrice?: boolean }>(), { busy: false, resetKey: 0, requireReason: false, canPrice: true })
+const props = withDefaults(defineProps<{ releases: CatalogRelease[]; initial?: BundleView; initialApp?: string; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean; canPrice?: boolean }>(), { busy: false, resetKey: 0, requireReason: false, canPrice: true })
 const emit = defineEmits<{ save: [draft: BundleDraft, release: CatalogRelease | undefined]; cancel: [] }>()
 const { t, te, locale } = useI18n(); const hydrated = useHydrated()
 const draft = reactive<BundleDraft>(props.initial ? bundleDraftFromView(props.initial) : emptyBundleDraft())
 if (!draft.catalog_release_id && props.releases.length === 1) draft.catalog_release_id = props.releases[0]!.id
 const release = computed(() => props.releases.find(r => r.id === draft.catalog_release_id))
+// A new add-on opened from an application record starts on that application, with the booleans selecting it grants.
+function selectInitialApp() {
+  if (!props.initialApp || props.initial) return
+  if (release.value?.applications.some(app => app.id === props.initialApp && app.selectable)) toggleApp(props.initialApp, true)
+}
+selectInitialApp()
 const selectableApps = computed(() => sellableApps(release.value))
 const coreApps = computed(() => (release.value?.applications ?? []).filter(a => !a.selectable))
 const selectedIds = computed(() => Object.entries(draft.apps).filter(([, v]) => v.selected).map(([id]) => id))
 const keys = computed(() => bundleLimitKeys(release.value, selectedIds.value))
 watch(keys, values => { for (const key of values) draft.limits[key] ??= { mode: '', value: '' } }, { immediate: true })
-watch(() => draft.catalog_release_id, () => { if (!props.initial || props.initial.catalog_release_id !== draft.catalog_release_id) { draft.apps = {}; draft.limits = {} } })
+watch(() => draft.catalog_release_id, () => {
+  if (!props.initial || props.initial.catalog_release_id !== draft.catalog_release_id) { draft.apps = {}; draft.limits = {}; selectInitialApp() }
+})
 const hints = computed(() => dependencyHints(release.value, selectedIds.value))
 const name = (id: string) => { const a = release.value?.applications.find(x => x.id === id); return a ? appName(a, locale.value) : id }
 const labels = computed(() => Object.fromEntries(keys.value.map(k => [k, keyLabel(k, t, te)])))

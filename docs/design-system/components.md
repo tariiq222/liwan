@@ -289,14 +289,15 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/vendor-admin/app/components/vendor/CapacityLimitsEditor.vue` | محرر حدود السعة | `UFormField`, `VendorLimitControl` |
 | `apps/vendor-admin/app/components/vendor/CatalogFacts.vue` | شريط حقائق سجل الكتالوج تحت العنوان: الحالة ثم السعر والمحتوى والعملاء | |
 | `apps/vendor-admin/app/components/vendor/CatalogGlossary.vue` | معجم القسم التجاري أعلى صفحاته: بطاقة مطويّة مفتوحة افتراضيًا تعرّف التطبيق وإصداره والحزمة والباقة بجملة لكل واحد | `UIcon` |
-| `apps/vendor-admin/app/components/vendor/CatalogTabs.vue` | تبويبات قسم تطبيقات ليوان (التطبيقات والحزم والباقات) عبر `SharedRouteTabs` | `SharedRouteTabs` |
+| `apps/vendor-admin/app/components/vendor/CatalogTabs.vue` | تبويبات قسم تطبيقات ليوان (الباقات والإضافات والتطبيقات) عبر `SharedRouteTabs` | `SharedRouteTabs` |
+| `apps/vendor-admin/app/components/vendor/CatalogDiffChips.vue` | وسم مضغوط لتغييرات إصدار التطبيقات: شريحة لكل عائلة تغيّرت، و«أول استيراد» عند غياب إصدار أقدم | `UBadge` |
+| `apps/vendor-admin/app/components/vendor/CatalogDiffDetail.vue` | تفاصيل الفرق بين إصدارَي تطبيقات، كاملًا أو مقصورًا على تطبيق واحد: المضاف والمحذوف وتغيّر حدود العرض | `UBadge` |
 | `apps/vendor-admin/app/components/vendor/CustomerGlance.vue` | ملخص العميل في لمحة: الباقة والتجديد وآخر فاتورة والمساحة وما يحتاج متابعة مع رابط لتبويبه | `SharedMetricTile`, `SharedStatusBadge`, `UButton`, `UIcon` |
 | `apps/vendor-admin/app/components/vendor/CustomerTermsForm.vue` | نموذج شروط العميل | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/DeletionRunPanel.vue` | تنفيذ حذف مساحة العميل للقراءة فقط: حالة المنفّذ، التواريخ، الخطة المجمّدة، الفحوص المسبقة وسجل الخطوات مع المتعثر منها | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
 | `apps/vendor-admin/app/components/vendor/EntitlementSummary.vue` | ملخص الاستحقاقات: التطبيقات والميزات المختارة والحدود | `UBadge` |
 | `apps/vendor-admin/app/components/vendor/FormSubsection.vue` | عنوان فرعي ووصف وخط فاصل لكتلة داخل بطاقة قسم النموذج | |
 | `apps/vendor-admin/app/components/vendor/LifecyclePanel.vue` | إجراءات دورة حياة الاشتراك بتأكيد داخلي | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
-| `apps/vendor-admin/app/components/vendor/CatalogVersionAction.vue` | خطوة التحقق أو النشر لإصدار تركيبة التطبيقات بسبب إلزامي | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/CatalogReleaseAction.vue` | إنشاء إصدار الحزم من إصدار منشور بسبب إلزامي | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/HealthStrip.vue` | شريط خدمات اللوحة في صفحة اليوم: شريحة لكل عملية أو محوّل بحالتها والوقت منذ آخر نبضة، وآخر فحص لمساحات العمل، ورسالة بدل الشرائح إن تعذّرت القراءة | `UIcon` |
 | `apps/vendor-admin/app/components/vendor/StuckRefundActions.vue` | إجراءات الاسترداد التلقائي العالق على إشعار دائن: فحص من جديد ورفع الحجز وتسجيل الاسترداد العائد مع بيانات التعارض | `NuxtLink`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UButton`, `UFormField`, `UIcon`, `USelect`, `UTextarea` |
