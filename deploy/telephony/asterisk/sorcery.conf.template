@@ -1,7 +1,7 @@
 ; Rendered by deploy/telephony/render.py from the company's env file (company {{COMPANY_ID}}).
-; PJSIP realtime is listed first and static pjsip.conf second for endpoint, auth and aor: ARI dynamic writes land in
-; PostgreSQL (extconfig.conf -> res_pgsql.conf -> pbx-db), while static objects (transports, plain SIP 103, trunk)
-; still load from pjsip.conf.
+; PJSIP realtime is listed first and static pjsip.conf second for endpoint, auth and aor: pbx-agent writes browser
+; endpoints, auths and aors directly into PostgreSQL (pbx-db) and Asterisk reads them live via extconfig.conf and
+; res_pgsql.conf, while static objects (transports, plain SIP 103, trunk) still load from pjsip.conf.
 
 [res_pjsip]
 endpoint=realtime,ps_endpoints

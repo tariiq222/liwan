@@ -69,6 +69,7 @@ SERVICE_ENVIRONMENT = (
     'PBX_RECONCILE_SECONDS',
     'PBX_LINE_ENDPOINT',
     'PBX_INBOUND_CONTEXT',
+    'PBX_DB_URL',
     'PBX_PUBLIC_WS_URL',
     'PBX_STUN_URL',
     'PBX_TURN_URL',
@@ -430,6 +431,18 @@ class ComposeShape(unittest.TestCase):
         self.assertEqual('/var/lib/pbx-agent/queue.sqlite3', environment['PBX_QUEUE_PATH'])
         self.assertEqual('/var/log/asterisk/cel-custom.csv', environment['PBX_CEL_PATH'])
         # The rendered file keeps Compose's own interpolation, so these name the env file variable they take.
+        self.assertEqual(
+            'postgresql://telephony_pbx:${LIWAN_TELEPHONY_PBX_DB_PASSWORD}@pbx-db:5432/telephony_pbx',
+            environment['PBX_DB_URL'],
+        )
+        self.assertEqual(
+            {
+                'volumes-init': {'condition': 'service_completed_successfully'},
+                'pbx-db': {'condition': 'service_healthy'},
+                'asterisk': {'condition': 'service_healthy'},
+            },
+            service['depends_on'],
+        )
         self.assertEqual('${LIWAN_TELEPHONY_HOST_NAME:?}', environment['PBX_PUBLIC_HOST'])
         self.assertEqual('${LIWAN_TELEPHONY_DATABASE:?}', environment['PBX_DATABASE'])
         self.assertEqual('wss://${LIWAN_TELEPHONY_HOST_NAME:?}/ws', environment['PBX_PUBLIC_WS_URL'])
@@ -830,17 +843,20 @@ class PjsipRealtime(unittest.TestCase):
         self.assertIn('[settings]', extconfig)
         for table in ('ps_endpoints', 'ps_auths', 'ps_aors'):
             self.assertIn(f'{table} => pgsql,telephony_pbx,{table}', extconfig)
-        self.assertIn('[telephony_pbx]', res_pgsql)
+        self.assertIn('[general]', res_pgsql)
+        self.assertNotIn('[telephony_pbx]', res_pgsql)
         for expected in (
-            'dbhost=pbx-db',
-            'dbport=5432',
+            'hostname=pbx-db',
+            'port=5432',
             'dbname=telephony_pbx',
-            'dbuser=telephony_pbx',
-            'dbpass=pbx-db-secret-value',
-            'dbappname=asterisk',
+            'user=telephony_pbx',
+            'password=pbx-db-secret-value',
+            'appname=asterisk',
             'requirements=warn',
         ):
             self.assertIn(expected, res_pgsql)
+        for obsolete in ('dbhost=', 'dbport=', 'dbuser=', 'dbpass=', 'dbappname='):
+            self.assertNotIn(obsolete, res_pgsql)
 
     def test_postgres_schema_declares_realtime_tables_and_columns(self):
         with tempfile.TemporaryDirectory() as directory:

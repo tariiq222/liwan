@@ -15,11 +15,12 @@ company's provider, receives inbound calls on extension 101, and records convers
 
 ```
 provider trunk ── SIP/RTP ──▶ published RTP block (every mode) + SIP port (when public) ──┐
-browser ── wss /ws (shared edge, separate part) ──▶ asterisk :8088 (ws transport) ─┤
-browser ── TURN (udp/tcp) ──▶ coturn ── RTP on the private network ──▶ asterisk     ├─▶ company volumes
-asterisk ── res_config_pgsql ──▶ pbx-db :5432 (PostgreSQL 16, telephony_internal)   ├─▶ recordings & pbx-db
-pbx-agent ── ARI websocket/REST ──▶ asterisk :8088/ari                             ─┤
-pbx-agent ── signed events ──▶ Odoo /api/v1/telephony/events                       ─┘
+browser ── wss /ws (shared edge, separate part) ──▶ asterisk :8088 (ws transport)         ─┤
+browser ── TURN (udp/tcp) ──▶ coturn ── RTP on the private network ──▶ asterisk           ├─▶ company volumes
+asterisk ── res_config_pgsql ([general]) ──▶ pbx-db :5432 (PostgreSQL 16, internal)       ├─▶ recordings & pbx-db
+pbx-agent ── SQL (PBX_DB_URL) ──▶ pbx-db :5432 (ps_auths, ps_aors, ps_endpoints)          ─┤
+pbx-agent ── ARI events & health probes ──▶ asterisk :8088/ari                            ─┤
+pbx-agent ── signed events ──▶ Odoo /api/v1/telephony/events                              ─┘
 ```
 
 Two networks, both named for the company: `telephony_internal` (internal, no route off the host) carries ARI, `pbx-db`,
@@ -32,7 +33,7 @@ recordings volume is written by one process and read by the other without a shar
 `volumes-init` job runs first: it owns the four Asterisk/agent volumes long enough to hand them to `10002:10002` and
 exits 0. `pbx-db` runs as `postgres` on `telephony_internal` with a read-only root filesystem, all capabilities dropped,
 `no-new-privileges`, and its own named volume `telephony_pbx_db`. Asterisk waits for `volumes-init` and a healthy
-`pbx-db`; `pbx-agent` waits for `volumes-init` and a healthy Asterisk. The agent's environment matches
+`pbx-db`; `pbx-agent` waits for `volumes-init`, a healthy `pbx-db` and a healthy Asterisk. The agent's environment matches
 `apps/pbx-agent/src/pbx_agent/settings.py`: every variable comes from this env file or names this package's own
 Asterisk objects (`from-trunk`, `trunk`, `transport-ws`, `from-extension`) and internal paths.
 
@@ -41,13 +42,16 @@ Asterisk objects (`from-trunk`, `trunk`, `transport-ws`, `from-extension`) and i
 Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pinned by digest, database
 `telephony_pbx`):
 
-1. **`asterisk/sorcery.conf`** lists `realtime` **first** and `config,pjsip.conf,criteria=type=...` **second** for
-   `endpoint`, `auth` and `aor`. Because Sorcery writes to the first writable wizard, `pbx-agent`'s ARI push
-   configuration writes (`PUT /ari/asterisk/config/dynamic/res_pjsip/{endpoint,auth,aor}/{id}`) land in PostgreSQL
-   while static objects (`[trunk]`, plain SIP extension `103` and transports) still load from `asterisk/pjsip.conf`.
+1. **`pbx-agent` SQL writes & `asterisk/sorcery.conf`**: `pbx-agent` connects directly to `pbx-db` via `PBX_DB_URL`
+   and writes `ps_auths`, `ps_aors` and `ps_endpoints` in one atomic SQL transaction. `asterisk/sorcery.conf` lists
+   `realtime` **first** and `config,pjsip.conf,criteria=type=...` **second** for `endpoint`, `auth` and `aor`, so
+   Asterisk reads browser extensions live from PostgreSQL via `res_config_pgsql` while static objects (`[trunk]`, plain
+   SIP extension `103` and transports) still load from `asterisk/pjsip.conf`. ARI (`/ari`) handles call lifecycle events
+   and health probes rather than PJSIP object writes.
 2. **`asterisk/extconfig.conf`** maps `ps_endpoints`, `ps_auths` and `ps_aors` to `pgsql,telephony_pbx,<table>`, and
-   **`asterisk/res_pgsql.conf`** connects to `pbx-db:5432` over `telephony_internal` using
-   `LIWAN_TELEPHONY_PBX_DB_PASSWORD`.
+   **`asterisk/res_pgsql.conf`** uses Asterisk 22's canonical `[general]` section (`hostname=pbx-db`, `port=5432`,
+   `dbname=telephony_pbx`, `user=telephony_pbx`, `password=...`, `appname=asterisk`) to connect over
+   `telephony_internal` using `LIWAN_TELEPHONY_PBX_DB_PASSWORD`.
 3. **`postgres/01-schema.sql`** creates `ps_aors`, `ps_auths` and `ps_endpoints` on first database initialization (with
    `VARCHAR(8)` yes/no columns and `ps_endpoints.auth VARCHAR(200)` for comma-separated overlap auth IDs during session
    rotation). **`postgres/02-seed.sql`** inserts idempotent (`ON CONFLICT (id) DO NOTHING`) seed rows for the browser
@@ -60,10 +64,10 @@ Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pi
    `FILTER(0-9,${EXTEN:1})` for `_+X.`, rejecting any non-digit or expression error before `Dial`). `[inbound-call]`,
    `[internal]` and `[dial-outbound]` all set `Set(__TRANSFER_CONTEXT=from-extension)` so SIP `REFER` blind transfers
    resolve inside `[from-extension]`.
-5. **Per-session browser credentials**: `compose.yml` forwards `PBX_PUBLIC_WS_URL`, `PBX_STUN_URL`, `PBX_TURN_URL`,
-   `PBX_TURN_SECRET`, `PBX_SESSION_SECONDS`, `PBX_SESSION_OVERLAP_SECONDS`, `PBX_PJSIP_TRANSPORT` (`transport-ws`) and
-   `PBX_PJSIP_CONTEXT` (`from-extension`) to `pbx-agent`, which mints temporary TURN REST HMAC credentials and rotates
-   per-session PJSIP passwords with an overlap window (design 4.1).
+5. **Per-session browser credentials**: `compose.yml` forwards `PBX_DB_URL`, `PBX_PUBLIC_WS_URL`, `PBX_STUN_URL`,
+   `PBX_TURN_URL`, `PBX_TURN_SECRET`, `PBX_SESSION_SECONDS`, `PBX_SESSION_OVERLAP_SECONDS`, `PBX_PJSIP_TRANSPORT`
+   (`transport-ws`) and `PBX_PJSIP_CONTEXT` (`from-extension`) to `pbx-agent`, which mints temporary TURN REST HMAC
+   credentials and rotates per-session PJSIP passwords in `pbx-db` with an overlap window (design 4.1).
 6. **Package moves (12.2)**: the `telephony_pbx_db` volume holds one row per extension (a few hundred rows at most) and
    is the database object exported/imported during a company move.
 
@@ -278,7 +282,7 @@ python3 -B deploy/telephony/edge/render_edge.py --snapshot <telephony-registry.j
 | `asterisk/pjsip.conf.template` | static transports (udp, tcp, ws), plain SIP `103` (with `allow_transfer=yes`) and the trunk |
 | `asterisk/sorcery.conf.template` | PJSIP realtime-first, `pjsip.conf`-second routing for `endpoint`, `auth` and `aor` |
 | `asterisk/extconfig.conf.template` | maps `ps_endpoints`, `ps_auths` and `ps_aors` to `pgsql,telephony_pbx,<table>` |
-| `asterisk/res_pgsql.conf.template` | PostgreSQL connection to `pbx-db:5432` (`telephony_pbx`) |
+| `asterisk/res_pgsql.conf.template` | PostgreSQL connection (`[general]`) to `pbx-db:5432` (`telephony_pbx`) |
 | `asterisk/extensions.conf.template` | dynamic internal routing via `DEVICE_STATE`, outbound filter guard, SIP REFER transfer context, MixMonitor by `linkedid`, unavailable message |
 | `asterisk/{http,ari,rtp,logger}.conf.template` | `/ws` and ARI on 8088 inside, the ARI user, the RTP block, the log channel |
 | `asterisk/cel.conf.template`, `asterisk/cel_custom.conf.template` | CEL on, the lifecycle events, the CSV path and the agent's 19 columns |

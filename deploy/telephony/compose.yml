@@ -235,7 +235,9 @@ services:
       PBX_INBOUND_CONTEXT: from-trunk
       PBX_LINE_ENDPOINT: trunk
       # Browser session registration (design 4.1): WebSocket URL on the company host, optional STUN/TURN URLs, TURN
-      # REST secret for per-session HMAC credentials, credential lifetime/overlap, and the PJSIP objects written via ARI.
+      # REST secret for per-session HMAC credentials, credential lifetime/overlap, and the PJSIP objects written to
+      # pbx-db (non-empty validation of the database password is enforced on the pbx-db service above).
+      PBX_DB_URL: "postgresql://telephony_pbx:${LIWAN_TELEPHONY_PBX_DB_PASSWORD}@pbx-db:5432/telephony_pbx"
       PBX_PUBLIC_WS_URL: "wss://${LIWAN_TELEPHONY_HOST_NAME:?}/ws"
       PBX_STUN_URL: "${LIWAN_TELEPHONY_STUN_URL:-}"
       PBX_TURN_URL: "${LIWAN_TELEPHONY_TURN_URL:-}"
@@ -269,6 +271,7 @@ services:
       start_period: 30s
     depends_on:
       volumes-init: { condition: service_completed_successfully }
+      pbx-db: { condition: service_healthy }
       asterisk: { condition: service_healthy }
 
 networks:
