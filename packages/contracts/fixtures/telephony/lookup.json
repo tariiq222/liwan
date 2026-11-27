@@ -1,0 +1,101 @@
+{
+  "calls": [
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "in",
+      "durationSeconds": 30,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": null,
+      "id": 1,
+      "linkedid": "1764060000.5",
+      "partner": null,
+      "recordingState": "none",
+      "remoteNumber": "+966511111111",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "answered",
+      "user": {
+        "id": 2,
+        "name": "Telephony Manager"
+      }
+    },
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "in",
+      "durationSeconds": 30,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": null,
+      "id": 3,
+      "linkedid": "1764060000.4",
+      "partner": null,
+      "recordingState": "none",
+      "remoteNumber": "+966511111111",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "answered",
+      "user": {
+        "id": 2,
+        "name": "Telephony Manager"
+      }
+    },
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "in",
+      "durationSeconds": 30,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": null,
+      "id": 4,
+      "linkedid": "1764060000.3",
+      "partner": null,
+      "recordingState": "none",
+      "remoteNumber": "+966511111111",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "answered",
+      "user": {
+        "id": 2,
+        "name": "Telephony Manager"
+      }
+    },
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "in",
+      "durationSeconds": 30,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": null,
+      "id": 5,
+      "linkedid": "1764060000.2",
+      "partner": null,
+      "recordingState": "none",
+      "remoteNumber": "+966511111111",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "answered",
+      "user": {
+        "id": 2,
+        "name": "Telephony Manager"
+      }
+    },
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "in",
+      "durationSeconds": 30,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": null,
+      "id": 6,
+      "linkedid": "1764060000.1",
+      "partner": null,
+      "recordingState": "none",
+      "remoteNumber": "+966511111111",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "answered",
+      "user": {
+        "id": 2,
+        "name": "Telephony Manager"
+      }
+    }
+  ],
+  "number": "+966511111111",
+  "partner": null
+}

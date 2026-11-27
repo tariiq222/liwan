@@ -7,6 +7,10 @@ import { z } from 'zod'
  * one are described the same way. `event_id` is assigned when the event enters the agent's durable queue and never
  * changes on a retry: the route is idempotent on it. Numbers travel raw; E164 normalisation belongs to Odoo, which
  * owns the contact matching.
+ *
+ * `call.recording` is present on one event per recorded call only: when a leg of the call has ended and the agent
+ * finds the call's recording file, it repeats that leg's end event with `recording: 'ready'` and nothing else
+ * changed, so the call moves nowhere and only its recording state does.
  */
 export const TelephonyEventSourceSchema = z.enum(['ari', 'cel'])
 
@@ -32,6 +36,7 @@ export const TelephonyEventCallSchema = z
     started_at: z.string().datetime({ offset: false }).nullable(),
     answered_at: z.string().datetime({ offset: false }).nullable(),
     ended_at: z.string().datetime({ offset: false }).nullable(),
+    recording: z.literal('ready').optional(),
   })
   .describe('One channel\'s transition as the agent saw it')
 

@@ -1,5 +1,5 @@
 import {
-  TelephonyBusinessHoursSchema,
+  TelephonyCallDetailSchema,
   TelephonyCallListSchema,
   TelephonyCallSchema,
   TelephonyEventSchema,
@@ -8,7 +8,7 @@ import {
   TelephonyLineListSchema,
   TelephonyLineSchema,
   TelephonyLookupSchema,
-  TelephonySettingsSchema,
+  TelephonyRecordingLinkSchema,
 } from '../index'
 
 const CALL = {
@@ -20,7 +20,6 @@ const CALL = {
   partner: { id: 4, name: 'Acme Trading' },
   user: { id: 3, name: 'Agent' },
   extension: { id: 2, name: '1001' },
-  queue: null,
   startedAt: '2026-11-25T09:00:00Z',
   answeredAt: '2026-11-25T09:00:05Z',
   endedAt: '2026-11-25T09:01:00Z',
@@ -34,31 +33,20 @@ const EXTENSION = { id: 2, number: '1001', user: { id: 3, name: 'Agent' }, activ
 const LINE = {
   id: 5,
   name: 'Provider trunk',
-  kind: 'trunk',
-  mode: 'mode_a',
+  kind: 'sip_trunk',
+  mode: 'a',
   authMethod: 'credentials',
-  provider: { host: 'sip.provider.example', port: 5060 },
+  providerHost: 'sip.provider.example',
+  providerPort: 5060,
   numbers: ['+966112223334'],
   outboundFormat: '0',
   callerId: '+966112223334',
   maxConcurrent: 10,
-  state: 'registered',
 }
 
-const HOURS = {
-  timezone: 'Asia/Riyadh',
-  days: [{ weekday: 0, from: '09:00', to: '17:00' }],
-  closedMessage: 'نعود صباحًا',
-}
-
-const SETTINGS = {
-  recordingPolicy: 'always',
-  announcementEnabled: true,
-  retentionDays: 90,
-  defaultLine: { id: 5, name: 'Provider trunk' },
-  queueCount: 1,
-  ivrEnabled: false,
-  businessHours: HOURS,
+const RECORDING_LINK = {
+  url: 'https://recordings.test/pbx/recordings/eyJjYWxsIjoiMSJ9.abcdef',
+  expiresInSeconds: 60,
 }
 
 const EVENT = {
@@ -83,8 +71,9 @@ const EVENT = {
 }
 
 describe('TelephonyCallSchema', () => {
-  it('accepts a finished call and the list envelope', () => {
+  it('accepts a finished call, its detail shape and the list envelope', () => {
     expect(TelephonyCallSchema.parse(CALL)).toEqual(CALL)
+    expect(TelephonyCallDetailSchema.parse({ ...CALL, canListen: true })).toEqual({ ...CALL, canListen: true })
     expect(TelephonyCallListSchema.parse({ items: [CALL], total: 1 }).total).toBe(1)
   })
 
@@ -92,7 +81,7 @@ describe('TelephonyCallSchema', () => {
     const running = { ...CALL, state: 'answered', endedAt: null, durationSeconds: null, recordingState: 'pending' }
     expect(TelephonyCallSchema.parse(running).durationSeconds).toBeNull()
     expect(TelephonyCallSchema.parse({ ...CALL, direction: 'internal', remoteNumber: null }).remoteNumber).toBeNull()
-    expect(TelephonyCallSchema.parse({ ...CALL, partner: null, queue: 'sales' }).queue).toBe('sales')
+    expect(TelephonyCallSchema.parse({ ...CALL, partner: null, user: null, extension: null }).partner).toBeNull()
   })
 
   it('rejects a negative duration, a non-E.164 number and an unknown state', () => {
@@ -111,39 +100,72 @@ describe('TelephonyCallSchema', () => {
     expect(TelephonyCallSchema.parse({ ...CALL, startedAt: '2026-11-25T09:00:00.123Z' }).startedAt).toContain('.123')
   })
 
-  it('rejects an extra key', () => {
+  it('rejects an extra key including removed queue', () => {
+    expect(() => TelephonyCallSchema.parse({ ...CALL, queue: null })).toThrow()
     expect(() => TelephonyCallSchema.parse({ ...CALL, password: 'x' })).toThrow()
+    expect(() => TelephonyCallDetailSchema.parse({ ...CALL, canListen: false, extra: 1 })).toThrow()
     expect(() => TelephonyCallListSchema.parse({ items: [CALL], total: 1, next: 2 })).toThrow()
   })
 })
 
-describe('the extension, line and settings shapes', () => {
-  it('parses an extension and its list', () => {
+describe('TelephonyRecordingLinkSchema', () => {
+  it('accepts a signed recording URL and positive lifetime in seconds', () => {
+    expect(TelephonyRecordingLinkSchema.parse(RECORDING_LINK)).toEqual(RECORDING_LINK)
+  })
+
+  it('rejects an invalid URL, non-positive lifetime and extra keys', () => {
+    expect(() => TelephonyRecordingLinkSchema.parse({ ...RECORDING_LINK, url: '/pbx/recordings/x' })).toThrow()
+    expect(() => TelephonyRecordingLinkSchema.parse({ ...RECORDING_LINK, url: '' })).toThrow()
+    expect(() => TelephonyRecordingLinkSchema.parse({ ...RECORDING_LINK, expiresInSeconds: 0 })).toThrow()
+    expect(() => TelephonyRecordingLinkSchema.parse({ ...RECORDING_LINK, expiresInSeconds: -5 })).toThrow()
+    expect(() => TelephonyRecordingLinkSchema.parse({ ...RECORDING_LINK, expiresInSeconds: 1.5 })).toThrow()
+    expect(() => TelephonyRecordingLinkSchema.parse({ ...RECORDING_LINK, extra: true })).toThrow()
+  })
+})
+
+describe('the extension and line shapes', () => {
+  it('parses an assigned or unassigned extension and its list', () => {
     expect(TelephonyExtensionSchema.parse(EXTENSION)).toEqual(EXTENSION)
+    expect(TelephonyExtensionSchema.parse({ ...EXTENSION, user: null }).user).toBeNull()
     expect(TelephonyExtensionListSchema.parse({ items: [EXTENSION], total: 1 }).total).toBe(1)
     expect(() => TelephonyExtensionSchema.parse({ ...EXTENSION, number: '10-01' })).toThrow()
     expect(() => TelephonyExtensionSchema.parse({ ...EXTENSION, password: 'x' })).toThrow()
   })
 
-  it('parses a line and its list, and never takes a password', () => {
+  it('parses a line and its list, supports nullable host/format/callerId and never takes a password or state', () => {
     expect(TelephonyLineSchema.parse(LINE)).toEqual(LINE)
+    expect(TelephonyLineSchema.parse({
+      ...LINE,
+      kind: 'analog_gateway',
+      mode: 'b',
+      providerHost: null,
+      numbers: [],
+      outboundFormat: null,
+      callerId: null,
+    }).providerHost).toBeNull()
+    expect(TelephonyLineSchema.parse({
+      ...LINE,
+      kind: 'mobile_gateway',
+      mode: 'b',
+      providerHost: '192.0.2.10',
+    }).providerHost).toBe('192.0.2.10')
+    expect(TelephonyLineSchema.parse({ ...LINE, providerHost: 'SIP.Provider.Example' }).providerHost).toBe('SIP.Provider.Example')
     expect(TelephonyLineListSchema.parse({ items: [LINE], total: 1 }).total).toBe(1)
+
     expect(() => TelephonyLineSchema.parse({ ...LINE, password: 'x' })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, state: 'registered' })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, provider: { host: 'sip.provider.example', port: 5060 } })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, kind: 'trunk' })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, mode: 'mode_a' })).toThrow()
     expect(() => TelephonyLineSchema.parse({ ...LINE, authMethod: 'basic' })).toThrow()
-    expect(() => TelephonyLineSchema.parse({ ...LINE, provider: { host: 'SIP.Provider.Example', port: 5060 } })).toThrow()
-    expect(() => TelephonyLineSchema.parse({ ...LINE, provider: { host: 'sip.provider.example', port: 70000 } })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, providerHost: '-bad.example' })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, providerHost: '' })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, providerPort: 70000 })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, outboundFormat: '' })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, outboundFormat: '12345678901' })).toThrow()
+    expect(() => TelephonyLineSchema.parse({ ...LINE, callerId: '0500000000' })).toThrow()
     expect(() => TelephonyLineSchema.parse({ ...LINE, numbers: ['112223334'] })).toThrow()
     expect(() => TelephonyLineSchema.parse({ ...LINE, maxConcurrent: 0 })).toThrow()
-  })
-
-  it('parses the settings and refuses a permanent recording with its announcement off', () => {
-    expect(TelephonySettingsSchema.parse(SETTINGS)).toEqual(SETTINGS)
-    expect(TelephonySettingsSchema.parse({ ...SETTINGS, recordingPolicy: 'on_demand', announcementEnabled: false }).announcementEnabled).toBe(false)
-    expect(() => TelephonySettingsSchema.parse({ ...SETTINGS, announcementEnabled: false })).toThrow()
-    expect(() => TelephonySettingsSchema.parse({ ...SETTINGS, retentionDays: 0 })).toThrow()
-    expect(() => TelephonySettingsSchema.parse({ ...SETTINGS, recordingPolicy: 'sometimes' })).toThrow()
-    expect(TelephonyBusinessHoursSchema.parse({ ...HOURS, days: [] }).days).toEqual([])
-    expect(() => TelephonyBusinessHoursSchema.parse({ ...HOURS, days: [{ weekday: 0, from: '17:00', to: '09:00' }] })).toThrow()
   })
 })
 
@@ -167,6 +189,15 @@ describe('TelephonyEventSchema', () => {
     expect(() => TelephonyEventSchema.parse({ ...EVENT, call: { ...EVENT.call, state: 'unknown' } })).toThrow()
     expect(() => TelephonyEventSchema.parse({ ...EVENT, extra: 1 })).toThrow()
     expect(() => TelephonyEventSchema.parse({ ...EVENT, call: { ...EVENT.call, extra: 1 } })).toThrow()
+  })
+
+  it('takes call.recording only as the literal ready, and does not require it', () => {
+    const ready = { ...EVENT, call: { ...EVENT.call, state: 'ended', ended_at: '2026-11-25T09:01:00Z', recording: 'ready' } }
+    expect(TelephonyEventSchema.parse(ready)).toEqual(ready)
+    for (const other of ['available', 'READY', 'pending', null, true, 1]) {
+      expect(() => TelephonyEventSchema.parse({ ...EVENT, call: { ...EVENT.call, recording: other } })).toThrow()
+    }
+    expect(TelephonyEventSchema.parse(EVENT)).toEqual(EVENT)
   })
 })
 

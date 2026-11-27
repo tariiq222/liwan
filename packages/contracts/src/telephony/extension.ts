@@ -11,7 +11,7 @@ export const TelephonyExtensionNumberSchema = z.string().regex(/^\d{2,10}$/)
 export const TelephonyExtensionSchema = z.strictObject({
   id: TelephonyIdSchema,
   number: TelephonyExtensionNumberSchema,
-  user: TelephonyRefSchema,
+  user: TelephonyRefSchema.nullable(),
   active: z.boolean(),
 })
 

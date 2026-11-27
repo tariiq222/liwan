@@ -25,7 +25,6 @@ export const TelephonyCallSchema = z.strictObject({
   partner: TelephonyRefSchema.nullable(),
   user: TelephonyRefSchema.nullable(),
   extension: TelephonyRefSchema.nullable(),
-  queue: z.string().nullable(),
   startedAt: TelephonyDateTimeSchema.nullable(),
   answeredAt: TelephonyDateTimeSchema.nullable(),
   endedAt: TelephonyDateTimeSchema.nullable(),
@@ -48,3 +47,11 @@ export const TelephonyCallDetailSchema = TelephonyCallSchema.extend({
 })
 
 export type TelephonyCallDetail = z.infer<typeof TelephonyCallDetailSchema>
+
+/** One-minute signed URL of a call's recording (`GET /api/v1/telephony/calls/<id>/recording`). */
+export const TelephonyRecordingLinkSchema = z.strictObject({
+  url: z.string().url(),
+  expiresInSeconds: z.number().int().positive(),
+})
+
+export type TelephonyRecordingLink = z.infer<typeof TelephonyRecordingLinkSchema>
