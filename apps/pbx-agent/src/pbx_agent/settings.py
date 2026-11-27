@@ -19,7 +19,11 @@ if TYPE_CHECKING:
 HEX_KEY = re.compile(r"[0-9a-f]{64}")
 DATABASE_NAME = re.compile(r"[a-z][a-z0-9_]{0,62}")
 PUBLIC_HOST = re.compile(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?")
+STUN_URL = re.compile(r"stuns?:\S+")
+TURN_URL = re.compile(r"turns?:\S+")
+PJSIP_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
 KEYS_FILE_NAMES = ("events", "reverse")
+TURN_SECRET_MIN_LENGTH = 32
 
 
 class SettingsError(ValueError):
@@ -51,11 +55,14 @@ class Settings:
     cel_path: Path
     inbound_context: str
     line_endpoint: str | None
-    # The browser side (design 4.1): the WebSocket the phone registers on, the ICE servers it is given, and how long a
-    # session's password lives. The URL is public; the ICE credential is minted per session when TURN is in use.
+    # The browser side (design 4.1): the WebSocket the phone registers on, optional STUN/TURN URLs (with TURN REST
+    # credentials minted per session from ``turn_secret``), and the session/overlap lifetimes.
     public_ws_url: str
-    ice_servers: list[dict]
+    stun_url: str | None
+    turn_url: str | None
+    turn_secret: str | None
     session_seconds: int
+    session_overlap_seconds: int
     # The PJSIP objects a browser endpoint is written with: the transport it registers on and the dialplan context it
     # lands in. They come from the package's own templates, so the route writes an endpoint that matches them.
     pjsip_transport: str
@@ -113,6 +120,15 @@ class Settings:
             msg = "PBX_PUBLIC_HOST must be a bare hostname: no scheme, port or path"
             raise SettingsError("PBX_PUBLIC_HOST", msg)
 
+        session_seconds = _integer(environ, "PBX_SESSION_SECONDS", 120, 30, 120)
+        session_overlap_seconds = _integer(environ, "PBX_SESSION_OVERLAP_SECONDS", 30, 0, 60)
+        if session_overlap_seconds >= session_seconds:
+            msg = "PBX_SESSION_OVERLAP_SECONDS must be less than PBX_SESSION_SECONDS"
+            raise SettingsError("PBX_SESSION_OVERLAP_SECONDS", msg)
+
+        stun_url = _stun_url(environ, "PBX_STUN_URL")
+        turn_url, turn_secret = _turn_config(environ)
+
         return cls(
             ari_url=ari_url,
             ari_username=ari_username,
@@ -132,30 +148,49 @@ class Settings:
             inbound_context=environ.get("PBX_INBOUND_CONTEXT", "").strip() or "from-trunk",
             line_endpoint=environ.get("PBX_LINE_ENDPOINT", "").strip() or None,
             public_ws_url=_websocket_url(environ, "PBX_PUBLIC_WS_URL", f"wss://{public_host}/ws"),
-            ice_servers=_ice_servers(environ),
-            session_seconds=_integer(environ, "PBX_SESSION_SECONDS", 60, 30, 3600),
-            pjsip_transport=environ.get("PBX_PJSIP_TRANSPORT", "").strip() or "transport-ws",
-            pjsip_context=environ.get("PBX_PJSIP_CONTEXT", "").strip() or "from-extension",
+            stun_url=stun_url,
+            turn_url=turn_url,
+            turn_secret=turn_secret,
+            session_seconds=session_seconds,
+            session_overlap_seconds=session_overlap_seconds,
+            pjsip_transport=_pjsip_name(environ, "PBX_PJSIP_TRANSPORT", "transport-ws"),
+            pjsip_context=_pjsip_name(environ, "PBX_PJSIP_CONTEXT", "from-extension"),
         )
 
 
-def _ice_servers(environ: Mapping[str, str]) -> list[dict]:
-    """The ICE servers the browser is offered: one STUN URL, and TURN when the package published it."""
-    servers: list[dict] = []
-    stun = environ.get("PBX_STUN_URL", "").strip()
-    if stun:
-        servers.append({"urls": stun})
-    turn = environ.get("PBX_TURN_URL", "").strip()
-    if turn:
-        entry: dict = {"urls": turn}
-        user = environ.get("PBX_TURN_USER", "").strip()
-        secret = environ.get("PBX_TURN_CREDENTIAL", "").strip()
-        if user:
-            entry["username"] = user
-        if secret:
-            entry["credential"] = secret
-        servers.append(entry)
-    return servers
+def _stun_url(environ: Mapping[str, str], name: str) -> str | None:
+    value = environ.get(name, "").strip()
+    if not value:
+        return None
+    if not STUN_URL.fullmatch(value):
+        msg = f"{name} must start with stun: or stuns: and contain no whitespace"
+        raise SettingsError(name, msg)
+    return value
+
+
+def _turn_config(environ: Mapping[str, str]) -> tuple[str | None, str | None]:
+    turn_url = environ.get("PBX_TURN_URL", "").strip() or None
+    if turn_url is not None and not TURN_URL.fullmatch(turn_url):
+        msg = "PBX_TURN_URL must start with turn: or turns: and contain no whitespace"
+        raise SettingsError("PBX_TURN_URL", msg)
+    raw_secret = environ.get("PBX_TURN_SECRET", "")
+    if raw_secret == "":
+        if turn_url is not None:
+            msg = "PBX_TURN_SECRET is required when PBX_TURN_URL is set"
+            raise SettingsError("PBX_TURN_SECRET", msg)
+        return turn_url, None
+    if len(raw_secret) < TURN_SECRET_MIN_LENGTH or any(ch.isspace() for ch in raw_secret):
+        msg = f"PBX_TURN_SECRET must be at least {TURN_SECRET_MIN_LENGTH} characters with no whitespace"
+        raise SettingsError("PBX_TURN_SECRET", msg)
+    return turn_url, raw_secret
+
+
+def _pjsip_name(environ: Mapping[str, str], name: str, default: str) -> str:
+    value = environ.get(name, "").strip() or default
+    if not PJSIP_NAME.fullmatch(value):
+        msg = f"{name} must be 1 to 64 letters, digits, dot, underscore or hyphen"
+        raise SettingsError(name, msg)
+    return value
 
 
 def _required(environ: Mapping[str, str], name: str) -> str:
@@ -206,8 +241,10 @@ def _websocket_url(environ: Mapping[str, str], name: str, default: str) -> str:
         or not parts.path
         or parts.query
         or parts.fragment
+        or parts.username is not None
+        or "@" in parts.netloc
     ):
-        msg = "must be a ws:// or wss:// URL with a host and the /ws path, and no query or fragment"
+        msg = f"{name} must be a ws:// or wss:// URL with a host and path, and no credentials, query or fragment"
         raise SettingsError(name, msg)
     return value
 

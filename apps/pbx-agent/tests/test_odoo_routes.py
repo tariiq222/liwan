@@ -1,17 +1,20 @@
-"""The two routes Odoo calls: the session mint and the recording link (design 4.1, 4.4, 12.6).
+"""The private routes Odoo calls on pbx-agent (design 4.1, 4.4, 12.6).
 
-Both are refused without the company's reverse key, and the session mint writes the endpoint before answering, so a
-browser that receives a password always has an endpoint that accepts it. The Asterisk the route writes to is the
-recorded fake, so what the test checks is what the route put on the wire. ``GET /health`` probes that same client.
+Every route requires reverse-direction HMAC-SHA256 authentication (``X-Liwan-Telephony-Timestamp``,
+``X-Liwan-Telephony-Signature`` and ``X-Liwan-Telephony-Database``). Raw ``X-Liwan-Key`` is no longer accepted.
 """
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
+import json
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
+from urllib.parse import quote
 
 from fakes import AriRequest, FakeAri
 from fastapi.testclient import TestClient
@@ -21,17 +24,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from pbx_agent.app import create_app  # noqa: E402
 from pbx_agent.ari import AriClient  # noqa: E402
 from pbx_agent.settings import Settings  # noqa: E402
+from pbx_agent.signing import (  # noqa: E402
+    DATABASE_HEADER,
+    EVENT_SIGNATURE_HEADER,
+    EVENT_TIMESTAMP_HEADER,
+    reverse_headers,
+    verify_recording_token,
+)
 
 KEY = bytes.fromhex("cd" * 32)
 OTHER = bytes.fromhex("ef" * 32)
-AUTH = "/asterisk/config/dynamic/res_pjsip/auth/101"
-AOR = "/asterisk/config/dynamic/res_pjsip/aor/101"
-ENDPOINT = "/asterisk/config/dynamic/res_pjsip/endpoint/101"
+TURN_SECRET = "t" * 32
+NOW = 1700000000
+AOR_101 = "/asterisk/config/dynamic/res_pjsip/aor/101"
+ENDPOINT_101 = "/asterisk/config/dynamic/res_pjsip/endpoint/101"
 
 
-def settings(tmp) -> Settings:
+def make_settings(tmp: Path) -> Settings:
     recordings = tmp / "monitor"
-    recordings.mkdir()
+    recordings.mkdir(exist_ok=True)
     return Settings(
         ari_url="http://ari.test:8088/ari",
         ari_username="liwan",
@@ -51,102 +62,313 @@ def settings(tmp) -> Settings:
         inbound_context="from-trunk",
         line_endpoint=None,
         public_ws_url="wss://acme.example.test/ws",
-        ice_servers=[{"urls": "stun:turn.example.test:3478"}],
-        session_seconds=60,
+        stun_url="stun:stun.example.test:3478",
+        turn_url="turns:turn.example.test:5349",
+        turn_secret=TURN_SECRET,
+        session_seconds=120,
+        session_overlap_seconds=30,
         pjsip_transport="transport-ws",
         pjsip_context="from-extension",
     )
 
 
-def registration(client: TestClient, extension: str = "101", database: str = "liwan_acme", key: str = KEY.hex()):
-    return client.post("/registration", json={"extension": extension, "database": database}, headers={"X-Liwan-Key": key})
+def signed_request(
+    client: TestClient,
+    method: str,
+    path: str,
+    *,
+    payload: dict | None = None,
+    raw_body: bytes | None = None,
+    key: bytes = KEY,
+    database: str = "liwan_acme",
+    timestamp: int = NOW,
+    extra_headers: dict[str, str] | None = None,
+):
+    if raw_body is None:
+        raw_body = b"" if payload is None else json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    headers = reverse_headers(key, method=method, path=path, body=raw_body, database=database, timestamp=timestamp)
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+    if extra_headers:
+        headers.update(extra_headers)
+    return client.request(method, path, content=raw_body, headers=headers)
 
 
-def attributes(request) -> dict:
+def attributes(request) -> dict[str, str]:
     """The realtime object the route wrote, as ``attribute: value``."""
     return {field["attribute"]: field["value"] for field in request.body["fields"]}
 
 
 class RoutesTest(unittest.TestCase):
-
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.settings = settings(self.root)
+        self.now = float(NOW)
+        self.settings = make_settings(self.root)
         self.ari = FakeAri()
-        self.client = TestClient(create_app(self.settings, AriClient(self.ari)))
+        self.client = TestClient(create_app(self.settings, AriClient(self.ari), clock=lambda: self.now))
 
-    def test_registration_without_the_key_is_refused(self):
-        answer = self.client.post("/registration", json={"extension": "101", "database": "liwan_acme"})
+    def test_unauthenticated_and_legacy_x_liwan_key_requests_are_refused(self) -> None:
+        payload = {"extension": "101", "database": "liwan_acme"}
+        # Missing headers -> 401
+        answer = self.client.post("/registration", json=payload)
         self.assertEqual(answer.status_code, 401)
+        # Legacy X-Liwan-Key -> 401 (no parallel legacy path)
+        legacy = self.client.post("/registration", json=payload, headers={"X-Liwan-Key": KEY.hex()})
+        self.assertEqual(legacy.status_code, 401)
         self.assertEqual(self.ari.requests, [])
 
-    def test_registration_with_another_company_key_is_refused(self):
-        answer = registration(self.client, key=OTHER.hex())
-        self.assertEqual(answer.status_code, 401)
-        self.assertEqual(self.ari.requests, [])
-
-    def test_registration_refuses_another_database(self):
-        answer = registration(self.client, database="liwan_other")
-        self.assertEqual(answer.status_code, 403)
-        self.assertEqual(self.ari.requests, [])
-
-    def test_a_link_for_a_missing_recording_is_404(self):
-        answer = self.client.post(
-            "/recordings/link",
-            json={"linkedid": "1764049999.1", "database": "liwan_acme", "expires_at": int(time.time()) + 60},
-            headers={"X-Liwan-Key": KEY.hex()},
-        )
-        self.assertEqual(answer.status_code, 404)
-
-    def test_an_expired_request_is_refused(self):
-        answer = self.client.post(
-            "/recordings/link",
-            json={"linkedid": "1764049999.1", "database": "liwan_acme", "expires_at": int(time.time()) - 1},
-            headers={"X-Liwan-Key": KEY.hex()},
-        )
-        self.assertEqual(answer.status_code, 410)
-
-    def test_a_valid_registration_answers_the_url_and_a_fresh_password_written_to_the_endpoint(self):
-        """Two registrations never share a password, and each answer's password is the one written for its endpoint."""
-        first, second = registration(self.client), registration(self.client)
-        for answer in (first, second):
-            self.assertEqual(answer.status_code, 200, answer.text)
-            body = answer.json()
-            self.assertEqual(body["ws_url"], "wss://acme.example.test/ws")
-            self.assertEqual(body["extension"], "101")
-            self.assertEqual(len(body["ice_servers"]), 1)
-        self.assertNotEqual(first.json()["password"], second.json()["password"])
-        written = [attributes(request)["password"] for request in self.ari.requests if request.path == AUTH]
-        self.assertEqual(written, [first.json()["password"], second.json()["password"]])
-
-    def test_the_endpoint_is_written_before_the_answer_with_the_package_settings(self):
-        answer = registration(self.client)
-        self.assertEqual(answer.status_code, 200, answer.text)
+    def test_bad_signature_wrong_key_and_stale_or_future_timestamp_return_401(self) -> None:
+        payload = {"extension": "101", "database": "liwan_acme"}
+        # Wrong key
+        self.assertEqual(signed_request(self.client, "POST", "/registration", payload=payload, key=OTHER).status_code, 401)
+        # Bad signature
         self.assertEqual(
-            [(request.method, request.path) for request in self.ari.requests],
-            [("PUT", AUTH), ("PUT", AOR), ("PUT", ENDPOINT)],
+            signed_request(
+                self.client,
+                "POST",
+                "/registration",
+                payload=payload,
+                extra_headers={EVENT_SIGNATURE_HEADER: "0" * 64},
+            ).status_code,
+            401,
         )
-        endpoint = attributes(self.ari.requests[2])
-        self.assertEqual(endpoint["aors"], "101")
-        self.assertEqual(endpoint["auth"], "101")
-        self.assertEqual(endpoint["transport"], "transport-ws")
-        self.assertEqual(endpoint["context"], "from-extension")
-        self.assertEqual(attributes(self.ari.requests[0])["username"], "101")
+        # Stale (>300s) and future (>300s) timestamps
+        self.assertEqual(signed_request(self.client, "POST", "/registration", payload=payload, timestamp=NOW - 301).status_code, 401)
+        self.assertEqual(signed_request(self.client, "POST", "/registration", payload=payload, timestamp=NOW + 301).status_code, 401)
+        # Missing database header -> 401
+        raw = json.dumps(payload).encode("utf-8")
+        headers = reverse_headers(KEY, method="POST", path="/registration", body=raw, database="liwan_acme", timestamp=NOW)
+        del headers[DATABASE_HEADER]
+        self.assertEqual(self.client.post("/registration", content=raw, headers=headers).status_code, 401)
+        # Signed for wrong path -> 401
+        wrong_path_headers = reverse_headers(KEY, method="POST", path="/extensions/101", body=raw, database="liwan_acme", timestamp=NOW)
+        self.assertEqual(self.client.post("/registration", content=raw, headers=wrong_path_headers).status_code, 401)
+        self.assertEqual(self.ari.requests, [])
 
-    def test_a_registration_whose_endpoint_write_fails_answers_502_and_no_password(self):
-        failing = TestClient(create_app(self.settings, AriClient(FakeAri({("PUT", AOR): (500, None)}))))
-        answer = registration(failing)
+    def test_valid_signature_with_wrong_database_returns_403(self) -> None:
+        # Wrong header database
+        ans_header = signed_request(
+            self.client,
+            "POST",
+            "/registration",
+            payload={"extension": "101", "database": "liwan_acme"},
+            database="liwan_other",
+        )
+        self.assertEqual(ans_header.status_code, 403)
+        # Wrong body database (even when header matches)
+        ans_body = signed_request(
+            self.client,
+            "POST",
+            "/registration",
+            payload={"extension": "101", "database": "liwan_other"},
+            database="liwan_acme",
+        )
+        self.assertEqual(ans_body.status_code, 403)
+        # Bodyless DELETE with wrong header database
+        ans_del = signed_request(self.client, "DELETE", "/registration/101", database="liwan_other")
+        self.assertEqual(ans_del.status_code, 403)
+        self.assertEqual(self.ari.requests, [])
+
+    def test_extension_validation_enforced_everywhere(self) -> None:
+        for bad_ext in ("1", "12345678901", "10-01", "abc", "١٠١"):
+            encoded = quote(bad_ext, safe="")
+            self.assertEqual(
+                signed_request(self.client, "POST", "/registration", payload={"extension": bad_ext, "database": "liwan_acme"}).status_code,
+                422,
+            )
+            self.assertEqual(
+                signed_request(self.client, "DELETE", f"/registration/{encoded}").status_code,
+                422,
+            )
+            self.assertEqual(
+                signed_request(self.client, "PUT", f"/extensions/{encoded}", payload={"database": "liwan_acme", "active": True}).status_code,
+                422,
+            )
+            self.assertEqual(
+                signed_request(self.client, "DELETE", f"/extensions/{encoded}").status_code,
+                422,
+            )
+        self.assertEqual(self.ari.requests, [])
+
+    def test_registration_rotates_with_overlap_and_returns_turn_rest_credentials(self) -> None:
+        first = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"})
+        self.assertEqual(first.status_code, 200, first.text)
+        body1 = first.json()
+        self.assertEqual(body1["ws_url"], "wss://acme.example.test/ws")
+        self.assertEqual(body1["extension"], "101")
+        self.assertRegex(body1["auth_username"], r"^101-[0-9a-f]{8}$")
+        self.assertEqual(body1["expires_in_seconds"], 120)
+        self.assertEqual(len(body1["ice_servers"]), 2)
+        self.assertEqual(body1["ice_servers"][0], {"urls": "stun:stun.example.test:3478"})
+        turn = body1["ice_servers"][1]
+        self.assertEqual(turn["urls"], "turns:turn.example.test:5349")
+        self.assertEqual(turn["username"], f"{NOW + 300}:101")
+        expected_cred = base64.b64encode(
+            hmac.new(TURN_SECRET.encode("utf-8"), f"{NOW + 300}:101".encode(), hashlib.sha1).digest()
+        ).decode("ascii")
+        self.assertEqual(turn["credential"], expected_cred)
+
+        # Second registration 10s later keeps both auths during overlap window.
+        self.now = float(NOW + 10)
+        second = signed_request(
+            self.client,
+            "POST",
+            "/registration",
+            payload={"extension": "101", "database": "liwan_acme"},
+            timestamp=NOW + 10,
+        )
+        self.assertEqual(second.status_code, 200, second.text)
+        body2 = second.json()
+        self.assertNotEqual(body1["password"], body2["password"])
+        self.assertNotEqual(body1["auth_username"], body2["auth_username"])
+        id1 = body1["auth_username"].replace("-", "_")
+        id2 = body2["auth_username"].replace("-", "_")
+        endpoint_req = [r for r in self.ari.requests if r.path == ENDPOINT_101][-1]
+        self.assertEqual(attributes(endpoint_req)["auth"], f"{id2},{id1}")
+        self.assertEqual(attributes(endpoint_req)["from_domain"], "acme.example.test")
+        self.assertEqual(attributes(endpoint_req)["callerid"], "Extension 101 <101>")
+
+    def test_registration_ari_failure_rolls_back_and_returns_502_without_password(self) -> None:
+        failing_ari = FakeAri({("PUT", AOR_101): (500, None)})
+        failing_client = TestClient(create_app(self.settings, AriClient(failing_ari), clock=lambda: self.now))
+        answer = signed_request(failing_client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"})
         self.assertEqual(answer.status_code, 502)
         self.assertNotIn("password", answer.text)
+        self.assertEqual([r.method for r in failing_ari.requests], ["PUT", "PUT", "DELETE"])
+        self.assertEqual(failing_ari.requests[0].path, failing_ari.requests[2].path)
 
-    def test_health_asks_the_injected_client_whether_ari_answers(self):
-        """``/health`` probes the injected client: a scripted Asterisk is reachable, a silent one is not."""
+    def test_delete_registration_revokes_all_sessions_and_is_idempotent(self) -> None:
+        reg1 = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"}).json()
+        reg2 = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"}).json()
+        id1 = reg1["auth_username"].replace("-", "_")
+        id2 = reg2["auth_username"].replace("-", "_")
+        self.ari.requests.clear()
+
+        revoked = signed_request(self.client, "DELETE", "/registration/101")
+        self.assertEqual(revoked.status_code, 200, revoked.text)
+        self.assertEqual(revoked.json(), {"revoked": True, "extension": "101"})
+        self.assertEqual(
+            [(r.method, r.path) for r in self.ari.requests],
+            [
+                ("DELETE", ENDPOINT_101),
+                ("DELETE", AOR_101),
+                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{id2}"),
+                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{id1}"),
+            ],
+        )
+
+        # Idempotent when ARI reports 404.
+        self.ari.answers[("DELETE", ENDPOINT_101)] = (404, None)
+        self.ari.answers[("DELETE", AOR_101)] = (404, None)
+        again = signed_request(self.client, "DELETE", "/registration/101")
+        self.assertEqual(again.status_code, 200)
+        self.assertEqual(again.json(), {"revoked": True, "extension": "101"})
+
+    def test_put_and_delete_extensions_lifecycle(self) -> None:
+        # PUT active=true validates without writing any open password to ARI.
+        enabled = signed_request(self.client, "PUT", "/extensions/101", payload={"database": "liwan_acme", "active": True})
+        self.assertEqual(enabled.status_code, 200, enabled.text)
+        self.assertEqual(enabled.json(), {"extension": "101", "active": True})
+        self.assertEqual(self.ari.requests, [])
+
+        # Issue a session, then PUT active=false disables and deletes PJSIP objects.
+        reg = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"}).json()
+        auth_id = reg["auth_username"].replace("-", "_")
+        self.ari.requests.clear()
+
+        disabled = signed_request(self.client, "PUT", "/extensions/101", payload={"database": "liwan_acme", "active": False})
+        self.assertEqual(disabled.status_code, 200, disabled.text)
+        self.assertEqual(disabled.json(), {"extension": "101", "active": False})
+        self.assertEqual(
+            [(r.method, r.path) for r in self.ari.requests],
+            [
+                ("DELETE", ENDPOINT_101),
+                ("DELETE", AOR_101),
+                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{auth_id}"),
+            ],
+        )
+
+        # DELETE /extensions/101 disables and returns {"disabled": true, "extension": "101"}.
+        reg2 = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"}).json()
+        auth_id2 = reg2["auth_username"].replace("-", "_")
+        self.ari.requests.clear()
+
+        deleted = signed_request(self.client, "DELETE", "/extensions/101")
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        self.assertEqual(deleted.json(), {"disabled": True, "extension": "101"})
+        self.assertEqual(
+            [(r.method, r.path) for r in self.ari.requests],
+            [
+                ("DELETE", ENDPOINT_101),
+                ("DELETE", AOR_101),
+                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{auth_id2}"),
+            ],
+        )
+
+    def test_recordings_link_clock_tolerance_and_expiry_capping(self) -> None:
+        (self.settings.recordings_dir / "1764049999.1.wav").write_bytes(b"RIFFdemo")
+
+        # Expired (<= now) -> 410
+        expired = signed_request(
+            self.client,
+            "POST",
+            "/recordings/link",
+            payload={"linkedid": "1764049999.1", "database": "liwan_acme", "expires_at": NOW},
+        )
+        self.assertEqual(expired.status_code, 410)
+
+        # Too far in the future (> now + 60 + 300) -> 422
+        too_far = signed_request(
+            self.client,
+            "POST",
+            "/recordings/link",
+            payload={"linkedid": "1764049999.1", "database": "liwan_acme", "expires_at": NOW + 361},
+        )
+        self.assertEqual(too_far.status_code, 422)
+
+        # Missing recording -> 404
+        missing = signed_request(
+            self.client,
+            "POST",
+            "/recordings/link",
+            payload={"linkedid": "1764049999.999", "database": "liwan_acme", "expires_at": NOW + 60},
+        )
+        self.assertEqual(missing.status_code, 404)
+
+        # Within +300s clock skew: accepted, and minted token expiry capped at now + 60.
+        skewed = signed_request(
+            self.client,
+            "POST",
+            "/recordings/link",
+            payload={"linkedid": "1764049999.1", "database": "liwan_acme", "expires_at": NOW + 250},
+        )
+        self.assertEqual(skewed.status_code, 200, skewed.text)
+        data = skewed.json()
+        self.assertEqual(data["expiresInSeconds"], 60)
+        token = data["url"].rsplit("/", 1)[-1]
+        token_payload = verify_recording_token(KEY, token, host="acme.example.test", now=NOW)
+        self.assertIsNotNone(token_payload)
+        self.assertEqual(token_payload["exp"], NOW + 60)
+
+        # Shorter requested lifetime (< 60s) is respected.
+        short = signed_request(
+            self.client,
+            "POST",
+            "/recordings/link",
+            payload={"linkedid": "1764049999.1", "database": "liwan_acme", "expires_at": NOW + 25},
+        )
+        self.assertEqual(short.status_code, 200, short.text)
+        self.assertEqual(short.json()["expiresInSeconds"], 25)
+
+    def test_health_probes_ari_and_reports_session_reaper_worker(self) -> None:
         booted = FakeAri({("GET", "/asterisk/info"): (200, {"status": "fully booted"})})
-        report = TestClient(create_app(self.settings, AriClient(booted))).get("/health").json()
+        report = TestClient(create_app(self.settings, AriClient(booted), clock=lambda: self.now)).get("/health").json()
         self.assertEqual(report["ari"], {"reachable": True, "connected": False})
-        self.assertEqual(report["status"], "degraded")  # no event stream runs without the app's lifespan
+        self.assertEqual(report["status"], "degraded")
+        self.assertIn("sessions", report["workers"])
+        self.assertIn(EVENT_TIMESTAMP_HEADER, reverse_headers(KEY, method="GET", path="/x", body=b"", database="liwan_acme", timestamp=NOW))
         self.assertEqual(booted.requests, [AriRequest("GET", "/asterisk/info", None, None)])
         silent = FakeAri()
         self.assertFalse(TestClient(create_app(self.settings, AriClient(silent))).get("/health").json()["ari"]["reachable"])

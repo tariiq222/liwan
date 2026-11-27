@@ -5,10 +5,13 @@ import {
   TelephonyEventSchema,
   TelephonyExtensionListSchema,
   TelephonyExtensionSchema,
+  TelephonyIceServerSchema,
   TelephonyLineListSchema,
   TelephonyLineSchema,
   TelephonyLookupSchema,
   TelephonyRecordingLinkSchema,
+  TelephonySessionRevokeSchema,
+  TelephonySessionSchema,
 } from '../index'
 
 const CALL = {
@@ -215,5 +218,62 @@ describe('TelephonyLookupSchema', () => {
     expect(TelephonyLookupSchema.parse({ number: '+966500000000', partner: null, calls: [] }).partner).toBeNull()
     expect(() => TelephonyLookupSchema.parse({ number: '0500000000', partner: null, calls: [] })).toThrow()
     expect(() => TelephonyLookupSchema.parse({ number: '+966500000000', partner: null, calls: [], extra: 1 })).toThrow()
+  })
+})
+
+const SESSION = {
+  wsUrl: 'wss://pbx.example.test/ws',
+  extension: '1001',
+  authUsername: '1001-a1b2c3d4',
+  password: 'ephemeral-password-token',
+  iceServers: [
+    { urls: 'stun:stun.example.test:3478' },
+    { urls: ['turn:turn.example.test:3478', 'turns:turn.example.test:5349'], username: '1700000300:1001', credential: 'abc123==' },
+  ],
+  expiresInSeconds: 120,
+}
+
+describe('TelephonySessionSchema', () => {
+  it('accepts a valid WebRTC SIP session with STUN/TURN servers and ws/wss URLs', () => {
+    expect(TelephonySessionSchema.parse(SESSION)).toEqual(SESSION)
+    expect(TelephonySessionSchema.parse({ ...SESSION, wsUrl: 'ws://localhost:8088/ws', iceServers: [] }).iceServers).toEqual([])
+    expect(TelephonySessionSchema.parse({ ...SESSION, expiresInSeconds: 1 }).expiresInSeconds).toBe(1)
+  })
+
+  it('rejects non-websocket URLs, invalid extensions, invalid auth usernames, and out-of-range expiry', () => {
+    for (const wsUrl of ['https://pbx.example.test/ws', 'http://pbx.example.test/ws', 'wss://', 'ws://', '']) {
+      expect(() => TelephonySessionSchema.parse({ ...SESSION, wsUrl })).toThrow()
+    }
+    for (const extension of ['1', '10-01', 'abc', '12345678901']) {
+      expect(() => TelephonySessionSchema.parse({ ...SESSION, extension })).toThrow()
+    }
+    expect(() => TelephonySessionSchema.parse({ ...SESSION, authUsername: '' })).toThrow()
+    expect(() => TelephonySessionSchema.parse({ ...SESSION, authUsername: 'a'.repeat(65) })).toThrow()
+    expect(() => TelephonySessionSchema.parse({ ...SESSION, password: '' })).toThrow()
+    for (const expiresInSeconds of [0, -1, 121, 60.5]) {
+      expect(() => TelephonySessionSchema.parse({ ...SESSION, expiresInSeconds })).toThrow()
+    }
+    expect(() => TelephonySessionSchema.parse({ ...SESSION, extra: true })).toThrow()
+  })
+
+  it('validates TelephonyIceServerSchema strictly', () => {
+    expect(TelephonyIceServerSchema.parse({ urls: 'stun:stun.example.test:3478' })).toEqual({
+      urls: 'stun:stun.example.test:3478',
+    })
+    expect(() => TelephonyIceServerSchema.parse({ urls: '' })).toThrow()
+    expect(() => TelephonyIceServerSchema.parse({ urls: [] })).toThrow()
+    expect(() => TelephonyIceServerSchema.parse({ urls: [''] })).toThrow()
+    expect(() => TelephonyIceServerSchema.parse({ urls: 'stun:x', username: '' })).toThrow()
+    expect(() => TelephonyIceServerSchema.parse({ urls: 'stun:x', credential: '' })).toThrow()
+    expect(() => TelephonyIceServerSchema.parse({ urls: 'stun:x', extra: 1 })).toThrow()
+  })
+})
+
+describe('TelephonySessionRevokeSchema', () => {
+  it('accepts boolean revoked and rejects extra keys or non-boolean values', () => {
+    expect(TelephonySessionRevokeSchema.parse({ revoked: true })).toEqual({ revoked: true })
+    expect(TelephonySessionRevokeSchema.parse({ revoked: false })).toEqual({ revoked: false })
+    expect(() => TelephonySessionRevokeSchema.parse({ revoked: 'true' })).toThrow()
+    expect(() => TelephonySessionRevokeSchema.parse({ revoked: true, extension: '1001' })).toThrow()
   })
 })
