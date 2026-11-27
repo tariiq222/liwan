@@ -3,19 +3,33 @@
  * The call chip in the header, beside the bell (design D3 and section 8).
  *
  * It is not a floating panel over the content: a short chip that stays in the header while the employee moves between
- * pages. Idle it shows only the register state; ringing it colours and offers answer and reject; in a call it shows the
- * caller and the duration with a hang-up. Clicking opens the caller card and the in-call controls.
+ * pages. Idle it shows the phone; ringing it colours and offers answer and reject; in a call it shows the caller and the
+ * duration with a hang-up. Clicking opens the caller card and the in-call controls.
  *
- * The softphone itself (JsSIP, the WebSocket, the microphone) arrives in the next part; this component owns the
- * presentation and the state it is given, so the phone can be wired to it without touching the shell again.
+ * The chip draws and nothing else. The phone, its labels and its actions arrive through the `CALL_CHIP` seam that the
+ * telephony application provides, so the shell imports no application component and a product without telephony simply
+ * has no seam and draws no chip.
  */
 const seam = useCallChip()
 
-/**
- * The labels arrive from the application: the shared layer owns no application key. `visible` is false for a user who
- * may not use the phone, so the shell shows nothing rather than a disabled control.
- */
 const labels = computed(() => seam?.labels)
+const open = ref(false)
+const hydrated = useHydrated()
+const seconds = ref(0)
+const caller = computed(() => seam?.state.value.remote ?? null)
+const raw = computed(() => seam?.state.value.phase ?? 'idle')
+// `connecting` and `registered` are both "the phone is ready"; the chip itself has nothing to show for them.
+const phase = computed(() => (raw.value === 'registered' || raw.value === 'connecting' ? 'idle' : raw.value))
+
+const label = computed(() => {
+  const text = labels.value
+  if (!text) return ''
+  if (phase.value === 'ringing') return text.ringing(caller.value || '')
+  if (phase.value === 'calling') return text.calling(caller.value || '')
+  if (phase.value === 'in-call') return text.inCall(durationText.value)
+  if (phase.value === 'failed') return text.failed
+  return text.idle
+})
 
 const durationText = computed(() => {
   const minutes = Math.floor(seconds.value / 60)
@@ -56,6 +70,7 @@ watch(() => [raw.value, seam?.state.value.since] as const, ([now, startedAt]) =>
   }
   else if (now !== 'in-call') {
     stopTimer()
+    seconds.value = 0
   }
 }, { immediate: true })
 
