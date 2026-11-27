@@ -19,7 +19,7 @@ const meta = {
   component: HelpdeskStagesSection,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/helpdesk/index.vue:50', 'مراحل الدعم بدلالاتها (مغلقة، بانتظار العميل، مطوية) وروابط إلى لوحة الإنشاء وصفحة التعديل ومفتاح أرشفة؛ ومرحلة المحرّك المشتركة موسومة وتبقى للقراءة فقط.'),
+    ...storyContext('apps/web/app/pages/settings/apps/helpdesk/index.vue:52', 'مراحل الدعم بدلالاتها (مغلقة، بانتظار العميل، مطوية) وروابط إلى لوحة الإنشاء وصفحة التعديل ومفتاح أرشفة؛ ومرحلة المحرّك المشتركة موسومة وتبقى للقراءة فقط.'),
     msw: { handlers: { api: [save] } },
   },
   args: { rows: stageRows, teams: teamRows, canEdit: true },

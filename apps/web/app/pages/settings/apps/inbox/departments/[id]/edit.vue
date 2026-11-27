@@ -43,7 +43,7 @@ function retry() {
         <SharedFormSection panel>
           <InboxDepartmentForm :key="department.id" :department="department" @done="router.replace(backTo)" @cancel="router.push(backTo)" />
         </SharedFormSection>
-        <SharedRecordSection v-if="can('inbox.automation.manage')" variant="panel" :title="t('inbox.automation.hours.ownHours')">
+        <SharedRecordSection v-if="can('inbox.automation.manage')" variant="panel" :title="t('inbox.automation.hours.title')">
           <InboxDepartmentHours :department-id="department.id" />
         </SharedRecordSection>
       </div>

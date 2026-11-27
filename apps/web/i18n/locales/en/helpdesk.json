@@ -200,6 +200,7 @@
       },
       "resources": {
         "name": "Name",
+        "nameRequired": "Name is required.",
         "failed": "The record could not be saved.",
         "active": "Active",
         "archived": "Archived"
@@ -223,6 +224,7 @@
         "hoursLabel": "Hours",
         "target": "Target stage",
         "targetHint": "Reaching this stage meets the service level.",
+        "targetRequired": "Choose a target stage.",
         "teams": "Teams",
         "teamsHint": "With no team chosen it covers every team.",
         "categories": "Categories",

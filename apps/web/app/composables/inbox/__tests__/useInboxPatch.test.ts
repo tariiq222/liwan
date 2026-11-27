@@ -123,6 +123,17 @@ describe('agent queries', () => {
     $api.mockImplementation(async () => ({}))
   })
 
+  it('gates useInboxCannedReplies via enabled', async () => {
+    const { useInboxCannedReplies } = await import('../useInbox')
+    const flag = Vue.ref(false)
+    useInboxCannedReplies(flag)
+    expect(Vue.toValue(queries.at(-1)!.enabled as never)).toBe(false)
+    flag.value = true
+    expect(Vue.toValue(queries.at(-1)!.enabled as never)).toBe(true)
+    useInboxCannedReplies()
+    expect(Vue.toValue(queries.at(-1)!.enabled as never)).toBe(true)
+  })
+
   it('reads one agent by user id and stays off without the right or an id', async () => {
     const { useInboxAgent } = await import('../useInbox')
     useInboxAgent(() => 7, () => false)

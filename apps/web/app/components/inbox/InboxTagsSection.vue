@@ -19,7 +19,7 @@ const adding = ref(false)
 const busyId = ref<number | null>(null)
 const deleting = ref<InboxTag | null>(null)
 const errorMessage = ref('')
-const locked = computed(() => !hydrated.value || adding.value || removing.value)
+const locked = computed(() => !hydrated.value || adding.value || removing.value || busyId.value !== null)
 
 async function addTag() {
   const name = newName.value.trim()
@@ -39,7 +39,7 @@ async function addTag() {
 async function commitRename(tag: InboxTag, event: Event) {
   const input = event.target as HTMLInputElement
   const name = committedName(input, tag.name)
-  if (!name || locked.value || !canManage.value || busyId.value === tag.id) return
+  if (!name || locked.value || !canManage.value) return
   errorMessage.value = ''
   busyId.value = tag.id
   try {
@@ -53,7 +53,7 @@ async function commitRename(tag: InboxTag, event: Event) {
 }
 
 async function confirmDelete() {
-  if (!deleting.value || !canManage.value || removing.value) return
+  if (!deleting.value || !canManage.value || locked.value) return
   errorMessage.value = ''
   const target = deleting.value
   busyId.value = target.id
@@ -84,7 +84,7 @@ async function confirmDelete() {
     @add="addTag"
   >
     <li v-for="tag in items" :key="tag.id" class="flex flex-wrap items-center gap-2" data-slot="settings-list-row" :data-testid="`inbox-tag-${tag.id}`">
-      <UInput :model-value="tag.name" class="min-w-40 flex-1" :aria-label="t('app.list.name')" :maxlength="64" :disabled="locked || !canManage || busyId === tag.id" @change="commitRename(tag, $event)" />
+      <UInput :model-value="tag.name" class="min-w-40 flex-1" :aria-label="t('app.list.name')" :maxlength="64" :disabled="locked || !canManage" @change="commitRename(tag, $event)" />
       <UButton
         v-if="canManage"
         type="button"
@@ -93,7 +93,7 @@ async function confirmDelete() {
         size="sm"
         square
         icon="i-lucide-trash-2"
-        :disabled="locked || busyId === tag.id"
+        :disabled="locked"
         :aria-label="t('inbox.settings.remove', { name: tag.name })"
         @click="deleting = tag"
       />

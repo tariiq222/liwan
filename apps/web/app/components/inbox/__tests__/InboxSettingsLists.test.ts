@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { InboxCannedReplyWriteSchema, InboxDepartmentWriteSchema, type InboxCannedReply, type InboxDepartment, type InboxTag } from '@liwan/contracts'
-import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { committedName } from '@liwan/ui/app/utils/settingsListName'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
@@ -11,8 +11,11 @@ import { mountScript } from './scriptHarness'
 const tagsFile = new URL('../InboxTagsSection.vue', import.meta.url)
 const departmentsFile = new URL('../InboxDepartmentsSection.vue', import.meta.url)
 const departmentFormFile = new URL('../InboxDepartmentForm.vue', import.meta.url)
+const departmentHoursFile = new URL('../InboxDepartmentHours.vue', import.meta.url)
+const departmentEditPageFile = new URL('../../../pages/settings/apps/inbox/departments/[id]/edit.vue', import.meta.url)
 const cannedFile = new URL('../InboxCannedRepliesSection.vue', import.meta.url)
 const cannedFormFile = new URL('../InboxCannedReplyForm.vue', import.meta.url)
+const cannedEditPageFile = new URL('../../../pages/settings/apps/inbox/canned-replies/[id]/edit.vue', import.meta.url)
 const inboxSettingsPageFile = new URL('../../../pages/settings/apps/inbox.vue', import.meta.url)
 
 describe('InboxTagsSection', () => {
@@ -63,6 +66,42 @@ describe('InboxTagsSection', () => {
       expect(remove).toHaveBeenCalledWith(1)
       expect(state.deleting).toBeNull()
       expect(state.errorMessage).toBe('')
+    } finally {
+      stop()
+    }
+  })
+
+  it('locks other row mutations while a tag rename is in flight so busyId cannot be clobbered', async () => {
+    const tags: InboxTag[] = [{ id: 1, name: 'شكوى' }, { id: 2, name: 'متابعة' }]
+    let resolveFirst!: (value: InboxTag) => void
+    const save = vi.fn().mockImplementationOnce(() => new Promise<InboxTag>((resolve) => { resolveFirst = resolve }))
+    const remove = vi.fn().mockResolvedValue(undefined)
+    const { state, stop } = mountScript(tagsFile, {
+      committedName,
+      saveErrorMessage,
+      useInboxTags: () => ({ data: Vue.ref({ items: tags, total: tags.length }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
+      useSaveInboxTag: () => ({ mutateAsync: save }),
+      useDeleteInboxTag: () => ({ mutateAsync: remove, isPending: Vue.ref(false) }),
+    }, {})
+
+    try {
+      const firstRename = state.commitRename(tags[0]!, { target: { value: 'استفسار' } } as unknown as Event)
+      expect(state.busyId).toBe(1)
+      expect(state.locked).toBe(true)
+
+      await state.commitRename(tags[1]!, { target: { value: 'آخر' } } as unknown as Event)
+      expect(save).toHaveBeenCalledTimes(1)
+      expect(state.busyId).toBe(1)
+
+      state.deleting = tags[1]!
+      await state.confirmDelete()
+      expect(remove).not.toHaveBeenCalled()
+      expect(state.busyId).toBe(1)
+
+      resolveFirst({ id: 1, name: 'استفسار' })
+      await firstRename
+      expect(state.busyId).toBeNull()
+      expect(state.locked).toBe(false)
     } finally {
       stop()
     }
@@ -243,5 +282,44 @@ describe('inbox settings page shell', () => {
     } finally {
       stop()
     }
+  })
+
+  it('gates useInboxCannedReplies on manage capability and valid id in canned-replies/[id]/edit.vue', () => {
+    const route = Vue.reactive({ params: { id: 'abc' }, query: {} })
+    const allowed = Vue.ref(false)
+    const enabledFns: Array<() => boolean> = []
+    const { stop } = mountScript(cannedEditPageFile, {
+      safeReturnTo,
+      InboxCannedReplyForm: {},
+      useRoute: () => route,
+      useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+      useAccess: () => ({ can: (cap: string) => cap === 'inbox.settings.manage' && allowed.value }),
+      useInboxCannedReplies: (enabled?: () => boolean) => {
+        if (enabled) enabledFns.push(enabled)
+        return { data: Vue.ref(null), isPending: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }
+      },
+    }, {})
+
+    try {
+      expect(enabledFns).toHaveLength(1)
+      expect(enabledFns[0]!()).toBe(false)
+      route.params.id = '9'
+      expect(enabledFns[0]!()).toBe(false)
+      allowed.value = true
+      expect(enabledFns[0]!()).toBe(true)
+      route.params.id = '0'
+      expect(enabledFns[0]!()).toBe(false)
+    } finally {
+      stop()
+    }
+  })
+
+  it('renders InboxDepartmentHours cleanly inside departments/[id]/edit.vue without a redundant top divider or duplicated title', () => {
+    const hoursSource = readFileSync(departmentHoursFile, 'utf8')
+    const editSource = readFileSync(departmentEditPageFile, 'utf8')
+    expect(hoursSource).not.toContain('border-t border-default pt-3')
+    expect(hoursSource).toContain('<SharedSettingRow')
+    expect(editSource).toContain("t('inbox.automation.hours.title')")
+    expect(editSource).not.toContain("t('inbox.automation.hours.ownHours')")
   })
 })

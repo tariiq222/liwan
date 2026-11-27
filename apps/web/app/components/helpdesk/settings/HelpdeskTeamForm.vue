@@ -16,10 +16,12 @@ const memberIds = ref<number[]>(props.team ? props.team.member_ids.map(member =>
 const leaderId = ref<number | null>(props.team?.leader_id ?? null)
 const known = ref<PickedPerson[]>(props.team ? [...props.team.member_ids] : [])
 const baseline = { name: name.value, memberIds: [...memberIds.value], leaderId: leaderId.value }
+const attempted = ref(false)
 const submitted = ref(false)
 const failure = ref<unknown>(null)
 
 const memberOptions = computed<PickedPerson[]>(() => memberIds.value.map(id => known.value.find(person => person.id === id) ?? { id, name: `#${id}` }))
+const nameError = computed(() => !name.value.trim() ? t('helpdesk.settings.resources.nameRequired') : undefined)
 const valid = computed(() => name.value.trim() !== '')
 const dirty = computed(() => !submitted.value && (
   name.value !== baseline.name
@@ -41,6 +43,7 @@ function onMembersResolved(people: PickedPerson[]) {
 }
 
 async function submit() {
+  attempted.value = true
   if (disabled.value || !valid.value) return
   failure.value = null
   try {
@@ -71,7 +74,7 @@ async function submit() {
       data-testid="helpdesk-team-error"
     />
     <div class="liwan-auto-grid">
-      <UFormField :label="t('helpdesk.settings.resources.name')" name="helpdesk-team-name" required>
+      <UFormField :label="t('helpdesk.settings.resources.name')" name="helpdesk-team-name" required :error="attempted ? nameError : undefined">
         <UInput id="helpdesk-team-name" v-model="name" class="w-full" :maxlength="64" :disabled="disabled" required data-testid="helpdesk-team-name" />
       </UFormField>
       <UFormField :label="t('helpdesk.settings.teams.members')" name="helpdesk-team-members">
@@ -101,7 +104,7 @@ async function submit() {
     <SharedFormActions>
       <div class="ms-auto flex items-center gap-2">
         <UButton type="button" color="neutral" variant="outline" :disabled="save.isPending.value" :label="t('app.cancel')" @click="emit('cancel')" />
-        <UButton type="submit" :disabled="disabled || !valid" :loading="save.isPending.value" :label="team ? t('app.saveChanges') : t('app.create')" data-testid="helpdesk-team-save" />
+        <UButton type="submit" :disabled="disabled" :loading="save.isPending.value" :label="team ? t('app.saveChanges') : t('app.create')" data-testid="helpdesk-team-save" />
       </div>
     </SharedFormActions>
   </UForm>

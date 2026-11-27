@@ -24,10 +24,12 @@ const baseline = {
   fold: fold.value,
   teamIds: [...teamIds.value],
 }
+const attempted = ref(false)
 const submitted = ref(false)
 const failure = ref<unknown>(null)
 
 const teamOptions = computed(() => props.teams.map(team => ({ value: team.id, label: team.name })))
+const nameError = computed(() => !name.value.trim() ? t('helpdesk.settings.resources.nameRequired') : undefined)
 const valid = computed(() => name.value.trim() !== '')
 const dirty = computed(() => !submitted.value && (
   name.value !== baseline.name
@@ -40,6 +42,7 @@ const dirty = computed(() => !submitted.value && (
 const disabled = computed(() => !hydrated.value || save.isPending.value)
 
 async function submit() {
+  attempted.value = true
   if (disabled.value || !valid.value) return
   failure.value = null
   try {
@@ -73,7 +76,7 @@ async function submit() {
       data-testid="helpdesk-stage-error"
     />
     <div class="liwan-auto-grid">
-      <UFormField :label="t('helpdesk.settings.resources.name')" name="helpdesk-stage-name" required>
+      <UFormField :label="t('helpdesk.settings.resources.name')" name="helpdesk-stage-name" required :error="attempted ? nameError : undefined">
         <UInput id="helpdesk-stage-name" v-model="name" class="w-full" :maxlength="64" :disabled="disabled" required data-testid="helpdesk-stage-name" />
       </UFormField>
       <UFormField :label="t('helpdesk.settings.stages.sequence')" name="helpdesk-stage-sequence">
@@ -91,7 +94,7 @@ async function submit() {
     <SharedFormActions>
       <div class="ms-auto flex items-center gap-2">
         <UButton type="button" color="neutral" variant="outline" :disabled="save.isPending.value" :label="t('app.cancel')" @click="emit('cancel')" />
-        <UButton type="submit" :disabled="disabled || !valid" :loading="save.isPending.value" :label="stage ? t('app.saveChanges') : t('app.create')" data-testid="helpdesk-stage-save" />
+        <UButton type="submit" :disabled="disabled" :loading="save.isPending.value" :label="stage ? t('app.saveChanges') : t('app.create')" data-testid="helpdesk-stage-save" />
       </div>
     </SharedFormActions>
   </UForm>

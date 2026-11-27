@@ -18,7 +18,7 @@ const id = computed(() => {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 })
 const backTo = computed(() => safeReturnTo(route.query.returnTo, DEFAULT_BACK_TO, ['/settings/apps/inbox']))
-const query = useInboxCannedReplies()
+const query = useInboxCannedReplies(() => canManage.value && id.value !== null)
 const reply = computed(() => (id.value === null ? null : query.data.value?.items.find(item => item.id === id.value) ?? null))
 const loading = computed(() => id.value !== null && query.isPending.value)
 const error = computed(() => {

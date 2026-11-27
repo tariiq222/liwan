@@ -22,7 +22,7 @@ const meta = {
   component: HelpdeskValueListSection,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/helpdesk/index.vue:51', 'قائمة قيم على SharedSettingsList وSharedSettingsListRow من إعدادات الدعم (التصنيفات بأبيها، والوسوم، والقنوات، وأنواع الطلبات): إعادة تسمية في مكانها، وأرشفة واستعادة، وإضافة صف.'),
+    ...storyContext('apps/web/app/pages/settings/apps/helpdesk/index.vue:53', 'قائمة قيم على SharedSettingsList وSharedSettingsListRow من إعدادات الدعم (التصنيفات بأبيها، والوسوم، والقنوات، وأنواع الطلبات): إعادة تسمية في مكانها، وأرشفة واستعادة، وإضافة صف.'),
     msw: { handlers: { api: saves } },
   },
   args: { kind: 'categories', rows: categoryRows, canEdit: true },

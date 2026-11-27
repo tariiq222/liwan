@@ -150,10 +150,11 @@ export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
 /** Rows fetched per request by the lists that are read whole. */
 const INBOX_LIST_PAGE = 200
 
-export function useInboxCannedReplies() {
+export function useInboxCannedReplies(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxKeys.canned,
+    enabled: computed(() => toValue(enabled)),
     // Every page: the composer picker offers all of the company's canned replies, not only the server's default page.
     queryFn: ({ signal }) => fetchAllPages(offset => $api('/api/v1/inbox/canned-replies', { signal, query: { limit: INBOX_LIST_PAGE, offset }, schema: InboxCannedReplyListSchema }), signal),
   })

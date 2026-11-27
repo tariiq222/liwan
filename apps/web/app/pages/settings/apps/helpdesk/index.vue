@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHelpdeskReference, useHelpdeskSettings } from '@/composables/helpdesk/useHelpdesk'
+import { useHelpdeskSettings } from '@/composables/helpdesk/useHelpdesk'
 import { useHelpdeskResources } from '@/composables/helpdesk/useHelpdeskResources'
 import { useHelpdeskSla } from '@/composables/helpdesk/useHelpdeskSla'
 import HelpdeskPolicyCard from '@/components/helpdesk/settings/HelpdeskPolicyCard.vue'
@@ -13,11 +13,13 @@ import HelpdeskValueListSection from '@/components/helpdesk/settings/HelpdeskVal
 const { t } = useI18n()
 const { parts } = useSettingsPage('helpdesk')
 const { can } = useAccess()
-const settings = useHelpdeskSettings()
-const reference = useHelpdeskReference()
-const resources = useHelpdeskResources(() => can('helpdesk.settings.read'))
-const sla = useHelpdeskSla(() => can('helpdesk.settings.read'))
+const canRead = () => can('helpdesk.settings.read')
+const settings = useHelpdeskSettings(canRead)
+const resources = useHelpdeskResources(canRead)
+const sla = useHelpdeskSla(canRead)
 const canManage = computed(() => can('helpdesk.settings.manage'))
+const activeStages = computed(() => (resources.data.value?.stages ?? []).filter(row => row.active))
+const activeTeams = computed(() => (resources.data.value?.teams ?? []).filter(row => row.active))
 
 async function reloadSettings() {
   const result = await settings.refetch()
@@ -36,8 +38,8 @@ async function reloadSettings() {
         <SharedSettingsSection v-if="settings.data.value" id="policy" :title="t('helpdesk.settings.policy')" :description="t('helpdesk.settings.policyHint')">
           <HelpdeskPolicyCard
             :settings="settings.data.value"
-            :stages="reference.data.value?.stages ?? []"
-            :teams="reference.data.value?.teams ?? []"
+            :stages="activeStages"
+            :teams="activeTeams"
             :can-edit="canManage"
             :reload-settings="reloadSettings"
           />

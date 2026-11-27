@@ -43,17 +43,13 @@ function submit() {
 </script>
 
 <template>
-  <section class="flex flex-col gap-3 border-t border-default pt-3" data-testid="inbox-department-hours">
+  <section class="flex flex-col gap-3" data-testid="inbox-department-hours">
     <SharedLoadingSkeleton v-if="query.isPending.value" />
     <SharedPageState v-else-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
     <template v-else>
-      <div class="flex items-start gap-3">
+      <SharedSettingRow :label="t('inbox.automation.hours.ownHours')" :description="own ? t('inbox.automation.hours.ownHoursOn') : t('inbox.automation.hours.ownHoursOff')">
         <USwitch :model-value="own" :aria-label="t('inbox.automation.hours.ownHours')" :disabled="!hydrated || isPending" data-testid="inbox-department-hours-own" @update:model-value="setOwn" />
-        <div>
-          <p class="text-sm font-medium text-highlighted">{{ t('inbox.automation.hours.ownHours') }}</p>
-          <p class="text-xs text-muted">{{ own ? t('inbox.automation.hours.ownHoursOn') : t('inbox.automation.hours.ownHoursOff') }}</p>
-        </div>
-      </div>
+      </SharedSettingRow>
       <InboxWorkingHoursEditor v-if="own" v-model="draft" :disabled="isPending" />
       <div class="flex justify-end">
         <UButton type="button" variant="outline" color="neutral" :disabled="!hydrated || !dirty || !valid" :loading="isPending" :label="t('inbox.automation.hours.saveDepartment')" data-testid="inbox-department-hours-save" @click="submit" />

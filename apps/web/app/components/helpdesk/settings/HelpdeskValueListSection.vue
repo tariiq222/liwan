@@ -17,6 +17,7 @@ const newName = ref('')
 const newParentId = ref<number | null>(null)
 const adding = ref(false)
 const savingId = ref<number | null>(null)
+const resetGeneration = ref(0)
 const failure = ref<string | null>(null)
 
 const isCategories = computed(() => props.kind === 'categories')
@@ -64,6 +65,7 @@ async function renameRow(row: HelpdeskResource | HelpdeskCategoryResource, name:
       ...(isCategories.value ? { parent_id: parentOf(row) ?? false } : {}),
     })
   } catch (cause) {
+    resetGeneration.value += 1
     failure.value = saveErrorMessage(cause, t('helpdesk.settings.resources.failed'), t('errors.saveUncertain'))
   } finally {
     savingId.value = null
@@ -114,7 +116,7 @@ const title = computed(() => t(`helpdesk.settings.values.${props.kind}.title`))
   >
     <SharedSettingsListRow
       v-for="row in props.rows"
-      :key="row.id"
+      :key="`${row.id}-${resetGeneration}`"
       :name="row.name"
       :active="row.active"
       :can-edit="canEdit"

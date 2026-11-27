@@ -16,8 +16,16 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const save = useSaveHelpdeskSla()
 
-const selectableStages = computed(() => props.stages.filter(stage => !stage.closed && stage.active))
-const stageItems = computed(() => selectableStages.value.map(stage => ({ value: stage.id, label: stage.name })))
+const selectableStages = computed(() => props.stages.filter(stage => stage.active))
+const stageItems = computed(() => {
+  const active = selectableStages.value
+  const currentId = props.policy?.stage_id ?? null
+  const archivedCurrent = currentId !== null && !active.some(stage => stage.id === currentId)
+    ? props.stages.find(stage => stage.id === currentId)
+    : undefined
+  const list = archivedCurrent ? [...active, archivedCurrent] : active
+  return list.map(stage => ({ value: stage.id, label: stage.name }))
+})
 const pauseItems = computed(() => props.stages.map(stage => ({ value: stage.id, label: stage.name })))
 const teamItems = computed(() => props.teams.map(team => ({ value: team.id, label: team.name })))
 const categoryItems = computed(() => props.categories.map(row => ({ value: row.id, label: row.name })))
@@ -41,9 +49,12 @@ const baseline = {
   tagIds: [...tagIds.value],
   ignoreStageIds: [...ignoreStageIds.value],
 }
+const attempted = ref(false)
 const submitted = ref(false)
 const failure = ref<unknown>(null)
 
+const nameError = computed(() => !name.value.trim() ? t('helpdesk.settings.resources.nameRequired') : undefined)
+const stageError = computed(() => stageId.value === null ? t('helpdesk.settings.sla.targetRequired') : undefined)
 const valid = computed(() => name.value.trim() !== '' && stageId.value !== null)
 const dirty = computed(() => !submitted.value && (
   name.value !== baseline.name
@@ -58,6 +69,7 @@ const dirty = computed(() => !submitted.value && (
 const disabled = computed(() => !hydrated.value || save.isPending.value)
 
 async function submit() {
+  attempted.value = true
   if (disabled.value || !valid.value || stageId.value === null) return
   failure.value = null
   try {
@@ -93,7 +105,7 @@ async function submit() {
       data-testid="helpdesk-sla-error"
     />
     <div class="liwan-auto-grid">
-      <UFormField :label="t('helpdesk.settings.sla.name')" name="helpdesk-sla-name" required class="liwan-span-full">
+      <UFormField :label="t('helpdesk.settings.sla.name')" name="helpdesk-sla-name" required :error="attempted ? nameError : undefined" class="liwan-span-full">
         <UInput id="helpdesk-sla-name" v-model="name" class="w-full" :maxlength="120" :disabled="disabled" required data-testid="helpdesk-sla-name" />
       </UFormField>
       <UFormField :label="t('helpdesk.settings.sla.daysLabel')" name="helpdesk-sla-days">
@@ -102,7 +114,7 @@ async function submit() {
       <UFormField :label="t('helpdesk.settings.sla.hoursLabel')" name="helpdesk-sla-hours">
         <UInputNumber id="helpdesk-sla-hours" :model-value="hours" class="w-full" :min="0" :max="23" :disabled="disabled" data-testid="helpdesk-sla-hours" @update:model-value="value => { hours = Number(value ?? 0) }" />
       </UFormField>
-      <UFormField :label="t('helpdesk.settings.sla.target')" name="helpdesk-sla-stage" :help="t('helpdesk.settings.sla.targetHint')" required>
+      <UFormField :label="t('helpdesk.settings.sla.target')" name="helpdesk-sla-stage" :help="t('helpdesk.settings.sla.targetHint')" required :error="attempted ? stageError : undefined">
         <USelect id="helpdesk-sla-stage" :model-value="stageId ?? undefined" :items="stageItems" class="w-full" :disabled="disabled" data-testid="helpdesk-sla-stage" @update:model-value="value => { stageId = Number(value) }" />
       </UFormField>
       <UFormField :label="t('helpdesk.settings.sla.teams')" name="helpdesk-sla-teams" :help="t('helpdesk.settings.sla.teamsHint')">
@@ -121,7 +133,7 @@ async function submit() {
     <SharedFormActions>
       <div class="ms-auto flex items-center gap-2">
         <UButton type="button" color="neutral" variant="outline" :disabled="save.isPending.value" :label="t('app.cancel')" @click="emit('cancel')" />
-        <UButton type="submit" :disabled="disabled || !valid" :loading="save.isPending.value" :label="policy ? t('app.saveChanges') : t('app.create')" data-testid="helpdesk-sla-save" />
+        <UButton type="submit" :disabled="disabled" :loading="save.isPending.value" :label="policy ? t('app.saveChanges') : t('app.create')" data-testid="helpdesk-sla-save" />
       </div>
     </SharedFormActions>
   </UForm>
