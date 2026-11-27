@@ -15,7 +15,9 @@ const SEGMENT = '[A-Za-z0-9_-]+'
 // Commercial routes are listed one by one: payment events, the payment simulator, renewals and
 // the customer-facing /v1/customer/** surface are never reachable from the browser.
 const ALLOWED = [
-  new RegExp(`^/v1/(audit|catalog|context|operations|overview|targets|tenants|shared/tenants)(/${SEGMENT})*$`),
+  new RegExp(`^/v1/(audit|context|operations|overview|targets|tenants|shared/tenants)(/${SEGMENT})*$`),
+  // Catalog versions are read-only in the console; validation and publishing live in the release pipeline.
+  /^\/v1\/catalog$/,
   new RegExp(`^/v1/commercial/(bundles|plans)(/${SEGMENT}(/(validate|publish|withdraw|restore|revisions))?)?$`),
   new RegExp(`^/v1/commercial/(customers|invoices|quotes)(/${SEGMENT})?$`),
   /^\/v1\/commercial\/(attention|catalog\/releases|clients|policies|customer-terms|customer-quotes|orders|analytics)$/,
@@ -80,6 +82,7 @@ export function upstreamPassThrough502(path: string): readonly string[] | undefi
 /** Routes whose method matters to the console: the allowlist is otherwise path-only. Each entry lists the methods the
  * console actually calls, so a stray DELETE cannot reach the control plane through a path that is only ever read. */
 const METHOD_BOUND = [
+  { pattern: /^\/v1\/catalog$/, methods: ['GET'] },
   { pattern: /^\/v1\/commercial\/billing-settings$/, methods: ['GET', 'PATCH', 'POST'] },
   { pattern: /^\/v1\/commercial\/ai-billing-settings$/, methods: ['GET', 'PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },

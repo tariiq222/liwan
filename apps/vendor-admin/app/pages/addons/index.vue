@@ -8,12 +8,12 @@ definePageMeta({ capability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const { can } = useVendorContext(); const hydrated = useHydrated(); const api = useVendorCommercial()
 const PAGE = 25
 const isNew = computed(() => route.path.replace(/\/+$/, '').endsWith('/new'))
-const listQuery = computed<Record<string, unknown>>(() => (isNew.value ? Object.fromEntries(new URL(commercialReturnTo(route.query.returnTo, '/bundles'), 'http://liwan.local').searchParams) : route.query))
+const listQuery = computed<Record<string, unknown>>(() => (isNew.value ? Object.fromEntries(new URL(commercialReturnTo(route.query.returnTo, '/addons'), 'http://liwan.local').searchParams) : route.query))
 const q = computed(() => (typeof listQuery.value.q === 'string' ? listQuery.value.q : ''))
 const status = computed(() => (isStatusFilter(listQuery.value.status) ? listQuery.value.status : 'all'))
 const page = computed(() => Math.max(1, Number(listQuery.value.page ?? 1) || 1))
-const listTo = computed(() => commercialReturnTo(isNew.value ? route.query.returnTo : route.fullPath, '/bundles'))
-function patch(change: Record<string, unknown>) { void router.replace({ path: '/bundles', query: { ...listQuery.value, page: undefined, ...change } }) }
+const listTo = computed(() => commercialReturnTo(isNew.value ? route.query.returnTo : route.fullPath, '/addons'))
+function patch(change: Record<string, unknown>) { void router.replace({ path: '/addons', query: { ...listQuery.value, page: undefined, ...change } }) }
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:bundles:${q.value}:${status.value}:${page.value}`, async () => {
   const [bundles, releases] = await Promise.all([api.listBundles({ q: q.value, status: status.value, limit: PAGE, offset: (page.value - 1) * PAGE }), api.releases().catch(() => [])])
   return { bundles, releases }
@@ -42,7 +42,7 @@ async function seedBundles() {
   } catch { seedResult.value = null; seedFailure.value = true } finally { seedBusy.value = false }
 }
 const nextKey = (b: BundleView) => (b.status === 'draft' ? 'validate' : b.status === 'validated' ? 'publish' : b.available ? 'view' : 'restore')
-const path = (b: BundleView) => ({ path: `/bundles/${encodeURIComponent(b.id)}`, query: { returnTo: listTo.value } })
+const path = (b: BundleView) => ({ path: `/addons/${encodeURIComponent(b.id)}`, query: { returnTo: listTo.value } })
 const statusItems = computed(() => STATUS_FILTERS.map(value => ({ value, label: t(`vendor.pricing.filter.${value}`) })))
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
@@ -55,9 +55,9 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.bundles.title')" :description="t('vendor.bundles.help')" :create-to="can('vendor.catalog.manage') ? { path: '/bundles/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.bundles.create')" create-test-id="vendor-bundle-new">
+<SharedListPage :title="t('vendor.bundles.title')" :description="t('vendor.bundles.help')" :create-to="can('vendor.catalog.manage') ? { path: '/addons/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.bundles.create')" create-test-id="vendor-bundle-new">
 
-<template #filters><VendorCatalogTabs class="mb-3" /><SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/bundles')">
+<template #filters><VendorCatalogTabs class="mb-3" /><SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/addons')">
       <template #search><UInput :model-value="q" :aria-label="t('vendor.bundles.search')" :placeholder="t('vendor.bundles.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="q" :label="q" @remove="patch({ q: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.pricing.filter.${status}`)" @remove="patch({ status: undefined })" /></template>

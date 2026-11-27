@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { expectNoSecondH1, fitsWidth, login, mobileRows, navigateClient, open, RESTRICTED_EMAIL, rows } from './commercial-helpers'
+import { expectNoSecondH1, fitsWidth, hydrated, login, mobileRows, navigateClient, open, RESTRICTED_EMAIL, rows } from './commercial-helpers'
 
 const DRAFT = '00000000-0000-4000-8000-000000000401'
-const VALIDATED = '00000000-0000-4000-8000-000000000402'
 const PUBLISHED = 'cat-1'
 const PMO_BUNDLE = '00000000-0000-4000-8000-000000000020'
+const PMO_BUNDLE_V2 = '00000000-0000-4000-8000-000000000022'
 const HR_BUNDLE = '00000000-0000-4000-8000-000000000021'
 
 test.beforeEach(async ({ page }) => { await login(page) })
@@ -13,7 +13,7 @@ test('the tabs follow the order a customer meets them: plans, add-ons, applicati
   await open(page, '/catalog'); await expectNoSecondH1(page)
   const tabs = page.locator('[data-testid^="catalog-tab-"]')
   await expect(tabs).toHaveCount(3)
-  expect(await tabs.evaluateAll(items => items.map(item => item.getAttribute('data-testid')))).toEqual(['catalog-tab-plans', 'catalog-tab-bundles', 'catalog-tab-catalog'])
+  expect(await tabs.evaluateAll(items => items.map(item => item.getAttribute('data-testid')))).toEqual(['catalog-tab-plans', 'catalog-tab-addons', 'catalog-tab-catalog'])
   await expect(page.getByTestId('catalog-tab-catalog')).toHaveAttribute('aria-current', 'page')
   await page.getByTestId('catalog-tab-plans').click(); await expect(page).toHaveURL(/\/plans$/)
 })
@@ -76,7 +76,7 @@ test('a version record is read-only: its applications and changes, with no appro
   await expect(page.getByTestId('catalog-action')).toHaveCount(0)
   await expect(page.getByTestId('catalog-action-submit')).toHaveCount(0)
   await expect(page.getByTestId('catalog-release-form')).toHaveCount(0)
-  await expect(page.getByTestId('catalog-next-step').getByRole('link')).toHaveAttribute('href', '/bundles/new')
+  await expect(page.getByTestId('catalog-next-step').getByRole('link')).toHaveAttribute('href', '/addons/new')
 })
 
 test('a draft version record says a new import validates it and offers no action', async ({ page }) => {
@@ -86,43 +86,110 @@ test('a draft version record says a new import validates it and offers no action
   await expect(page.getByTestId('catalog-action-submit')).toHaveCount(0)
 })
 
-test('an application records its add-on price and opens the published add-on record for a new revision', async ({ page }) => {
-  await open(page, '/catalog/apps/pmo'); await expectNoSecondH1(page)
+const bundleFixture = (id: string, appId: string, overrides: Record<string, unknown> = {}) => ({
+  id,
+  version: 1,
+  edit_revision: 1,
+  name: appId === 'pmo' ? 'الحزمة الأساسية' : 'حزمة الموارد',
+  status: 'draft',
+  available: false,
+  audience: { kind: 'public' },
+  prices: [{ cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 5000 } }],
+  bundle_id: appId === 'pmo' ? 'bundle-core' : 'bundle-hr',
+  description: appId === 'pmo' ? 'الحزمة الأساسية' : 'حزمة الموارد',
+  catalog_release_id: '00000000-0000-4000-8000-000000000100',
+  selections: [{ app_id: appId, feature_keys: [`${appId}.enabled`] }],
+  domain_limits: {},
+  content_digest: 'c'.repeat(64),
+  validated_digest: null,
+  customer_count: 0,
+  created_at: '2026-10-01T08:00:00.000Z',
+  published_at: null,
+  issues: [],
+  ...overrides,
+})
+
+test('an application records its add-on price and edits a published add-on inline via revisions, patch, validate, publish', async ({ page }) => {
+  const calls: string[] = []
+  await page.route('**/api/vendor/v1/commercial/bundles/**', async (route) => {
+    const req = route.request()
+    const path = new URL(req.url()).pathname
+    if (req.method() === 'POST' && path === `/api/vendor/v1/commercial/bundles/${PMO_BUNDLE}/revisions`) {
+      calls.push('revisions')
+      return route.fulfill({ status: 201, json: bundleFixture(PMO_BUNDLE_V2, 'pmo', { version: 2, edit_revision: 1, status: 'draft' }) })
+    }
+    if (req.method() === 'PATCH' && path === `/api/vendor/v1/commercial/bundles/${PMO_BUNDLE_V2}`) {
+      calls.push('PATCH')
+      return route.fulfill({ json: bundleFixture(PMO_BUNDLE_V2, 'pmo', { version: 2, edit_revision: 2, status: 'draft' }) })
+    }
+    if (req.method() === 'POST' && path === `/api/vendor/v1/commercial/bundles/${PMO_BUNDLE_V2}/validate`) {
+      calls.push('validate')
+      return route.fulfill({ json: bundleFixture(PMO_BUNDLE_V2, 'pmo', { version: 2, edit_revision: 3, status: 'validated', validated_digest: 'c'.repeat(64) }) })
+    }
+    if (req.method() === 'POST' && path === `/api/vendor/v1/commercial/bundles/${PMO_BUNDLE_V2}/publish`) {
+      calls.push('publish')
+      return route.fulfill({ json: bundleFixture(PMO_BUNDLE_V2, 'pmo', { version: 2, edit_revision: 4, status: 'published', available: true, validated_digest: 'c'.repeat(64), published_at: '2026-11-27T08:00:00.000Z' }) })
+    }
+    return route.fallback()
+  })
+  await open(page, '/catalog/apps/pmo'); await expectNoSecondH1(page); await hydrated(page)
   await expect(page.locator('[data-template="record"]')).toHaveCount(1)
   await expect(page.getByTestId('catalog-app-features')).toBeVisible()
   await expect(page.getByTestId('catalog-app-bundle-link')).toHaveCount(1)
   await expect(page.getByTestId('catalog-app-addon-price')).toContainText(/50\.00/)
-  const settings = page.getByTestId('catalog-app-settings')
-  await expect(settings).toHaveText('إصدار جديد')
-  await expect(settings).toHaveAttribute('href', new RegExp(`/bundles/${PMO_BUNDLE}\\?returnTo=`))
+  await page.getByTestId('catalog-app-settings').click()
+  await expect(page.getByTestId('catalog-app-pricing-editor')).toBeVisible()
+  await page.getByTestId('catalog-app-pricing-reason').fill('Adjust PMO add-on price')
+  await page.getByTestId('catalog-app-pricing-submit').click()
+  await expect.poll(() => calls).toEqual(['revisions', 'PATCH', 'validate', 'publish'])
 })
 
-test('an editable add-on opens its own form rather than a read-only record', async ({ page }) => {
-  await open(page, '/catalog/apps/hr')
-  const settings = page.getByTestId('catalog-app-settings')
-  await expect(settings).toHaveText('إعدادات')
-  await expect(settings).toHaveAttribute('href', new RegExp(`/bundles/${HR_BUNDLE}/edit\\?returnTo=`))
+test('an editable draft add-on saves inline via patch, validate, publish', async ({ page }) => {
+  const calls: string[] = []
+  await page.route('**/api/vendor/v1/commercial/bundles/**', async (route) => {
+    const req = route.request()
+    const path = new URL(req.url()).pathname
+    if (req.method() === 'PATCH' && path === `/api/vendor/v1/commercial/bundles/${HR_BUNDLE}`) {
+      calls.push('PATCH')
+      return route.fulfill({ json: bundleFixture(HR_BUNDLE, 'hr', { edit_revision: 2, status: 'draft' }) })
+    }
+    if (req.method() === 'POST' && path === `/api/vendor/v1/commercial/bundles/${HR_BUNDLE}/validate`) {
+      calls.push('validate')
+      return route.fulfill({ json: bundleFixture(HR_BUNDLE, 'hr', { edit_revision: 3, status: 'validated', validated_digest: 'c'.repeat(64) }) })
+    }
+    if (req.method() === 'POST' && path === `/api/vendor/v1/commercial/bundles/${HR_BUNDLE}/publish`) {
+      calls.push('publish')
+      return route.fulfill({ json: bundleFixture(HR_BUNDLE, 'hr', { edit_revision: 4, status: 'published', available: true, validated_digest: 'c'.repeat(64), published_at: '2026-11-27T08:00:00.000Z' }) })
+    }
+    return route.fallback()
+  })
+  await open(page, '/catalog/apps/hr'); await hydrated(page)
+  await page.getByTestId('catalog-app-settings').click()
+  await expect(page.getByTestId('catalog-app-pricing-editor')).toBeVisible()
+  await page.getByTestId('catalog-app-pricing-reason').fill('Publish HR add-on price')
+  await page.getByTestId('catalog-app-pricing-submit').click()
+  await expect.poll(() => calls).toEqual(['PATCH', 'validate', 'publish'])
 })
 
 test('an application with no add-on says so and opens a new add-on on that application', async ({ page }) => {
   await open(page, '/catalog/apps/growth')
   await expect(page.getByTestId('catalog-app-addon-price')).toHaveText('لا توجد إضافة')
   const settings = page.getByTestId('catalog-app-settings')
-  await expect(settings).toHaveAttribute('href', /\/bundles\/new\?app=growth&returnTo=/)
+  await expect(settings).toHaveAttribute('href', /\/addons\/new\?app=growth&returnTo=/)
   await settings.click()
-  await expect(page).toHaveURL(/\/bundles\/new\?/)
+  await expect(page).toHaveURL(/\/addons\/new\?/)
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/catalog/apps/growth')
 })
 
 test('a new add-on opened with an application starts on that selection with the booleans it grants', async ({ page }) => {
-  await open(page, '/bundles/new?app=meetings&returnTo=%2Fcatalog%2Fapps%2Fmeetings')
+  await open(page, '/addons/new?app=meetings&returnTo=%2Fcatalog%2Fapps%2Fmeetings')
   await expect(page.getByTestId('bundle-form')).toBeVisible()
   await expect(page.getByRole('checkbox', { name: 'الاجتماعات' })).toBeChecked()
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/catalog/apps/meetings')
 })
 
 test('a new add-on opened without an application starts empty', async ({ page }) => {
-  await open(page, '/bundles/new')
+  await open(page, '/addons/new')
   await expect(page.getByTestId('bundle-form')).toBeVisible()
   await expect(page.getByRole('checkbox', { name: 'الاجتماعات' })).not.toBeChecked()
   await expect(page.getByRole('checkbox', { name: 'المشاريع' })).not.toBeChecked()

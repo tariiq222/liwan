@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionBlockedReason, appName, isEditable, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput, parseCount, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
+import { actionBlockedReason, appName, isEditable, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, LimitAboveMax, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, MAX_LIMIT, minorToInput, parseCount, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
 
 const rid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const release = { id: rid(1), version: '1', source_digest: 'a'.repeat(64), artifact_digest: 'a'.repeat(64), applications: [
@@ -45,10 +45,19 @@ describe('limit tri-state', () => {
     expect(limitFromDraft({ mode: 'unlimited', value: '' })).toBeNull()
     expect(limitFromDraft({ mode: 'none', value: '' })).toBe(0)
     expect(limitFromDraft({ mode: 'number', value: '25' })).toBe(25)
+    expect(limitFromDraft({ mode: 'number', value: String(MAX_LIMIT) })).toBe(MAX_LIMIT)
+    expect(MAX_LIMIT).toBe(1000000000)
     expect(() => limitFromDraft({ mode: '', value: '' })).toThrow()
     expect(() => limitFromDraft({ mode: 'number', value: '' })).toThrow()
     expect(() => limitFromDraft({ mode: 'number', value: '0' })).toThrow()
     expect(() => limitFromDraft(undefined)).toThrow()
+  })
+  it('refuses a whole number above the maximum on its own, and every malformed value as before', () => {
+    for (const value of [String(MAX_LIMIT + 1), '9007199254740993', '1'.repeat(400)]) expect(() => limitFromDraft({ mode: 'number', value }), value).toThrow(LimitAboveMax)
+    expect(() => limitFromDraft({ mode: 'number', value: String(MAX_LIMIT) })).not.toThrow()
+    for (const draft of [{ mode: '', value: '' }, { mode: 'number', value: '' }, { mode: 'number', value: '0' }, { mode: 'number', value: '1.5' }, { mode: 'number', value: '-1' }] as const)
+      expect(() => limitFromDraft(draft)).toThrow('invalid_limit')
+    expect(() => limitFromDraft(undefined)).toThrow('invalid_limit')
   })
   it('round-trips null, 0, n and missing', () => {
     expect(limitToDraft(null).mode).toBe('unlimited'); expect(limitToDraft(0).mode).toBe('none')
@@ -162,9 +171,9 @@ describe('errors and routing', () => {
     expect(commercialErrorKey({ data: { code: 'price_missing' } })).toBe('vendor.pricing.errors.price_missing'); expect(commercialErrorKey({ data: { code: 'zzz' } })).toBe('vendor.pricing.errors.generic')
   })
   it('keeps return targets inside the list', () => {
-    expect(commercialReturnTo('/bundles?status=draft', '/bundles')).toBe('/bundles?status=draft')
-    expect(commercialReturnTo('/plans', '/bundles')).toBe('/bundles'); expect(commercialReturnTo('//evil.com', '/plans')).toBe('/plans')
-    expect(commercialReturnTo('/bundles/new', '/bundles')).toBe('/bundles')
+    expect(commercialReturnTo('/addons?status=draft', '/addons')).toBe('/addons?status=draft')
+    expect(commercialReturnTo('/plans', '/addons')).toBe('/addons'); expect(commercialReturnTo('//evil.com', '/plans')).toBe('/plans')
+    expect(commercialReturnTo('/addons/new', '/addons')).toBe('/addons')
   })
 })
 describe('quote request', () => {

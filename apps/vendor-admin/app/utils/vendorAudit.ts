@@ -54,7 +54,7 @@ export function auditSubjectTo(event: Pick<AuditEvent, 'subject' | 'subject_ref'
   if (kind === 'invoice' || kind === 'adjustment') return invoice ? { path: `/invoices/${encodeURIComponent(invoice)}` } : null
   if (kind === 'shared_job') return { path: `/operations/${id}`, query: { source: 'shared' } }
   if (kind === 'plan') return { path: `/plans/${id}` }
-  if (kind === 'bundle') return { path: `/bundles/${id}` }
+  if (kind === 'bundle') return { path: `/addons/${id}` }
   if (kind === 'catalog') return { path: `/catalog/releases/${id}` }
   return null
 }

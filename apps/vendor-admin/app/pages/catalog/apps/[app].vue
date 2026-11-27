@@ -10,7 +10,7 @@ import type { BundleView } from '@/utils/vendorCommercial'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
-const { t, te, locale } = useI18n(); const route = useRoute(); const api = useVendorCommercial()
+const { t, te, locale } = useI18n(); const route = useRoute(); const hydrated = useHydrated(); const api = useVendorCommercial()
 const appId = computed(() => String(route.params.app))
 // The control plane has no single-entry read: the versions list is loaded and the entry found in it.
 const { data: versions, error: loadError, pending, refresh } = await useVendorCatalogVersions().load()
@@ -124,15 +124,45 @@ const addonPrice = computed(() => {
   return bundle.prices.map(price => `${formatCommercialMoney(price.amount, locale.value)} · ${cadenceLabel(price.cadence, t)}`).join(' · ')
     || t('vendor.pricing.prices.none')
 })
-// The add-on's own form when it is editable, its record when it is published, or a new add-on already selecting this application.
-const settingsTo = computed(() => {
-  const bundle = addon.value
-  if (!bundle) return { path: '/bundles/new', query: { app: appId.value, returnTo: route.fullPath } }
-  return isEditable(bundle)
-    ? { path: `/bundles/${encodeURIComponent(bundle.id)}/edit`, query: { returnTo: route.fullPath } }
-    : { path: `/bundles/${encodeURIComponent(bundle.id)}`, query: { returnTo: route.fullPath } }
+// A new add-on opened from an application with none yet starts on this application; existing add-ons edit prices and limits inline.
+const newAddonTo = computed(() => ({ path: '/addons/new', query: { app: appId.value, returnTo: route.fullPath } }))
+const editorOpen = ref(false)
+const editorBusy = ref(false)
+const workingDraftCreated = ref(false)
+const editorAnchor = ref<HTMLElement | null>(null)
+watch(appId, () => {
+  editorOpen.value = false
+  editorBusy.value = false
+  workingDraftCreated.value = false
 })
-const settingsLabel = computed(() => (addon.value && !isEditable(addon.value) ? t('vendor.pricing.actions.revisions') : t('vendor.catalog.app.settings')))
+async function toggleEditor() {
+  if (editorBusy.value) return
+  if (editorOpen.value) {
+    await onPricingCancel(workingDraftCreated.value)
+    return
+  }
+  editorOpen.value = true
+  await nextTick()
+  // As the shared route tabs: a person who asked for less motion gets an instant jump, never a smooth scroll.
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  editorAnchor.value?.scrollIntoView?.({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
+}
+async function onPricingDone() {
+  editorOpen.value = false
+  editorBusy.value = false
+  workingDraftCreated.value = false
+  await Promise.all([refreshNuxtData(), refreshUsage()])
+}
+async function onPricingCancel(created: boolean) {
+  editorOpen.value = false
+  editorBusy.value = false
+  workingDraftCreated.value = false
+  if (created) await refreshUsage()
+}
+async function onPricingReload() {
+  workingDraftCreated.value = false
+  await Promise.all([refreshNuxtData(), refreshUsage()])
+}
 // The dependencies only a release records: neither shows on the solution's own descriptors.
 const hasDependencies = computed(() => !!releaseApp.value && (releaseApp.value.requires_apps.length > 0 || releaseApp.value.conflicts_with_apps.length > 0))
 const retry = () => Promise.all([refresh(), refreshUsage()])
@@ -143,7 +173,23 @@ const retry = () => Promise.all([refresh(), refreshUsage()])
       <div class="flex flex-wrap items-center gap-3">
         <span v-if="addonsUnavailable" class="text-sm text-muted" data-testid="catalog-app-addons-unavailable">{{ t('vendor.catalog.app.addonsUnavailable') }}</span>
         <span v-else-if="usage" class="text-sm text-muted" data-testid="catalog-app-addon-price">{{ addonPrice ?? t('vendor.catalog.app.noAddon') }}</span>
-        <UButton v-if="selectable" :to="addonsUnavailable ? undefined : settingsTo" :disabled="addonsUnavailable" color="neutral" variant="outline" data-testid="catalog-app-settings">{{ settingsLabel }}</UButton>
+        <UButton
+          v-if="selectable && usage && addon"
+          color="neutral"
+          variant="outline"
+          :disabled="addonsUnavailable || !hydrated || editorBusy"
+          :aria-expanded="editorOpen"
+          data-testid="catalog-app-settings"
+          @click="toggleEditor"
+        >{{ editorOpen ? t('vendor.catalog.app.pricingEditor.close') : t('vendor.catalog.app.pricingEditor.edit') }}</UButton>
+        <UButton
+          v-else-if="selectable"
+          :to="addonsUnavailable || !usage ? undefined : newAddonTo"
+          :disabled="addonsUnavailable || !usage"
+          color="neutral"
+          variant="outline"
+          data-testid="catalog-app-settings"
+        >{{ t('vendor.catalog.app.settings') }}</UButton>
       </div>
     </template>
     <template v-if="tier" #summary>
@@ -171,6 +217,17 @@ const retry = () => Promise.all([refresh(), refreshUsage()])
       </SharedPropertiesPanel>
     </template>
     <template v-if="tier">
+      <div v-if="editorOpen && addon" ref="editorAnchor">
+        <VendorAppPricingEditor
+          :addon="addon"
+          :releases="releases ?? []"
+          @done="onPricingDone"
+          @cancel="onPricingCancel"
+          @reload="onPricingReload"
+          @busy="editorBusy = $event"
+          @working-draft="workingDraftCreated = $event !== null"
+        />
+      </div>
       <SharedRecordSection v-if="features.length" variant="panel" :title="t('vendor.catalog.app.featuresTitle')" data-testid="catalog-app-features">
         <ul class="grid gap-(--liwan-gap-card)">
           <SharedSubCard v-for="feature in features" :key="feature.key" as="li" data-testid="catalog-app-feature">
@@ -214,7 +271,7 @@ const retry = () => Promise.all([refresh(), refreshUsage()])
             <ul class="liwan-card-grid mt-3" data-testid="catalog-app-bundles">
               <SharedSubCard v-for="bundle in usage.bundles" :key="bundle.id" as="li">
                 <p class="flex flex-wrap items-center justify-between gap-2">
-                  <NuxtLink :to="{ path: `/bundles/${encodeURIComponent(bundle.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline" data-testid="catalog-app-bundle-link">{{ bundle.name }}</NuxtLink>
+                  <NuxtLink :to="{ path: `/addons/${encodeURIComponent(bundle.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline" data-testid="catalog-app-bundle-link">{{ bundle.name }}</NuxtLink>
                   <SharedStatusBadge size="sm" :tone="lifecycleBadge(bundle).tone" :label="t(lifecycleBadge(bundle).labelKey)" />
                 </p>
               </SharedSubCard>

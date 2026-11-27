@@ -43,7 +43,7 @@ async function done(action: LifecycleAction, result: unknown) {
 }
 const includedIds = computed(() => view.value?.included_bundle_revision_ids ?? [])
 const bundleOf = (x: string) => data.value?.bundles.find(b => b.id === x)
-const bundleTo = (x: string) => ({ path: `/bundles/${encodeURIComponent(x)}`, query: { returnTo: route.fullPath } })
+const bundleTo = (x: string) => ({ path: `/addons/${encodeURIComponent(x)}`, query: { returnTo: route.fullPath } })
 const facts = computed(() => {
   const v = view.value; if (!v) return []
   return [

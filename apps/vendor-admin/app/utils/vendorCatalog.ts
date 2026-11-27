@@ -4,7 +4,7 @@ import type { BundleView, PlanView } from './vendorCommercial'
 /** The catalog section's tabs, in the order a customer meets them (the plan sold, the add-ons that price it, the applications it is built from): each keeps its own URL (links elsewhere point at them) and its own list filters. */
 export const CATALOG_TABS = [
   { key: 'plans', to: '/plans', labelKey: 'vendor.plans.title' },
-  { key: 'bundles', to: '/bundles', labelKey: 'vendor.catalog.addons' },
+  { key: 'addons', to: '/addons', labelKey: 'vendor.catalog.addons' },
   { key: 'catalog', to: '/catalog', labelKey: 'vendor.catalog.applications' },
 ] as const
 

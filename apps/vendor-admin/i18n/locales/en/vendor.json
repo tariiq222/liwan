@@ -321,7 +321,17 @@
         "pricingUnavailable": "Add-ons and plans could not be loaded. Try again.",
         "pricingNone": "No add-on prices this application.",
         "plansNone": "No plan includes an add-on for this application.",
-        "history": "History"
+        "history": "History",
+        "pricingEditor": {
+          "edit": "Edit price and limits",
+          "close": "Close editor",
+          "title": "Edit price and limits",
+          "publishedNotice": "Editing a published add-on creates a new revision and publishes it for future invoices while existing subscriptions stay unchanged. Requires passkey confirmation.",
+          "draftNotice": "Saves your changes, validates the add-on, and publishes it for future invoices. Requires passkey confirmation.",
+          "submit": "Save and publish",
+          "releaseMissing": "The add-on release linked to this add-on is currently unavailable, so changes cannot be saved or published.",
+          "cancel": "Cancel"
+        }
       },
       "timeline": {
         "published": "Published on",
@@ -359,20 +369,11 @@
       },
       "sellable": "For sale",
       "baseModules": "Base modules",
-      "step": "Next step",
-      "effects": {
-        "validate": "Checks that the version is sound and that its source is the current one, then marks it ready to approve.",
-        "publish": "Approves the version and lets add-ons be built on it. Needs a passkey confirmation."
-      },
       "publishedTitle": "This version is published.",
       "toBundles": "Start building add-ons on it",
       "release": {
         "title": "Create a release for add-ons",
         "hint": "Add-ons are built on a published add-on release from these applications. Needs a passkey confirmation."
-      },
-      "errors": {
-        "conflict": "This version changed state. Reload the page and try again.",
-        "catalog_invalid": "Validation of the version failed. Check its source with the platform operator, then try again."
       },
       "labels": {
         "apps": {
@@ -882,7 +883,7 @@
       "usedByNone": "No plan includes this add-on yet.",
       "usedByUnavailable": "Plans could not be loaded.",
       "noPublishedCatalog": "No published applications version",
-      "noPublishedCatalogHint": "An add-on is built on a published version. Publish a version from the Applications page first, then come back to create the add-on.",
+      "noPublishedCatalogHint": "An add-on is built on a published applications version. A published version comes from the release pipeline or operator sync, after which you can return to create the add-on.",
       "openCatalog": "Open Applications",
       "appNotSelectable": "This application cannot be added in any released catalog, so the form starts without it."
     },
@@ -970,6 +971,7 @@
         "none": "None (0)",
         "number": "A number",
         "invalid": "Enter a positive whole number.",
+        "aboveMax": "The limit is above the allowed maximum: enter a number no higher than {max}.",
         "required": "Choose unlimited, none or a number.",
         "noneHint": "Zero blocks usage entirely."
       },

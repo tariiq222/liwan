@@ -147,6 +147,17 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(allowed.length)
   })
 
+  it('forwards only GET /catalog and refuses catalog mutations and subpaths', async () => {
+    const calls = stubUpstream(() => json(200, { items: [], total: 0 }))
+    expect((await get('/catalog')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['GET /v1/catalog'])
+    expect((await post('/catalog')).status).toBe(405)
+    expect((await post('/catalog/c-1/publish')).status).toBe(404)
+    expect((await post('/catalog/c-1/validate')).status).toBe(404)
+    expect((await get('/catalog/c-1')).status).toBe(404)
+    expect(calls).toHaveLength(1)
+  })
+
   it('forwards the release 1 billing routes and refuses their near misses', async () => {
     // A1: the console's settings page and its "confirm transfer" action need these exact paths, with these methods.
     const calls = stubUpstream(() => json(200, {}))
