@@ -56,6 +56,10 @@ class Settings:
     public_ws_url: str
     ice_servers: list[dict]
     session_seconds: int
+    # The PJSIP objects a browser endpoint is written with: the transport it registers on and the dialplan context it
+    # lands in. They come from the package's own templates, so the route writes an endpoint that matches them.
+    pjsip_transport: str
+    pjsip_context: str
 
     def __repr__(self) -> str:
         """Never show a password or a key, including from an unexpected traceback."""
@@ -130,6 +134,8 @@ class Settings:
             public_ws_url=_websocket_url(environ, "PBX_PUBLIC_WS_URL", f"wss://{public_host}/ws"),
             ice_servers=_ice_servers(environ),
             session_seconds=_integer(environ, "PBX_SESSION_SECONDS", 60, 30, 3600),
+            pjsip_transport=environ.get("PBX_PJSIP_TRANSPORT", "").strip() or "transport-ws",
+            pjsip_context=environ.get("PBX_PJSIP_CONTEXT", "").strip() or "from-extension",
         )
 
 

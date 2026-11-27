@@ -13,6 +13,6 @@ const scrolled = computed(() => y.value > 6)
   <header data-testid="shell-header" class="liwan-shell-header liwan-print-hide" :data-scrolled="scrolled ? 'true' : undefined" :data-start="props.showStart ? 'always' : undefined" :aria-label="props.label">
     <div v-if="$slots.start" class="liwan-shell-header-start"><slot name="start" /></div>
     <div v-if="$slots.search" class="liwan-shell-header-search"><slot name="search" /></div>
-    <div class="liwan-shell-header-end"><slot name="end" /></div>
+    <div class="liwan-shell-header-end"><ShellCallChip /><slot name="end" /></div>
   </header>
 </template>

@@ -17,8 +17,10 @@ import time
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
+from pbx_agent.ari import AriError
 from pbx_agent.recordings import recording_path
 from pbx_agent.signing import recording_token
 
@@ -68,7 +70,18 @@ def registration_route(app, settings, ari: Ari, reverse_key: bytes) -> None:
         if body.database != settings.database:
             raise HTTPException(status_code=403)
         password = session_password()
-        ari.upsert_endpoint(body.extension, password)
+        try:
+            await run_in_threadpool(
+                ari.upsert_endpoint,
+                body.extension,
+                password,
+                settings.pjsip_transport,
+                settings.pjsip_context,
+            )
+        except AriError as error:
+            # The browser gets no password when the endpoint could not be written: a registration that cannot work
+            # must not look like one that can.
+            raise HTTPException(status_code=502) from error
         return RegistrationAnswer(
             ws_url=settings.public_ws_url,
             extension=body.extension,

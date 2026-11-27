@@ -11,8 +11,16 @@
         <record id="liwan_telephony_call_own_rule" model="ir.rule">
             <field name="name">liwan.telephony.call: own calls</field>
             <field name="model_id" ref="model_liwan_telephony_call"/>
-            <field name="groups" eval="[Command.set([ref('group_cap_telephony_use')])]"/>
+            <field name="groups" eval="[Command.set([ref('group_telephony_own_calls')])]"/>
             <field name="domain_force">[('user_id', '=', user.id)]</field>
+        </record>
+        <!-- Reading the whole company log is its own capability; a holder of it passes the own-calls rule above
+             through this one, which Odoo ORs with the group's other rules. -->
+        <record id="liwan_telephony_call_read_all_rule" model="ir.rule">
+            <field name="name">liwan.telephony.call: the company log</field>
+            <field name="model_id" ref="model_liwan_telephony_call"/>
+            <field name="groups" eval="[Command.set([ref('group_cap_telephony_calls_read_all')])]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
         </record>
         <record id="liwan_telephony_line_company_rule" model="ir.rule">
             <field name="name">liwan.telephony.line: multi-company</field>

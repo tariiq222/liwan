@@ -113,7 +113,7 @@ class AriClient:
         for kind, name, fields in objects:
             body = {'fields': [{'attribute': key, 'value': value} for key, value in fields.items()]}
             status, _payload = self._json_request(
-                'PUT', f'/asterisk/realtime/{kind}s/{quote(name, safe="")}', body,
+                'PUT', f'/asterisk/config/dynamic/res_pjsip/{kind}/{quote(name, safe="")}', body,
             )
             if status not in (200, 201, 204):
                 msg = f'ARI could not write the {kind} of extension {extension}: {status}'

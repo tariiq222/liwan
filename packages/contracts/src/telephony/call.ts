@@ -26,7 +26,7 @@ export const TelephonyCallSchema = z.strictObject({
   user: TelephonyRefSchema.nullable(),
   extension: TelephonyRefSchema.nullable(),
   queue: z.string().nullable(),
-  startedAt: TelephonyDateTimeSchema,
+  startedAt: TelephonyDateTimeSchema.nullable(),
   answeredAt: TelephonyDateTimeSchema.nullable(),
   endedAt: TelephonyDateTimeSchema.nullable(),
   durationSeconds: z.number().int().nonnegative().nullable(),

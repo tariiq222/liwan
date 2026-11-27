@@ -38,37 +38,39 @@ class TestTelephonyEvents(LiwanTelephonyCase):
     def setUp(self):
         super().setUp()
         set_feature(self, 'telephony.enabled')
+        self.assertTrue(
+            self.env.ref('liwan_platform.tenant_profile').features.get('telephony.enabled'),
+            'the feature is on for this tenant before the route runs',
+        )
         self.env['ir.config_parameter'].sudo().set_param(
             'liwan.telephony.events_key_root', 'ab' * 32,
         )
 
     def post(self, payload, when=None, signature=None):
-        """Post the exact bytes that were signed, the way the agent does."""
+        """Post the exact contract the agent uses: the event alone, sorted keys, and the two headers.
+
+        This mirrors apps/pbx-agent's signing: `canonical_json` (sorted keys, no spaces, UTF-8 kept) and a signature
+        over `b"<timestamp>\\n<body>"`. A test that wrapped the body differently would pass while the real agent failed.
+        """
         when = int(time.time()) if when is None else when
-
-        def body_with(sig):
-            return json.dumps(
-                {'payload': payload, 'timestamp': when, 'signature': sig},
-                separators=(',', ':'),
-            ).encode()
-
+        body = json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
         database = self.env.cr.dbname
         key = hmac.new(
             bytes.fromhex('ab' * 32),
             b'liwan-telephony-events/v1\n' + database.encode(),
             hashlib.sha256,
         ).hexdigest()
-        signed = signature if signature is not None else hmac.new(
-            bytes.fromhex(key),
-            str(when).encode() + b'\n' + body_with(''),
-            hashlib.sha256,
+        expected = signature if signature is not None else hmac.new(
+            bytes.fromhex(key), str(when).encode() + b'\n' + body, hashlib.sha256,
         ).hexdigest()
-        # The agent posts raw bytes (apps/pbx-agent/src/pbx_agent/delivery.py:34-38), so the test does too.
-        request_body = body_with(signed)
         return self.url_open(
             '/api/v1/telephony/events',
-            data=request_body,
-            headers={'Content-Type': 'application/json'},
+            data=body,
+            headers={
+                'Content-Type': 'application/json',
+                'X-Liwan-Telephony-Timestamp': str(when),
+                'X-Liwan-Telephony-Signature': expected,
+            },
             method='POST',
         )
 

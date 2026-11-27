@@ -1,28 +1,29 @@
 import type { CallChipState } from '@liwan/ui/app/composables/useCallChip'
-import { provideCallChip } from '@liwan/ui/app/composables/useCallChip'
+import { CALL_CHIP } from '@liwan/ui/app/composables/useCallChip'
 import { useSoftphone } from '@/composables/useSoftphone'
 
 /**
  * Wires the telephony softphone into the shell's call chip (design D3).
  *
- * The shell owns the chip and draws it from a seam; this plugin is the application side of that seam. It runs only in
- * the browser, only for a user who may use the phone, and only once the app is interactive: the session password is
- * short-lived, so requesting it earlier would send it to a page nobody is using.
+ * The shell owns the chip and draws it from a seam; this plugin is the application side of that seam. It provides onto
+ * the Vue application (a plugin runs before any component, so `provide()` of a component instance is not available
+ * here) and registers the phone only for a user who may use it and has an extension: a session password is short-lived
+ * and one live registration per extension, so no tab registers before it can actually place a call.
  */
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin((nuxtApp) => {
   const { can } = useAccess()
   const hydrated = useHydrated()
   const phone = useSoftphone()
   const { t } = useI18n()
 
-  const state: Ref<CallChipState> = computed(() => ({
+  const state = computed<CallChipState>(() => ({
     phase: phone.state.phase,
     remote: phone.state.remote,
     since: phone.state.since,
     failure: phone.state.failure,
   }))
 
-  provideCallChip({
+  nuxtApp.vueApp.provide(CALL_CHIP, {
     state,
     actions: {
       answer: () => phone.answer(),

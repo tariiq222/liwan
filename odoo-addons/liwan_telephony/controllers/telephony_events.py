@@ -3,8 +3,11 @@
 
 It is not a user route. The caller proves it is the agent of *this* database with the derived key the design fixes in
 12.6: ``hex(HMAC-SHA256(root, label + "\\n" + database))``. The root never reaches the agent; only the derived value
-does. A request carries a timestamp inside a short window and a signature over the body, so a captured request
-cannot be replayed after that window, and the ``event_id`` makes a retry inside the window harmless.
+does.
+
+The contract is the agent's, not a wrapper of ours: the body is the event itself, serialised with sorted keys and
+non-ASCII characters kept, and the timestamp and signature travel in the two ``X-Liwan-Telephony-*`` headers. The
+signature covers ``b"<timestamp>\\n<body>"`` over the exact bytes received, so nothing is re-serialised here.
 """
 import hashlib
 import hmac
@@ -25,6 +28,8 @@ _logger = logging.getLogger(__name__)
 
 EVENTS_LABEL = 'liwan-telephony-events/v1'
 CLOCK_WINDOW_SECONDS = 300
+TIMESTAMP_HEADER = 'X-Liwan-Telephony-Timestamp'
+SIGNATURE_HEADER = 'X-Liwan-Telephony-Signature'
 
 
 def derived_key(root_hex, database, label):
@@ -37,6 +42,7 @@ def _root():
 
 
 def _verify(body, timestamp, signature):
+    """The signature of ``b"<timestamp>\\n<body>"`` with this database's derived key, inside the clock window."""
     root = _root()
     if not root:
         raise ApiError(403, 'forbidden', 'The telephony events key is not configured.')
@@ -69,31 +75,21 @@ class TelephonyEventsController(http.Controller):
     @api_handler
     @requires_feature('telephony.enabled', operation='write')
     def receive_event(self, **_):
-        """Apply one event, once. The body is the agent's envelope (contracts/src/telephony/event.ts).
-
-        The agent signs ``timestamp + "\n" + body`` where the body is the same JSON it posts with an empty signature
-        field, so the route reads the raw body and the fields itself instead of trusting a re-serialised copy.
-        """
+        """Apply one event, once. The body is the agent's envelope (contracts/src/telephony/event.ts)."""
         raw = request.httprequest.get_data() or b'{}'
+        headers = request.httprequest.headers
+        _verify(raw, headers.get(TIMESTAMP_HEADER), headers.get(SIGNATURE_HEADER))
         try:
-            envelope = json.loads(raw)
+            payload = json.loads(raw)
         except ValueError:
             raise ApiError(422, 'invalid', 'The body is not JSON.') from None
-        # The agent signs the envelope with an empty signature field, exactly as the test builds it, so the route
-        # rebuilds that same document from the parsed fields instead of trusting the bytes it was sent.
-        unsigned = json.dumps(
-            {'payload': envelope.get('payload'), 'timestamp': envelope.get('timestamp'), 'signature': ''},
-            separators=(',', ':'),
-        ).encode()
-        _verify(unsigned, envelope.get('timestamp'), envelope.get('signature'))
-        env = request.env
-        payload = envelope.get('payload')
         if not isinstance(payload, dict) or not payload.get('event_id'):
             raise ApiError(422, 'invalid', 'An event with an event_id is required.')
         call = payload.get('call') or {}
         linkedid = call.get('linkedid')
         if not linkedid:
             raise ApiError(422, 'invalid', 'The event names no call.')
+        env = request.env
         Event = env['liwan.telephony.event']
         if Event.search_count([('event_id', '=', payload['event_id'])]):
             return {'applied': False, 'reason': 'already applied'}
@@ -101,9 +97,10 @@ class TelephonyEventsController(http.Controller):
         record = Call.search([('linkedid', '=', linkedid)], limit=1)
         values = Call._liwan_from_event(payload)
         if record:
-            record.write(values)
+            record._liwan_apply(values)
         else:
             record = Call.create({'linkedid': linkedid, **values})
+        record._liwan_link_participants()
         Event.create({
             'event_id': payload['event_id'],
             'linkedid': linkedid,

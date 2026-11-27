@@ -1,9 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The browser session of one extension (design 4.1).
 
-The agent side of this contract is not written yet: `pbx-agent` serves `/health` and the signed recording route only.
-The two paths this module asks for (`/registration` and `/recordings/link`) are the seam the agent must implement; until
-then the route answers 503 with the reason, rather than pretending a session exists.
+The agent answers on `POST /registration` on the company's private network, authenticated with the reverse-direction
+key in `X-Liwan-Key`.
 
 The route proves the feature, the capability and the company, then asks the company's agent for a registration. The
 agent generates a new password for the extension, writes it to the Asterisk realtime database, and the value reaches

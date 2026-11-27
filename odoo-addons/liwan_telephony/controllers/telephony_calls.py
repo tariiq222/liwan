@@ -27,7 +27,6 @@ class TelephonyCallsController(http.Controller):
     @http.route('/api/v1/telephony/calls', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('telephony.enabled', operation='read')
-    @requires_feature('telephony.recording', operation='read')
     def list_calls(self, direction=None, state=None, user_id=None, **kwargs):
         _require('telephony.use')
         limit, offset = parse_page(request.httprequest.args)

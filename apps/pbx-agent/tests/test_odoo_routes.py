@@ -42,6 +42,8 @@ def settings(tmp) -> Settings:
         public_ws_url="wss://acme.example.test/ws",
         ice_servers=[{"urls": "stun:turn.example.test:3478"}],
         session_seconds=60,
+        pjsip_transport='transport-ws',
+        pjsip_context='from-extension',
     )
 
 
