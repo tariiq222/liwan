@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Render the telephony package of one company from one environment file.
 
-``compose.yml`` and the ``asterisk/`` and ``coturn/`` templates are the package; this command turns them into the
-directory Compose runs, with the static test page beside them. Its only structural variation is a block between
+``compose.yml`` and the ``asterisk/``, ``coturn/``, ``logrotate/`` and ``postgres/`` templates are the package; this
+command turns them into the directory Compose runs, with the static schema and test page beside them. Its only
+structural variation is a block between
 ``# @if LIWAN_TELEPHONY_<NAME>`` and ``# @endif`` lines: the block stays when that toggle is on and goes when it is
 off. Three toggles are derived here from facts the operator types (``LIWAN_TELEPHONY_TRUNK_AUTH`` and
 ``LIWAN_TELEPHONY_MODE_B_DEVICES``): the public SIP port exists only for a provider that authenticates by address or
@@ -51,6 +52,8 @@ ARI_USER = re.compile(r'^[A-Za-z0-9_-]{1,32}$')
 CODECS = re.compile(r'^[a-z0-9]+(?:,[a-z0-9]+)*$')
 SOUND = re.compile(r'^[A-Za-z0-9_/-]+$')
 DIAL_PREFIX = re.compile(r'^[0-9+]*$')
+STUN_URL = re.compile(r'^stuns?:[^\s]+$')
+TURN_URL = re.compile(r'^turns?:[^\s]+$')
 # Every target file, in write order: the rendered config, then Compose. Paths are relative to the render directory.
 TEMPLATES = (
     ('asterisk/pjsip.conf', 'asterisk/pjsip.conf.template'),
@@ -61,18 +64,26 @@ TEMPLATES = (
     ('asterisk/logger.conf', 'asterisk/logger.conf.template'),
     ('asterisk/cel.conf', 'asterisk/cel.conf.template'),
     ('asterisk/cel_custom.conf', 'asterisk/cel_custom.conf.template'),
+    ('asterisk/sorcery.conf', 'asterisk/sorcery.conf.template'),
+    ('asterisk/extconfig.conf', 'asterisk/extconfig.conf.template'),
+    ('asterisk/res_pgsql.conf', 'asterisk/res_pgsql.conf.template'),
     ('coturn/turnserver.conf', 'coturn/turnserver.conf.template'),
     ('logrotate/telephony-cel', 'logrotate/telephony-cel.template'),
+    ('postgres/02-seed.sql', 'postgres/02-seed.sql.template'),
     ('compose.yml', 'compose.yml'),
 )
-# Written verbatim: the browser test page holds no secret and no per-company value.
-STATIC_FILES = (('test-page/index.html', 'test-page/index.html'),)
+# Written verbatim: neither file holds any secret or per-company value.
+STATIC_FILES = (
+    ('postgres/01-schema.sql', 'postgres/01-schema.sql'),
+    ('test-page/index.html', 'test-page/index.html'),
+)
 # Inputs the package documents but no template reads: the shared edge route and the DNS zone are separate parts that
 # read the same env file (design 12.3, 12.8), so it is validated here and must not drift.
 CONTRACT_INPUTS = ('LIWAN_TELEPHONY_SIP_DNS_NAME',)
 MAY_BE_EMPTY = frozenset({'LIWAN_TELEPHONY_TRUNK_DIAL_PREFIX'})
 SECRETS = (
     'LIWAN_TELEPHONY_ARI_PASSWORD',
+    'LIWAN_TELEPHONY_PBX_DB_PASSWORD',
     'LIWAN_TELEPHONY_EXTENSION_101_PASSWORD',
     'LIWAN_TELEPHONY_EXTENSION_102_PASSWORD',
     'LIWAN_TELEPHONY_EXTENSION_103_PASSWORD',
@@ -195,6 +206,25 @@ def integer(env: dict[str, str], name: str, low: int, high: int) -> int:
     return int(raw)
 
 
+def optional_integer(env: dict[str, str], name: str, default: int, low: int, high: int) -> int:
+    raw = env.get(name, '')
+    if not raw:
+        return default
+    if not raw.isdigit() or not low <= int(raw) <= high:
+        raise RenderError(f'{name} must be a whole number between {low} and {high}')
+    return int(raw)
+
+
+def sql_escape(value: str) -> str:
+    """Escape a value for a single-quoted PostgreSQL string literal."""
+    return value.replace("'", "''")
+
+
+def substitute(target: str, text: str, values: dict[str, str]) -> str:
+    escape = sql_escape if target.endswith('.sql') else (lambda value: value)
+    return PLACEHOLDER.sub(lambda match: escape(values[match.group(1)]), text)
+
+
 def range_of(env: dict[str, str], first: str, last: str) -> tuple[int, int]:
     low, high = integer(env, first, 1024, 65535), integer(env, last, 1024, 65535)
     if low > high:
@@ -250,10 +280,24 @@ def validate(env: dict[str, str], toggles: dict[str, bool]) -> None:
     integer(env, 'LIWAN_TELEPHONY_TURN_USER_QUOTA', 1, 64)
     integer(env, 'LIWAN_TELEPHONY_TURN_TOTAL_QUOTA', 1, 10000)
     integer(env, 'LIWAN_TELEPHONY_TURN_MAX_BPS', 0, 1000000000)
+    session_seconds = optional_integer(env, 'LIWAN_TELEPHONY_SESSION_SECONDS', 120, 30, 120)
+    overlap_seconds = optional_integer(env, 'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS', 30, 0, 60)
+    if overlap_seconds >= session_seconds:
+        raise RenderError(
+            f'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS ({overlap_seconds}) must be less than '
+            f'LIWAN_TELEPHONY_SESSION_SECONDS ({session_seconds})',
+        )
+    if env.get('LIWAN_TELEPHONY_STUN_URL'):
+        pattern(env, 'LIWAN_TELEPHONY_STUN_URL', STUN_URL, 'a stun: or stuns: URL without whitespace')
+    if env.get('LIWAN_TELEPHONY_TURN_URL'):
+        pattern(env, 'LIWAN_TELEPHONY_TURN_URL', TURN_URL, 'a turn: or turns: URL without whitespace')
     check_ranges(env)
     secret_length = len(required(env, 'LIWAN_TELEPHONY_TURN_SECRET'))
     if secret_length < 32:
         raise RenderError(f'LIWAN_TELEPHONY_TURN_SECRET must be at least 32 characters, not {secret_length}')
+    if "'" in required(env, 'LIWAN_TELEPHONY_PBX_DB_PASSWORD'):
+        msg = "LIWAN_TELEPHONY_PBX_DB_PASSWORD must not contain \"'\""
+        raise RenderError(msg)
     for name in SECRETS:
         if name in env and re.search(r'\s', env[name]):
             raise RenderError(f'{name} must not contain whitespace')
@@ -276,8 +320,7 @@ def package_files(env: dict[str, str]) -> dict[str, str]:
         raise RenderError(f'the env file lacks {", ".join(missing)}')
     validate(env, toggles)
     values = placeholder_values(env)
-    files = {target: PLACEHOLDER.sub(lambda match: values[match.group(1)], text)
-             for target, text in rendered.items()}
+    files = {target: substitute(target, text, values) for target, text in rendered.items()}
     for target, source in STATIC_FILES:
         files[target] = (PACKAGE / source).read_text(encoding='utf-8')
     return files

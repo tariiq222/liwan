@@ -1,0 +1,7 @@
+; Rendered by deploy/telephony/render.py from the company's env file (company {{COMPANY_ID}}).
+; Maps the PJSIP realtime tables named in sorcery.conf to the PostgreSQL connection in res_pgsql.conf.
+
+[settings]
+ps_endpoints => pgsql,telephony_pbx,ps_endpoints
+ps_auths => pgsql,telephony_pbx,ps_auths
+ps_aors => pgsql,telephony_pbx,ps_aors
