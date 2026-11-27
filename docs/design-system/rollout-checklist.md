@@ -2,7 +2,7 @@
 
 سجل حالة حيّ لمتابعة التنفيذ، وليس سياسة تصميم. المرجع الملزم للشكل هو [DESIGN.md](../../DESIGN.md)، وقواعد العمل في [AGENTS.md](../../AGENTS.md) و[parallel-work.md](../parallel-work.md). تُحدَّث الحالات بعده فقط، ولا تُعدَّل حالة بند قبل دمج PR الخاص به. القواعد الواردة هنا تنسيق لهذه الجولة بين اللينات، ولا تنشئ سياسة جديدة ولا تتقدم على المراجع المذكورة.
 
-آخر تحديث: 2026-11-26 · `main` عند `4c034d680` · المنسّق: `opencode-r4`
+آخر تحديث: 2026-11-27 · `web-settings-phase1` فوق `main` (`8f4d3aeaf`) · المنسّق: `claude-1`
 
 ## دلالة الرموز
 
@@ -88,7 +88,7 @@
 - [x] `sales/index`: مؤشرات عروض/طلبات/ملغاة، `sales/[id]` و`sales/reports` على النمط.
 - [x] `products/index` و`products/[id]`: مؤشرات (إجمالي، سلع، خدمات) وسجل على النمط.
 - [x] أشرطة جانبية للتطبيقات الأربعة بعدّادات `limit: 1`، وعدّاد الاستيراد في CRM محمي بالميزة `crm.import`.
-- [-] `crm/audit` و`crm/imports` و`crm/index` و`settings/apps/crm`: بقيت كما هي؛ لم تكن في نطاق الجولة الأولى.
+- [-] `crm/audit` و`crm/imports` و`crm/index`: بقيت خارج نطاق R1؛ أُغلق توحيد تباعد `settings/apps/crm` في المرحلة 1 لتوحيد الإعدادات (`web-settings-phase1`).
 
 ## ملاحظات عامة من R1
 - [x] `total` لا يمرَّر إلى مؤشرات أثناء `placeholderData` (القوائم الأربع التجارية)، فلا يعرض المؤشر رقم الفلتر السابق.
@@ -105,7 +105,7 @@
 - [ ] `hr/departments` و`[departmentId]`: قائمة + سجل.
 - [ ] `hr/leave` و`leave/[leaveId]` و`leave/allocations`: قائمة + سجل + مؤشرات.
 - [ ] `hr/self/*`: توحيد الرأس والإجراءات.
-- [ ] `settings/apps/hr`: مجموعات وبطاقات.
+- [x] `settings/apps/hr`: مجموعات وبطاقات (أُنجزت في المرحلة 1 لتوحيد الإعدادات `web-settings-phase1`).
 - [ ] شريط جانبي لـ hr بعدّادات الموظفين والإجازات + «المفتوحة مؤخرًا» للموظفين.
 - [ ] `hr.json` مفاتيح جديدة فقط.
 
@@ -116,7 +116,7 @@
 - [ ] `finance/bank/statements` و`[id]/lines/[lineId]`: قائمة + سجل.
 - [ ] `finance/budgets` و`assets` و`partners`: قائمة + سجل.
 - [ ] `finance/reports` و`finance/index`: رأس وإجراءات.
-- [ ] `settings/apps/finance/**`: بطاقات ومجموعات.
+- [x] `settings/apps/finance/**`: بطاقات ومجموعات وقوائم `SharedListPage` ومسارات `/new` و`/<id>/edit` (أُنجزت في المرحلة 1 لتوحيد الإعدادات `web-settings-phase1`).
 - [ ] شريط جانبي للمالية بعدّادات (فواتير غير مدفوعة، فواتير موردين مستحقة).
 
 #### projects (`web-projects-design`)
@@ -124,7 +124,7 @@
 - [ ] `projects/[id]/tasks` و`milestones` و`baselines`: مؤشرات + فلاتر.
 - [ ] `projects/[id]/register` و`changes` و`meetings`: مؤشرات + جداول.
 - [ ] `stakeholders` و`register/[registerId]` و`changes/[changeId]` و`finance/[entryId]` و`baselines/[number]`: `#aside`.
-- [ ] `settings/apps/projects/catalogs/**`: بطاقات.
+- [x] `settings/apps/projects/catalogs/**`: قائمة `SharedListPage`، وتعديل `SharedPageContainer`، وحالات `SharedForbiddenState`/`SharedNotFoundState` (أُنجزت في المرحلة 1 لتوحيد الإعدادات `web-settings-phase1`).
 - [ ] الحفاظ على إطار المشروع و`provideFrameOwnsActions`.
 
 #### inbox (`web-inbox-design`)
@@ -189,6 +189,16 @@
 - [x] إرجاع كل اللينات بـ`npm run wt -- done`.
 - [ ] **المراجعة البصرية البشرية**: لم تُجرَ بعد، وهي الشرط الوحيد المتبقي قبل إعلان الاكتمال.
 
+### توحيد صفحات الإعدادات — المرحلة 1 (`web-settings-phase1`)
+
+- [x] `settings/apps/hr`: توحيد بطاقات الإعدادات وقوائم القيم البسيطة (`SharedSettingsList`/`SharedSettingsCard`) وحالات الخطأ والصلاحيات.
+- [x] `settings/apps/finance/**`: توحيد قوائم الإعدادات على `SharedListPage` والإنشاء/التعديل للسجلات متعددة الحقول وفق قرار 2026-11-27.
+- [x] `settings/apps/projects/catalogs/**`: تحويل قائمة الكتالوجات إلى `SharedListPage`، والتعديل إلى `SharedPageContainer`، واستبدال نصوص المنع وعدم الوجود اليدوية بـ`SharedForbiddenState` و`SharedNotFoundState`.
+- [x] `settings/apps/crm`: توحيد تباعد بطاقات التبويبات الأربعة (`basics`, `workflow`, `sales`, `privacy`) إلى `gap-(--liwan-gap-card)`.
+- [x] `DESIGN.md`: توضيح التمييز بين `SharedSettingsPage` (أقسام الإعدادات) و`SharedListPage` (قوائم الإعدادات الكاملة)، وتثبيت قرار المالك (2026-11-27) لتوحيد التحرير في الإعدادات.
+- [ ] **المرحلة 2 (متابعة لاحقة):** مراجعة وتوحيد إعدادات `helpdesk` و`inbox` مع حفظ سياق القنوات وإجراءاتها وفق قرار R2.
+- [ ] **المرحلة 3 (متابعة لاحقة):** نقل محررات السجلات المضمّنة في `settings/team/**` وإعدادات `pmo` إلى `/new` و`/<id>/edit` وفق قرار 2026-11-27.
+
 ## خارج النطاق (بقرار)
 
 - [-] صفحات الدخول والعامة: `login`, `register`, `forgot-password`, `reset-password`, `invite`, `join`, `find-workspace`, `book`, `quote`, `pay`, `payment-done`, `setup`, `support`.
@@ -204,6 +214,7 @@
 | 3 | الترتيب: الاجتماعات ثم helpdesk/appointments ثم HR ثم المالية ثم الباقي | معتمد من المالك | 2026-11-27 |
 | 4 | الإعدادات 85 صفحة تُوزَّع على لينات التطبيقات، والمنصّية في لين مستقل | معتمد من المالك | 2026-11-27 |
 | 5 | الدمج تسلسلي بكلمة المالك بعد كل جولة | معتمد من المالك | 2026-11-27 |
+| 6 | توحيد التحرير في الإعدادات: القيمة البسيطة بـ`SharedSettingsList`، والسجل متعدد الحقول عبر `/new` (`SharedCreatePanel`) و`/<id>/edit` (`SharedPageContainer`) بلا محرر مضمّن داخل القائمة | معتمد من المالك | 2026-11-27 |
 
 ## سجل الدمج
 
