@@ -60,6 +60,27 @@ describe('WarningTypesCard revision conflicts', () => {
     expect(reloadTypes).toHaveBeenCalledTimes(1)
     expect(state.conflict.value).toBe(false)
     expect(state.revisions.value).toEqual({})
+    expect(state.reloadGeneration.value).toBe(1)
+  })
+
+  it('remounts rows on reload even when server name is unchanged, without keying by revision', async () => {
+    const source = readFileSync(FILE, 'utf8')
+    expect(source).toContain(':key="`${type.id}-${reloadGeneration}`"')
+    expect(source).not.toContain('type.revision}`')
+
+    const reloadTypes = vi.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(undefined)
+    const card = mount([type({ name: 'Verbal', revision: 4 })], vi.fn(), reloadTypes)
+    expect(card.state.reloadGeneration.value).toBe(0)
+
+    // A background refetch does not bump reloadGeneration.
+    card.props.types = [type({ name: 'Verbal', revision: 5 })]
+    expect(card.state.reloadGeneration.value).toBe(0)
+
+    // A failed reload does not bump reloadGeneration; a successful one does even if name is unchanged.
+    await card.state.reload()
+    expect(card.state.reloadGeneration.value).toBe(0)
+    await card.state.reload()
+    expect(card.state.reloadGeneration.value).toBe(1)
   })
 
   it('saves severity updates with the current revision and ignores invalid severities', async () => {

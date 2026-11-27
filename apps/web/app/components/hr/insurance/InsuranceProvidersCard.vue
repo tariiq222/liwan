@@ -17,6 +17,7 @@ const newName = ref('')
 const savingId = ref<number | null>(null)
 const failure = ref<unknown>(null)
 const reloading = ref(false)
+const reloadGeneration = ref(0)
 
 const conflict = computed(() => failure.value instanceof ApiError && failure.value.status === 409)
 const busy = computed(() => create.isPending.value || savingId.value !== null || reloading.value || conflict.value)
@@ -76,6 +77,7 @@ async function reload() {
     await props.reloadProviders()
     revisions.value = {}
     failure.value = null
+    reloadGeneration.value += 1
   } catch (error) { failure.value = error } finally { reloading.value = false }
 }
 </script>
@@ -107,7 +109,7 @@ async function reload() {
     </template>
     <SharedSettingsListRow
       v-for="provider in props.providers"
-      :key="provider.id"
+      :key="`${provider.id}-${reloadGeneration}`"
       :name="provider.name"
       :active="provider.active"
       :can-edit="canEdit"

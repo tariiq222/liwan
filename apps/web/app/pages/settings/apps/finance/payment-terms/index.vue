@@ -13,7 +13,7 @@ const canManage = computed(() => can('finance.payment_terms.manage'))
   <SharedListPage
     :title="t('financeRecords.paymentTerms.title')"
     :description="t('financeRecords.paymentTerms.description')"
-    :create-to="canManage ? { path: '/settings/apps/finance/payment-terms/new', query: returnToQuery(route.fullPath) } : undefined"
+    :create-to="allowed && canManage ? { path: '/settings/apps/finance/payment-terms/new', query: returnToQuery(route.fullPath) } : undefined"
     :create-label="t('financeRecords.paymentTerms.new')"
     create-test-id="finance-record-term-new"
   >

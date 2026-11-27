@@ -13,7 +13,7 @@ const canManage = computed(() => can('finance.taxes.manage'))
   <SharedListPage
     :title="t('financeRecords.taxes.title')"
     :description="t('financeRecords.taxes.description')"
-    :create-to="canManage ? { path: '/settings/apps/finance/taxes/new', query: returnToQuery(route.fullPath) } : undefined"
+    :create-to="allowed && canManage ? { path: '/settings/apps/finance/taxes/new', query: returnToQuery(route.fullPath) } : undefined"
     :create-label="t('financeRecords.taxes.new')"
     create-test-id="finance-record-tax-new"
   >

@@ -30,20 +30,6 @@ const dirty = computed(() => !submitted.value && (
   || (!props.account && planId.value !== baselinePlanId.value)
 ))
 
-watch(
-  () => props.account,
-  (account) => {
-    name.value = account?.name ?? ''
-    code.value = account?.code ?? ''
-    planId.value = initialPlanId()
-    baselineName.value = name.value
-    baselineCode.value = code.value
-    baselinePlanId.value = planId.value
-    submitted.value = false
-    failure.value = null
-  },
-)
-
 async function submit() {
   if (!hydrated.value || pending.value || !valid.value) return
   failure.value = null

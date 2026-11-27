@@ -19,6 +19,7 @@ const newSeverity = ref<number | undefined>(1)
 const savingId = ref<number | null>(null)
 const failure = ref<unknown>(null)
 const reloading = ref(false)
+const reloadGeneration = ref(0)
 
 const rows = computed(() => sortHrWarningTypes(props.types))
 const conflict = computed(() => failure.value instanceof ApiError && failure.value.status === 409)
@@ -91,6 +92,7 @@ async function reload() {
     await props.reloadTypes()
     revisions.value = {}
     failure.value = null
+    reloadGeneration.value += 1
   } catch (error) { failure.value = error } finally { reloading.value = false }
 }
 </script>
@@ -122,7 +124,7 @@ async function reload() {
     </template>
     <SharedSettingsListRow
       v-for="type in rows"
-      :key="type.id"
+      :key="`${type.id}-${reloadGeneration}`"
       :name="type.name"
       :active="type.active"
       :can-edit="canEdit"

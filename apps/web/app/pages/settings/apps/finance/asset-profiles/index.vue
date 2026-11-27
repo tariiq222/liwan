@@ -13,7 +13,7 @@ const canManage = computed(() => can('finance.assets.manage'))
   <SharedListPage
     :title="t('financeRecords.assetProfiles.title')"
     :description="t('financeRecords.assetProfiles.description')"
-    :create-to="canManage ? { path: '/settings/apps/finance/asset-profiles/new', query: returnToQuery(route.fullPath) } : undefined"
+    :create-to="allowed && canManage ? { path: '/settings/apps/finance/asset-profiles/new', query: returnToQuery(route.fullPath) } : undefined"
     :create-label="t('financeRecords.assetProfiles.new')"
     create-test-id="finance-record-asset-profile-new"
   >

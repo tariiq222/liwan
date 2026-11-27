@@ -45,9 +45,9 @@ describe('the finance analytic pages stay on their templates', () => {
     ['components/finance/analytic/AnalyticAccountsSection.vue', ['<SharedRecordSection variant="flat"', '<SharedListCard', 'useRouteListFilters', '<SharedFilterBar embedded', '<SharedDataTable', ' bare', '#mobile-row', '<SharedRowActions', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', "can('finance.analytic.manage')", '/settings/apps/finance/analytic-accounts/new', '/edit']],
     ['components/finance/analytic/AnalyticAccountEditor.vue', ['color="error" variant="subtle"', 'saveErrorMessage', ':disabled="!hydrated', '<SharedUnsavedChanges', '<SharedFormActions']],
     ['components/finance/analytic/AnalyticArchiveConfirm.vue', ['<SharedInlineConfirm']],
-    ['pages/settings/apps/finance/analytic-plans/new.vue', ['<SharedCreatePanel', '<AnalyticPlanEditor', '<SharedForbiddenState', "can('finance.analytic.manage')", 'safeReturnTo']],
+    ['pages/settings/apps/finance/analytic-plans/new.vue', ['<SharedCreatePanel', '<AnalyticPlanEditor', '<SharedForbiddenState', "can('finance.analytic.manage')", "can('finance.analytic.read')", 'safeReturnTo']],
     ['pages/settings/apps/finance/analytic-plans/[id]/edit.vue', ['<SharedPageContainer', '<SharedPageHeader', '<SharedFormSection', 'panel', '<AnalyticPlanEditor', '<SharedForbiddenState', 'canWritePlan(can', 'useFinanceAnalyticPlan', 'safeReturnTo']],
-    ['pages/settings/apps/finance/analytic-accounts/new.vue', ['<SharedCreatePanel', '<AnalyticAccountEditor', '<SharedForbiddenState', "can('finance.analytic.manage')", 'safeReturnTo']],
+    ['pages/settings/apps/finance/analytic-accounts/new.vue', ['<SharedCreatePanel', '<AnalyticAccountEditor', '<SharedForbiddenState', "can('finance.analytic.manage')", "can('finance.analytic.read')", 'safeReturnTo']],
     ['pages/settings/apps/finance/analytic-accounts/[id]/edit.vue', ['<SharedPageContainer', '<SharedPageHeader', '<SharedFormSection', 'panel', '<AnalyticAccountEditor', '<SharedForbiddenState', "can('finance.analytic.manage')", 'useFinanceAnalyticAccount', 'safeReturnTo']],
     ['components/finance/reports/AnalyticTable.vue', ['<SharedDataTable bare', '#mobile-row', '#footer', 'amountColumn', 'Money', 'accountToggleTo']],
   ])('%s uses its template', (file, needles) => {

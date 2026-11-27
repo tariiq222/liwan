@@ -32,7 +32,7 @@ const locale = (code: string) => JSON.parse(readFileSync(resolve(locales, `${cod
 describe('the finance setup record pages stay on their templates', () => {
   it.each(LIST_PAGES)('%s is a list page with a create link and forbidden state', (file) => {
     const source = read(file)
-    for (const needle of ['<SharedListPage', ':create-to=', 'returnToQuery', '<SharedForbiddenState', "can('finance."]) {
+    for (const needle of ['<SharedListPage', ':create-to="allowed && canManage ?', 'returnToQuery', '<SharedForbiddenState', "can('finance."]) {
       expect(source, needle).toContain(needle)
     }
     expect(source).not.toContain('<SharedSettingsPage')

@@ -53,10 +53,31 @@ describe('InsuranceProvidersCard revision conflicts', () => {
     await state.reload()
     expect(reloadProviders).toHaveBeenCalledTimes(1)
     expect(state.conflict.value).toBe(false)
+    expect(state.reloadGeneration.value).toBe(1)
 
     // A new edit after reload uses the reloaded revision.
     await state.saveName(card.props.providers[0], 'Bupa KSA')
     expect(patch).toHaveBeenLastCalledWith({ id: 3, body: { revision: 5, name: 'Bupa KSA' } })
+  })
+
+  it('remounts rows on reload even when server name is unchanged, without keying by revision', async () => {
+    const source = readFileSync(FILE, 'utf8')
+    expect(source).toContain(':key="`${provider.id}-${reloadGeneration}`"')
+    expect(source).not.toContain('provider.revision}`')
+
+    const reloadProviders = vi.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(undefined)
+    const card = mount([provider({ name: 'Bupa', revision: 4 })], vi.fn(), reloadProviders)
+    expect(card.state.reloadGeneration.value).toBe(0)
+
+    // A background refetch does not bump reloadGeneration.
+    card.props.providers = [provider({ name: 'Bupa', revision: 5 })]
+    expect(card.state.reloadGeneration.value).toBe(0)
+
+    // A failed reload does not bump reloadGeneration; a successful one does even if name is unchanged.
+    await card.state.reload()
+    expect(card.state.reloadGeneration.value).toBe(0)
+    await card.state.reload()
+    expect(card.state.reloadGeneration.value).toBe(1)
   })
 
   it('archives with the row revision and ignores empty or unchanged names', async () => {

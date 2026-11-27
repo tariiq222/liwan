@@ -32,18 +32,6 @@ const dirty = computed(() => !submitted.value && (
   || (!props.plan && parent.value !== baselineParent.value)
 ))
 
-watch(
-  () => props.plan,
-  (plan) => {
-    name.value = plan?.name ?? ''
-    parent.value = initialParent()
-    baselineName.value = name.value
-    baselineParent.value = parent.value
-    submitted.value = false
-    failure.value = null
-  },
-)
-
 async function submit() {
   if (!hydrated.value || pending.value || !valid.value) return
   failure.value = null

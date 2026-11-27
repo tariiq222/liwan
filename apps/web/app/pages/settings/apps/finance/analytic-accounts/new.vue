@@ -11,23 +11,25 @@ const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
 const canManage = computed(() => can('finance.analytic.manage'))
+const canRead = computed(() => can('finance.analytic.read'))
 const backTo = computed(() => safeReturnTo(route.query.returnTo, DEFAULT_BACK_TO, ['/settings/apps/finance']))
-const plans = useFinanceAnalyticPlans(canManage)
+const plans = useFinanceAnalyticPlans(computed(() => canManage.value && canRead.value))
 const planList = computed(() => plans.data.value?.items ?? [])
+const loading = computed(() => canRead.value && plans.isPending.value)
 </script>
 
 <template>
   <SharedSettingsPage>
-    <AnalyticPlansSection />
-    <AnalyticAccountsSection background />
+    <AnalyticPlansSection v-if="canRead" />
+    <AnalyticAccountsSection v-if="canRead" background />
   </SharedSettingsPage>
   <SharedCreatePanel :title="t('financeAnalytic.accounts.new')" :back-to="backTo">
-    <SharedForbiddenState v-if="!canManage" :description="t('financeAnalytic.forbidden')" />
+    <SharedForbiddenState v-if="!canManage || !canRead" :description="t('financeAnalytic.forbidden')" />
     <SharedPageState
       v-else
-      :loading="plans.isPending.value"
+      :loading="loading"
       :error="plans.error.value"
-      :empty="!plans.isPending.value && planList.length === 0"
+      :empty="!loading && planList.length === 0"
       :empty-text="t('financeAnalytic.plans.empty')"
       empty-icon="i-lucide-chart-pie"
       @retry="plans.refetch"
