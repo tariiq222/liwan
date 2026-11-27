@@ -399,6 +399,11 @@
       "count": 1,
       "kind": "public_entry",
       "reason": "liwan_telephony events route: `request.env['ir.config_parameter'].sudo().get_param('liwan.telephony.events_key_root')`; system parameters are readable only by base.group_system, and the route is auth='public' with no session, so the derived key cannot be read any other way before the caller is verified."
+    },
+    "odoo-addons/liwan_telephony/controllers/telephony_session.py": {
+      "count": 1,
+      "kind": "public_entry",
+      "reason": "liwan_telephony session route: `request.env['ir.config_parameter'].sudo()` to read the agent URL and the reverse-direction key of this deployment; system parameters are readable only by base.group_system and no capability grants them, so the route cannot discover the company's agent without elevating the read."
     }
   }
 }

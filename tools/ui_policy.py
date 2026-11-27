@@ -191,7 +191,7 @@ REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescrip
 # (tools/undeclared_imports.py). Owner approval 2026-11-13 (Tariq, in chat). None is a second UI library.
 REVIEWED_DECLARED_IMPORTS = {
     '@iconify/vue', '@tanstack/query-core', '@tiptap/core', '@vue/runtime-core', 'devalue', 'esbuild', 'h3',
-    'hookable', 'node-mock-http', 'ofetch', 'pg', 'tailwind-variants', 'ufo', 'vue-i18n',
+    'hookable', 'jssip', 'node-mock-http', 'ofetch', 'pg', 'tailwind-variants', 'ufo', 'vue-i18n',
 }
 
 # Error reporting SDKs for the optional self-hosted Sentry (owner decision 2026-11-18). They are not UI libraries and render
@@ -1032,6 +1032,9 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # components, so it cannot become the second UI library this guard exists
     # to catch.
     allowed_source = dependencies(baseline) | REVIEWED_ERROR_REPORTING_SDKS | {
+        # The browser softphone (design 4.1): the SIP stack over WebSocket, MIT, pinned to 3.12.0, the version the
+        # local call gate proved. It renders nothing and is the only SIP implementation in the product.
+        'jssip',
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
         # Internal schemas and server-only signing; no visual components or UI library.
         '@liwan/contracts',  # Same product schemas under the renamed workspace namespace.

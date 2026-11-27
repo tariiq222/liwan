@@ -1,2 +1,2 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import telephony_calls, telephony_events, telephony_settings
+from . import telephony_calls, telephony_events, telephony_session, telephony_settings

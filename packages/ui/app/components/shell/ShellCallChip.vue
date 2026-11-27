@@ -9,42 +9,13 @@
  * The softphone itself (JsSIP, the WebSocket, the microphone) arrives in the next part; this component owns the
  * presentation and the state it is given, so the phone can be wired to it without touching the shell again.
  */
-type CallPhase = 'idle' | 'ringing' | 'calling' | 'in-call' | 'failed'
+const seam = useCallChip()
 
 /**
  * The labels arrive from the application: the shared layer owns no application key. `visible` is false for a user who
  * may not use the phone, so the shell shows nothing rather than a disabled control.
  */
-const props = defineProps<{
-  visible: boolean
-  labels: {
-    idle: string
-    label: string
-    callerCard: string
-    answer: string
-    reject: string
-    hangUp: string
-    failedHint: string
-    ringing: (number: string) => string
-    calling: (number: string) => string
-    inCall: (duration: string) => string
-    failed: string
-  }
-}>()
-
-const phase = ref<CallPhase>('idle')
-const caller = ref<string | null>(null)
-const seconds = ref(0)
-const open = ref(false)
-const hydrated = useHydrated()
-
-const label = computed(() => {
-  if (phase.value === 'ringing') return props.labels.ringing(caller.value || '')
-  if (phase.value === 'calling') return props.labels.calling(caller.value || '')
-  if (phase.value === 'in-call') return props.labels.inCall(durationText.value)
-  if (phase.value === 'failed') return props.labels.failed
-  return props.labels.idle
-})
+const labels = computed(() => seam?.labels)
 
 const durationText = computed(() => {
   const minutes = Math.floor(seconds.value / 60)
@@ -72,19 +43,27 @@ function stopTimer() {
 
 function hangUp() {
   stopTimer()
-  phase.value = 'idle'
-  caller.value = null
   seconds.value = 0
   open.value = false
+  seam?.actions.hangUp()
 }
 
-onBeforeUnmount(stopTimer)
+// The duration comes from the phone's own start time when it has one, so a page change does not restart the clock.
+watch(() => [raw.value, seam?.state.value.since] as const, ([now, startedAt]) => {
+  if (now === 'in-call' && startedAt) {
+    seconds.value = Math.max(Math.floor((Date.now() - startedAt) / 1000), 0)
+    startTimer()
+  }
+  else if (now !== 'in-call') {
+    stopTimer()
+  }
+}, { immediate: true })
 
-defineExpose({ phase, caller, seconds })
+onBeforeUnmount(stopTimer)
 </script>
 
 <template>
-  <div v-if="props.visible" class="liwan-call-chip" role="group" :aria-label="labels.label">
+  <div v-if="seam" class="liwan-call-chip" role="group" :aria-label="labels?.label">
     <UPopover v-model:open="open" :disabled="phase === 'idle'" :content="{ align: 'end' }">
       <UButton
         :color="tone === 'danger' ? 'error' : tone === 'warning' ? 'warning' : tone === 'success' ? 'success' : 'neutral'"
@@ -100,7 +79,7 @@ defineExpose({ phase, caller, seconds })
       </UButton>
       <template #content>
         <div class="grid w-64 gap-(--liwan-gap-card) p-(--liwan-card-pad)">
-          <p class="text-sm font-semibold">{{ labels.callerCard }}</p>
+          <p class="text-sm font-semibold">{{ labels?.callerCard }}</p>
           <p class="text-sm" dir="ltr">{{ caller || '—' }}</p>
           <p v-if="phase === 'in-call'" class="text-sm tabular-nums" dir="ltr">{{ durationText }}</p>
           <div class="flex flex-wrap gap-2">
@@ -108,9 +87,9 @@ defineExpose({ phase, caller, seconds })
               v-if="phase === 'ringing'"
               size="sm"
               icon="i-lucide-phone-incoming"
-              @click="phase = 'in-call'; startTimer()"
+              @click="seam?.actions.answer()"
             >
-              {{ labels.answer }}
+              {{ labels?.answer }}
             </UButton>
             <UButton
               v-if="phase === 'ringing'"
@@ -120,7 +99,7 @@ defineExpose({ phase, caller, seconds })
               icon="i-lucide-phone-off"
               @click="hangUp"
             >
-              {{ labels.reject }}
+              {{ labels?.reject }}
             </UButton>
             <UButton
               v-if="phase === 'in-call' || phase === 'calling'"
@@ -129,10 +108,10 @@ defineExpose({ phase, caller, seconds })
               icon="i-lucide-phone-off"
               @click="hangUp"
             >
-              {{ labels.hangUp }}
+              {{ labels?.hangUp }}
             </UButton>
           </div>
-          <p v-if="phase === 'failed'" class="text-sm text-muted">{{ labels.failedHint }}</p>
+          <p v-if="phase === 'failed'" class="text-sm text-muted">{{ labels?.failedHint }}</p>
         </div>
       </template>
     </UPopover>
