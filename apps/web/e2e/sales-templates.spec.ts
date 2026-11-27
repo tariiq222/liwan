@@ -228,7 +228,12 @@ test('the presets card shows what a preset changes, writes nothing until confirm
   const after = await settings(page)
   expect(after).toMatchObject({ validity_days: 60, discount_limit_percent: 3, customer_answer: 'accept_and_sign', answered_resend: 'refuse', signature_methods: 'draw', revision: before.revision + 1, default_terms: before.default_terms })
 
-  await card.getByText('مقاولات ومشاريع', { exact: true }).click()
+  // The apply refetches the presets, so the applied preset is now labelled as the current one, and its option is
+  // enabled again a moment later. The radio itself is hidden behind its label, so the label's anchored text is clicked.
+  const applied = card.getByRole('radio', { name: /^مقاولات ومشاريع/ })
+  await expect(applied).toHaveAccessibleName(/^مقاولات ومشاريع \(الحالي\)/)
+  await expect(applied).toBeEnabled()
+  await card.getByText(/^مقاولات ومشاريع/).click()
   await expect(page.getByTestId('sales-preset-same')).toBeVisible()
   const presets = SalesSettingsPresetListSchema.parse(await (await page.request.get('/api/v1/sales/settings/presets')).json())
   expect(presets.items.filter(item => item.matches).map(item => item.key)).toEqual(['contracting'])
