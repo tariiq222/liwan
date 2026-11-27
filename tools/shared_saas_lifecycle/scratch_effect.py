@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Scratch-only driver for the Phase 3 packages acceptance (plan 2026-10-07-phase-3b).
+"""Scratch-only driver for the Phase 3 plans acceptance (plan 2026-10-07-phase-3b).
 
 Runs the real provisioning policy script and the real subscription effect
 (observe, reconfigure) against one scratch tenant through a local ``odoo shell``
@@ -48,13 +48,16 @@ def main():
     request = json.loads(sys.stdin.read())
     runner = ScratchShellRunner(request['tenant']['database'], os.environ['LIWAN_SCRATCH_ODOO_SHELL'])
     try:
-        if request['action'] == 'provision':
+        action = request.get('action')
+        if action == 'provision':
             policy = request['policy']
             output = runner.run_script(build_policy_script(policy, runner.database), 'policy', mutate=True)
             result = parse_snapshot(output, policy, runner.database)
-        else:
+        elif action in ('observe', 'reconfigure'):
             effect = SubscriptionEffect(runner, Path(os.environ['LIWAN_SCRATCH_JOURNAL']).resolve())
-            result = effect.observe(request) if request['action'] == 'observe' else effect.reconfigure(request)
+            result = effect.observe(request) if action == 'observe' else effect.reconfigure(request)
+        else:
+            raise EffectError('operation_unavailable')
     except EffectError as error:
         print(json.dumps({'error_code': str(error)}))
         return 1
