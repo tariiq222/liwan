@@ -127,7 +127,9 @@ describes the bring-up and its scratch boundaries).
    proves the stated outage and the restart). The list then shows the backup with who started it.
 4. With a job left in `needs_intervention` for A (stop the worker mid-capture on a disposable stack), expect the start to be
    refused with the blocking operation linked, and a direct POST to answer 409 `shared_reconciliation_required`.
-5. Restore the backup with a reason. Expect two passkey checks, the operation page of the restore job, and
+5. Restore the backup with a reason. Both `POST .../restore-approvals` and `POST .../jobs` require a fresh passkey step-up
+   (valid for the 5-minute `STEP_UP_MS` session window, so a single fresh confirmation covers both calls within that window; a
+   second prompt appears only if the window expires between them). Expect the operation page of the restore job, and
    `SELECT approved_by FROM shared_restore_approvals` to name the operator's `account:<id>`. Cancel the passkey prompt once:
    expect the "cancelled" text and no request sent afterwards.
 6. After an approval whose job call failed (for example a job of A went to `needs_intervention` between the two calls), expect a "Resume restore" action

@@ -377,6 +377,42 @@ describe('vendor API proxy', () => {
     expect((await get(`/shared/tenants/${T}/jobs/${J}/recover`)).status).toBe(405)
   })
 
+  it('binds shared restore-publications, job status, and storage routes to their allowed methods', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const T = '00000000-0000-4000-8000-000000000001'
+    const J = '00000000-0000-4000-8000-000000000002'
+    const pub = `/shared/tenants/${T}/restore-publications/a-1`
+    const job = `/shared/tenants/${T}/jobs/${J}`
+    const storage = `/shared/tenants/${T}/storage`
+    expect((await get(pub)).status).toBe(200)
+    expect((await post(pub)).status).toBe(200)
+    expect((await get(job)).status).toBe(200)
+    expect((await get(storage)).status).toBe(200)
+    expect((await post(storage)).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual([
+      `GET /v1${pub}`,
+      `POST /v1${pub}`,
+      `GET /v1${job}`,
+      `GET /v1${storage}`,
+      `POST /v1${storage}`,
+    ])
+    const forwarded = calls.length
+    const deleteBody = JSON.stringify({ a: 1 })
+    const methodHeaders = (method: string) => ({
+      ...cookieHeader(),
+      ...(method === 'DELETE' ? { 'content-length': String(Buffer.byteLength(deleteBody)) } : {}),
+    })
+    for (const path of [pub, storage]) {
+      for (const method of ['PATCH', 'DELETE'] as const) {
+        expect((await send(proxy, `/api/vendor/v1${path}`, { method, rawBody: deleteBody, headers: methodHeaders(method) })).status, `${method} ${path}`).toBe(405)
+      }
+    }
+    for (const method of ['POST', 'PATCH', 'DELETE'] as const) {
+      expect((await send(proxy, `/api/vendor/v1${job}`, { method, rawBody: deleteBody, headers: methodHeaders(method) })).status, `${method} ${job}`).toBe(405)
+    }
+    expect(calls).toHaveLength(forwarded)
+  })
+
   it('hands a refused shared backup start to the browser as the control plane answered it', async () => {
     const T = '00000000-0000-4000-8000-000000000001'
     stubUpstream(() => json(409, { code: 'shared_reconciliation_required', message: 'Shared onboarding request rejected' }))

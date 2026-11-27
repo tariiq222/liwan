@@ -35,8 +35,8 @@ const currentFeatures = computed<Record<string, unknown>>(() => data.value?.obse
 const expectedRevision = computed(() => data.value?.policy_revision ?? null)
 const availableOperations = computed<TenantOperation[]>(() => {
   const operations = data.value?.available_operations
-  if (!Array.isArray(operations) || !operations.every((operation): operation is TenantOperation => typeof operation === 'string' && tenantOperationTypes.has(operation as TenantOperation))) return []
-  return [...new Set(operations)]
+  if (!Array.isArray(operations)) return []
+  return [...new Set(operations.filter((op): op is TenantOperation => typeof op === 'string' && tenantOperationTypes.has(op as TenantOperation)))]
 })
 const grantReason = ref('')
 const grantError = ref<unknown>(null)

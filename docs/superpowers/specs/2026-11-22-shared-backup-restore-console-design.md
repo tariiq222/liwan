@@ -1,7 +1,9 @@
 # Backup and restore of a shared-mode workspace from the vendor console
 
 > Design for plan task T43 of [the audit fixes plan](../plans/2026-11-21-vendor-console-audit-fixes.md). Status:
-> the owner took the decisions of section 4 on 2026-11-22; not built. The study read code only; nothing was run.
+> the owner took the decisions of section 4 on 2026-11-22; all 8 control-plane and console tasks in section 6 are
+> implemented on `main` (unit and integration tested), with only the live-stack walkthrough
+> (`apps/vendor-admin/README.md`) pending against a disposable shared stack.
 > `CP` is `apps/control-plane/src`, `VA` is `apps/vendor-admin`.
 
 ## 1. What exists today, and what is missing
