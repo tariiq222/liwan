@@ -155,14 +155,16 @@ class AriClient:
     ) -> None:
         """Atomically write ``auth/{auth_id}``, ``aor/{extension}`` and ``endpoint/{extension}`` in order.
 
-        If writing ``aor`` or ``endpoint`` fails, performs a best-effort ``DELETE auth/{auth_id}`` rollback
-        before re-raising ``AriError``.
+        If writing ``aor`` or ``endpoint`` fails, performs a best-effort rollback before re-raising
+        ``AriError``: deletes ``aor/{extension}`` when it was written for a brand-new extension
+        (``len(auth_ids) == 1``), and always deletes ``auth/{auth_id}``.
         """
         self.put_object(
             "auth",
             auth_id,
             {"auth_type": "userpass", "username": auth_username, "password": password},
         )
+        aor_written = False
         try:
             self.put_object(
                 "aor",
@@ -174,6 +176,7 @@ class AriClient:
                     "maximum_expiration": str(session_seconds),
                 },
             )
+            aor_written = True
             self.put_object(
                 "endpoint",
                 extension,
@@ -186,6 +189,11 @@ class AriClient:
                 ),
             )
         except AriError:
+            if aor_written and len(auth_ids) == 1:
+                try:
+                    self.delete_object("aor", extension)
+                except AriError:
+                    log.warning("ARI rollback DELETE aor/%s failed", extension)
             try:
                 self.delete_object("auth", auth_id)
             except AriError:

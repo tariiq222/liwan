@@ -199,11 +199,6 @@ def registration_edits(root, tokens):
     }
 
 
-def platform_solution(root):
-    """The catalog file a scaffold writes into, named for callers that need the path."""
-    return current_solution(root)
-
-
 def _solution_order(path):
     """Order solution files by the numeric suffix of platform_vN, so v10 follows v5."""
     match = re.search(r'_v(\d+)$', path.stem)

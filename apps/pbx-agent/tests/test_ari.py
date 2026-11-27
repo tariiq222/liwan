@@ -152,8 +152,10 @@ class AriClientTest(unittest.TestCase):
             [("PUT", AUTH_PATH), ("PUT", AOR_PATH), ("DELETE", AUTH_PATH)],
         )
 
-    def test_a_failed_endpoint_write_rolls_back_the_new_auth_even_if_rollback_also_fails(self) -> None:
-        client, fake = self.client({("PUT", ENDPOINT_PATH): (503, None), ("DELETE", AUTH_PATH): (500, None)})
+    def test_a_failed_endpoint_write_on_new_extension_rolls_back_aor_and_auth_even_if_rollback_fails(self) -> None:
+        client, fake = self.client(
+            {("PUT", ENDPOINT_PATH): (503, None), ("DELETE", AOR_PATH): (500, None), ("DELETE", AUTH_PATH): (500, None)}
+        )
         with self.assertRaises(AriError) as caught:
             client.upsert_endpoint(
                 "101",
@@ -161,6 +163,26 @@ class AriClientTest(unittest.TestCase):
                 auth_username="101-a1b2c3d4",
                 password="s3cret",
                 auth_ids=["101_a1b2c3d4"],
+                transport="transport-ws",
+                context="from-extension",
+                from_domain="acme.example.test",
+                session_seconds=120,
+            )
+        self.assertEqual(str(caught.exception), f"ARI PUT {ENDPOINT_PATH} answered 503")
+        self.assertEqual(
+            [(request.method, request.path) for request in fake.requests],
+            [("PUT", AUTH_PATH), ("PUT", AOR_PATH), ("PUT", ENDPOINT_PATH), ("DELETE", AOR_PATH), ("DELETE", AUTH_PATH)],
+        )
+
+    def test_a_failed_endpoint_write_on_rotation_preserves_existing_aor_and_deletes_only_new_auth(self) -> None:
+        client, fake = self.client({("PUT", ENDPOINT_PATH): (503, None)})
+        with self.assertRaises(AriError) as caught:
+            client.upsert_endpoint(
+                "101",
+                auth_id="101_a1b2c3d4",
+                auth_username="101-a1b2c3d4",
+                password="s3cret",
+                auth_ids=["101_a1b2c3d4", "101_00001111"],
                 transport="transport-ws",
                 context="from-extension",
                 from_domain="acme.example.test",

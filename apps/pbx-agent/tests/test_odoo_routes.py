@@ -7,6 +7,7 @@ Every route requires reverse-direction HMAC-SHA256 authentication (``X-Liwan-Tel
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import json
@@ -14,6 +15,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 from urllib.parse import quote
 
 from fakes import AriRequest, FakeAri
@@ -103,11 +105,16 @@ class RoutesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
+        patcher = mock.patch("pbx_agent.app.AriListener.run_forever", side_effect=lambda stop: stop.wait())
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.root = Path(self.tmp.name)
         self.now = float(NOW)
         self.settings = make_settings(self.root)
         self.ari = FakeAri()
-        self.client = TestClient(create_app(self.settings, AriClient(self.ari), clock=lambda: self.now))
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.client = stack.enter_context(TestClient(create_app(self.settings, AriClient(self.ari), clock=lambda: self.now)))
 
     def test_unauthenticated_and_legacy_x_liwan_key_requests_are_refused(self) -> None:
         payload = {"extension": "101", "database": "liwan_acme"}
@@ -232,8 +239,8 @@ class RoutesTest(unittest.TestCase):
 
     def test_registration_ari_failure_rolls_back_and_returns_502_without_password(self) -> None:
         failing_ari = FakeAri({("PUT", AOR_101): (500, None)})
-        failing_client = TestClient(create_app(self.settings, AriClient(failing_ari), clock=lambda: self.now))
-        answer = signed_request(failing_client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"})
+        with TestClient(create_app(self.settings, AriClient(failing_ari), clock=lambda: self.now)) as failing_client:
+            answer = signed_request(failing_client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"})
         self.assertEqual(answer.status_code, 502)
         self.assertNotIn("password", answer.text)
         self.assertEqual([r.method for r in failing_ari.requests], ["PUT", "PUT", "DELETE"])
@@ -364,14 +371,16 @@ class RoutesTest(unittest.TestCase):
 
     def test_health_probes_ari_and_reports_session_reaper_worker(self) -> None:
         booted = FakeAri({("GET", "/asterisk/info"): (200, {"status": "fully booted"})})
-        report = TestClient(create_app(self.settings, AriClient(booted), clock=lambda: self.now)).get("/health").json()
+        with TestClient(create_app(self.settings, AriClient(booted), clock=lambda: self.now)) as client:
+            report = client.get("/health").json()
         self.assertEqual(report["ari"], {"reachable": True, "connected": False})
         self.assertEqual(report["status"], "degraded")
         self.assertIn("sessions", report["workers"])
         self.assertIn(EVENT_TIMESTAMP_HEADER, reverse_headers(KEY, method="GET", path="/x", body=b"", database="liwan_acme", timestamp=NOW))
         self.assertEqual(booted.requests, [AriRequest("GET", "/asterisk/info", None, None)])
         silent = FakeAri()
-        self.assertFalse(TestClient(create_app(self.settings, AriClient(silent))).get("/health").json()["ari"]["reachable"])
+        with TestClient(create_app(self.settings, AriClient(silent))) as client:
+            self.assertFalse(client.get("/health").json()["ari"]["reachable"])
         self.assertEqual(silent.requests, [AriRequest("GET", "/asterisk/info", None, None)])
 
 

@@ -116,7 +116,8 @@ endpoint. Each `POST /registration` therefore generates a unique 8-hex-character
   `overlap_until = min(prev.expires_at, now + PBX_SESSION_OVERLAP_SECONDS)` and drops any older auths.
 - ARI writes happen in order: `PUT auth/{new_auth_id}` → `PUT aor/{ext}` → `PUT endpoint/{ext}` (with
   `auth=<comma-joined active auth ids>` and the full Asterisk 22 WebRTC attributes). If `aor` or `endpoint` fails, the
-  agent performs a best-effort `DELETE auth/{new_auth_id}`, leaves SQLite untouched, and answers `502` with no password.
+  agent performs a best-effort rollback (`DELETE aor/{ext}` when it was written for a brand-new extension, and
+  `DELETE auth/{new_auth_id}`), leaves SQLite untouched, and answers `502` with no password.
 - A background reaper loop (`workers.sessions`) removes expired/past-overlap `auth` objects and updates `endpoint/{ext}`;
   when an extension has zero live sessions remaining, it deletes `endpoint/{ext}`, `aor/{ext}`, and all expired `auth`s
   from ARI so expired passwords are immediately rejected.
@@ -200,9 +201,10 @@ was appended. Rows are read with Python's `csv` reader, so a quoted field that c
 as `"PJSIP/1001,30"`) is one field. A row that still does not carry the 19 columns is skipped and counted, and it
 never holds the file: the rows after it are read on the same pass.
 
-The package must write comma quoting (`quoting_method = comma`), which wraps a field containing a comma in double
-quotes. Backslash quoting (`\,`) is not accepted, because the comma stays in the line. A row written without quoting
-and broken by a comma is skipped; a leg whose hangup lands in such a row is completed by the bound below.
+The package must quote every field (`quoting_method = all`), which wraps each field in double quotes so a comma inside
+a value stays inside the field. Backslash quoting (`\,`) is not accepted, because the comma stays in the line. A row
+written without quoting and broken by a comma is skipped; a leg whose hangup lands in such a row is completed by the
+bound below.
 
 - A leg counts as complete once a `HANGUP` or `CHAN_END` row exists.
 - The offset never moves past the first row of a leg that has not ended. A call that spans two passes is therefore
@@ -315,8 +317,8 @@ side of both contracts, which belongs to `liwan_telephony` in phase 2.
    expected host from configuration.
 6. **Per-session auth slots with atomic rollback.** `upsert_endpoint` writes `auth/<ext>_<slot>`, `aor/<ext>` and
    `endpoint/<ext>` in that order with the full Asterisk 22 WebRTC attributes; if `aor` or `endpoint` fails, the new
-   `auth` is rolled back with a best-effort `DELETE`, SQLite is left untouched, and `/registration` answers `502` with
-   no password.
+   `auth` (and `aor/<ext>` when written for a brand-new extension) is rolled back with a best-effort `DELETE`, SQLite
+   is left untouched, and `/registration` answers `502` with no password.
 7. **The token is a base64url JSON payload plus a hex signature.** The expiry is minted by Odoo (one minute) and only
    checked here.
 8. **Health always answers 200.** The report carries `ok` or `degraded`, so the container healthcheck tests the

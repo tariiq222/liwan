@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS ps_auths (
 
 CREATE TABLE IF NOT EXISTS ps_endpoints (
     id VARCHAR(80) PRIMARY KEY,
-    transport VARCHAR(40),
+    transport VARCHAR(64),
     aors VARCHAR(200),
     auth VARCHAR(200),
-    context VARCHAR(40),
+    context VARCHAR(64),
     disallow VARCHAR(200),
     allow VARCHAR(200),
     direct_media VARCHAR(8),

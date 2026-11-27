@@ -638,14 +638,39 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('[line-unavailable]', extensions)
         self.assertIn('Playback(${UNAVAILABLE_SOUND})', extensions)
         self.assertNotIn('_10[123]', extensions)
-        self.assertIn('ExecIf($["${DEVICE_STATE(PJSIP/${EXTEN})}"!="INVALID"]?Goto(internal,${EXTEN},1))', extensions)
+        self.assertIn(
+            'GotoIf($["${DEVICE_STATE(PJSIP/${EXTEN})}"!="INVALID"]?internal,${EXTEN},1:check-length)',
+            extensions,
+        )
         self.assertIn('Dial(PJSIP/${DIAL_NUMBER}@trunk,60)', extensions)
+
+    def test_from_extension_never_routes_short_offline_extensions_to_outbound_and_uses_fail_closed_guards(self):
+        """An offline/unregistered short extension (2-6 digits, e.g. 102 or 911) must play line-unavailable and never
+        fall through to the external SIP trunk. All filter/length guards in from-extension use fail-closed polarity."""
+        with tempfile.TemporaryDirectory() as directory:
+            extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
+        block = extensions.split('\n[from-extension]\n', 1)[1].split('\n[internal]\n', 1)[0]
+        self.assertIn('exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)', block)
+        self.assertIn(
+            'same => n(allow),GotoIf($["${DEVICE_STATE(PJSIP/${EXTEN})}"!="INVALID"]?internal,${EXTEN},1:check-length)',
+            block,
+        )
+        self.assertIn('same => n(check-length),GotoIf($[${LEN(${EXTEN})}>=7]?outbound,${EXTEN},1:unavailable)', block)
+        self.assertIn('same => n(unavailable),Gosub(line-unavailable,s,1)', block)
+        self.assertIn('exten => _+X.,1,GotoIf($["${FILTER(0-9,${EXTEN:1})}"="${EXTEN:1}"]?allow:reject)', block)
+        self.assertIn('same => n(allow),GotoIf($[${LEN(${EXTEN})}>=8]?outbound,${EXTEN},1:reject)', block)
+        # Never unconditionally fall through to outbound from `_X.` or `_+X.`.
+        self.assertNotIn('Goto(outbound,${EXTEN},1)', block)
+        # No `0-9+` character class or fail-open `!=` filter guard anywhere in the rendered dialplan.
+        self.assertNotIn('FILTER(0-9+,', extensions)
+        self.assertNotRegex(extensions, r'FILTER\([^)]*\)"!="')
 
     def test_internal_dialplan_guards_digits_and_sets_transfer_context_on_all_call_paths(self):
         with tempfile.TemporaryDirectory() as directory:
             extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
         internal = extensions.split('\n[internal]\n', 1)[1].split('\n[outbound]\n', 1)[0]
-        self.assertIn('exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"!="${EXTEN}"]?reject)', internal)
+        self.assertIn('exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)', internal)
+        self.assertIn('same => n(allow),NoOp(Internal call from ${CALLERID(num)} to ${EXTEN})', internal)
         self.assertLess(internal.index('FILTER(0-9,${EXTEN})'), internal.index('Dial(PJSIP/${EXTEN},30)'))
         self.assertIn('Set(__TRANSFER_CONTEXT=from-extension)', internal)
         dial_outbound = extensions.split('\n[dial-outbound]\n', 1)[1].split('\n[from-trunk]\n', 1)[0]
@@ -657,24 +682,26 @@ class AsteriskShape(unittest.TestCase):
         self.assertLess(inbound.index('__TRANSFER_CONTEXT=from-extension'), inbound.index('Dial(PJSIP/101,30)'))
 
     def test_the_outbound_number_is_filtered_and_a_value_that_changes_is_refused_before_any_dial(self):
-        """`_X.` and `_+X.` match `&` and `/`, so an extension of `123&456` would become two Dial destinations, and
-        `123/103` another endpoint that then reaches the trunk. The dialplan keeps only digits and a plus, and hangs up
-        when the filtered value differs, before any Dial is reached."""
+        """`_X.` and `_+X.` match `&`, `/`, or extra `+` after the first character. `_X.` accepts digits only (7+);
+        `_+X.` accepts a single leading `+` followed by digits only (7+ digits, LEN >= 8). Every guard is fail-closed
+        so expression parse errors land in `reject` instead of reaching `Dial`."""
         with tempfile.TemporaryDirectory() as directory:
             extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
         block = extensions.split('[outbound]', 1)[1].split('[dial-outbound]', 1)[0]
-        self.assertIn('FILTER(0-9+,${EXTEN})', block)
-        # The comparison is the guard: a value the filter changes must not be dialled even in its clean form.
-        self.assertIn('${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"', block)
+        self.assertNotIn('FILTER(0-9+,', block)
+        self.assertIn('exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)', block)
+        self.assertIn('same => n(allow),GotoIf($[${LEN(${EXTEN})}>=7]?dial:reject)', block)
+        self.assertIn('exten => _+X.,1,GotoIf($["${FILTER(0-9,${EXTEN:1})}"="${EXTEN:1}"]?allow:reject)', block)
+        self.assertIn('same => n(allow),GotoIf($[${LEN(${EXTEN})}>=8]?dial:reject)', block)
         self.assertIn('Hangup()', block)
-        guard = block.index('FILTER(0-9+,${EXTEN})')
+        guard = block.index('FILTER(0-9,${EXTEN})')
         # Every Goto that reaches the dialling context comes after the guard, so no Dial runs on an unfiltered value.
         self.assertGreater(block.index('Goto(dial-outbound,s,1)'), guard)
         for pattern in ('_X.,', '_+X.,'):
             with self.subTest(pattern=pattern):
                 first = next(line for line in block.splitlines() if line.startswith(f'exten => {pattern}'))
                 self.assertIn('GotoIf(', first)
-                self.assertIn('?reject)', first)
+                self.assertIn('?allow:reject)', first)
 
     def test_every_reference_names_a_section_of_the_type_it_needs(self):
         """A name that exists as another type is not a reference: `aors=aor101` with `[aor101]` is only caught here."""
@@ -836,9 +863,9 @@ class PjsipRealtime(unittest.TestCase):
             'rewrite_contact VARCHAR(8)',
             'disallow VARCHAR(200)',
             'allow VARCHAR(200)',
-            'transport VARCHAR(40)',
+            'transport VARCHAR(64)',
             'aors VARCHAR(200)',
-            'context VARCHAR(40)',
+            'context VARCHAR(64)',
             'dtls_auto_generate_cert VARCHAR(8)',
             'ice_support VARCHAR(8)',
             'media_encryption VARCHAR(40)',
