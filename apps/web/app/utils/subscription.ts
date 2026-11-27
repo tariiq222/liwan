@@ -343,3 +343,20 @@ export function deletionErrorKey(code: unknown): string {
   return ['invalid_code', 'company_name_mismatch', 'rate_limited', 'deletion_pending', 'deletion_in_progress', 'tenant_retired', 'tenant_retiring', 'no_workspace', 'no_manager_address'].includes(String(code))
     ? `subscription.deletion.errors.${code}` : 'subscription.deletion.failed'
 }
+
+/**
+ * Initial selected add-on bundle revisions for `/subscription/change`: keeps the applied subscription's selectable
+ * add-ons and pre-selects an optional `?add=<bundleId>` query target when selectable and not already included.
+ */
+export function initialBundleSelection(input: {
+  appliedBundleIds: readonly string[]
+  allowedBundleIds: ReadonlySet<string>
+  includedBundleIds: ReadonlySet<string>
+  requestedAddId?: string | null
+}): string[] {
+  const isSelectable = (id: string) => input.allowedBundleIds.has(id) && !input.includedBundleIds.has(id)
+  const selected = [...new Set(input.appliedBundleIds.filter(isSelectable))]
+  const addId = input.requestedAddId?.trim() || null
+  if (addId && isSelectable(addId) && !selected.includes(addId)) selected.push(addId)
+  return selected
+}

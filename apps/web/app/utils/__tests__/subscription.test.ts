@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { csrfTokenFor, formatSubscriptionMoney, FREE_BASE_BADGE, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, trialDaysRemaining } from '../subscription'
+import { csrfTokenFor, formatSubscriptionMoney, FREE_BASE_BADGE, initialBundleSelection, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, trialDaysRemaining } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
@@ -121,5 +121,55 @@ describe('change-page refusals', () => {
   it('explains an unavailable usage reading and a downgrade below usage', () => {
     expect(refusalKey('usage_unavailable')).toBe('subscription.change.usageUnavailable')
     expect(refusalKey('downgrade_below_usage')).toBe('subscription.change.downgradeBelowUsage')
+  })
+})
+
+describe('initialBundleSelection', () => {
+  const allowed = new Set(['b-inc', 'b-crm', 'b-hr', 'b-pmo'])
+  const included = new Set(['b-inc'])
+
+  it('preserves selectable applied bundles and pre-selects a valid ?add target', () => {
+    expect(initialBundleSelection({
+      appliedBundleIds: ['b-crm', 'b-inc', 'b-removed'],
+      allowedBundleIds: allowed,
+      includedBundleIds: included,
+      requestedAddId: 'b-hr',
+    })).toEqual(['b-crm', 'b-hr'])
+  })
+
+  it('pre-selects a valid ?add target for a first-time buyer with no applied bundles', () => {
+    expect(initialBundleSelection({
+      appliedBundleIds: [],
+      allowedBundleIds: allowed,
+      includedBundleIds: included,
+      requestedAddId: ' b-pmo ',
+    })).toEqual(['b-pmo'])
+  })
+
+  it('ignores unknown, included, blank, or already-selected ?add targets without duplicating', () => {
+    expect(initialBundleSelection({
+      appliedBundleIds: ['b-crm'],
+      allowedBundleIds: allowed,
+      includedBundleIds: included,
+      requestedAddId: 'b-crm',
+    })).toEqual(['b-crm'])
+    expect(initialBundleSelection({
+      appliedBundleIds: ['b-crm'],
+      allowedBundleIds: allowed,
+      includedBundleIds: included,
+      requestedAddId: 'b-inc',
+    })).toEqual(['b-crm'])
+    expect(initialBundleSelection({
+      appliedBundleIds: ['b-crm'],
+      allowedBundleIds: allowed,
+      includedBundleIds: included,
+      requestedAddId: 'b-unknown',
+    })).toEqual(['b-crm'])
+    expect(initialBundleSelection({
+      appliedBundleIds: ['b-crm'],
+      allowedBundleIds: allowed,
+      includedBundleIds: included,
+      requestedAddId: null,
+    })).toEqual(['b-crm'])
   })
 })
