@@ -155,7 +155,7 @@ export function useApi() {
         : key === 'projects.max_projects' ? 'projects'
           : key === 'storage.limit_mb' ? 'storage'
             : key === 'branches.extra_limit' ? 'branches' : 'generic'
-      return t(`errors.packageQuota.${quota}`)
+      return t(`errors.planQuota.${quota}`)
     }
     // A business rule may name itself with `details.reason`, or a specific `code`; both are optional locale hooks.
     // Otherwise the server's own text, when it is in the UI language, then the class of refusal.
