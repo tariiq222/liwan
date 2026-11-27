@@ -37,7 +37,7 @@ function clearFilters() {
 
 const columns = computed(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2', td: 'w-12 px-2' } } },
-  { accessorKey: 'name', header: t('projects.governance.stakeholder.name'), meta: { class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
+  { accessorKey: 'name', header: t('projects.governance.stakeholder.name'), meta: { title: true, class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
   { accessorKey: 'organization', header: t('projects.governance.stakeholder.organization'), meta: { class: { td: 'max-w-0 min-w-40 truncate' } } },
   { accessorKey: 'role', header: t('projects.governance.stakeholder.role'), meta: { class: { td: 'max-w-0 min-w-40 truncate' } } },
   { id: 'user', header: t('projects.governance.stakeholder.internalUser'), meta: { class: { th: 'w-36', td: 'w-36' } } },
@@ -94,7 +94,7 @@ const bareEmpty = computed(() => Boolean(list.data.value) && !items.value.length
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.governance.stakeholders')">
         <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
         <template #name-cell="{ row }">
-          <NuxtLink :to="itemTo(row.original)" @click="openLiveItem($event, row.original)" class="block truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
+          <NuxtLink :to="itemTo(row.original)" @click="openLiveItem($event, row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name">{{ row.original.name }}</NuxtLink>
         </template>
         <template #organization-cell="{ row }"><span :title="row.original.organization">{{ row.original.organization || '—' }}</span></template>
         <template #role-cell="{ row }"><span :title="row.original.role">{{ row.original.role || '—' }}</span></template>

@@ -45,13 +45,13 @@ const WIDTH = {
   progress: 'w-[208px] min-w-[208px]',
   menu: 'w-[56px] min-w-[56px]',
 }
-function column(id: string, header: TableColumn<ProjectListItem>['header'], width: string, fit = false): TableColumn<ProjectListItem> {
+function column(id: string, header: TableColumn<ProjectListItem>['header'], width: string, fit = false, title = false): TableColumn<ProjectListItem> {
   const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<ProjectListItem>['meta'] }
+  return { id, header, meta: { ...(title ? { title: true } : {}), class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<ProjectListItem>['meta'] }
 }
 const columns = computed<TableColumn<ProjectListItem>[]>(() => [
   column('id', () => recordNumberHeader(t), WIDTH.number, true),
-  column('name', t('projects.columns.name'), WIDTH.name),
+  column('name', t('projects.columns.name'), WIDTH.name, false, true),
   column('manager', t('projects.columns.manager'), WIDTH.manager, true),
   column('status', t('projects.columns.status'), WIDTH.status, true),
   column('date_end', t('projects.columns.dateEnd'), WIDTH.dateEnd, true),

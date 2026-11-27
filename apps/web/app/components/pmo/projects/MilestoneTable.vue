@@ -91,7 +91,7 @@ async function confirmDelete() {
 }
 const columns = computed<TableColumn<Milestone>[]>(() => [
   { id: 'number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12', td: 'w-12' } } },
-  { id: 'name', header: t('projects.milestones.name') },
+  { id: 'name', header: t('projects.milestones.name'), meta: { title: true } },
   { id: 'state', header: t('projects.milestones.state') },
   { id: 'start', header: t('projects.milestones.startDate') },
   { id: 'deadline', header: t('projects.milestones.deadline') },
@@ -124,8 +124,8 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
           <template #number-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }">
             <div data-testid="milestone-row" class="grid min-w-0 gap-1">
-              <NuxtLink :to="detailTo(row.original)" class="font-medium text-highlighted hover:underline">{{ row.original.name }}</NuxtLink>
-              <span v-if="row.original.deliverables?.length" class="text-xs text-muted">{{ t('projects.milestones.checklistOf', { done: row.original.deliverables.filter(item => item.done).length, total: row.original.deliverables.length }) }}</span>
+              <NuxtLink :to="detailTo(row.original)" class="block min-w-0 truncate font-medium text-highlighted hover:underline" :title="row.original.name">{{ row.original.name }}</NuxtLink>
+              <span v-if="row.original.deliverables?.length" class="truncate text-xs text-muted">{{ t('projects.milestones.checklistOf', { done: row.original.deliverables.filter(item => item.done).length, total: row.original.deliverables.length }) }}</span>
             </div>
           </template>
           <template #state-cell="{ row }">

@@ -55,7 +55,7 @@ const createTo = computed(() => list.data.value?.can_create ? { path: `/projects
 
 const columns = computed(() => [
   { accessorKey: 'number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2', td: 'w-12 px-2' } } },
-  { accessorKey: 'title', header: t('projects.changes.fields.title'), meta: { class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
+  { accessorKey: 'title', header: t('projects.changes.fields.title'), meta: { title: true, class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
   { id: 'category', header: t('projects.changes.fields.category'), meta: { class: { th: 'w-32', td: 'w-32 truncate' } } },
   { accessorKey: 'state', header: t('projects.changes.fields.state'), meta: { class: { th: 'w-32', td: 'w-32' } } },
   { id: 'days', header: t('projects.changes.fields.scheduleDays'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
@@ -95,7 +95,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.changes.title')">
         <template #number-cell="{ row }"><RecordNumber :value="row.original.number" /></template>
         <template #title-cell="{ row }">
-          <NuxtLink :to="itemTo(row.original)" class="block truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.title }}</NuxtLink>
+          <NuxtLink :to="itemTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.title">{{ row.original.title }}</NuxtLink>
         </template>
         <template #category-cell="{ row }">{{ row.original.category?.name ?? '—' }}</template>
         <template #state-cell="{ row }"><SharedStatusBadge :tone="CHANGE_STATE_TONE[row.original.state]" :label="t(`projects.changes.state.${row.original.state}`)" /></template>

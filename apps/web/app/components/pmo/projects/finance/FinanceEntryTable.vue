@@ -31,7 +31,7 @@ const budgets = computed(() => new Map(props.items.filter(item => item.kind === 
 const KIND_ICON = { budget: 'i-lucide-wallet', expense: 'i-lucide-receipt' } as const
 const columns = computed<TableColumn<FinanceEntry>[]>(() => [
   { id: 'record', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2', td: 'w-12 px-2' } } },
-  { id: 'title', header: t('projects.finance.columns.title'), meta: { class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
+  { id: 'title', header: t('projects.finance.columns.title'), meta: { title: true, class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
   { id: 'kind', header: t('projects.finance.columns.kind'), meta: { class: { th: 'w-32', td: 'w-32' } } },
   { id: 'amount', header: t('projects.finance.columns.amount'), meta: { class: { th: 'text-end', td: 'text-end whitespace-nowrap' } } },
   { id: 'date', header: t('projects.finance.columns.date'), meta: { class: { td: 'whitespace-nowrap' } } },
@@ -54,7 +54,7 @@ const dateLabel = (item: FinanceEntry) => (item.expense_date ? formatCalendarDat
     <template #record-cell="{ row }"><RecordNumber :value="row.original.reference || row.original.id" /></template>
     <template #title-cell="{ row }">
       <div data-testid="finance-entry-row" class="min-w-0">
-        <NuxtLink :to="rowTo(row.original)" @click="openLiveEntry($event, row.original)" class="block truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.title }}</NuxtLink>
+        <NuxtLink :to="rowTo(row.original)" @click="openLiveEntry($event, row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.title">{{ row.original.title }}</NuxtLink>
       </div>
     </template>
     <template #kind-cell="{ row }"><SharedStatusBadge tone="neutral" :icon="KIND_ICON[row.original.kind]" :label="t(`projects.finance.kind.${row.original.kind}`)" /></template>
