@@ -49,5 +49,7 @@ CREATE TABLE IF NOT EXISTS ps_endpoints (
     from_user VARCHAR(80),
     from_domain VARCHAR(255),
     callerid VARCHAR(128),
-    identify_by VARCHAR(80)
+    identify_by VARCHAR(80),
+    -- Read by the stock res_pjsip_mwi, whose load filters ps_endpoints by this column; no endpoint here has a mailbox.
+    mailboxes TEXT
 );

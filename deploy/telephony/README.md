@@ -55,7 +55,10 @@ Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pi
 3. **`postgres/01-schema.sql`** creates `ps_aors`, `ps_auths` and `ps_endpoints` on first database initialization (with
    `VARCHAR(8)` yes/no columns and `ps_endpoints.auth VARCHAR(200)` for comma-separated overlap auth IDs during session
    rotation). **`postgres/02-seed.sql`** inserts idempotent (`ON CONFLICT (id) DO NOTHING`) seed rows for the browser
-   test extensions `101` and `102` (`webrtc='yes'`, `allow_transfer='yes'`, `from_domain='<host>'`).
+   test extensions `101` and `102` (`webrtc='yes'`, `allow_transfer='yes'`, `from_domain='<host>'`). Their `allow` is
+   `ulaw,alaw,opus`, the G.711-first order of `103` in `asterisk/pjsip.conf` and of the per-session rows `pbx-agent`
+   writes: the pinned Asterisk image has no opus translator, so an opus-first browser leg records an empty WAV and
+   bridges to the `ulaw` trunk without audio.
 4. **Dynamic dialplan and SIP REFER transfers (`asterisk/extensions.conf`)**: `[from-extension]` routes any existing
    PJSIP extension (`DEVICE_STATE(PJSIP/${EXTEN}) != INVALID`) to `[internal]` instead of a hardcoded list. Non-existent
    or offline `< 7`-digit numbers play `line-unavailable` and hang up so they never spill onto the external trunk, while

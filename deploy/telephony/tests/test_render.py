@@ -777,6 +777,17 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('allow_transfer=yes', block)
         self.assertEqual(2, seed.count("'acme.liwan.example'"))
 
+    def test_the_browser_endpoints_allow_g711_before_opus(self):
+        """The pinned Asterisk image has no opus translator and picks the codec by the order of ``allow``: with opus
+        first a browser leg records an empty WAV and bridges to the ulaw trunk without audio. The seed rows keep the
+        G.711-first order of extension 103 in pjsip.conf."""
+        with tempfile.TemporaryDirectory() as directory:
+            out = self.rendered(directory)
+            seed = (out / 'postgres/02-seed.sql').read_text()
+            pjsip = (out / 'asterisk/pjsip.conf').read_text()
+        self.assertEqual(['ulaw,alaw,opus', 'ulaw,alaw,opus'], re.findall(r"'all',\s+'([^']+)'", seed))
+        self.assertIn('allow=ulaw,alaw,opus', pjsip.split('[endpoint-plain](!)', 1)[1].split('\n[', 1)[0])
+
     def test_the_plain_sip_extension_exists_for_a_softphone(self):
         with tempfile.TemporaryDirectory() as directory:
             pjsip = (self.rendered(directory) / 'asterisk/pjsip.conf').read_text()
@@ -907,6 +918,7 @@ class PjsipRealtime(unittest.TestCase):
             'rtcp_mux VARCHAR(8)',
             'from_user VARCHAR(80)',
             'identify_by VARCHAR(80)',
+            'mailboxes TEXT',
             'max_contacts INTEGER',
             'remove_existing VARCHAR(8)',
             'default_expiration INTEGER',

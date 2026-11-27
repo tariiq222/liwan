@@ -1,8 +1,8 @@
 ; Rendered by deploy/telephony/render.py from the company's env file into the directory Compose runs. Never commit the
 ; rendered file: it holds the plain SIP extension and trunk passwords. Asterisk is the one source of call state
 ; (design 2). Transports, plain SIP extension 103 and the provider trunk stay static here; WebRTC browser extensions
-; (101, 102 and dynamic per-session endpoints written by pbx-agent via ARI) live in PostgreSQL (pbx-db) through
-; sorcery.conf, extconfig.conf and res_pgsql.conf.
+; (101, 102 and dynamic per-session endpoints, which pbx-agent writes to pbx-db directly rather than through ARI) live
+; in PostgreSQL (pbx-db) through sorcery.conf, extconfig.conf and res_pgsql.conf.
 
 ; --- Transports ---
 
