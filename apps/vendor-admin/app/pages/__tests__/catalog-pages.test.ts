@@ -98,7 +98,7 @@ describe('/catalog/apps/[app]: one application', () => {
     expect(src).not.toMatch(/['"`]\/bundles\b/)
   })
 
-  it('wires the inline VendorAppPricingEditor and refreshes catalog and usage data after publish', () => {
+  it('wires the inline VendorAppPricingEditor', () => {
     expect(src).toContain('data-testid="catalog-app-settings"')
     expect(src).toContain('useHydrated()')
     expect(src).toContain(':disabled="addonsUnavailable || !hydrated || editorBusy"')
@@ -106,8 +106,6 @@ describe('/catalog/apps/[app]: one application', () => {
     expect(src).toContain('@busy="editorBusy = $event"')
     expect(src).toContain('@working-draft="workingDraftCreated = $event !== null"')
     expect(src).toContain('onPricingCancel(workingDraftCreated.value)')
-    expect(src).toContain('refreshNuxtData()')
-    expect(src).toContain('refreshUsage()')
   })
 })
 

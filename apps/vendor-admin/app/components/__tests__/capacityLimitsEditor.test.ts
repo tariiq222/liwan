@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
-import { LimitAboveMax, limitFromDraft, MAX_LIMIT, type LimitDraft } from '../../utils/vendorCommercial'
+import { limitDraftError, MAX_LIMIT, type LimitDraft } from '../../utils/vendorCommercial'
 import { pluralRules } from '../../../i18n/pluralRules'
 import { loadSfc } from './sfc'
 
@@ -12,9 +12,7 @@ const KEY = 'projects.max_projects'
 const sfc = loadSfc('components/vendor/CapacityLimitsEditor.vue', {
   useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key} ${JSON.stringify(params)}` : key) }),
   useHydrated: () => Vue.ref(true),
-  limitFromDraft,
-  LimitAboveMax,
-  MAX_LIMIT,
+  limitDraftError,
 })
 
 const load = (lang: 'ar' | 'en') => JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${lang}/vendor.json`), 'utf8'))
