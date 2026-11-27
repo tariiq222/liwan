@@ -147,6 +147,9 @@ export function requiredFeatureForPath(path: string): string | undefined {
 export function requiredCapabilityForPath(path: string): string | null {
   const owned = ownedRouteRule(path)
   if (owned) return owned.capability
+  // Sub-pages of the branches and members parts: the part scope claims them, but they carry their own capability.
+  if (/^\/settings\/team\/branches\/(new|[^/]+\/edit)$/.test(path)) return 'settings.company.manage'
+  if (path === '/settings/team/members/new' || /^\/settings\/team\/members\/[^/]+\/edit$/.test(path)) return 'access.users.grant'
   const registered = settingsPartForPath(path)
   if (registered) return registered.part.capability
   if (path === '/') return INTERNAL_LIWAN_ACCESS
@@ -174,6 +177,8 @@ export function canReachPath(identity: AccessIdentity, path: string): boolean {
   const normalized = normalizedPath(path)
   if (isPersonalPath(normalized)) identity = personalIdentity(identity)
   if (/^\/settings\/team\/users\/[^/]+\/branches$/.test(normalized) && !hasCapability(identity, 'access.roles.read')) return false
+  // Editing a member needs the delegation keys on top of the grant the members part asks for.
+  if (/^\/settings\/team\/members\/[^/]+\/edit$/.test(normalized) && !(hasCapability(identity, 'access.users.assign_roles') && hasCapability(identity, 'access.roles.read'))) return false
   // The branches page serves two rights: editing the branch access policy, and adding a branch (company administration).
   if (normalized === '/settings/team/branches') {
     return (canReach(identity, 'access.users.assign_roles', path) && hasCapability(identity, 'access.roles.read')) || canReach(identity, 'settings.company.manage', path)
