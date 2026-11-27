@@ -33,11 +33,12 @@ function onSaved() {
 </script>
 
 <template>
-  <SharedSettingsPage>
+  <SharedPageContainer>
     <SharedPageHeader :title="t('settings.projects.catalogs.editTitle')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
-    <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
-    <SharedPageState empty-icon="i-lucide-file-question"
+    <SharedForbiddenState v-if="forbidden" :description="t('settings.forbidden')" />
+    <SharedPageState
       v-else
+      empty-icon="i-lucide-file-question"
       :loading="query.isLoading.value"
       :error="notFound ? null : query.error.value"
       :empty="notFound || !query.data.value"
@@ -48,5 +49,5 @@ function onSaved() {
         <ProjectCharterReferenceForm :resource="resource" :reference="query.data.value" @saved="onSaved" @cancel="router.push(returnTo)" />
       </SharedFormSection>
     </SharedPageState>
-  </SharedSettingsPage>
+  </SharedPageContainer>
 </template>

@@ -41,28 +41,28 @@ async function reloadSettings() {
         <template v-if="settings.data.value">
           <CrmPresetCard v-if="shows('preset')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
           <SharedRouteTabs :items="tabItems" :ariaLabel="t('crm.settings.groups.label')" />
-          <div v-show="activeTab === 'basics'" class="grid gap-4" data-testid="settings-panel-basics">
+          <div v-show="activeTab === 'basics'" class="grid gap-(--liwan-gap-card)" data-testid="settings-panel-basics">
             <CrmTermsCard v-if="shows('terms')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
             <CrmCustomFieldsCard v-if="shows('customFields')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
           </div>
-          <div v-show="activeTab === 'workflow'" class="grid gap-4" data-testid="settings-panel-workflow">
-            <div class="grid items-start gap-4 lg:grid-cols-2">
+          <div v-show="activeTab === 'workflow'" class="grid gap-(--liwan-gap-card)" data-testid="settings-panel-workflow">
+            <div class="grid items-start gap-(--liwan-gap-card) lg:grid-cols-2">
               <CrmFollowupCard v-if="shows('followup')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
               <CrmDistributionCard v-if="shows('distribution')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
             </div>
             <UAlert v-if="showsLists && canManage && !canManageLists" color="info" variant="subtle" icon="i-lucide-lock" :title="t('crm.settings.tenantLists.readOnlyTitle')" :description="t('crm.settings.tenantLists.readOnly')" data-testid="crm-tenant-lists-readonly" />
             <CrmStageListCard v-if="shows('stages')" :can-edit="canManageLists" />
-            <div class="grid items-start gap-4 xl:grid-cols-3">
+            <div class="grid items-start gap-(--liwan-gap-card) xl:grid-cols-3">
               <CrmOutcomeListCard v-if="shows('outcomes')" :can-edit="canManageLists" />
               <CrmNamedListCard v-if="shows('lostReasons')" kind="lost-reasons" :title="t('crm.settings.lostReasons.title')" :hint="t('crm.settings.lostReasons.hint')" :can-edit="canManageLists" />
               <CrmNamedListCard v-if="shows('sources')" kind="sources" :title="t('crm.settings.sources.title')" :hint="t('crm.settings.sources.hint')" :can-edit="canManageLists" />
             </div>
           </div>
-          <div v-show="activeTab === 'sales'" class="grid gap-4" data-testid="settings-panel-sales">
+          <div v-show="activeTab === 'sales'" class="grid gap-(--liwan-gap-card)" data-testid="settings-panel-sales">
             <CrmPricingCard v-if="shows('pricing')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
             <CrmPackageListCard v-if="shows('packages')" :can-edit="canManage" />
           </div>
-          <div v-show="activeTab === 'privacy'" class="grid gap-4" data-testid="settings-panel-privacy">
+          <div v-show="activeTab === 'privacy'" class="grid gap-(--liwan-gap-card)" data-testid="settings-panel-privacy">
             <CrmPrivacyCard v-if="shows('privacy')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
           </div>
         </template>
