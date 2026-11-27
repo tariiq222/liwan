@@ -12,8 +12,8 @@ const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true 
   return entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') ? [path] : []
 })
 const LITERAL = /['"`]([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)['"`]/g
-// Next to an audit write, a literal can also be a capability, an outbox kind or a provider event name: these are not actions.
-const NOT_ACTIONS = new Set(['billing.notice', 'free_base.locked', 'payment_intent.succeeded', 'subscription.manage', 'vendor.subscriptions.manage'])
+// Next to an audit write, a literal can also be a capability or an outbox kind: these are not actions.
+const NOT_ACTIONS = new Set(['billing.notice', 'free_base.locked', 'subscription.manage', 'vendor.subscriptions.manage'])
 const known = new Set<string>(AUDIT_ACTIONS)
 // The actions built from a variable (`plan.${action}`, `catalog.${action}`) and the operation events have no literal to find.
 const BUILT = /^(?:plan|bundle|catalog)\.(?:edit|validate|publish|withdraw|restore)$|^operation\./

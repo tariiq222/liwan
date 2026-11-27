@@ -740,9 +740,6 @@
         "shared_onboarding": {
           "reserved": "Shared customer workspace reserved"
         },
-        "shared_order": {
-          "created": "Shared order created with a fixed quote"
-        },
         "shared_restore": {
           "completed": "Shared restore completed"
         },
