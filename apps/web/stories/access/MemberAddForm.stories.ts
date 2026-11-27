@@ -7,7 +7,7 @@ import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Access/MemberAddForm', component: MemberAddForm,
-  parameters: { layout: 'fullscreen', msw: { handlers: { api: shellHandlers } }, ...storyContext('apps/web/app/components/access/branches/BranchMembersCard.vue:32') },
+  parameters: { layout: 'fullscreen', msw: { handlers: { api: shellHandlers } }, ...storyContext('apps/web/app/pages/settings/team/members/new.vue:49') },
   args: { companyId: 2, roles: memberRoles },
   render: args => ({ components: { MemberAddForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><MemberAddForm v-bind="args" /></PageContainer></main>' }),
 } satisfies Meta<typeof MemberAddForm>
