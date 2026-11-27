@@ -6,7 +6,7 @@ import { warningTypesFixture } from './fixtures'
 const meta = {
   title: 'HR/Warnings/WarningTypesCard',
   component: WarningTypesCard,
-  parameters: storyContext('apps/web/app/pages/settings/apps/hr/index.vue:228', 'أنواع الإنذارات في إعدادات الموارد البشرية: إعادة تسمية وتغيير الخطورة وأرشفة واستعادة وإضافة نوع.'),
+  parameters: storyContext('apps/web/app/pages/settings/apps/hr/index.vue:232', 'أنواع الإنذارات في إعدادات الموارد البشرية: إعادة تسمية وتغيير الخطورة وأرشفة واستعادة وإضافة نوع.'),
   args: { types: warningTypesFixture, canEdit: true, reloadTypes: async () => undefined },
 } satisfies Meta<typeof WarningTypesCard>
 

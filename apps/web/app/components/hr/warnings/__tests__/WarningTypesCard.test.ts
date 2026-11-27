@@ -11,7 +11,7 @@ import { sortHrWarningTypes } from '../../../../utils/hrWarnings'
 
 // A row edit saves with the revision it started from. A background refetch that delivers a newer revision
 // must not replace it, so a concurrent edit by another manager answers 409; the reload action then refetches
-// and resets the draft to the newer revision.
+// and resets the captured revisions.
 const FILE = resolve(import.meta.dirname, '../WarningTypesCard.vue')
 
 function type(over: Partial<HrWarningType> = {}): HrWarningType {
@@ -35,39 +35,48 @@ function mount(types: HrWarningType[], patch: (input: unknown) => Promise<unknow
 }
 
 describe('WarningTypesCard revision conflicts', () => {
-  it('saves with the revision the edit started from, shows the conflict, and reload resets the draft to the newer revision', async () => {
+  it('saves with the revision the edit started from, shows the conflict, and reload resets to the newer revision', async () => {
     const patch = vi.fn().mockRejectedValueOnce(new ApiError(409, 'conflict', 'changed')).mockResolvedValue(type())
     const reloadTypes = vi.fn(async () => { card.props.types = [type({ name: 'Verbal (HR)', revision: 5 })] })
     const card = mount([type()], patch, reloadTypes)
     const { state } = card
 
     // The edit starts at revision 4 ...
-    state.setDraft(card.props.types[0], { name: 'Verbal warning' })
+    state.captureRevision(card.props.types[0])
     // ... a background refetch delivers revision 5 (another manager renamed the type) ...
     card.props.types = [type({ name: 'Verbal (HR)', revision: 5 })]
     // ... and the save still sends 4.
-    await state.saveType(card.props.types[0])
+    await state.saveName(card.props.types[0], 'Verbal warning')
     expect(patch).toHaveBeenCalledWith({ id: 3, body: { revision: 4, name: 'Verbal warning', severity: 1 } })
     expect(state.conflict.value).toBe(true)
     expect(state.message.value).toBe('hrWarnings.types.conflict')
-    expect(state.draft(card.props.types[0]).name).toBe('Verbal warning')
 
-    // A second save is blocked until the list is reloaded.
-    await state.saveType(card.props.types[0])
+    // Subsequent saves are blocked until the list is reloaded.
+    await state.saveName(card.props.types[0], 'Verbal warning')
+    await state.saveSeverity(card.props.types[0], 3)
     expect(patch).toHaveBeenCalledTimes(1)
 
     await state.reload()
     expect(reloadTypes).toHaveBeenCalledTimes(1)
     expect(state.conflict.value).toBe(false)
-    expect(state.draft(card.props.types[0])).toEqual({ name: 'Verbal (HR)', severity: 1, revision: 5 })
+    expect(state.revisions.value).toEqual({})
   })
 
-  it('a new edit after the reload sends the reloaded revision', async () => {
+  it('saves severity updates with the current revision and ignores invalid severities', async () => {
     const patch = vi.fn().mockResolvedValue(type())
     const card = mount([type({ revision: 5 })], patch, vi.fn())
-    card.state.setDraft(card.props.types[0], { severity: 3 })
-    await card.state.saveType(card.props.types[0])
+    await card.state.saveSeverity(card.props.types[0], 3)
     expect(patch).toHaveBeenCalledWith({ id: 3, body: { revision: 5, name: 'Verbal', severity: 3 } })
-    expect(card.state.draft(card.props.types[0]).revision).toBe(5)
+    await card.state.saveSeverity(card.props.types[0], 0)
+    await card.state.saveSeverity(card.props.types[0], 1001)
+    await card.state.saveSeverity(card.props.types[0], undefined)
+    expect(patch).toHaveBeenCalledTimes(1)
+  })
+
+  it('archives with the row revision', async () => {
+    const patch = vi.fn().mockResolvedValue(type())
+    const card = mount([type({ revision: 5 })], patch, vi.fn())
+    await card.state.setActive(card.props.types[0], false)
+    expect(patch).toHaveBeenCalledWith({ id: 3, body: { revision: 5, active: false } })
   })
 })

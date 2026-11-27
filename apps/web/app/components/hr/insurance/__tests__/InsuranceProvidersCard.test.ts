@@ -9,7 +9,7 @@ import { ApiError } from '../../../../composables/useApi'
 import { saveErrorMessage } from '../../../../utils/formFeedback'
 
 // A row edit saves with the revision it started from. A background refetch that delivers a newer revision must not
-// replace it, so a concurrent edit answers 409; the reload action then refetches and resets the draft.
+// replace it, so a concurrent edit answers 409; the reload action then refetches and resets captured revisions.
 const FILE = resolve(import.meta.dirname, '../InsuranceProvidersCard.vue')
 
 function provider(over: Partial<HrInsuranceProvider> = {}): HrInsuranceProvider {
@@ -33,35 +33,39 @@ function mount(providers: HrInsuranceProvider[], patch: (input: unknown) => Prom
 }
 
 describe('InsuranceProvidersCard revision conflicts', () => {
-  it('saves with the revision the edit started from, shows the conflict, and reload resets the draft to the newer revision', async () => {
+  it('saves with the revision the edit started from, shows the conflict, and reload resets to the newer revision', async () => {
     const patch = vi.fn().mockRejectedValueOnce(new ApiError(409, 'conflict', 'changed')).mockResolvedValue(provider())
     const reloadProviders = vi.fn(async () => { card.props.providers = [provider({ name: 'Bupa Arabia', revision: 5 })] })
     const card = mount([provider()], patch, reloadProviders)
     const { state } = card
 
-    state.setName(card.props.providers[0], 'Bupa Co')
+    state.captureRevision(card.props.providers[0])
     card.props.providers = [provider({ name: 'Bupa Arabia', revision: 5 })]
-    await state.saveName(card.props.providers[0])
+    await state.saveName(card.props.providers[0], 'Bupa Co')
     expect(patch).toHaveBeenCalledWith({ id: 3, body: { revision: 4, name: 'Bupa Co' } })
     expect(state.conflict.value).toBe(true)
     expect(state.message.value).toBe('hrInsurance.providers.conflict')
 
     // A second save is blocked until the list is reloaded.
-    await state.saveName(card.props.providers[0])
+    await state.saveName(card.props.providers[0], 'Bupa Co')
     expect(patch).toHaveBeenCalledTimes(1)
 
     await state.reload()
     expect(reloadProviders).toHaveBeenCalledTimes(1)
     expect(state.conflict.value).toBe(false)
-    expect(state.draft(card.props.providers[0])).toEqual({ name: 'Bupa Arabia', revision: 5 })
+
+    // A new edit after reload uses the reloaded revision.
+    await state.saveName(card.props.providers[0], 'Bupa KSA')
+    expect(patch).toHaveBeenLastCalledWith({ id: 3, body: { revision: 5, name: 'Bupa KSA' } })
   })
 
-  it('archives with the row revision and refuses an empty name', async () => {
+  it('archives with the row revision and ignores empty or unchanged names', async () => {
     const patch = vi.fn().mockResolvedValue(provider())
     const card = mount([provider({ revision: 5 })], patch, vi.fn())
     await card.state.setActive(card.props.providers[0], false)
     expect(patch).toHaveBeenCalledWith({ id: 3, body: { revision: 5, active: false } })
-    card.state.setName(card.props.providers[0], '  ')
-    expect(card.state.savable(card.props.providers[0])).toBe(false)
+    await card.state.saveName(card.props.providers[0], '  ')
+    await card.state.saveName(card.props.providers[0], 'Bupa')
+    expect(patch).toHaveBeenCalledTimes(1)
   })
 })

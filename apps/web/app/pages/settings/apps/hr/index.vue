@@ -175,12 +175,14 @@ function retry() {
       <BranchStrictCard scope="payroll" path="/api/v1/hr/payroll/branch-strictness" :can-read="can('hr.payroll.read')" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" :reload-rates="reloadRates" />
       <BankProfileForm :profiles="bankProfiles.data.value?.items ?? []" :can-edit="canConfig" :reload-profiles="reloadBankProfiles" />
-      <SharedFormSection panel :title="t('hrPayroll.eosCases.title')" :description="t('hrPayroll.eosCases.hint')">
-        <UAlert v-if="eosFailureMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.eosCases.saveError')" :description="eosFailureMessage" />
-        <UButton v-if="eosConflict" color="neutral" variant="outline" :label="t('hrPayroll.revision.reload')" :loading="eosReloading" :disabled="!hydrated || eosReloading" data-testid="hr-eos-cases-reload" @click="reloadEosCases" />
-        <UAlert v-if="eosReloadFailure" role="alert" color="error" variant="subtle" :title="t('hrPayroll.revision.reloadError')" />
-        <EosCaseMapTable :mappings="eosCases.data.value?.items ?? []" :can-edit="canConfig" :saving="savingReasons" :drafts="eosDrafts" :locked="eosConflict || eosReloading" @change="changeEosCase" />
-      </SharedFormSection>
+      <SharedRecordSection variant="panel" :title="t('hrPayroll.eosCases.title')" :description="t('hrPayroll.eosCases.hint')">
+        <div class="grid gap-3">
+          <UAlert v-if="eosFailureMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.eosCases.saveError')" :description="eosFailureMessage" />
+          <UButton v-if="eosConflict" class="justify-self-start" color="neutral" variant="outline" :label="t('hrPayroll.revision.reload')" :loading="eosReloading" :disabled="!hydrated || eosReloading" data-testid="hr-eos-cases-reload" @click="reloadEosCases" />
+          <UAlert v-if="eosReloadFailure" role="alert" color="error" variant="subtle" :title="t('hrPayroll.revision.reloadError')" />
+          <EosCaseMapTable :mappings="eosCases.data.value?.items ?? []" :can-edit="canConfig" :saving="savingReasons" :drafts="eosDrafts" :locked="eosConflict || eosReloading" @change="changeEosCase" />
+        </div>
+      </SharedRecordSection>
       <SharedPageState v-if="financeError" :error="financeError" @retry="finance.refetch" />
       <PayrollFinanceSettingsForm
         v-if="financeSettings"
@@ -192,17 +194,19 @@ function retry() {
         :analytic-accounts="lookups.analyticAccounts.data.value?.items ?? null"
         :reload-settings="reloadFinanceSettings"
       />
-      <SharedFormSection v-if="financeSettings && centers.data.value" panel :title="t('hrPayroll.costCenters.title')" :description="t('hrPayroll.costCenters.hint')">
-        <UAlert v-if="centerFailureMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.costCenters.saveError')" :description="centerFailureMessage" />
-        <PayrollCostCenterTable
-          :centers="centers.data.value.items"
-          :analytic-accounts="lookups.analyticAccounts.data.value?.items ?? null"
-          :truncated="isTruncated(lookups.analyticAccounts.data.value)"
-          :can-edit="canAnalytic"
-          :saving="savingCenters"
-          @change="changeCenter"
-        />
-      </SharedFormSection>
+      <SharedRecordSection v-if="financeSettings && centers.data.value" variant="panel" :title="t('hrPayroll.costCenters.title')" :description="t('hrPayroll.costCenters.hint')">
+        <div class="grid gap-3">
+          <UAlert v-if="centerFailureMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.costCenters.saveError')" :description="centerFailureMessage" />
+          <PayrollCostCenterTable
+            :centers="centers.data.value.items"
+            :analytic-accounts="lookups.analyticAccounts.data.value?.items ?? null"
+            :truncated="isTruncated(lookups.analyticAccounts.data.value)"
+            :can-edit="canAnalytic"
+            :saving="savingCenters"
+            @change="changeCenter"
+          />
+        </div>
+      </SharedRecordSection>
     </SharedPageState>
     </section>
     <section v-if="shows('branch-access')" v-show="inTab('branch-access')" id="branch-access" class="liwan-settings-anchor">

@@ -6,7 +6,7 @@ import { insuranceSettingsFixture } from './fixtures'
 const meta = {
   title: 'HR/Insurance/InsuranceSettingsForm',
   component: InsuranceSettingsForm,
-  parameters: storyContext('apps/web/app/pages/settings/apps/hr/index.vue:233', 'سياسة التأمين الطبي في إعدادات الموارد البشرية: ما يراه الموظف، ومدة التنبيه قبل انتهاء الخطة، واشتراط رقم هوية التابع.'),
+  parameters: storyContext('apps/web/app/pages/settings/apps/hr/index.vue:237', 'سياسة التأمين الطبي في إعدادات الموارد البشرية: ما يراه الموظف، ومدة التنبيه قبل انتهاء الخطة، واشتراط رقم هوية التابع.'),
   args: { settings: insuranceSettingsFixture, canEdit: true, reloadSettings: async () => insuranceSettingsFixture },
 } satisfies Meta<typeof InsuranceSettingsForm>
 
