@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
-    <!-- VERIFY against gosi.gov.sa before release (spec 6.2) -->
+    <!-- Verified against gosi.gov.sa on 2026-11-27 (old/new Saudi schedules 2025-2028, non-Saudi 2% hazards, GCC separated by country). -->
     <!-- Shared GOSI contribution rates in percent, one row per class, branch and start date.
          Editable with hr.payroll.config. GCC nationals have no rows: payroll refuses them until
          the company enters their rates. -->
