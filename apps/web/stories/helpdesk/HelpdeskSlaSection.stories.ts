@@ -23,7 +23,7 @@ const meta = {
   component: HelpdeskSlaSection,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/helpdesk/index.vue:169', 'اتفاقيات مستوى الخدمة: المرحلة المستهدفة لكل اتفاقية، وأيامها وساعاتها، والفرق والتصنيفات والوسوم التي تسري عليها، والمراحل التي توقف الساعة؛ تُعدَّل في مكانها بمفتاح أرشفة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/helpdesk/index.vue:57', 'اتفاقيات مستوى الخدمة: المرحلة المستهدفة لكل اتفاقية، وأيامها وساعاتها، والفرق التي تسري عليها، وروابط إلى لوحة الإنشاء وصفحة التعديل، ومفتاح أرشفة.'),
     msw: { handlers: { api: [save, archive] } },
   },
   args: { rows: slaPolicies, stages: stageRows, teams: teamRows, categories: categoryRows, tags: tagRows, canEdit: true },

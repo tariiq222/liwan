@@ -17,7 +17,7 @@ const meta = {
   title: 'Inbox/InboxPolicyCard',
   component: InboxPolicyCard,
   parameters: {
-    ...storyContext('apps/web/app/pages/settings/apps/inbox.vue:48', 'سياسات رسائل العملاء على مستوى الشركة: الرؤية والإغلاق التلقائي والاحتفاظ وتوزيع المحادثات وتنبيه أول رد. تُحفظ من شريط الحفظ الواحد للصفحة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/inbox.vue:51', 'سياسات رسائل العملاء على مستوى الشركة: الرؤية والإغلاق التلقائي والاحتفاظ وتوزيع المحادثات وتنبيه أول رد. تُحفظ من شريط الحفظ الواحد للصفحة.'),
     msw: { handlers: { api: [manage, save] } },
   },
   args: { settings, canEdit: true, reloadSettings: async () => settings },

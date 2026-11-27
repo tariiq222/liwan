@@ -149,8 +149,6 @@
       "firstResponseHint": "From opening the ticket to the team's first reply; zero disables the measure.",
       "resolution": "Resolution target (hours)",
       "resolutionHint": "From opening the ticket to closing it; zero disables the measure.",
-      "saved": "The policy was saved.",
-      "failed": "The policy could not be saved.",
       "presets": {
         "general": "General",
         "it": "IT service desk",
@@ -165,19 +163,22 @@
         "sectionHint": "Who receives the tickets and who leads each team.",
         "title": "Support teams",
         "add": "New team",
+        "editTitle": "Edit support team",
         "leader": "Team leader",
         "members": "Members"
       },
       "stages": {
         "title": "Stages",
         "add": "New stage",
+        "editTitle": "Edit stage",
         "sequence": "Order",
         "closed": "Closed",
         "unattended": "Waiting on the customer",
         "fold": "Folded in the board",
         "teams": "Teams",
         "teamsHint": "With no team chosen the stage serves every team.",
-        "shared": "Shared"
+        "shared": "Shared",
+        "sharedForbidden": "A shared stage cannot be edited from Support Desk settings."
       },
       "values": {
         "section": "Workflow and lists",
@@ -185,25 +186,20 @@
         "parent": "Parent category",
         "noParent": "No parent",
         "categories": {
-          "title": "Categories",
-          "add": "New category"
+          "title": "Categories"
         },
         "tags": {
-          "title": "Tags",
-          "add": "New tag"
+          "title": "Tags"
         },
         "channels": {
-          "title": "Channels",
-          "add": "New channel"
+          "title": "Channels"
         },
         "types": {
-          "title": "Ticket types",
-          "add": "New type"
+          "title": "Ticket types"
         }
       },
       "resources": {
         "name": "Name",
-        "save": "Save",
         "failed": "The record could not be saved.",
         "active": "Active",
         "archived": "Archived"
@@ -213,6 +209,7 @@
         "sectionHint": "The deadlines the teams commit to, who they cover and where the clock pauses.",
         "title": "Service levels",
         "add": "New service level",
+        "editTitle": "Edit service level",
         "hint": "A service level is met once the ticket reaches its target stage.",
         "empty": "No service levels yet.",
         "name": "Service level name",
