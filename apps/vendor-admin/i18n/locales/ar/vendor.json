@@ -1269,6 +1269,11 @@
         "sales_enabled": "المبيعات",
         "storage_limit_mb": "تخزين المرفقات المحتسبة (م.ب)",
         "tasks_enabled": "المهام",
+        "telephony_enabled": "الاتصالات",
+        "telephony_extensions": "أقصى عدد للتمثيلات",
+        "telephony_ivr": "الرد الصوتي التفاعلي",
+        "telephony_queues": "طوابير المكالمات",
+        "telephony_recording": "تسجيل المكالمات",
         "users_limit": "المستخدمون"
       },
       "sarName": "ريال سعودي"

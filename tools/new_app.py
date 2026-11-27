@@ -5,7 +5,7 @@
 
 Creates the application's own folders from tools/new_app_templates, its AI agent with one read tool and the access test
 inside the application (the registries belong to liwan_api, so no bridge to liwan_ai), makes the three registration
-edits (tools/arch_layers.json, the platform_v4 catalog tier,
+edits (tools/arch_layers.json, the active release catalog tier,
 packages/contracts/src/index.ts) and runs catalog_check.py --sync-release-copies.
 Nothing is written when any target already exists or any check fails.
 """
@@ -48,15 +48,18 @@ SHELL_ROUTES = frozenset({
 })
 ROUTE_SLUG = re.compile(r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$')
 ARCH_LAYERS = 'tools/arch_layers.json'
-PLATFORM_SOLUTION = 'deploy/catalog/solutions/platform_v4.json'
+# The catalog a new application joins is the one the release publishes, resolved the way the release command does:
+# the newest schema-3 solution under deploy/catalog/solutions. Writing the file name here would silently scaffold into
+# a published older catalog after the next publish.
+SOLUTION_DIR = 'deploy/catalog/solutions'
+RELEASE_SCHEMA = 3
 CONTRACTS_INDEX = 'packages/contracts/src/index.ts'
 APPLICATION_RANK = 4
 
 
 CATALOG_WARNING = (
-    f'WARNING {PLATFORM_SOLUTION} was edited in place, which changes its sha256. This is allowed only while '
-    'that catalog is unpublished; after the first publish a new application needs a new platform_vN.json, '
-    'decided before the first server deploy.'
+    'WARNING the current release catalog was edited in place, which changes its sha256. After the first publish a new '
+    'application needs a new platform_vN.json, decided before the first server deploy.'
 )
 
 
@@ -161,10 +164,11 @@ def registration_edits(root, tokens):
     route = tokens['route']
     layers.setdefault('web_apps', {})[app] = {'components': [route], 'pages': [route]}
 
-    solution = _load_exact(root, PLATFORM_SOLUTION)
+    solution_relative = current_solution(root)
+    solution = _load_exact(root, solution_relative)
     tiers = solution.get('tiers')
     if not isinstance(tiers, list) or any(tier.get('id') == app for tier in tiers):
-        msg = f'{PLATFORM_SOLUTION} has no tiers list or already has a tier {app!r}'
+        msg = f'{solution_relative} has no tiers list or already has a tier {app!r}'
         raise ScaffoldError(msg)
     tiers.append({
         'id': app,
@@ -190,9 +194,31 @@ def registration_edits(root, tokens):
 
     return {
         ARCH_LAYERS: _dump(layers),
-        PLATFORM_SOLUTION: _dump(solution),
+        solution_relative: _dump(solution),
         CONTRACTS_INDEX: index_text + line + '\n',
     }
+
+
+def _solution_order(path):
+    """Order solution files by the numeric suffix of platform_vN, so v10 follows v5."""
+    match = re.search(r'_v(\d+)$', path.stem)
+    return (int(match.group(1)) if match else -1, path.name)
+
+
+def current_solution(root):
+    """The release catalog a new application joins: the newest schema-3 solution file."""
+    directory = Path(root) / SOLUTION_DIR
+    candidates = sorted(
+        (
+            path for path in directory.glob('*.json')
+            if json.loads(path.read_text(encoding='utf-8')).get('schema_version') == RELEASE_SCHEMA
+        ),
+        key=_solution_order,
+    )
+    if not candidates:
+        msg = f'{SOLUTION_DIR} holds no published solution'
+        raise ScaffoldError(msg)
+    return candidates[-1].relative_to(Path(root)).as_posix()
 
 
 def _stems(folder):

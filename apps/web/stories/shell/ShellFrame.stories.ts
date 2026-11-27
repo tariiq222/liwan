@@ -33,14 +33,14 @@ const frame = () => ({
 
 export const Application: Story = {
   name: 'تطبيق مفتوح: قائمة التطبيق في الشريط الجانبي',
-  parameters: storyContext('apps/web/app/layouts/default.vue:74'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:76'),
   loaders: [at('/tasks')],
   render: () => frame(),
 }
 
 export const Day: Story = {
   name: 'يومي: الشريط الجانبي العام',
-  parameters: storyContext('apps/web/app/layouts/default.vue:74', 'في الصفحة الرئيسية يعرض الشريط المنظمة وتطبيقاتي وكل التطبيقات.'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:76', 'في الصفحة الرئيسية يعرض الشريط المنظمة وتطبيقاتي وكل التطبيقات.'),
   loaders: [at('/')],
   render: () => frame(),
 }

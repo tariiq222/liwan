@@ -1,0 +1,13 @@
+; Rendered by deploy/telephony/render.py from the company's env file. Never commit the rendered file: it holds the
+; PBX database password.
+; PostgreSQL realtime backend for PJSIP (pbx-db on the company's private telephony_internal network).
+; Asterisk 22's res_config_pgsql.so only reads the [general] section with these canonical keys.
+
+[general]
+hostname=pbx-db
+port=5432
+dbname=telephony_pbx
+user=telephony_pbx
+password={{PBX_DB_PASSWORD}}
+appname=asterisk
+requirements=warn

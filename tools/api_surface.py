@@ -351,6 +351,14 @@ AUTH_REQUIREMENTS = {
         "description": WEBHOOK_AUTH_FALLBACK,
         "documented_by_handler": True,
     },
+    # The telephony machine route: no session, no cookie. The company's agent proves itself with the per-database
+    # derived key in `X-Liwan-Telephony-Signature` over the raw body and a timestamp header (design 4.5, 12.6).
+    "telephony_events": {
+        "security": [],
+        "description": 'Signed machine request: `X-Liwan-Telephony-Timestamp` and `X-Liwan-Telephony-Signature` '
+                       'over the raw body with the company\'s derived key.',
+        "documented_by_handler": False,
+    },
 }
 
 

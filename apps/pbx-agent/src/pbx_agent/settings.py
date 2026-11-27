@@ -19,7 +19,11 @@ if TYPE_CHECKING:
 HEX_KEY = re.compile(r"[0-9a-f]{64}")
 DATABASE_NAME = re.compile(r"[a-z][a-z0-9_]{0,62}")
 PUBLIC_HOST = re.compile(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?")
+STUN_URL = re.compile(r"stuns?:\S+")
+TURN_URL = re.compile(r"turns?:\S+")
+PJSIP_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
 KEYS_FILE_NAMES = ("events", "reverse")
+TURN_SECRET_MIN_LENGTH = 32
 
 
 class SettingsError(ValueError):
@@ -37,6 +41,7 @@ class Settings:
     ari_url: str
     ari_username: str
     ari_password: str
+    pbx_db_url: str
     database: str
     events_key: bytes
     reverse_key: bytes
@@ -51,6 +56,18 @@ class Settings:
     cel_path: Path
     inbound_context: str
     line_endpoint: str | None
+    # The browser side (design 4.1): the WebSocket the phone registers on, optional STUN/TURN URLs (with TURN REST
+    # credentials minted per session from ``turn_secret``), and the session/overlap lifetimes.
+    public_ws_url: str
+    stun_url: str | None
+    turn_url: str | None
+    turn_secret: str | None
+    session_seconds: int
+    session_overlap_seconds: int
+    # The PJSIP objects a browser endpoint is written with: the transport it registers on and the dialplan context it
+    # lands in. They come from the package's own templates, so the route writes an endpoint that matches them.
+    pjsip_transport: str
+    pjsip_context: str
 
     def __repr__(self) -> str:
         """Never show a password or a key, including from an unexpected traceback."""
@@ -82,6 +99,7 @@ class Settings:
         ari_url = _url(environ, "PBX_ARI_URL")
         ari_username = _required(environ, "PBX_ARI_USERNAME")
         ari_password = _required(environ, "PBX_ARI_PASSWORD")
+        pbx_db_url = _postgres_url(environ, "PBX_DB_URL")
         database = _required(environ, "PBX_DATABASE")
         if not DATABASE_NAME.fullmatch(database):
             msg = "PBX_DATABASE must be a database name: a letter, then lowercase letters, digits or underscore"
@@ -104,10 +122,20 @@ class Settings:
             msg = "PBX_PUBLIC_HOST must be a bare hostname: no scheme, port or path"
             raise SettingsError("PBX_PUBLIC_HOST", msg)
 
+        session_seconds = _integer(environ, "PBX_SESSION_SECONDS", 120, 30, 120)
+        session_overlap_seconds = _integer(environ, "PBX_SESSION_OVERLAP_SECONDS", 30, 0, 60)
+        if session_overlap_seconds >= session_seconds:
+            msg = "PBX_SESSION_OVERLAP_SECONDS must be less than PBX_SESSION_SECONDS"
+            raise SettingsError("PBX_SESSION_OVERLAP_SECONDS", msg)
+
+        stun_url = _stun_url(environ, "PBX_STUN_URL")
+        turn_url, turn_secret = _turn_config(environ)
+
         return cls(
             ari_url=ari_url,
             ari_username=ari_username,
             ari_password=ari_password,
+            pbx_db_url=pbx_db_url,
             database=database,
             events_key=events_key,
             reverse_key=reverse_key,
@@ -122,7 +150,50 @@ class Settings:
             cel_path=_read_path(environ, "PBX_CEL_PATH"),
             inbound_context=environ.get("PBX_INBOUND_CONTEXT", "").strip() or "from-trunk",
             line_endpoint=environ.get("PBX_LINE_ENDPOINT", "").strip() or None,
+            public_ws_url=_websocket_url(environ, "PBX_PUBLIC_WS_URL", f"wss://{public_host}/ws"),
+            stun_url=stun_url,
+            turn_url=turn_url,
+            turn_secret=turn_secret,
+            session_seconds=session_seconds,
+            session_overlap_seconds=session_overlap_seconds,
+            pjsip_transport=_pjsip_name(environ, "PBX_PJSIP_TRANSPORT", "transport-ws"),
+            pjsip_context=_pjsip_name(environ, "PBX_PJSIP_CONTEXT", "from-extension"),
         )
+
+
+def _stun_url(environ: Mapping[str, str], name: str) -> str | None:
+    value = environ.get(name, "").strip()
+    if not value:
+        return None
+    if not STUN_URL.fullmatch(value):
+        msg = f"{name} must start with stun: or stuns: and contain no whitespace"
+        raise SettingsError(name, msg)
+    return value
+
+
+def _turn_config(environ: Mapping[str, str]) -> tuple[str | None, str | None]:
+    turn_url = environ.get("PBX_TURN_URL", "").strip() or None
+    if turn_url is not None and not TURN_URL.fullmatch(turn_url):
+        msg = "PBX_TURN_URL must start with turn: or turns: and contain no whitespace"
+        raise SettingsError("PBX_TURN_URL", msg)
+    raw_secret = environ.get("PBX_TURN_SECRET", "")
+    if raw_secret == "":
+        if turn_url is not None:
+            msg = "PBX_TURN_SECRET is required when PBX_TURN_URL is set"
+            raise SettingsError("PBX_TURN_SECRET", msg)
+        return turn_url, None
+    if len(raw_secret) < TURN_SECRET_MIN_LENGTH or any(ch.isspace() for ch in raw_secret):
+        msg = f"PBX_TURN_SECRET must be at least {TURN_SECRET_MIN_LENGTH} characters with no whitespace"
+        raise SettingsError("PBX_TURN_SECRET", msg)
+    return turn_url, raw_secret
+
+
+def _pjsip_name(environ: Mapping[str, str], name: str, default: str) -> str:
+    value = environ.get(name, "").strip() or default
+    if not PJSIP_NAME.fullmatch(value):
+        msg = f"{name} must be 1 to 64 letters, digits, dot, underscore or hyphen"
+        raise SettingsError(name, msg)
+    return value
 
 
 def _required(environ: Mapping[str, str], name: str) -> str:
@@ -161,6 +232,48 @@ def _read_path(environ: Mapping[str, str], name: str) -> Path:
         msg = f"{name} must be an absolute path"
         raise SettingsError(name, msg)
     return path
+
+
+def _websocket_url(environ: Mapping[str, str], name: str, default: str) -> str:
+    """The browser's WebSocket endpoint: `ws` or `wss`, a host, and the `/ws` path the edge forwards."""
+    value = environ.get(name, "").strip() or default
+    parts = urlsplit(value)
+    if (
+        parts.scheme not in ("ws", "wss")
+        or not parts.netloc
+        or not parts.path
+        or parts.query
+        or parts.fragment
+        or parts.username is not None
+        or "@" in parts.netloc
+    ):
+        msg = f"{name} must be a ws:// or wss:// URL with a host and path, and no credentials, query or fragment"
+        raise SettingsError(name, msg)
+    return value
+
+
+def _postgres_url(environ: Mapping[str, str], name: str) -> str:
+    """PostgreSQL DSN for pbx-db: ``postgresql://`` or ``postgres://`` with host, database name and no whitespace."""
+    raw = environ.get(name, "")
+    if not raw or not raw.strip():
+        msg = f"{name} is required"
+        raise SettingsError(name, msg)
+    msg = f"{name} must be a postgresql:// or postgres:// URL with a host, database name and no whitespace"
+    if any(ch.isspace() for ch in raw):
+        raise SettingsError(name, msg)
+    try:
+        parts = urlsplit(raw)
+        _ = parts.port
+    except ValueError:
+        raise SettingsError(name, msg) from None
+    if (
+        parts.scheme not in ("postgresql", "postgres")
+        or not parts.hostname
+        or not parts.path.strip("/")
+        or parts.fragment
+    ):
+        raise SettingsError(name, msg)
+    return raw
 
 
 def _url(environ: Mapping[str, str], name: str) -> str:

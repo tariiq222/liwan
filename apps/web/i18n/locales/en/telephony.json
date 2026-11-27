@@ -1,0 +1,103 @@
+{
+  "telephony": {
+    "title": "Telephony",
+    "calls": {
+      "description": "A call log that shows the customer and the employee of each call, and the recording for whoever may listen to it.",
+      "empty": "No calls yet",
+      "count": "{shown} of 1 call | {shown} of {total} calls",
+      "detail": "Call details",
+      "started": "Started at",
+      "answered": "Answered at",
+      "ended": "Ended at",
+      "recording": "Recording",
+      "listen": "Listen to the recording",
+      "noRecording": "This call has no recording",
+      "canNotListen": "You cannot listen to recordings"
+    },
+    "direction": {
+      "in": "Incoming",
+      "out": "Outgoing",
+      "internal": "Internal"
+    },
+    "state": {
+      "ringing": "Ringing",
+      "answered": "Answered",
+      "missed": "Missed",
+      "rejected": "Rejected",
+      "failed": "Failed",
+      "ended": "Ended"
+    },
+    "filter": {
+      "all": "All directions",
+      "allStates": "All states"
+    },
+    "column": {
+      "started": "Time",
+      "direction": "Direction",
+      "number": "Number",
+      "user": "Employee",
+      "state": "State",
+      "duration": "Duration"
+    },
+    "nav": {
+      "calls": "Calls"
+    },
+    "settings": {
+      "extensions": "Extensions",
+      "extensionsHint": "Each phone or browser registers with an extension: its number and the user it belongs to.",
+      "extensionNumber": "Extension number",
+      "extensionNumberHint": "2 to 10 digits, not used by another extension in the company.",
+      "extensionNumberPlaceholder": "Example: 1001",
+      "extensionUser": "User",
+      "extensionUserHint": "Optional: the employee who uses this extension.",
+      "extensionNoUser": "No user",
+      "extensionsEmpty": "No extensions yet",
+      "extensionActive": "Active",
+      "extensionInactive": "Inactive",
+      "extensionDisable": "Disable",
+      "extensionEnable": "Enable"
+    },
+    "chip": {
+      "label": "Call",
+      "idle": "Phone",
+      "ringing": "Call from {number}",
+      "calling": "Calling {number}",
+      "inCall": "In a call {duration}",
+      "failed": "The call failed",
+      "failedHint": "Check the connection and try again",
+      "retry": "Retry",
+      "noExtension": "No extension is assigned to your account yet.",
+      "callerCard": "Caller card",
+      "unknownCaller": "Unknown caller",
+      "loadingCaller": "Looking up caller…",
+      "recentCalls": "Recent calls",
+      "saveContact": "Save contact",
+      "answer": "Answer",
+      "reject": "Reject",
+      "hangUp": "Hang up",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "hold": "Hold",
+      "resume": "Resume",
+      "transfer": "Transfer",
+      "transferPlaceholder": "Number or extension",
+      "transferSend": "Transfer call",
+      "transferring": "Transferring…",
+      "transferFailed": "Could not transfer the call",
+      "keypad": "Keypad",
+      "dialpadTitle": "Place a call",
+      "dialPlaceholder": "Phone number or extension",
+      "dialCall": "Call",
+      "backspace": "Delete last digit",
+      "invalidNumber": "Enter a valid extension or international phone number.",
+      "phoneNotReady": "The phone is not ready to place a call yet.",
+      "failure": {
+        "connectionClosed": "The phone connection closed.",
+        "registrationFailed": "Could not register the phone.",
+        "renewalFailed": "Could not renew the phone session.",
+        "startFailed": "Could not start the phone.",
+        "callFailed": "The call could not be completed."
+      }
+    }
+  }
+}

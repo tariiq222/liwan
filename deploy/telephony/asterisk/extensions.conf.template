@@ -1,8 +1,8 @@
-; Rendered by deploy/telephony/render.py from the company's env file. Phase 1 dialplan: the three test extensions (101
-; and 102 browsers, 103 a plain SIP softphone), the trunk in both directions, MixMonitor named by the channel's linkedid
-; under the recording policy, and a spoken "not available" when the line is busy, unreachable or inside a move window
-; (design 4.2, 4.3, 12.2). No IVR, queues or recording announcement yet: they are absent on purpose, not stubbed
-; (README, "Not in this package yet").
+; Rendered by deploy/telephony/render.py from the company's env file. Dynamic internal extension routing (PJSIP
+; realtime plus static 103), the trunk in both directions, SIP REFER blind transfer context, MixMonitor named by the
+; channel's linkedid under the recording policy, and a spoken "not available" when the line is busy, unreachable or
+; inside a move window (design 4.2, 4.3, 12.2). No IVR, queues or recording announcement yet: they are absent on
+; purpose, not stubbed (README, "Not in this package yet").
 
 [general]
 static=yes
@@ -23,14 +23,28 @@ TRUNK_CALLER_ID={{TRUNK_CALLER_ID}}
 TRUNK_DIAL_PREFIX={{TRUNK_DIAL_PREFIX}}
 
 [from-extension]
-; The test extensions (design 13, phase 1), then the trunk for anything else. `_+X.` keeps the plus of an E.164 number
-; the browser or the softphone sent.
-exten => _10[123],1,Goto(internal,${EXTEN},1)
-exten => _X.,1,Goto(outbound,${EXTEN},1)
-exten => _+X.,1,Goto(outbound,${EXTEN},1)
+; Digits-only guard (fail-closed: any non-digit or expression parse error lands in reject).
+; Any existing PJSIP extension (realtime in pbx-db or static in pjsip.conf) routes to internal.
+; Short digit strings (< 7 digits) never leave the PBX to the external trunk: an offline or
+; unregistered internal extension hears the unavailable prompt instead of dialling the PSTN.
+; Longer digit strings (7+ digits) that are not a local endpoint route to outbound, and E.164
+; numbers (`_+X.`, at least 7 digits after `+`) route to outbound.
+exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)
+ same => n(allow),GotoIf($["${DEVICE_STATE(PJSIP/${EXTEN})}"!="INVALID"]?internal,${EXTEN},1:check-length)
+ same => n(check-length),GotoIf($[${LEN(${EXTEN})}>=7]?outbound,${EXTEN},1:unavailable)
+ same => n(unavailable),Gosub(line-unavailable,s,1)
+ same => n,Hangup()
+ same => n(reject),Hangup()
+exten => _+X.,1,GotoIf($["${FILTER(0-9,${EXTEN:1})}"="${EXTEN:1}"]?allow:reject)
+ same => n(allow),GotoIf($[${LEN(${EXTEN})}>=8]?outbound,${EXTEN},1:reject)
+ same => n(reject),Hangup()
 
 [internal]
-exten => _10[123],1,NoOp(Internal call from ${CALLERID(num)} to ${EXTEN})
+; Digits-only fail-closed guard before any Dial: `_X.` matches characters after the first digit, so `&`, `/` or an
+; expression-breaking character lands in `reject`.
+exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)
+ same => n(allow),NoOp(Internal call from ${CALLERID(num)} to ${EXTEN})
+ same => n,Set(__TRANSFER_CONTEXT=from-extension)
  same => n,GotoIf($["${LINE_STATE}"="available"]?dial)
  same => n,Gosub(line-unavailable,s,1)
  same => n,Hangup()
@@ -39,24 +53,28 @@ exten => _10[123],1,NoOp(Internal call from ${CALLERID(num)} to ${EXTEN})
  same => n,GotoIf($["${DIALSTATUS}"="ANSWER"]?done)
  same => n,Gosub(line-unavailable,s,1)
  same => n(done),Hangup()
+ same => n(reject),Hangup()
 
 [outbound]
 ; The dialled number, with the provider's prefix when it wants one; the plus of an E.164 number is kept as dialled.
 ; `_X.` and `_+X.` match any character after the first, so `&` or `/` reaches this context and `Dial` would read it as
-; another destination (a second number, or another endpoint that then receives the trunk's digest). The number must be
-; digits and an optional plus and nothing else: FILTER(0-9+,...) strips everything else, and a value that changes when
-; filtered is refused instead of being dialled in its cleaned form.
-exten => _X.,1,GotoIf($["${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"]?reject)
- same => n,Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
+; another destination (a second number, or another endpoint that then receives the trunk's digest). `_X.` must be
+; digits only (at least 7 digits) and `_+X.` must be a single leading `+` followed by digits only (at least 7 digits
+; after `+`). Every guard is fail-closed so any unexpected character or expression parse error lands in `reject`.
+exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)
+ same => n(allow),GotoIf($[${LEN(${EXTEN})}>=7]?dial:reject)
+ same => n(dial),Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
  same => n,Goto(dial-outbound,s,1)
  same => n(reject),Hangup()
-exten => _+X.,1,GotoIf($["${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"]?reject)
- same => n,Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
+exten => _+X.,1,GotoIf($["${FILTER(0-9,${EXTEN:1})}"="${EXTEN:1}"]?allow:reject)
+ same => n(allow),GotoIf($[${LEN(${EXTEN})}>=8]?dial:reject)
+ same => n(dial),Set(DIAL_NUMBER=${TRUNK_DIAL_PREFIX}${EXTEN})
  same => n,Goto(dial-outbound,s,1)
  same => n(reject),Hangup()
 
 [dial-outbound]
 exten => s,1,NoOp(Outbound call to ${DIAL_NUMBER})
+ same => n,Set(__TRANSFER_CONTEXT=from-extension)
  same => n,GotoIf($["${LINE_STATE}"="available"]?dial)
  same => n,Gosub(line-unavailable,s,1)
  same => n,Hangup()
@@ -86,6 +104,7 @@ exten => h,1,NoOp()
 
 [inbound-call]
 exten => s,1,NoOp(Inbound call from ${CALLERID(num)} to ${ARG1})
+ same => n,Set(__TRANSFER_CONTEXT=from-extension)
  same => n,GotoIf($["${LINE_STATE}"="available"]?ring)
  same => n,Gosub(line-unavailable,s,1)
  same => n,Return()

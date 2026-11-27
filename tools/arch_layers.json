@@ -23,6 +23,7 @@
     "liwan_inbox": 4,
     "liwan_sales": 4,
     "liwan_helpdesk": 4,
+    "liwan_telephony": 4,
     "liwan_meetings_pmo": 5,
     "liwan_crm_tasks": 5,
     "liwan_crm_meetings": 5,
@@ -214,6 +215,18 @@
       ],
       "pages": [
         "helpdesk"
+      ]
+    },
+    "telephony": {
+      "components": [
+        "telephony"
+      ],
+      "pages": [
+        "calls"
+      ],
+      "composables": [
+        "composables/useSoftphone",
+        "composables/telephony/*"
       ]
     }
   },

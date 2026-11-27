@@ -1,9 +1,10 @@
-"""The one JSON body Odoo's events route receives (design 4.5).
+"""The one JSON body Odoo's events route receives (design 4.4, 4.5).
 
 The stream and reconciliation both build the same envelope, so a recovered call and a live one are described the
 same way. Only the fields the spec fixes are promised: ``event_id`` (added by the queue), ``linkedid`` as the call
 key and ``uniqueid`` as the channel key. Numbers travel raw: E164 normalization belongs to Odoo, which owns the
-contact matching.
+contact matching. One event is not a transition: the recording-ready event repeats the call of the event that closed
+one of its legs with ``recording`` set, and nothing in that repeated call changes.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     from pbx_agent.cel import CallLeg
 
 ARI_STATES = {"ChannelCreated": "ringing", "ChannelDestroyed": "ended"}
+RECORDING_READY = "ready"
 ARI_TIME = re.compile(r"(.+T\d{2}:\d{2}:\d{2}(?:\.\d+)?)([+-]\d{2})(\d{2})")
 
 
@@ -112,6 +114,15 @@ def cel_call_event(leg: CallLeg, *, database: str, inbound_context: str, now: fl
         answered_at=leg.answered_at,
         ended_at=leg.ended_at,
     )
+
+
+def recording_ready_event(ended: dict, *, now: float) -> dict:
+    """The event that says a call's recording is on disk (design 4.4).
+
+    It is ``ended``, the event that closed one of the call's legs, with ``call.recording`` set and the time the agent
+    found the file: the same call in the same state, so nothing moves on it in Odoo but the recording state.
+    """
+    return {**ended, "occurred_at": iso_utc(now), "call": {**ended["call"], "recording": RECORDING_READY}}
 
 
 def _envelope(

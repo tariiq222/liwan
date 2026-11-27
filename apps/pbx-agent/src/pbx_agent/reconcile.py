@@ -1,7 +1,7 @@
-"""The periodic comparison of Asterisk CEL with what already reached the queue (design 4.6).
+"""The periodic comparison of Asterisk CEL with what already reached the queue (design 4.4, 4.6).
 
 A call whose events were lost before the queue is recovered from CEL: every completed leg the queue has never seen
-is re-enqueued once, in the same envelope the stream uses.
+is re-enqueued once, in the same envelope the stream uses, and its recording is announced when the file exists.
 
 The stored offset never moves past the first row of a leg that has not ended, or of one that ended moments ago, so a
 call that spans two passes is rebuilt from all of its rows and a just-finished call waits for its live end event. The
@@ -17,9 +17,11 @@ from typing import TYPE_CHECKING
 
 from pbx_agent.cel import ABSENT_IDENTITY
 from pbx_agent.events import cel_call_event
+from pbx_agent.recordings import announce_recording
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     from pbx_agent.cel import CelFile
     from pbx_agent.queue import EventQueue
@@ -29,6 +31,8 @@ CEL_IDENTITY = "cel_identity"
 
 
 class Reconciler:
+    """One pass over what CEL appended since the last one; the caller decides how often to run it."""
+
     def __init__(
         self,
         queue: EventQueue,
@@ -36,16 +40,19 @@ class Reconciler:
         *,
         database: str,
         inbound_context: str,
+        recordings_dir: Path,
         clock: Callable[[], float] = time.time,
     ) -> None:
         self._queue = queue
         self._source = source
         self._database = database
         self._inbound_context = inbound_context
+        self._recordings_dir = recordings_dir
         self._clock = clock
 
     def run_once(self) -> int:
-        """Read what CEL appended since the last pass and re-enqueue each finished leg the queue never saw."""
+        """Read what CEL appended since the last pass, re-enqueue each finished leg the queue never saw, and announce
+        the recording of each such call whose file exists."""
         try:
             identity = self._source.identity()
         except OSError:
@@ -72,6 +79,7 @@ class Reconciler:
             )
             if self._queue.enqueue_for_leg(leg.uniqueid, payload, now=moment) is not None:
                 recovered += 1
+                announce_recording(self._queue, self._recordings_dir, payload, now=now)
         # An open leg, or one that ended moments ago, keeps the offset at its first row for the next pass.
         safe_offset = batch.hold_start if batch.hold_start is not None else batch.offset
         self._queue.meta_set(CEL_OFFSET, str(safe_offset))

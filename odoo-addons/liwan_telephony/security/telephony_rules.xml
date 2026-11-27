@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="liwan_telephony_call_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.call: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_call"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <!-- A user who only has telephony.use sees the calls they took part in. The company-wide log needs
+             telephony.calls.read_all, which adds its own rule. -->
+        <record id="liwan_telephony_call_own_rule" model="ir.rule">
+            <field name="name">liwan.telephony.call: own calls</field>
+            <field name="model_id" ref="model_liwan_telephony_call"/>
+            <field name="groups" eval="[Command.set([ref('group_telephony_own_calls')])]"/>
+            <field name="domain_force">[('user_id', '=', user.id)]</field>
+        </record>
+        <!-- Reading the whole company log is its own capability; a holder of it passes the own-calls rule above
+             through this one, which Odoo ORs with the group's other rules. -->
+        <record id="liwan_telephony_call_read_all_rule" model="ir.rule">
+            <field name="name">liwan.telephony.call: the company log</field>
+            <field name="model_id" ref="model_liwan_telephony_call"/>
+            <field name="groups" eval="[Command.set([ref('group_cap_telephony_calls_read_all')])]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+        </record>
+        <record id="liwan_telephony_line_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.line: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_line"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <record id="liwan_telephony_line_number_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.line.number: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_line_number"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <record id="liwan_telephony_extension_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.extension: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_extension"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <record id="liwan_telephony_recording_access_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.recording.access: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_recording_access"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <record id="liwan_telephony_event_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.event: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_event"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+        <!-- The machine route's account writes the call and the receipt of the company it carries; it is never a
+             person's identity, so it is not a user rule but the company one above plus this explicit grant. -->
+        <record id="liwan_telephony_call_events_rule" model="ir.rule">
+            <field name="name">liwan.telephony.call: machine events</field>
+            <field name="model_id" ref="model_liwan_telephony_call"/>
+            <field name="groups" eval="[Command.set([ref('group_telephony_events')])]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+        </record>
+        <record id="liwan_telephony_event_events_rule" model="ir.rule">
+            <field name="name">liwan.telephony.event: machine events</field>
+            <field name="model_id" ref="model_liwan_telephony_event"/>
+            <field name="groups" eval="[Command.set([ref('group_telephony_events')])]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+        </record>
+    </data>
+</odoo>

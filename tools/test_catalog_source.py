@@ -43,7 +43,7 @@ class CatalogSourceTests(unittest.TestCase):
     def test_v3_and_v4_resolve_to_their_own_files_and_v4_is_registered_last(self):
         self.assertEqual(catalog_source.resolve_catalog_path(digest('platform_v3.json')).name, 'platform_v3.json')
         self.assertEqual(catalog_source.resolve_catalog_path(digest('platform_v4.json')).name, 'platform_v4.json')
-        self.assertEqual(catalog_source.KNOWN_SOURCES[-1], 'platform_v4.json')
+        self.assertEqual(catalog_source.KNOWN_SOURCES[-1], 'platform_v5.json')
 
     def test_registry_matches_the_solution_files_and_the_control_plane_copy(self):
         # KNOWN_SOURCES stays an explicit registry (a published row pins a file's digest);

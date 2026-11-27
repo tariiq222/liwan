@@ -549,7 +549,7 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
 
     def test_the_committed_release_is_the_base_then_the_tier_closures(self):
         name, modules = catalog_check.current_release(ROOT)
-        self.assertEqual(name, 'platform_v4.json')
+        self.assertEqual(name, 'platform_v5.json')
         data = json.loads((ROOT / 'deploy/catalog/solutions' / name).read_text())
         self.assertEqual(data['base_modules'][:3], ['liwan_core', 'liwan_platform', 'liwan_api'])
         self.assertEqual(set(data['base_modules'][3:]), catalog_check.BASE_APPLICATIONS)

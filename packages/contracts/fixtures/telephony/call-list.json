@@ -1,0 +1,49 @@
+{
+  "items": [
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "out",
+      "durationSeconds": 60,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": null,
+      "id": 1,
+      "linkedid": "1764050000.3",
+      "partner": null,
+      "recordingState": "none",
+      "remoteNumber": "+966500000001",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "missed",
+      "user": {
+        "id": 2,
+        "name": "Phone User"
+      }
+    },
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "in",
+      "durationSeconds": 125,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": {
+        "id": 6,
+        "name": "1001"
+      },
+      "id": 3,
+      "linkedid": "1764049999.1",
+      "partner": {
+        "id": 4,
+        "name": "Alia Customer"
+      },
+      "recordingState": "none",
+      "remoteNumber": "+966500000000",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "answered",
+      "user": {
+        "id": 5,
+        "name": "Telephony Manager"
+      }
+    }
+  ],
+  "total": 2
+}

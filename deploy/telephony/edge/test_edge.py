@@ -61,7 +61,7 @@ def _caddy_image() -> str:
         raise AssertionError(reads_context)
     image = f'liwan-caddy-test:{hashlib.sha256(recipe.encode()).hexdigest()[:16]}'
     if _docker(['image', 'inspect', image], timeout=30).returncode:
-        built = _docker(['build', '-t', image, '-'], stdin=recipe, timeout=1800)
+        built = _docker(['build', '-t', image, '-'], input=recipe, timeout=1800)
         if built.returncode:
             raise unittest.SkipTest(f'cannot build the proxy image: {built.stderr.strip()[:300]}')
     return image

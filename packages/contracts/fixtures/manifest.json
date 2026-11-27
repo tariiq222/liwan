@@ -1447,6 +1447,70 @@
       "route": "/api/v1/inbox/conversations/{id}/messages",
       "status": 200,
       "schema": "InboxMessageListSchema"
+    },
+    {
+      "name": "telephony/call-list",
+      "addon": "liwan_telephony",
+      "method": "GET",
+      "route": "/api/v1/telephony/calls",
+      "status": 200,
+      "schema": "TelephonyCallListSchema"
+    },
+    {
+      "name": "telephony/call-detail",
+      "addon": "liwan_telephony",
+      "method": "GET",
+      "route": "/api/v1/telephony/calls/{id}",
+      "status": 200,
+      "schema": "TelephonyCallDetailSchema"
+    },
+    {
+      "name": "telephony/recording-link",
+      "addon": "liwan_telephony",
+      "method": "GET",
+      "route": "/api/v1/telephony/calls/{id}/recording",
+      "status": 200,
+      "schema": "TelephonyRecordingLinkSchema"
+    },
+    {
+      "name": "telephony/lookup",
+      "addon": "liwan_telephony",
+      "method": "GET",
+      "route": "/api/v1/telephony/lookup",
+      "status": 200,
+      "schema": "TelephonyLookupSchema"
+    },
+    {
+      "name": "telephony/line-list",
+      "addon": "liwan_telephony",
+      "method": "GET",
+      "route": "/api/v1/telephony/lines",
+      "status": 200,
+      "schema": "TelephonyLineListSchema"
+    },
+    {
+      "name": "telephony/extension-list",
+      "addon": "liwan_telephony",
+      "method": "GET",
+      "route": "/api/v1/telephony/extensions",
+      "status": 200,
+      "schema": "TelephonyExtensionListSchema"
+    },
+    {
+      "name": "telephony/session",
+      "addon": "liwan_telephony",
+      "method": "POST",
+      "route": "/api/v1/telephony/session",
+      "status": 200,
+      "schema": "TelephonySessionSchema"
+    },
+    {
+      "name": "telephony/session-revoke",
+      "addon": "liwan_telephony",
+      "method": "DELETE",
+      "route": "/api/v1/telephony/session",
+      "status": 200,
+      "schema": "TelephonySessionRevokeSchema"
     }
   ]
 }

@@ -14,7 +14,7 @@ import CustomerConflictStep from './CustomerConflictStep.vue'
 
 // The create and edit form of a customer. The tenant's party kinds decide whether the person/company choice is offered;
 // the custom fields come from the settings definition (a new customer) or from the customer itself (an edit).
-const props = defineProps<{ customer?: Customer | null; settings: CustomerSettings; backTo: RouteLocationRaw }>()
+const props = defineProps<{ customer?: Customer | null; settings: CustomerSettings; backTo: RouteLocationRaw; initialPhone?: string }>()
 const emit = defineEmits<{ saved: [customer: Customer]; open: [id: number] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -45,16 +45,27 @@ const dirty = computed(() => savedState.value !== snapshot() || customDirty.valu
 // A refetch hands the form the same customer again: it must not wipe what the user typed, so the draft is replaced only
 // for another customer or while nothing was typed.
 let initialised = false
+let syncedInitialPhone = ''
 watch(() => props.customer, (customer, previous) => {
   if (initialised && !shouldResetCustomerDraft(previous, customer, dirty.value)) return
   initialised = true
   name.value = customer?.name ?? ''
-  phone.value = customer?.phone ?? ''
+  phone.value = customer ? (customer.phone ?? '') : (props.initialPhone ?? '')
+  syncedInitialPhone = customer ? '' : (props.initialPhone ?? '')
   email.value = customer?.email ?? ''
   parentId.value = customer?.parent?.id ?? null
   isCompany.value = customer ? customer.is_company : kind.value.isCompany
   savedState.value = snapshot()
 }, { immediate: true })
+
+watch(() => props.initialPhone, (nextPhone) => {
+  if (props.customer || phone.value !== syncedInitialPhone) return
+  const next = nextPhone ?? ''
+  const wasDirty = dirty.value
+  phone.value = next
+  syncedInitialPhone = next
+  if (!wasDirty) savedState.value = snapshot()
+})
 
 const formError = ref<unknown>(null)
 const conflict = ref<CustomerCandidate[] | null>(null)

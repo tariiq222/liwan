@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The four telephony capabilities (design section 6). A capability is a row of the access catalog, so it carries the
+     resource and the action the way every other application's does; the key itself is what the routes check. -->
+<odoo>
+    <data noupdate="1">
+        <record id="permission_telephony_use" model="liwan.access.permission">
+            <field name="key">telephony.use</field>
+            <field name="domain">telephony</field>
+            <field name="resource">phone</field><field name="action">use</field>
+            <field name="name_ar">استخدام الهاتف</field><field name="name_en">Use the phone</field>
+            <field name="description_ar">الاتصال والاستقبال وسجل مكالمات المستخدم</field>
+            <field name="description_en">Place and take calls, and read the user's own call log</field>
+            <field name="group_xmlid">liwan_telephony.group_cap_telephony_use</field>
+            <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+        </record>
+        <record id="permission_telephony_calls_read_all" model="liwan.access.permission">
+            <field name="key">telephony.calls.read_all</field>
+            <field name="domain">telephony</field>
+            <field name="resource">calls</field><field name="action">read_all</field>
+            <field name="name_ar">قراءة سجل مكالمات الشركة</field><field name="name_en">Read the company call log</field>
+            <field name="description_ar">قراءة كل مكالمات الشركة لا مكالمات المستخدم وحده</field>
+            <field name="description_en">Read every call of the company, not only the user's own</field>
+            <field name="group_xmlid">liwan_telephony.group_cap_telephony_calls_read_all</field>
+            <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+        </record>
+        <record id="permission_telephony_recordings_listen" model="liwan.access.permission">
+            <field name="key">telephony.recordings.listen</field>
+            <field name="domain">telephony</field>
+            <field name="resource">recordings</field><field name="action">listen</field>
+            <field name="name_ar">الاستماع إلى التسجيلات</field><field name="name_en">Listen to recordings</field>
+            <field name="description_ar">الاستماع إلى تسجيلات المكالمات، ولم تُستنتج من أي صلاحية أخرى</field>
+            <field name="description_en">Listen to call recordings; implied by no other capability</field>
+            <field name="group_xmlid">liwan_telephony.group_cap_telephony_recordings_listen</field>
+            <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+        </record>
+        <record id="permission_telephony_manage" model="liwan.access.permission">
+            <field name="key">telephony.manage</field>
+            <field name="domain">telephony</field>
+            <field name="resource">settings</field><field name="action">manage</field>
+            <field name="name_ar">إدارة الاتصالات</field><field name="name_en">Manage telephony</field>
+            <field name="description_ar">الخطوط والتمثيلات والطوابير والإعدادات</field>
+            <field name="description_en">Lines, extensions, queues and settings</field>
+            <field name="group_xmlid">liwan_telephony.group_cap_telephony_manage</field>
+            <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
+        </record>
+        <!-- The machine capability of the events identity alone (design 4.5): no role carries it and it cannot be
+             picked in one. It lets the company fence admit that identity in every company it belongs to. -->
+        <record id="permission_telephony_events_apply" model="liwan.access.permission">
+            <field name="key">telephony.events.apply</field>
+            <field name="domain">telephony</field>
+            <field name="resource">events</field><field name="action">apply</field>
+            <field name="name_ar">تطبيق أحداث الهاتف</field><field name="name_en">Apply telephony events</field>
+            <field name="description_ar">حساب تقني يخزّن مكالمات كل شركة من أحداث نظام الهاتف</field>
+            <field name="description_en">The technical account that stores the calls of every company from the phone system's events</field>
+            <field name="group_xmlid">liwan_telephony.group_telephony_events</field>
+            <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
+        </record>
+    </data>
+</odoo>

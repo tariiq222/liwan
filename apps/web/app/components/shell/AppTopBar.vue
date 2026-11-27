@@ -53,6 +53,7 @@ useShellShortcuts({
     <template #search><GlobalSearch /></template>
     <template #end>
       <AssistantButton />
+      <ShellCallChip />
       <div v-if="can('liwan.notifications')" class="liwan-tools" role="group" :aria-label="t('nav.tools')">
         <NotificationCenter />
       </div>

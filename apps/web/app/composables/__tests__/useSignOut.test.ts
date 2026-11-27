@@ -1,5 +1,6 @@
 import * as Vue from 'vue'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { registerSessionTeardown } from '../../utils/sessionTeardown'
 import { useAiConversation } from '../useAiConversation'
 import { useSignOut } from '../useSignOut'
 
@@ -96,4 +97,27 @@ it('keeps the local state and resolves false when the server cannot end the sess
   // A session that still exists keeps its identity: the failure path never claims the user is gone.
   expect(nuxtMe.value).toEqual({ id: 7 })
   expect(refresh).toHaveBeenCalledWith('me')
+})
+
+it('runs session teardown before logout and restores registered surfaces when logout fails', async () => {
+  const order: string[] = []
+  const unregister = registerSessionTeardown({
+    teardown: () => { order.push('teardown') },
+    restore: () => { order.push('restore') },
+  })
+  try {
+    const okFetch = vi.fn(async () => { order.push('logout'); return {} })
+    const { signOut } = setup(okFetch)
+    await expect(signOut()).resolves.toBe(true)
+    expect(order).toEqual(['teardown', 'logout'])
+
+    order.length = 0
+    logoutFailed = true
+    const failFetch = vi.fn(async () => { order.push('logout'); throw new Error('logout_failed') })
+    const failed = setup(failFetch)
+    await expect(failed.signOut()).resolves.toBe(false)
+    expect(order).toEqual(['teardown', 'logout', 'restore'])
+  } finally {
+    unregister()
+  }
 })

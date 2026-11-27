@@ -1,0 +1,73 @@
+-- Rendered by deploy/telephony/render.py from the company's env file. Never commit the rendered file: it holds the
+-- initial browser test extension passwords.
+-- Idempotent seed rows for browser (WebRTC) test extensions 101 and 102. Plain SIP extension 103 and the provider
+-- trunk stay static in asterisk/pjsip.conf; dynamic per-session browser endpoints are written directly to pbx-db by pbx-agent.
+
+INSERT INTO ps_aors (id, max_contacts, remove_existing, default_expiration, maximum_expiration) VALUES
+    ('101', 1, 'yes', 120, 120),
+    ('102', 1, 'yes', 120, 120)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO ps_auths (id, auth_type, username, password) VALUES
+    ('auth101', 'userpass', '101', '{{EXTENSION_101_PASSWORD}}'),
+    ('auth102', 'userpass', '102', '{{EXTENSION_102_PASSWORD}}')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO ps_endpoints (
+    id,
+    transport,
+    aors,
+    auth,
+    context,
+    disallow,
+    allow,
+    webrtc,
+    from_domain,
+    direct_media,
+    rtp_symmetric,
+    force_rport,
+    rewrite_contact,
+    dtmf_mode,
+    device_state_busy_at,
+    allow_transfer,
+    callerid
+) VALUES
+    (
+        '101',
+        'transport-ws',
+        '101',
+        'auth101',
+        'from-extension',
+        'all',
+        'ulaw,alaw',
+        'yes',
+        '{{HOST_NAME}}',
+        'no',
+        'yes',
+        'yes',
+        'yes',
+        'rfc4733',
+        1,
+        'yes',
+        'Extension 101 <101>'
+    ),
+    (
+        '102',
+        'transport-ws',
+        '102',
+        'auth102',
+        'from-extension',
+        'all',
+        'ulaw,alaw',
+        'yes',
+        '{{HOST_NAME}}',
+        'no',
+        'yes',
+        'yes',
+        'yes',
+        'rfc4733',
+        1,
+        'yes',
+        'Extension 102 <102>'
+    )
+ON CONFLICT (id) DO NOTHING;

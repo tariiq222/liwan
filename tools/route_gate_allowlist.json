@@ -229,6 +229,12 @@
       "routes": [
         "liwan_integrations_sa/controllers/hooks.py:provider_callback"
       ]
+    },
+    {
+      "reason": "The telephony machine route is called by the company's pbx-agent, not by a user: it proves the caller with the per-database derived key of design 12.6 (an HMAC over the raw body and a five-minute clock window) and the event_id idempotency, so no user capability applies.",
+      "routes": [
+        "liwan_telephony/controllers/telephony_events.py:receive_event"
+      ]
     }
   ]
 }

@@ -2,7 +2,8 @@
 
 The per-company telephony agent of LiwanOS (design: `docs/superpowers/specs/2026-10-28-liwan-telephony-design.md`).
 One instance runs inside each company's telephony package. It is the only party that talks to Asterisk over ARI, the
-only party that writes recordings, and the only sender of call events to Odoo.
+only writer of Asterisk's PJSIP realtime tables in `pbx-db`, the only party that writes recordings, and the only sender
+of call events to Odoo.
 
 It holds no Odoo code, imports nothing from Odoo and never opens an Odoo database. The whole contract with Odoo is
 two things: the signed `POST` to the events route (4.5) and the signed recording link (4.4). The agent does not
@@ -23,13 +24,18 @@ file.
 
 ## Endpoints
 
-| Route | Method | Purpose |
-|---|---|---|
-| `/health` | GET | ARI reachability and stream state, line endpoint state, recordings free space, queue depth, delivery and worker liveness |
-| `/pbx/recordings/<token>` | GET | Streams one recording as `audio/wav`; anything invalid answers 404 |
+| Route | Method | Surface | Purpose |
+|---|---|---|---|
+| `/health` | GET | private | ARI reachability and stream state, line endpoint state, recordings free space, queue depth, delivery and worker liveness |
+| `/pbx/recordings/<token>` | GET | public (edge) | Streams one recording as `audio/wav`; anything invalid answers 404 |
+| `/registration` | POST | private (Odoo) | Mints a short-lived WebRTC SIP password with a unique auth slot, per-session TURN REST credentials, and overlap rotation |
+| `/registration/{extension}` | DELETE | private (Odoo) | Revokes all active sessions for an extension and deletes its PJSIP `endpoint`, `aor`, and `auth` objects |
+| `/extensions/{extension}` | PUT | private (Odoo) | Validates an extension when `active: true` (no password opened until `/registration`), or disables it when `active: false` |
+| `/extensions/{extension}` | DELETE | private (Odoo) | Disables an extension and deletes its PJSIP `endpoint`, `aor`, and `auth` objects |
+| `/recordings/link` | POST | private (Odoo) | Mints a short-lived signed recording URL with bounded clock tolerance |
 
-Both routes are the whole public surface of this service. Caddy exposes only the recordings path (GET) to the
-internet; `/health` is read from the private network and by the container healthcheck.
+Caddy exposes only `/pbx/recordings/<token>` (GET) and the Asterisk WebSocket path to the internet; `/health` and the
+five Odoo routes are reachable only on the private network.
 
 The health route answers 200 while the process serves, and its `status` field is `ok` or `degraded`. It is
 `degraded` when ARI does not answer, when the event stream is not connected, when the recordings volume is below
@@ -38,7 +44,7 @@ The health route answers 200 while the process serves, and its `status` field is
 any of these, so the field is for the alert, and the HTTP status is for liveness.
 
 The report also carries `delivery.last_success_at`, and one beat per background worker
-(`workers.delivery`, `workers.reconcile`) with the seconds since its last pass and whether that is stale. A pass
+(`workers.delivery`, `workers.reconcile`, `workers.sessions`) with the seconds since its last pass and whether that is stale. A pass
 that raises is logged by exception class and the worker keeps its tick, so a broken event or a broken HTTP answer
 cannot silently stop delivery. The delivery beat counts as stale only after `WORKER_STALE_SECONDS` (a full batch of
 `BATCH_SIZE` attempts at `REQUEST_TIMEOUT_SECONDS` each, plus a minute), so a live worker sending a slow batch is
@@ -75,6 +81,9 @@ Every attempt posts the same stored bytes, so the `event_id` never changes:
 - `state` is one of `ringing`, `answered`, `ended`, or `failed` for a leg CEL never closed (see reconciliation).
 - A reconciled row is the same envelope with `source: "cel"`, `reconciled: true`, `state: "ended"` and the times
   CEL recorded.
+- One event per recorded call carries `recording: "ready"` and nothing else uses the field: when a leg of the call
+  has ended and `<linkedid>.wav` exists, the agent sends that leg's end event again with the field set and a new
+  `occurred_at`. Nothing else in `call` differs, and the queue takes the announcement once per call.
 - Headers: `X-Liwan-Telephony-Timestamp` (unix seconds, one per request) and `X-Liwan-Telephony-Signature` =
   `hex(HMAC-SHA256(events_key, "<timestamp>\n" + body))`. The body is the exact bytes sent, serialized with sorted
   keys, no spaces and UTF-8. Odoo refuses an old timestamp and an `event_id` it already processed.
@@ -83,13 +92,56 @@ Every attempt posts the same stored bytes, so the `event_id` never changes:
   rule and `tests/test_signing.py` pins a shared vector (key text, payload, timestamp, signature hex, token) so the
   Odoo side can reproduce these bytes exactly.
 
+## Reverse-direction authentication (Odoo -> pbx-agent)
+
+Every private route called by Odoo (`/registration`, `/registration/{extension}`, `/extensions/{extension}`,
+`/recordings/link`) is authenticated with HMAC-SHA256 using the 32 raw bytes of `PBX_REVERSE_KEY`:
+
+- `X-Liwan-Telephony-Timestamp`: Unix epoch seconds ASCII decimal (`^[0-9]{1,20}$`), within `±300` seconds of `now`.
+- `X-Liwan-Telephony-Signature`: 64-character hex HMAC-SHA256 over
+  `b"<timestamp>\n<METHOD>\n<path>\n" + raw_body`, verified with `hmac.compare_digest`.
+- `X-Liwan-Telephony-Database`: the company database name; must match `PBX_DATABASE` (and any `database` field in a JSON body).
+
+Missing/malformed headers, stale/future timestamps, or invalid signatures answer `401` with no detail. A valid
+signature presenting another database answers `403`. Invalid extension numbers (not matching `^[0-9]{2,10}$`) answer
+`422`. `tests/test_signing.py` pins the shared reverse-signing vector so Odoo reproduces the exact bytes.
+
+## WebRTC sessions, password rotation with overlap, and TURN REST
+
+Asterisk 22 digest authentication matches by `(realm, username)` and stops at the first matching `auth` object on an
+endpoint. Each `POST /registration` therefore generates a unique 8-hex-character `slot`:
+
+- `auth_id = "<ext>_<slot>"`, `auth_username = "<ext>-<slot>"`, and a fresh random `password`.
+- Live sessions are persisted in the `sessions` table of `PBX_QUEUE_PATH` SQLite DB.
+- Under a per-extension lock, rotating keeps at most the immediately preceding live `auth_id` with
+  `overlap_until = min(prev.expires_at, now + PBX_SESSION_OVERLAP_SECONDS)` and drops any older auths.
+- PJSIP realtime rows are written directly to `pbx-db` (`PBX_DB_URL`) inside **one atomic PostgreSQL transaction**:
+  upserting `ps_auths` (`<ext>_<slot>`), `ps_aors` (`<ext>`), and `ps_endpoints` (`<ext>`, with
+  `auth=<comma-joined active auth ids>` and the Asterisk 22 WebRTC attributes) and deleting any stale auth rows.
+  Asterisk 22's `res_config_pgsql.so` reads `ps_auths`, `ps_aors`, and `ps_endpoints` live from `pbx-db`, whereas
+  Asterisk 22's ARI dynamic config `INSERT INTO ps_endpoints` omits identifier quotes around `100rel` and fails in
+  PostgreSQL. Making `pbx-agent` the sole transactional writer avoids that bug and eliminates partial-write rollbacks:
+  if the transaction fails, PostgreSQL rolls back cleanly, SQLite is untouched, and `/registration` answers `502` with
+  no password.
+- A background reaper loop (`workers.sessions`) atomically updates `ps_endpoints.auth` and deletes expired/past-overlap
+  `ps_auths` rows; when an extension has zero live sessions remaining, it deletes `ps_endpoints`, `ps_aors`, known
+  `ps_auths`, and any orphan `<ext>_%` auth rows in one transaction so expired passwords are immediately rejected.
+- `DELETE /registration/{ext}`, `DELETE /extensions/{ext}`, and `PUT /extensions/{ext}` with `active: false` revoke
+  all active sessions and delete `ps_endpoints`, `ps_aors`, known `ps_auths`, and any orphan `<ext>_%` auth rows
+  atomically and idempotently.
+- When `PBX_TURN_URL` is configured, each session mints ephemeral coturn `use-auth-secret` REST credentials:
+  `expiry = int(now) + max(PBX_SESSION_SECONDS * 2, 300)`, `username = "<expiry>:<ext>"`,
+  `credential = base64(HMAC-SHA1(PBX_TURN_SECRET, username))`.
+
 ## The recording link Odoo mints
 
 `token = base64url(json) + "." + hex(HMAC-SHA256(reverse_key, base64url(json)))`, where `json` is
-`{"call": "<linkedid>", "host": "<company host>", "exp": <unix expiry>}` with sorted keys and no spaces. Odoo sets
-`exp` one minute ahead. The agent verifies the signature, the expiry, the host against `PBX_PUBLIC_HOST` and the call
-id shape before it looks at the disk. The file is `<call id>.wav` directly inside `PBX_RECORDINGS_DIR`; the resolved
-path must stay in that directory, so traversal, a symlink leaving the directory and listing are all refused with 404.
+`{"call": "<linkedid>", "host": "<company host>", "exp": <unix expiry>}` with sorted keys and no spaces. On
+`POST /recordings/link`, `expires_at <= now` answers `410`, `expires_at > now + 60 + 300` answers `422`, and the minted
+token's `exp` is capped at `min(expires_at, now + 60)`. The agent verifies the signature, the expiry, the host against
+`PBX_PUBLIC_HOST` and the call id shape before it looks at the disk. The file is `<call id>.wav` directly inside
+`PBX_RECORDINGS_DIR`; the resolved path must stay in that directory, so traversal, a symlink leaving the directory and
+listing are all refused with 404.
 
 ## Configuration
 
@@ -101,6 +153,7 @@ names the variable and never its value.
 | `PBX_ARI_URL` | yes | ARI base URL, for example `http://ari:8088/ari`; no credentials in the URL |
 | `PBX_ARI_USERNAME` | yes | ARI user; never logged |
 | `PBX_ARI_PASSWORD` | yes | ARI password; never logged |
+| `PBX_DB_URL` | yes | PostgreSQL DSN for `pbx-db` (`postgresql://` or `postgres://`, no whitespace); never logged or included in errors/`repr()` |
 | `PBX_DATABASE` | yes | the company database name, carried in every event |
 | `PBX_EVENTS_KEY` | with `PBX_REVERSE_KEY` | the derived events key, 64 hex characters |
 | `PBX_REVERSE_KEY` | with `PBX_EVENTS_KEY` | the derived reverse-direction key, 64 hex characters |
@@ -116,18 +169,28 @@ names the variable and never its value.
 | `PBX_CEL_PATH` | yes | absolute path of the Asterisk CEL CSV; the file may appear later |
 | `PBX_INBOUND_CONTEXT` | no | the context that marks a call as incoming; default `from-trunk` |
 | `PBX_LINE_ENDPOINT` | no | PJSIP endpoint reported as the line in `/health`; absent means the report has no line |
+| `PBX_PUBLIC_WS_URL` | no | `ws://` or `wss://` WebSocket URL returned by `/registration`; defaults to `wss://<PBX_PUBLIC_HOST>/ws` |
+| `PBX_SESSION_SECONDS` | no | SIP session lifetime in seconds, 30 to 120; default `120` |
+| `PBX_SESSION_OVERLAP_SECONDS` | no | password rotation overlap window in seconds, 0 to 60 and `< PBX_SESSION_SECONDS`; default `30` |
+| `PBX_STUN_URL` | no | optional STUN server URL (`stun:` or `stuns:`) offered in `ice_servers` |
+| `PBX_TURN_URL` | no | optional TURN server URL (`turn:` or `turns:`); requires `PBX_TURN_SECRET` |
+| `PBX_TURN_SECRET` | with `PBX_TURN_URL` | coturn `use-auth-secret` shared secret (`>= 32` chars, no whitespace); never logged |
+| `PBX_PJSIP_TRANSPORT` | no | PJSIP WebSocket transport name written to browser endpoints; default `transport-ws` |
+| `PBX_PJSIP_CONTEXT` | no | PJSIP dialplan context written to browser endpoints; default `from-extension` |
 
 ## The queue and how it stays bounded
 
 `events` holds one row per event: the body, the attempt count, the next attempt time and the acknowledgement time.
-`legs` holds the `uniqueid` of every call the live stream saw finish. `meta` holds the CEL byte offset and the
-identity of the file it belongs to.
+`legs` holds the `uniqueid` of every call the live stream saw finish. `recordings` holds the `linkedid` of every call
+whose recording was announced, so neither the stream nor a CEL replay announces one twice. `meta` holds the CEL byte
+offset and the identity of the file it belongs to.
 
 - A row leaves the queue only after a 2xx. Every other answer and every connection error is retried with a capped
   exponential backoff (2, 4, 8 … 300 seconds) and nothing is dropped.
-- Acknowledged rows are deleted 24 hours after the acknowledgement, and legs 3 days after they were first seen
-  (`queue.py`: `ACKED_RETENTION_SECONDS`, `LEG_RETENTION_SECONDS`); pruning runs hourly from the delivery worker.
-  The file therefore stays proportional to a day of events plus three days of leg keys, not to the agent's lifetime.
+- Acknowledged rows are deleted 24 hours after the acknowledgement, and legs and announced recordings 3 days after
+  they were first seen (`queue.py`: `ACKED_RETENTION_SECONDS`, `LEG_RETENTION_SECONDS`); pruning runs hourly from the
+  delivery worker. The file therefore stays proportional to a day of events plus three days of leg and recording keys,
+  not to the agent's lifetime.
 - SQLite runs in WAL mode with `synchronous=FULL`, so an acknowledged event survives a power loss.
 
 ## Reconciliation and the CEL file
@@ -144,9 +207,10 @@ was appended. Rows are read with Python's `csv` reader, so a quoted field that c
 as `"PJSIP/1001,30"`) is one field. A row that still does not carry the 19 columns is skipped and counted, and it
 never holds the file: the rows after it are read on the same pass.
 
-The package must write comma quoting (`quoting_method = comma`), which wraps a field containing a comma in double
-quotes. Backslash quoting (`\,`) is not accepted, because the comma stays in the line. A row written without quoting
-and broken by a comma is skipped; a leg whose hangup lands in such a row is completed by the bound below.
+The package must quote every field (`quoting_method = all`), which wraps each field in double quotes so a comma inside
+a value stays inside the field. Backslash quoting (`\,`) is not accepted, because the comma stays in the line. A row
+written without quoting and broken by a comma is skipped; a leg whose hangup lands in such a row is completed by the
+bound below.
 
 - A leg counts as complete once a `HANGUP` or `CHAN_END` row exists.
 - The offset never moves past the first row of a leg that has not ended. A call that spans two passes is therefore
@@ -172,15 +236,14 @@ package must run with `TZ=UTC`.
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install --require-hashes -r requirements.txt
+.venv/bin/pip install --require-hashes -r requirements-dev.txt
 .venv/bin/pip install --no-deps --no-build-isolation -e .
 
 mkdir -p /tmp/pbx-agent/recordings
 
-# The lock's hashes are for Linux (the image); on macOS install it without --require-hashes or work in the container.
-
 PBX_ARI_URL=http://127.0.0.1:8088/ari \
 PBX_ARI_USERNAME=liwan PBX_ARI_PASSWORD=… \
+PBX_DB_URL=postgresql://pbx:…@127.0.0.1:5432/telephony_pbx \
 PBX_DATABASE=liwan_acme \
 PBX_EVENTS_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))') \
 PBX_REVERSE_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))') \
@@ -204,10 +267,14 @@ Asterisk writes and this container only reads today; retention deletion, which w
 implemented yet. The recordings mount is the only volume that holds call audio, and Odoo never writes, lists or
 deletes anything there.
 
-The lock is for Linux and Python 3.12 (the image). Regenerate it from this folder after a dependency change:
+Both `requirements.txt` (runtime image) and `requirements-dev.txt` (CI and local development, including `httpx` for
+`TestClient` and `ruff`) are universal hashed locks targeting Python 3.12 (covering both Linux `python:3.12-slim` and
+macOS wheels). Regenerate them from this folder after an approved dependency change:
 
 ```sh
-uv pip compile --python-platform linux --python-version 3.12 --generate-hashes --no-header --quiet pyproject.toml -o requirements.txt
+C="uv pip compile --universal --python-version 3.12 --generate-hashes --no-header --quiet"
+$C pyproject.toml -o requirements.txt
+$C pyproject.toml --extra dev -o requirements-dev.txt
 ```
 
 ## Tests
@@ -231,14 +298,15 @@ Verified by the tests above, offline: configuration fail-closed behaviour, signa
 queue and retry semantics, per-request timestamps, transport failures, CEL parsing and re-enqueue, the ARI event
 URL, health payload and worker liveness.
 
-The ARI client keeps only what phase 1 uses: the event stream, reachability, one endpoint's state and a hangup. The
-PJSIP write path (creating an extension's objects) is not here: its shape was unproven and it is not used until the
-session route exists.
+The ARI client keeps only what the agent uses: the event stream, reachability, and one endpoint's state. PJSIP realtime
+writes go directly to `pbx-db` through `pbx_db.py`, verified offline against a fake transactional connection.
 
 Not verified, and open until the phase-1 gate in the design (section 13): a real Asterisk. That includes which ARI
 events the package's dialplan actually produces (the spec allows falling back to AMI for the missing ones), that the
 event URL with `app=pbx-agent` is accepted, that the package writes comma-quoted CEL rows, the ARI health probe,
-streaming a real MixMonitor file, and the Odoo side of both contracts, which belongs to `liwan_telephony` in phase 2.
+that a MixMonitor file is closed by the time its channel's end event reaches the agent (the recording-ready event is
+sent on that ordering), streaming a real MixMonitor file, and the Odoo side of both contracts, which belongs to
+`liwan_telephony` in phase 2.
 
 ## Decisions (where the spec is silent)
 
@@ -256,8 +324,12 @@ streaming a real MixMonitor file, and the Odoo side of both contracts, which bel
    left to Odoo, which knows both numbers.
 5. **`PBX_PUBLIC_HOST` exists.** The recording token is bound to the company host (4.4), so verification needs the
    expected host from configuration.
-6. **No PJSIP write path in phase 1.** The realtime object writes are removed rather than kept unproven and unused;
-   they return with the session route that needs them, together with the credentials handling they require.
+6. **Per-session auth slots with direct atomic `pbx-db` writes.** Asterisk 22's `res_config_pgsql.so` reads
+   `ps_auths`, `ps_aors`, and `ps_endpoints` live from `pbx-db`, whereas its ARI dynamic config push
+   (`INSERT INTO ps_endpoints`) omits identifier quotes around `100rel` and fails in PostgreSQL. `pbx-agent` is
+   therefore the sole transactional writer of those three tables via `PostgresPbxStore`: every session issue, overlap
+   narrowing, and revocation commits in one PostgreSQL transaction; on failure SQLite is untouched and `/registration`
+   answers `502` with no password.
 7. **The token is a base64url JSON payload plus a hex signature.** The expiry is minted by Odoo (one minute) and only
    checked here.
 8. **Health always answers 200.** The report carries `ok` or `degraded`, so the container healthcheck tests the

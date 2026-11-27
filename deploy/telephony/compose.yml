@@ -1,5 +1,6 @@
-# The telephony package of one company: Asterisk 22 LTS, coturn and pbx-agent, running beside LiwanOS and shared with
-# no other company (D2; docs/superpowers/specs/2026-10-28-liwan-telephony-design.md sections 2, 3, 11.2, 12.3).
+# The telephony package of one company: Asterisk 22 LTS, PostgreSQL 16 (PJSIP realtime), coturn and pbx-agent, running
+# beside LiwanOS and shared with no other company (D2; docs/superpowers/specs/2026-10-28-liwan-telephony-design.md
+# sections 2, 3, 11.2, 12.3).
 # deploy/telephony/render.py turns this template into the Compose file of one company. The only structural variation is
 # a rendered block, marked with the toggle it depends on (`LIWAN_TELEPHONY_<NAME>`), kept only when every service of
 # that block belongs to the company's mode. The RTP block is published in every mode and the SIP port only when the
@@ -42,6 +43,35 @@ services:
       - telephony_asterisk_state:/var/lib/asterisk
       - telephony_agent_state:/var/lib/pbx-agent
 
+  pbx-db:
+    # PJSIP realtime database for this company only (ps_aors, ps_auths, ps_endpoints): pinned to the same postgres:16
+    # index digest as deploy/control-plane/compose.production.yml and hardened identically. Internal network only;
+    # never published.
+    image: postgres:16@sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5
+    restart: unless-stopped
+    logging: *liwan-logging
+    user: postgres
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp", "/var/run/postgresql:uid=999,gid=999"]
+    environment:
+      POSTGRES_DB: telephony_pbx
+      POSTGRES_USER: telephony_pbx
+      POSTGRES_PASSWORD: "${LIWAN_TELEPHONY_PBX_DB_PASSWORD:?}"
+    volumes:
+      - telephony_pbx_db:/var/lib/postgresql/data
+      - ./postgres/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./postgres/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    expose: ["5432"]
+    networks: [telephony_internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telephony_pbx -d telephony_pbx"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   asterisk:
     # Asterisk 22 LTS, the version the design pins (section 3). No official image exists, so this is the community
     # image built from Asterisk's own sources; the tag is the exact LTS release and the digest was resolved on
@@ -77,6 +107,10 @@ services:
       # CEL on, and the CSV the agent tails for reconciliation (design 4.6).
       - ./asterisk/cel.conf:/etc/asterisk/cel.conf:ro
       - ./asterisk/cel_custom.conf:/etc/asterisk/cel_custom.conf:ro
+      # PJSIP realtime through PostgreSQL (pbx-db) with static pjsip.conf fallback.
+      - ./asterisk/sorcery.conf:/etc/asterisk/sorcery.conf:ro
+      - ./asterisk/extconfig.conf:/etc/asterisk/extconfig.conf:ro
+      - ./asterisk/res_pgsql.conf:/etc/asterisk/res_pgsql.conf:ro
       # Recordings, on their own named volume so they survive `down` (design 4.4, 11.1); volumes-init made it writable
       # by uid 10002. MixMonitor writes /var/spool/asterisk/monitor/<linkedid>.wav there, the directory the agent
       # serves and prunes.
@@ -115,6 +149,7 @@ services:
       start_period: 30s
     depends_on:
       volumes-init: { condition: service_completed_successfully }
+      pbx-db: { condition: service_healthy }
 
   coturn:
     # coturn 4.19.2, pinned by version and index digest (resolved 2026-11-25 with
@@ -197,9 +232,20 @@ services:
       PBX_LISTEN_PORT: "8601"
       PBX_RECONCILE_SECONDS: "${LIWAN_TELEPHONY_RECONCILE_SECONDS:?}"
       # The inbound context of the rendered extensions.conf, and the trunk endpoint reported as the line in /health.
-      # (The agent no longer reads a PJSIP transport or extension context: provisioning moved out of it.)
       PBX_INBOUND_CONTEXT: from-trunk
       PBX_LINE_ENDPOINT: trunk
+      # Browser session registration (design 4.1): WebSocket URL on the company host, optional STUN/TURN URLs, TURN
+      # REST secret for per-session HMAC credentials, credential lifetime/overlap, and the PJSIP objects written to
+      # pbx-db (non-empty validation of the database password is enforced on the pbx-db service above).
+      PBX_DB_URL: "postgresql://telephony_pbx:${LIWAN_TELEPHONY_PBX_DB_PASSWORD}@pbx-db:5432/telephony_pbx"
+      PBX_PUBLIC_WS_URL: "wss://${LIWAN_TELEPHONY_HOST_NAME:?}/ws"
+      PBX_STUN_URL: "${LIWAN_TELEPHONY_STUN_URL:-}"
+      PBX_TURN_URL: "${LIWAN_TELEPHONY_TURN_URL:-}"
+      PBX_TURN_SECRET: "${LIWAN_TELEPHONY_TURN_SECRET:?}"
+      PBX_SESSION_SECONDS: "${LIWAN_TELEPHONY_SESSION_SECONDS:-120}"
+      PBX_SESSION_OVERLAP_SECONDS: "${LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS:-30}"
+      PBX_PJSIP_TRANSPORT: "transport-ws"
+      PBX_PJSIP_CONTEXT: "from-extension"
     volumes:
       # Asterisk's recordings volume, at the path the agent image expects (`/recordings`, apps/pbx-agent/README.md).
       # Read-write: the agent serves a recording from monitor/; deleting it at the retention period is phase 4.
@@ -225,6 +271,7 @@ services:
       start_period: 30s
     depends_on:
       volumes-init: { condition: service_completed_successfully }
+      pbx-db: { condition: service_healthy }
       asterisk: { condition: service_healthy }
 
 networks:
@@ -251,3 +298,6 @@ volumes:
   # The CEL CSV Asterisk writes and the agent tails (design 4.6); named for the company like the other volumes.
   telephony_logs:
     name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-logs
+  # PostgreSQL 16 data for PJSIP realtime (ps_aors, ps_auths, ps_endpoints); isolated per company.
+  telephony_pbx_db:
+    name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-pbx-db

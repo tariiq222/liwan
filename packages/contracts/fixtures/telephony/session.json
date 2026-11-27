@@ -1,0 +1,19 @@
+{
+  "authUsername": "1001-session",
+  "expiresInSeconds": 90,
+  "extension": "1001",
+  "iceServers": [
+    {
+      "urls": "stun:stun.test:3478"
+    },
+    {
+      "credential": "c1",
+      "urls": [
+        "turn:turn.test:3478?transport=udp"
+      ],
+      "username": "u1"
+    }
+  ],
+  "password": "ephemeral-password",
+  "wsUrl": "wss://pbx.test/ws"
+}

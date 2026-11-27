@@ -1,0 +1,37 @@
+{
+  "items": [
+    {
+      "authMethod": "credentials",
+      "callerId": "+966500000001",
+      "id": 1,
+      "kind": "mobile_gateway",
+      "maxConcurrent": 5,
+      "mode": "b",
+      "name": "GSM gateway",
+      "numbers": [
+        "+966500000003",
+        "+966500000004"
+      ],
+      "outboundFormat": "9665",
+      "providerHost": "10.0.0.8",
+      "providerPort": 5061
+    },
+    {
+      "authMethod": "credentials",
+      "callerId": null,
+      "id": 2,
+      "kind": "sip_trunk",
+      "maxConcurrent": 1,
+      "mode": "a",
+      "name": "Main trunk",
+      "numbers": [
+        "+966500000001",
+        "+966500000002"
+      ],
+      "outboundFormat": null,
+      "providerHost": "sip.provider.test",
+      "providerPort": 5060
+    }
+  ],
+  "total": 2
+}

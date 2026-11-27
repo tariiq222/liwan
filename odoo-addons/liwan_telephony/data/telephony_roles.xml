@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="role_telephony_manager" model="liwan.access.role">
+            <field name="key">telephony_manager</field>
+            <field name="name_ar">مدير الاتصالات</field><field name="name_en">Telephony manager</field>
+            <field name="description">Telephony manager</field>
+            <field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_telephony_use'),ref('permission_telephony_calls_read_all'),ref('permission_telephony_recordings_listen'),ref('permission_telephony_manage')])]"/>
+        </record>
+    </data>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>
+    <function model="liwan.access.service" name="_liwan_repair_builtin_role_grants"/>
+</odoo>

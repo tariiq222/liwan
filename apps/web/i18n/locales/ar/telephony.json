@@ -1,0 +1,103 @@
+{
+  "telephony": {
+    "title": "الاتصالات",
+    "calls": {
+      "description": "سجل مكالمات يبيّن العميل والموظف في كل مكالمة، وتسجيلها لمن يملك صلاحية الاستماع.",
+      "empty": "لا توجد مكالمات بعد",
+      "count": "لا مكالمات | عرض {shown} من مكالمة واحدة | عرض {shown} من مكالمتين | عرض {shown} من {total} مكالمات | عرض {shown} من {total} مكالمة | عرض {shown} من {total} مكالمة",
+      "detail": "تفاصيل المكالمة",
+      "started": "وقت البدء",
+      "answered": "وقت الرد",
+      "ended": "وقت الانتهاء",
+      "recording": "التسجيل",
+      "listen": "استمع للتسجيل",
+      "noRecording": "لا يوجد تسجيل لهذه المكالمة",
+      "canNotListen": "لا تملك صلاحية الاستماع للتسجيلات"
+    },
+    "direction": {
+      "in": "واردة",
+      "out": "صادرة",
+      "internal": "داخلية"
+    },
+    "state": {
+      "ringing": "يرن",
+      "answered": "تم الرد",
+      "missed": "فائتة",
+      "rejected": "مرفوضة",
+      "failed": "فاشلة",
+      "ended": "منتهية"
+    },
+    "filter": {
+      "all": "كل الاتجاهات",
+      "allStates": "كل الحالات"
+    },
+    "column": {
+      "started": "الوقت",
+      "direction": "الاتجاه",
+      "number": "الرقم",
+      "user": "الموظف",
+      "state": "الحالة",
+      "duration": "المدة"
+    },
+    "nav": {
+      "calls": "المكالمات"
+    },
+    "settings": {
+      "extensions": "التمثيلات",
+      "extensionsHint": "لكل هاتف أو متصفح تمثيلة برقمها وبالمستخدم الذي يسجّل بها.",
+      "extensionNumber": "رقم التمثيلة",
+      "extensionNumberHint": "من رقمين إلى 10 أرقام، ولا يتكرر في الشركة.",
+      "extensionNumberPlaceholder": "مثال: 1001",
+      "extensionUser": "المستخدم",
+      "extensionUserHint": "اختياري: الموظف الذي يستعمل هذه التمثيلة.",
+      "extensionNoUser": "بلا مستخدم",
+      "extensionsEmpty": "لا توجد تمثيلات بعد",
+      "extensionActive": "مفعّلة",
+      "extensionInactive": "معطّلة",
+      "extensionDisable": "تعطيل",
+      "extensionEnable": "تفعيل"
+    },
+    "chip": {
+      "label": "المكالمة",
+      "idle": "الهاتف",
+      "ringing": "مكالمة من {number}",
+      "calling": "جارٍ الاتصال بـ {number}",
+      "inCall": "في مكالمة {duration}",
+      "failed": "تعذّرت المكالمة",
+      "failedHint": "تحقق من الاتصال ثم أعد المحاولة",
+      "retry": "إعادة المحاولة",
+      "noExtension": "لا توجد تمثيلة مخصّصة لحسابك بعد.",
+      "callerCard": "بطاقة المتصل",
+      "unknownCaller": "متصل غير معروف",
+      "loadingCaller": "جارٍ البحث عن المتصل…",
+      "recentCalls": "آخر المكالمات",
+      "saveContact": "حفظ جهة اتصال",
+      "answer": "رد",
+      "reject": "رفض",
+      "hangUp": "إنهاء",
+      "mute": "كتم",
+      "unmute": "إلغاء الكتم",
+      "hold": "تعليق",
+      "resume": "استئناف",
+      "transfer": "تحويل",
+      "transferPlaceholder": "رقم أو تمثيلة للتحويل",
+      "transferSend": "تحويل المكالمة",
+      "transferring": "جارٍ التحويل…",
+      "transferFailed": "تعذّر تحويل المكالمة",
+      "keypad": "لوحة الأرقام",
+      "dialpadTitle": "إجراء مكالمة",
+      "dialPlaceholder": "رقم الهاتف أو التمثيلة",
+      "dialCall": "اتصال",
+      "backspace": "حذف آخر رقم",
+      "invalidNumber": "أدخل رقم تمثيلة أو رقم هاتف دولي صالح.",
+      "phoneNotReady": "الهاتف غير جاهز بعد لإجراء المكالمة.",
+      "failure": {
+        "connectionClosed": "انقطع الاتصال بخدمة الهاتف.",
+        "registrationFailed": "تعذّر تسجيل الهاتف على الشبكة.",
+        "renewalFailed": "تعذّر تجديد جلسة الهاتف.",
+        "startFailed": "تعذّر تشغيل الهاتف.",
+        "callFailed": "تعذّر إتمام المكالمة."
+      }
+    }
+  }
+}

@@ -18,7 +18,7 @@ import catalog_check  # noqa: E402
 import new_app  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
-REGISTRATION = (new_app.ARCH_LAYERS, new_app.PLATFORM_SOLUTION, new_app.CONTRACTS_INDEX)
+REGISTRATION = (new_app.ARCH_LAYERS, new_app.current_solution(REPO), new_app.CONTRACTS_INDEX)
 EXPECTED = (
     'odoo-addons/liwan_zzprobe/__init__.py',
     'odoo-addons/liwan_zzprobe/models/ai_agent.py',
@@ -162,9 +162,9 @@ class TestNewApp(unittest.TestCase):
         self.assertTrue(all(line.strip() == f'"{anchor}": 4' for line in removed), removed)
         self.assertTrue(any('"zzprobe": {' in line for line in added))
         self.assertEqual(json.loads(after[new_app.ARCH_LAYERS])['web_apps']['zzprobe'], {'components': ['zzprobe'], 'pages': ['zzprobe']})
-        removed, added = changed_lines(self.before[new_app.PLATFORM_SOLUTION], after[new_app.PLATFORM_SOLUTION])
+        removed, added = changed_lines(self.before[new_app.current_solution(REPO)], after[new_app.current_solution(REPO)])
         self.assertFalse([line for line in removed if line.strip() not in ('}', '    }', '}', '  ]')])
-        tier = json.loads(after[new_app.PLATFORM_SOLUTION])['tiers'][-1]
+        tier = json.loads(after[new_app.current_solution(REPO)])['tiers'][-1]
         self.assertEqual(tier['modules'], ['liwan_zzprobe'])
         self.assertEqual(tier['features'], ['boolean:zzprobe.enabled'])
         # The current release must state `sellable` on every non-core tier; a new application has no price, so it starts not for sale.
@@ -353,7 +353,7 @@ class TestNewApp(unittest.TestCase):
     def test_success_prints_the_catalog_warning(self):
         code, out, err = run(self.root, *ARGS)
         self.assertEqual(code, 0, err)
-        self.assertIn('platform_v4.json was edited in place', out)
+        self.assertIn('current release catalog was edited in place', out)
         self.assertIn('platform_vN.json', out)
 
     def test_existing_page_or_contracts_entry_blocks_the_id(self):
@@ -568,6 +568,24 @@ class TestNewApp(unittest.TestCase):
                 for part in key.split('.'):
                     node = node[part]
                 self.assertIsInstance(node, str, key)
+
+    def test_current_solution_sorts_versions_numerically(self):
+        solutions = self.root / new_app.SOLUTION_DIR
+        (solutions / 'platform_v10.json').write_text(
+            json.dumps({'schema_version': new_app.RELEASE_SCHEMA}) + '\n',
+            encoding='utf-8',
+        )
+        (solutions / 'platform_v11.json').write_text(
+            json.dumps({'schema_version': 2}) + '\n',
+            encoding='utf-8',
+        )
+        self.assertEqual(new_app.current_solution(self.root), f'{new_app.SOLUTION_DIR}/platform_v10.json')
+
+    def test_generated_manifest_declares_app_card(self):
+        code, _, err = run(self.root, *ARGS)
+        self.assertEqual(code, 0, err)
+        manifest = (self.root / 'apps/web/app/modules/zzprobe/manifest.ts').read_text(encoding='utf-8')
+        self.assertIn("appCard: { category: 'team', plan: 'addon' }", manifest)
 
 
 if __name__ == '__main__':

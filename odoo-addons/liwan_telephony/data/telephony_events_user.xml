@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The account the machine route runs as (design D5), the same shape as liwan_ai's usage recorder: active, with no
+     password and no user type, so nobody can sign in as it. Its only authority is its group's ACL rows. Its companies
+     are kept in step with the tenant's by res.company.create and by the function call after the record, so an event
+     can store a call under the company of the extension it names. -->
+<odoo>
+    <data noupdate="1">
+        <record id="user_telephony_events" model="res.users">
+            <field name="name">Telephony events</field>
+            <field name="login">liwan_telephony_events</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="company_ids" eval="[Command.set([ref('base.main_company')])]"/>
+            <field name="group_ids" eval="[Command.set([ref('liwan_telephony.group_telephony_events')])]"/>
+        </record>
+    </data>
+    <function model="liwan.access.service" name="_liwan_sync_events_companies"/>
+</odoo>

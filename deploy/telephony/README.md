@@ -1,55 +1,79 @@
 # The telephony package of one company
 
-Asterisk 22 LTS, coturn and `pbx-agent` for **one company**, running beside LiwanOS on the company's own host. Nothing
-in it is shared with another company: the PBX, its configuration, its recordings volume and its secrets are this
-company's only (design D2). The shared edge route (`/ws` and the signed recording path on the company host) and the
-shared coturn of the SaaS deployment are separate parts and are **not** in this Compose file.
+Asterisk 22 LTS, PostgreSQL 16 (`pbx-db` for PJSIP realtime), coturn and `pbx-agent` for **one company**, running
+beside LiwanOS on the company's own host. Nothing in it is shared with another company: the PBX, its realtime database,
+its configuration, its recordings volume and its secrets are this company's only (design D2). The shared edge route
+(`/ws` and the signed recording path on the company host) and the shared coturn of the SaaS deployment are separate
+parts and are **not** in this Compose file.
 
-This package is part of phase 1 of `docs/superpowers/specs/2026-10-28-liwan-telephony-design.md` (sections 2, 3, 4,
-11.2, 11.3, 12.3). It answers a real call: a browser or a softphone registers, dials out through the company's provider,
-receives an inbound call on extension 101, and the conversation is recorded under its `linkedid`.
+This package implements the per-company PBX runtime of `docs/superpowers/specs/2026-10-28-liwan-telephony-design.md`
+(sections 2, 3, 4, 11.2, 11.3, 12.3). It answers real calls with dynamic PJSIP realtime endpoints and per-session
+credentials, routes any existing PJSIP extension internally, supports SIP `REFER` blind transfers, dials out through the
+company's provider, receives inbound calls on extension 101, and records conversations under their `linkedid`.
 
 ## Topology
 
 ```
 provider trunk ── SIP/RTP ──▶ published RTP block (every mode) + SIP port (when public) ──┐
-browser ── wss /ws (shared edge, separate part) ──▶ asterisk :8088 (ws transport) ─┤
-browser ── TURN (udp/tcp) ──▶ coturn ── RTP on the private network ──▶ asterisk     ├─▶ company volumes
-pbx-agent ── ARI websocket ──▶ asterisk :8088/ari                                 ─┤   recordings
-pbx-agent ── signed events ──▶ Odoo /api/v1/telephony/events                       ─┘
+browser ── wss /ws (shared edge, separate part) ──▶ asterisk :8088 (ws transport)         ─┤
+browser ── TURN (udp/tcp) ──▶ coturn ── RTP on the private network ──▶ asterisk           ├─▶ company volumes
+asterisk ── res_config_pgsql ([general]) ──▶ pbx-db :5432 (PostgreSQL 16, internal)       ├─▶ recordings & pbx-db
+pbx-agent ── SQL (PBX_DB_URL) ──▶ pbx-db :5432 (ps_auths, ps_aors, ps_endpoints)          ─┤
+pbx-agent ── ARI events & health probes ──▶ asterisk :8088/ari                            ─┤
+pbx-agent ── signed events ──▶ Odoo /api/v1/telephony/events                              ─┘
 ```
 
-Two networks, both named for the company: `telephony_internal` (internal, no route off the host) carries ARI, the
-browser leg and coturn's path to Asterisk; `telephony_uplink` carries the trunk, the event path to Odoo and the
-relayed TURN traffic back to the browser. ARI, the HTTP server and the agent's health port are never published
-(design 11.2); TURN is published only when this package is the TURN server (see "Ports").
+Two networks, both named for the company: `telephony_internal` (internal, no route off the host) carries ARI, `pbx-db`,
+the browser leg and coturn's path to Asterisk; `telephony_uplink` carries the trunk, the event path to Odoo and the
+relayed TURN traffic back to the browser. ARI, PostgreSQL (`pbx-db`), the HTTP server and the agent's health port are
+never published (design 11.2); TURN is published only when this package is the TURN server (see "Ports").
 
 Asterisk and `pbx-agent` run as uid/gid `10002` (the agent image's own user) with every capability dropped, so the
 recordings volume is written by one process and read by the other without a shared-group arrangement. A one-shot
-`volumes-init` job runs first: it owns the four company volumes long enough to hand them to `10002:10002` and exits 0,
-and both services wait for it to complete (the agent also waits for Asterisk to be healthy). The agent's contract is
-exactly the variable set of `apps/pbx-agent/src/pbx_agent/settings.py`: every name is passed, and the values come from
-this env file or name this package's own Asterisk objects (`from-trunk`, `trunk`) and internal paths.
+`volumes-init` job runs first: it owns the four Asterisk/agent volumes long enough to hand them to `10002:10002` and
+exits 0. `pbx-db` runs as `postgres` on `telephony_internal` with a read-only root filesystem, all capabilities dropped,
+`no-new-privileges`, and its own named volume `telephony_pbx_db`. Asterisk waits for `volumes-init` and a healthy
+`pbx-db`; `pbx-agent` waits for `volumes-init`, a healthy `pbx-db` and a healthy Asterisk. The agent's environment matches
+`apps/pbx-agent/src/pbx_agent/settings.py`: every variable comes from this env file or names this package's own
+Asterisk objects (`from-trunk`, `trunk`, `transport-ws`, `from-extension`) and internal paths.
 
-## Static configuration first (the phase-1 choice)
+## PJSIP realtime (PostgreSQL 16) and per-session credentials
 
-Asterisk runs from **rendered static files** (`asterisk/*.conf`), not from PJSIP realtime in a database. The reason is
-scoped to phase 1: the one thing realtime is needed for is an endpoint created and a password rotated per session
-(design 4.1), and that writer is `pbx-agent`'s session path, which does not exist yet. Until it does, a static file per
-company is smaller, reviewable in the diff and testable without a database; the series gate (a real call, section 13)
-does not need a row written at run time.
+Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pinned by digest, database
+`telephony_pbx`):
 
-The next step, in order, when the agent's session path lands:
-
-1. Add a small `postgres:16` service (pinned by digest, own volume, `telephony_pbx` database) to this Compose file.
-2. Move the endpoint, auth, aor, `endpoint_id_ip` and registration objects from `asterisk/pjsip.conf` into the
-   `ps_endpoints`, `ps_auths`, `ps_aors`, `ps_endpoint_id_ips` and `ps_registrations` tables, and map them with
-   `sorcery.conf` + `extconfig.conf`. The transports, HTTP server, ARI and logger sections stay static files.
-3. Make `pbx-agent` the only writer: create and disable endpoints, rotate the session password and keep the previous
-   one valid for a short overlap (4.1). The ARI credentials stay in `ari.conf`; the line passwords live in the PBX
-   database and never in Odoo (section 7).
-4. The database is the object a package move imports (12.2 `import`), and it is small: a row per extension plus a row
-   per line, so a few hundred rows per company at most.
+1. **`pbx-agent` SQL writes & `asterisk/sorcery.conf`**: `pbx-agent` connects directly to `pbx-db` via `PBX_DB_URL`
+   and writes `ps_auths`, `ps_aors` and `ps_endpoints` in one atomic SQL transaction. `asterisk/sorcery.conf` lists
+   `realtime` **first** and `config,pjsip.conf,criteria=type=...` **second** for `endpoint`, `auth` and `aor`, so
+   Asterisk reads browser extensions live from PostgreSQL via `res_config_pgsql` while static objects (`[trunk]`, plain
+   SIP extension `103` and transports) still load from `asterisk/pjsip.conf`. ARI (`/ari`) handles call lifecycle events
+   and health probes rather than PJSIP object writes.
+2. **`asterisk/extconfig.conf`** maps `ps_endpoints`, `ps_auths` and `ps_aors` to `pgsql,telephony_pbx,<table>`, and
+   **`asterisk/res_pgsql.conf`** uses Asterisk 22's canonical `[general]` section (`hostname=pbx-db`, `port=5432`,
+   `dbname=telephony_pbx`, `user=telephony_pbx`, `password=...`, `appname=asterisk`) to connect over
+   `telephony_internal` using `LIWAN_TELEPHONY_PBX_DB_PASSWORD`.
+3. **`postgres/01-schema.sql`** creates `ps_aors`, `ps_auths` and `ps_endpoints` on first database initialization (with
+   `VARCHAR(8)` yes/no columns and `ps_endpoints.auth VARCHAR(200)` for comma-separated overlap auth IDs during session
+   rotation). **`postgres/02-seed.sql`** inserts idempotent (`ON CONFLICT (id) DO NOTHING`) seed rows for the browser
+   test extensions `101` and `102` (`webrtc='yes'`, `allow_transfer='yes'`, `from_domain='<host>'`). Their `allow` is
+   `ulaw,alaw` (G.711 only), the same as `103` in `asterisk/pjsip.conf` and as the per-session rows `pbx-agent`
+   writes: the pinned Asterisk image has no opus translator, so an opus browser leg would record an empty WAV and
+   bridge to the `ulaw` trunk without audio, and a peer that offers no G.711 is refused instead of recorded empty.
+   Wideband `opus` on the browser legs would need an Asterisk image with `codec_opus`, not the pinned one.
+4. **Dynamic dialplan and SIP REFER transfers (`asterisk/extensions.conf`)**: `[from-extension]` routes any existing
+   PJSIP extension (`DEVICE_STATE(PJSIP/${EXTEN}) != INVALID`) to `[internal]` instead of a hardcoded list. Non-existent
+   or offline `< 7`-digit numbers play `line-unavailable` and hang up so they never spill onto the external trunk, while
+   `7+`-digit numbers and E.164 numbers (`_+X.`, at least 7 digits after `+`) route to `[outbound]`. `[from-extension]`,
+   `[internal]` and `[outbound]` enforce fail-closed guards (`FILTER(0-9,${EXTEN})` for `_X.` and
+   `FILTER(0-9,${EXTEN:1})` for `_+X.`, rejecting any non-digit or expression error before `Dial`). `[inbound-call]`,
+   `[internal]` and `[dial-outbound]` all set `Set(__TRANSFER_CONTEXT=from-extension)` so SIP `REFER` blind transfers
+   resolve inside `[from-extension]`.
+5. **Per-session browser credentials**: `compose.yml` forwards `PBX_DB_URL`, `PBX_PUBLIC_WS_URL`, `PBX_STUN_URL`,
+   `PBX_TURN_URL`, `PBX_TURN_SECRET`, `PBX_SESSION_SECONDS`, `PBX_SESSION_OVERLAP_SECONDS`, `PBX_PJSIP_TRANSPORT`
+   (`transport-ws`) and `PBX_PJSIP_CONTEXT` (`from-extension`) to `pbx-agent`, which mints temporary TURN REST HMAC
+   credentials and rotates per-session PJSIP passwords in `pbx-db` with an overlap window (design 4.1).
+6. **Package moves (12.2)**: the `telephony_pbx_db` volume holds one row per extension (a few hundred rows at most) and
+   is the database object exported/imported during a company move.
 
 ## Ports
 
@@ -62,8 +86,9 @@ Every published port binds `LIWAN_TELEPHONY_STATIC_ADDRESS` and nothing else. Th
 | `LIWAN_TELEPHONY_TURN_PORT` → 3478 | UDP and TCP | TURN listener for the browser leg | `LIWAN_TELEPHONY_TURN_PUBLISHED=true` only |
 | `TURN_MIN_PORT`–`TURN_MAX_PORT` | UDP | TURN relay block, one-to-one with coturn's `min-port`/`max-port` | `LIWAN_TELEPHONY_TURN_PUBLISHED=true` only |
 
-Never published: 5060 inside the container, 8088 (`/ws` and `/ari`), 8601 (`pbx-agent` `/health`), and 3478 inside.
-The browser reaches `/ws` as `wss://<company host>/ws` through the shared edge, not through this Compose file.
+Never published: 5060 inside the container, 5432 (`pbx-db`), 8088 (`/ws` and `/ari`), 8601 (`pbx-agent` `/health`), and
+3478 inside. The browser reaches `/ws` as `wss://<company host>/ws` through the shared edge, not through this Compose
+file.
 
 The credentials mode (design 12.3): the RTP block is public, so the provider has an address to send media to, and the
 transport advertises `LIWAN_TELEPHONY_STATIC_ADDRESS` in the SDP and the Contact in every mode. The SIP port stays
@@ -86,7 +111,11 @@ comment characters) and refuses a non-empty target directory unless `--force` is
 0700 and the files inside are 0644: the container's non-root Asterisk process has to read its configuration, and the
 directory is the boundary that keeps the ARI, extension and trunk passwords from other host users. The command prints
 file names only, never a value. Re-render with `--force` after changing the env file, then `docker compose up -d`
-again.
+again. A change to `postgres/01-schema.sql` or `postgres/02-seed.sql` takes effect only on a new database: the two
+files are mounted into PostgreSQL's `/docker-entrypoint-initdb.d` and run once, when it initializes an empty data
+directory, so a re-render on a host that already has the `<company>-telephony-pbx-db` volume changes nothing inside the
+database (the seed is `ON CONFLICT (id) DO NOTHING` and never overwrites an existing row), and after such a change
+that volume must be removed before `docker compose up -d` (nothing in it is kept before release).
 
 The first start runs `volumes-init` before anything else: it prepares the recordings, CEL/log, Asterisk-state and
 agent-queue volumes for uid/gid `10002` with only `CHOWN` and `DAC_OVERRIDE`, then exits. Asterisk and the agent then
@@ -122,9 +151,10 @@ Collect these before the first start. Anything missing below is a hard stop for 
    the codecs it accepts (`LIWAN_TELEPHONY_TRUNK_CODECS`); how many concurrent calls the line allows; and whether its
    trunk is reachable only over a private path (then the site needs mode b with a gateway or a VPN; this package alone
    cannot reach it).
-5. **Secrets.** Generate the ARI password (`openssl rand -hex 24`), the three extension passwords and the TURN REST
-   secret (at least 32 characters); derive the events and reverse keys on the shared side from `LIWAN_TELEPHONY_KEY` and
-   write only those two here (12.6). No value has a default; an empty one stops the render.
+5. **Secrets.** Generate the ARI password (`openssl rand -hex 24`), the `pbx-db` password (`LIWAN_TELEPHONY_PBX_DB_PASSWORD`,
+   URI-safe unreserved characters only, e.g. `openssl rand -hex 24`), the three test extension passwords and the TURN REST secret (at least 32 characters);
+   derive the events and reverse keys on the shared side from `LIWAN_TELEPHONY_KEY` and write only those two here (12.6).
+   No required secret has a default; an empty one stops the render.
 6. **CEL rotation.** Install the rendered `logrotate/telephony-cel` as `/etc/logrotate.d/liwan-telephony-<company>` and
    check `logrotate -d` on it (Docker's data root may not be `/var/lib/docker`). Without it the CSV grows without a cap;
    reconciliation still works, the file just keeps growing.
@@ -239,7 +269,6 @@ python3 -B deploy/telephony/edge/render_edge.py --snapshot <telephony-registry.j
 
 ## Not in this package yet
 
-- PJSIP realtime and the session endpoint/password (the static-first decision above).
 - IVR, queues, the recording announcement prompt, outbound destination policy and the concurrent-call limits of 11.3.
   They are absent on purpose, not stubbed.
 - The shared edge route's mount and publication: `deploy/telephony/edge/render_edge.py` renders the snippet and the
@@ -255,22 +284,27 @@ python3 -B deploy/telephony/edge/render_edge.py --snapshot <telephony-registry.j
 
 | Path | What |
 | --- | --- |
-| `compose.yml` | the four services (including the one-shot `volumes-init`), the company networks and the four company volumes (recordings, queue, CEL log, Asterisk state) |
-| `render.py` | renders every template from one env file, validates, refuses a non-empty target, prints names only |
+| `compose.yml` | the five services (`volumes-init`, `pbx-db`, `asterisk`, `coturn`, `pbx-agent`), the company networks and the five company volumes (recordings, queue, CEL log, Asterisk state, `pbx-db`) |
+| `render.py` | renders every template from one env file, validates, SQL-escapes seed literals, refuses a non-empty target, prints names only |
 | `env.example` | every variable with a safe placeholder and a one-line comment; the only input |
-| `asterisk/pjsip.conf.template` | transports (udp, tcp, ws), the WebRTC template with 101/102, the plain SIP 103, the trunk |
-| `asterisk/extensions.conf.template` | test extensions, inbound to 101, outbound, MixMonitor by `linkedid`, unavailable message |
+| `asterisk/pjsip.conf.template` | static transports (udp, tcp, ws), plain SIP `103` (with `allow_transfer=yes`) and the trunk |
+| `asterisk/sorcery.conf.template` | PJSIP realtime-first, `pjsip.conf`-second routing for `endpoint`, `auth` and `aor` |
+| `asterisk/extconfig.conf.template` | maps `ps_endpoints`, `ps_auths` and `ps_aors` to `pgsql,telephony_pbx,<table>` |
+| `asterisk/res_pgsql.conf.template` | PostgreSQL connection (`[general]`) to `pbx-db:5432` (`telephony_pbx`) |
+| `asterisk/extensions.conf.template` | dynamic internal routing via `DEVICE_STATE`, outbound filter guard, SIP REFER transfer context, MixMonitor by `linkedid`, unavailable message |
 | `asterisk/{http,ari,rtp,logger}.conf.template` | `/ws` and ARI on 8088 inside, the ARI user, the RTP block, the log channel |
 | `asterisk/cel.conf.template`, `asterisk/cel_custom.conf.template` | CEL on, the lifecycle events, the CSV path and the agent's 19 columns |
+| `postgres/01-schema.sql` | `ps_aors`, `ps_auths` and `ps_endpoints` tables for Asterisk PJSIP realtime |
+| `postgres/02-seed.sql.template` | idempotent seed rows for WebRTC test extensions `101` and `102` |
 | `coturn/turnserver.conf.template` | TURN REST secret and realm, listener and relay range, native quotas |
 | `logrotate/telephony-cel.template` | the size cap and rotation of the CEL CSV (installed on the host) |
 | `test-page/index.html` | the JsSIP test tool, pinned CDN version with SRI |
-| `tests/test_render.py` | the render results, the refusals and the no-secret-in-output rule |
+| `tests/test_render.py` | the render results, the refusals, SQL escaping, Compose env forwarding and the no-secret-in-output rule |
 
 ## Secrets and safety
 
 No secret is in this directory: `env.example` holds placeholders, and a rendered file with a real value sits in a 0700
-directory outside the checkout (the files inside are 0644 so the non-root container can read them).
-`LIWAN_TELEPHONY_KEY` never exists on a PBX host; only the two derived keys do. ARI and AMI are on the private network
-only, and no management port is published. The recordings, queue, CEL log and Asterisk-state volumes are named for the
-company and are the only writable state.
+directory outside the checkout (the files inside are 0644 so the non-root containers can read them).
+`LIWAN_TELEPHONY_KEY` never exists on a PBX host; only the two derived keys do. ARI, AMI and `pbx-db` are on the
+private network only, and no management or database port is published. The recordings, queue, CEL log, Asterisk-state
+and `pbx-db` volumes are named for the company and are the only writable state.

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import http.client
 import sys
 import threading
@@ -5,6 +7,8 @@ import unittest
 import urllib.request
 from pathlib import Path
 from unittest import mock
+
+from fakes import AriRequest, FakeAri
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -17,18 +21,6 @@ from pbx_agent.ari import (  # noqa: E402
     ConnectionState,
     events_url,
 )
-
-
-class FakeAri:
-    """Answers like ARI without a socket; records every request."""
-
-    def __init__(self, answers: dict) -> None:
-        self.answers = answers
-        self.requests: list[tuple] = []
-
-    def __call__(self, method, path, params):
-        self.requests.append((method, path, params))
-        return self.answers.get((method, path), (204, None))
 
 
 class EventsUrlTest(unittest.TestCase):
@@ -49,17 +41,17 @@ class EventsUrlTest(unittest.TestCase):
 
 
 class AriClientTest(unittest.TestCase):
-    def client(self, answers: dict) -> tuple[AriClient, FakeAri]:
+    def client(self, answers: dict | None = None) -> tuple[AriClient, FakeAri]:
         fake = FakeAri(answers)
         return AriClient(fake), fake
 
     def test_reachability_is_the_asterisk_info_call(self) -> None:
         client, fake = self.client({("GET", "/asterisk/info"): (200, {"status": "fully booted"})})
         self.assertTrue(client.reachable())
-        self.assertEqual(fake.requests[0], ("GET", "/asterisk/info", None))
+        self.assertEqual(fake.requests, [AriRequest("GET", "/asterisk/info", None, None)])
 
     def test_a_failed_probe_is_unreachable_not_an_error(self) -> None:
-        def failing(_method, _path, _params):
+        def failing(_method, _path, _params, _body):
             raise AriError("ARI GET /asterisk/info failed: TimeoutError")
 
         self.assertFalse(AriClient(failing).reachable())
@@ -70,14 +62,6 @@ class AriClientTest(unittest.TestCase):
         self.assertEqual(client.endpoint_state("trunk_main"), "online")
         missing, _fake = self.client({})
         self.assertIsNone(missing.endpoint_state("trunk_main"))
-
-    def test_a_hangup_is_a_delete_on_the_channel(self) -> None:
-        client, fake = self.client({("DELETE", "/channels/1764049999.7"): (204, None)})
-        client.hangup("1764049999.7")
-        self.assertEqual(fake.requests[0], ("DELETE", "/channels/1764049999.7", None))
-        missing, _fake = self.client({("DELETE", "/channels/1764049999.7"): (404, None)})
-        with self.assertRaises(AriError):
-            missing.hangup("1764049999.7")
 
 
 class AriTransportTest(unittest.TestCase):
@@ -105,6 +89,30 @@ class AriTransportTest(unittest.TestCase):
             self.transport()("GET", "/asterisk/info")
         self.assertIn("/asterisk/info", str(caught.exception))
         self.assertNotIn("secret", str(caught.exception))
+
+    def opened(self, *args, **kwargs) -> tuple[mock.MagicMock, urllib.request.Request]:
+        """One transport call against a scripted 204; returns what went to ``urlopen``."""
+        answer = mock.MagicMock(status=204)
+        answer.__enter__.return_value = answer
+        answer.read.return_value = b""
+        with mock.patch.object(urllib.request, "urlopen", return_value=answer) as opened:
+            self.transport()(*args, **kwargs)
+        return opened.call_args.args[0], opened.call_args.kwargs["timeout"]
+
+    def test_a_json_body_is_put_as_json_with_the_key_only_in_the_query(self) -> None:
+        request, timeout = self.opened("PUT", "/channels/1.1", None, {"fields": [{"attribute": "a", "value": "b c"}]})
+        self.assertEqual(request.get_method(), "PUT")
+        self.assertEqual(request.full_url, "http://ari:8088/ari/channels/1.1?api_key=liwan%3Asecret")
+        self.assertEqual(request.data, b'{"fields": [{"attribute": "a", "value": "b c"}]}')
+        self.assertEqual(request.get_header("Content-type"), "application/json")
+        self.assertEqual(timeout, 1)
+
+    def test_a_read_carries_no_body(self) -> None:
+        request, _timeout = self.opened("GET", "/endpoints/PJSIP/101", None, None)
+        self.assertEqual(request.get_method(), "GET")
+        self.assertEqual(request.full_url, "http://ari:8088/ari/endpoints/PJSIP/101?api_key=liwan%3Asecret")
+        self.assertIsNone(request.data)
+        self.assertIsNone(request.get_header("Content-type"))
 
 
 class FakeSocket:

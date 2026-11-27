@@ -21,14 +21,19 @@ EXPECTED = [
     'asterisk/ari.conf',
     'asterisk/cel.conf',
     'asterisk/cel_custom.conf',
+    'asterisk/extconfig.conf',
     'asterisk/extensions.conf',
     'asterisk/http.conf',
     'asterisk/logger.conf',
     'asterisk/pjsip.conf',
+    'asterisk/res_pgsql.conf',
     'asterisk/rtp.conf',
+    'asterisk/sorcery.conf',
     'compose.yml',
     'coturn/turnserver.conf',
     'logrotate/telephony-cel',
+    'postgres/01-schema.sql',
+    'postgres/02-seed.sql',
     'test-page/index.html',
 ]
 # The agent's CEL columns, in its order (apps/pbx-agent/src/pbx_agent/cel.py, CEL_COLUMNS). The rendered
@@ -64,9 +69,19 @@ SERVICE_ENVIRONMENT = (
     'PBX_RECONCILE_SECONDS',
     'PBX_LINE_ENDPOINT',
     'PBX_INBOUND_CONTEXT',
+    'PBX_DB_URL',
+    'PBX_PUBLIC_WS_URL',
+    'PBX_STUN_URL',
+    'PBX_TURN_URL',
+    'PBX_TURN_SECRET',
+    'PBX_SESSION_SECONDS',
+    'PBX_SESSION_OVERLAP_SECONDS',
+    'PBX_PJSIP_TRANSPORT',
+    'PBX_PJSIP_CONTEXT',
 )
 SECRETS = (
     'ari-secret-value',
+    'pbx-db-secret-value',
     'secret-101-value',
     'secret-102-value',
     'secret-103-value',
@@ -96,6 +111,7 @@ FIXED = {
     'LIWAN_TELEPHONY_TRUNK_CODECS': 'ulaw,alaw',
     'LIWAN_TELEPHONY_ARI_USER': 'liwan-agent',
     'LIWAN_TELEPHONY_ARI_PASSWORD': 'ari-secret-value',
+    'LIWAN_TELEPHONY_PBX_DB_PASSWORD': 'pbx-db-secret-value',
     'LIWAN_TELEPHONY_EXTENSION_101_PASSWORD': 'secret-101-value',
     'LIWAN_TELEPHONY_EXTENSION_102_PASSWORD': 'secret-102-value',
     'LIWAN_TELEPHONY_EXTENSION_103_PASSWORD': 'secret-103-value',
@@ -104,6 +120,10 @@ FIXED = {
     'LIWAN_TELEPHONY_TURN_MIN_PORT': '40201',
     'LIWAN_TELEPHONY_TURN_MAX_PORT': '40250',
     'LIWAN_TELEPHONY_TURN_SECRET': 'turn-secret-value-that-is-long-enough-32',
+    'LIWAN_TELEPHONY_STUN_URL': 'stun:192.0.2.10:3478',
+    'LIWAN_TELEPHONY_TURN_URL': 'turn:192.0.2.10:3478',
+    'LIWAN_TELEPHONY_SESSION_SECONDS': '120',
+    'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS': '30',
     'LIWAN_TELEPHONY_TURN_USER_QUOTA': '4',
     'LIWAN_TELEPHONY_TURN_TOTAL_QUOTA': '100',
     'LIWAN_TELEPHONY_TURN_MAX_BPS': '800000',
@@ -202,8 +222,10 @@ class RenderedPackage(unittest.TestCase):
                     # The container's non-root Asterisk user reads its configuration; the 0700 directory is the boundary.
                     self.assertEqual(0o644, stat.S_IMODE(path.stat().st_mode), path)
             self.assertEqual(0o700, stat.S_IMODE(out.stat().st_mode))
-            self.assertTrue(stdout.splitlines()[-1].startswith('render: 12 files written to '), stdout)
-            self.assertIn('secret-101-value', (out / 'asterisk/pjsip.conf').read_text())
+            self.assertTrue(stdout.splitlines()[-1].startswith('render: 17 files written to '), stdout)
+            self.assertIn('secret-101-value', (out / 'postgres/02-seed.sql').read_text())
+            self.assertIn('secret-103-value', (out / 'asterisk/pjsip.conf').read_text())
+            self.assertIn('pbx-db-secret-value', (out / 'asterisk/res_pgsql.conf').read_text())
             self.assertIn('turn-secret-value', (out / 'coturn/turnserver.conf').read_text())
 
     def test_an_existing_output_directory_is_tightened_to_private(self):
@@ -239,14 +261,14 @@ class RenderedPackage(unittest.TestCase):
             out = Path(directory) / 'package'
             env = write_env(directory)
             self.assertEqual(0, run('--env', env, '--out', out)[0])
-            before = (out / 'asterisk/pjsip.conf').read_text()
+            before = (out / 'postgres/02-seed.sql').read_text()
             code, _, error = run('--env', env, '--out', out)
             self.assertEqual(1, code)
             self.assertIn('not empty', error)
-            self.assertEqual(before, (out / 'asterisk/pjsip.conf').read_text())
+            self.assertEqual(before, (out / 'postgres/02-seed.sql').read_text())
             changed = write_env(directory, {**FIXED, 'LIWAN_TELEPHONY_EXTENSION_101_PASSWORD': 'another-101-secret'})
             self.assertEqual(0, run('--env', changed, '--out', out, '--force')[0])
-            after = (out / 'asterisk/pjsip.conf').read_text()
+            after = (out / 'postgres/02-seed.sql').read_text()
             self.assertIn('another-101-secret', after)
             self.assertNotIn('secret-101-value', after)
 
@@ -297,7 +319,91 @@ class RenderedPackage(unittest.TestCase):
             out = Path(directory) / 'package'
             code, stdout, error = run('--env', ENV_EXAMPLE, '--out', out)
             self.assertEqual((0, ''), (code, error))
-            self.assertTrue(stdout.splitlines()[-1].startswith('render: 12 files written to '))
+            self.assertTrue(stdout.splitlines()[-1].startswith('render: 17 files written to '))
+
+    def test_pbx_db_password_refuses_missing_and_non_uri_safe_characters_without_leaking(self):
+        lacking = {name: value for name, value in FIXED.items() if name != 'LIWAN_TELEPHONY_PBX_DB_PASSWORD'}
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory) / 'package'
+            code, _, error = run('--env', write_env(directory, lacking), '--out', out)
+            self.assertEqual(1, code)
+            self.assertIn('LIWAN_TELEPHONY_PBX_DB_PASSWORD', error)
+            self.assertFalse(out.exists())
+            ok_out = Path(directory) / 'ok'
+            self.assertEqual(
+                0,
+                run('--env', write_env(directory, {**FIXED, 'LIWAN_TELEPHONY_PBX_DB_PASSWORD': 'Abc019._~-'}),
+                    '--out', ok_out)[0],
+            )
+        for bad in (
+            'secret with space',
+            'secret;drop',
+            'secret#comment',
+            "secret'quote",
+            'secret/slash',
+            'secret@at',
+            'secret%pct',
+            'secret?query',
+            'secret[0]',
+            'secret]1',
+        ):
+            with self.subTest(bad=bad), tempfile.TemporaryDirectory() as directory:
+                code, _, error = run('--env', write_env(directory, {**FIXED, 'LIWAN_TELEPHONY_PBX_DB_PASSWORD': bad}),
+                                     '--out', Path(directory) / 'package')
+                self.assertEqual(1, code)
+                self.assertIn('LIWAN_TELEPHONY_PBX_DB_PASSWORD', error)
+                self.assertNotIn(bad, error)
+
+    def test_stun_and_turn_urls_are_optional_and_scheme_validated(self):
+        omitted = {name: value for name, value in FIXED.items()
+                   if name not in ('LIWAN_TELEPHONY_STUN_URL', 'LIWAN_TELEPHONY_TURN_URL')}
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(0, run('--env', write_env(directory, omitted), '--out', Path(directory) / 'p1')[0])
+            empty = {**omitted, 'LIWAN_TELEPHONY_STUN_URL': '', 'LIWAN_TELEPHONY_TURN_URL': ''}
+            self.assertEqual(0, run('--env', write_env(directory, empty), '--out', Path(directory) / 'p2')[0])
+            tls = {**FIXED, 'LIWAN_TELEPHONY_STUN_URL': 'stuns:stun.acme.example:5349',
+                   'LIWAN_TELEPHONY_TURN_URL': 'turns:turn.acme.example:5349'}
+            self.assertEqual(0, run('--env', write_env(directory, tls), '--out', Path(directory) / 'p3')[0])
+        for name, bad in (
+            ('LIWAN_TELEPHONY_STUN_URL', 'http://stun.acme.example:3478'),
+            ('LIWAN_TELEPHONY_STUN_URL', 'turn:192.0.2.10:3478'),
+            ('LIWAN_TELEPHONY_STUN_URL', 'stun:'),
+            ('LIWAN_TELEPHONY_STUN_URL', 'stun:host with space'),
+            ('LIWAN_TELEPHONY_TURN_URL', 'https://turn.acme.example:3478'),
+            ('LIWAN_TELEPHONY_TURN_URL', 'stun:192.0.2.10:3478'),
+            ('LIWAN_TELEPHONY_TURN_URL', 'turn:'),
+            ('LIWAN_TELEPHONY_TURN_URL', 'turn:host with space'),
+        ):
+            with self.subTest(name=name, bad=bad), tempfile.TemporaryDirectory() as directory:
+                code, _, error = run('--env', write_env(directory, {**FIXED, name: bad}), '--out',
+                                     Path(directory) / 'package')
+                self.assertEqual(1, code)
+                self.assertIn(name, error)
+
+    def test_session_lifetime_and_overlap_defaults_and_bounds(self):
+        omitted = {name: value for name, value in FIXED.items()
+                   if name not in ('LIWAN_TELEPHONY_SESSION_SECONDS', 'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS')}
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(0, run('--env', write_env(directory, omitted), '--out', Path(directory) / 'p1')[0])
+            edge = {**FIXED, 'LIWAN_TELEPHONY_SESSION_SECONDS': '30',
+                    'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS': '0'}
+            self.assertEqual(0, run('--env', write_env(directory, edge), '--out', Path(directory) / 'p2')[0])
+        for overrides, expected_name in (
+            ({'LIWAN_TELEPHONY_SESSION_SECONDS': '29'}, 'LIWAN_TELEPHONY_SESSION_SECONDS'),
+            ({'LIWAN_TELEPHONY_SESSION_SECONDS': '121'}, 'LIWAN_TELEPHONY_SESSION_SECONDS'),
+            ({'LIWAN_TELEPHONY_SESSION_SECONDS': 'abc'}, 'LIWAN_TELEPHONY_SESSION_SECONDS'),
+            ({'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS': '61'}, 'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS'),
+            ({'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS': '-1'}, 'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS'),
+            ({'LIWAN_TELEPHONY_SESSION_SECONDS': '30', 'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS': '30'},
+             'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS'),
+            ({'LIWAN_TELEPHONY_SESSION_SECONDS': '40', 'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS': '50'},
+             'LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS'),
+        ):
+            with self.subTest(overrides=overrides), tempfile.TemporaryDirectory() as directory:
+                code, _, error = run('--env', write_env(directory, {**FIXED, **overrides}), '--out',
+                                     Path(directory) / 'package')
+                self.assertEqual(1, code)
+                self.assertIn(expected_name, error)
 
 
 class ComposeShape(unittest.TestCase):
@@ -342,8 +448,31 @@ class ComposeShape(unittest.TestCase):
         self.assertEqual('/var/lib/pbx-agent/queue.sqlite3', environment['PBX_QUEUE_PATH'])
         self.assertEqual('/var/log/asterisk/cel-custom.csv', environment['PBX_CEL_PATH'])
         # The rendered file keeps Compose's own interpolation, so these name the env file variable they take.
+        self.assertEqual(
+            'postgresql://telephony_pbx:${LIWAN_TELEPHONY_PBX_DB_PASSWORD}@pbx-db:5432/telephony_pbx',
+            environment['PBX_DB_URL'],
+        )
+        self.assertEqual(
+            {
+                'volumes-init': {'condition': 'service_completed_successfully'},
+                'pbx-db': {'condition': 'service_healthy'},
+                'asterisk': {'condition': 'service_healthy'},
+            },
+            service['depends_on'],
+        )
         self.assertEqual('${LIWAN_TELEPHONY_HOST_NAME:?}', environment['PBX_PUBLIC_HOST'])
         self.assertEqual('${LIWAN_TELEPHONY_DATABASE:?}', environment['PBX_DATABASE'])
+        self.assertEqual('wss://${LIWAN_TELEPHONY_HOST_NAME:?}/ws', environment['PBX_PUBLIC_WS_URL'])
+        self.assertEqual('${LIWAN_TELEPHONY_STUN_URL:-}', environment['PBX_STUN_URL'])
+        self.assertEqual('${LIWAN_TELEPHONY_TURN_URL:-}', environment['PBX_TURN_URL'])
+        self.assertEqual('${LIWAN_TELEPHONY_TURN_SECRET:?}', environment['PBX_TURN_SECRET'])
+        self.assertEqual('${LIWAN_TELEPHONY_SESSION_SECONDS:-120}', environment['PBX_SESSION_SECONDS'])
+        self.assertEqual('${LIWAN_TELEPHONY_SESSION_OVERLAP_SECONDS:-30}', environment['PBX_SESSION_OVERLAP_SECONDS'])
+        self.assertEqual('transport-ws', environment['PBX_PJSIP_TRANSPORT'])
+        self.assertEqual('from-extension', environment['PBX_PJSIP_CONTEXT'])
+        # Static TURN credentials must not remain: pbx-agent mints per-session HMAC credentials from PBX_TURN_SECRET.
+        self.assertNotIn('PBX_TURN_USER', environment)
+        self.assertNotIn('PBX_TURN_CREDENTIAL', environment)
 
     def test_the_agent_contract_names_the_line_endpoint_and_the_inbound_context(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -354,7 +483,9 @@ class ComposeShape(unittest.TestCase):
             pjsip = (out / 'asterisk/pjsip.conf').read_text()
             extensions = (out / 'asterisk/extensions.conf').read_text()
         self.assertIn(f'[{environment["PBX_LINE_ENDPOINT"]}]', pjsip)
+        self.assertIn(f'[{environment["PBX_PJSIP_TRANSPORT"]}]', pjsip)
         self.assertIn(f'[{environment["PBX_INBOUND_CONTEXT"]}]', extensions)
+        self.assertIn(f'[{environment["PBX_PJSIP_CONTEXT"]}]', extensions)
         self.assertIn(f':{environment["PBX_LISTEN_PORT"]}/health', healthcheck)
         self.assertEqual(environment['PBX_LISTEN_PORT'], service['expose'][0])
 
@@ -366,11 +497,56 @@ class ComposeShape(unittest.TestCase):
         self.assertEqual(['ALL'], asterisk['cap_drop'])
         self.assertNotIn('cap_add', asterisk)
         self.assertIn('telephony_asterisk_state:/var/lib/asterisk', asterisk['volumes'])
+        for conf in ('sorcery.conf', 'extconfig.conf', 'res_pgsql.conf'):
+            self.assertIn(f'./asterisk/{conf}:/etc/asterisk/{conf}:ro', asterisk['volumes'])
         self.assertEqual(['/var/run/asterisk:uid=10002,gid=10002,mode=0755'], asterisk['tmpfs'])
         self.assertEqual(['/usr/sbin/asterisk', '-f', '-p'], asterisk['command'])
         # The check is the CLI as the container user (it owns its socket), not a root process that cannot open it.
         self.assertEqual(['CMD', '/usr/sbin/asterisk', '-rx', 'core show uptime'], asterisk['healthcheck']['test'])
-        self.assertEqual({'volumes-init': {'condition': 'service_completed_successfully'}}, asterisk['depends_on'])
+        self.assertEqual(
+            {
+                'volumes-init': {'condition': 'service_completed_successfully'},
+                'pbx-db': {'condition': 'service_healthy'},
+            },
+            asterisk['depends_on'],
+        )
+
+    def test_pbx_db_is_hardened_pinned_and_internal_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            compose = self.compose(directory)
+        db = compose['services']['pbx-db']
+        self.assertEqual(
+            'postgres:16@sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5',
+            db['image'],
+        )
+        self.assertEqual('postgres', db['user'])
+        self.assertEqual(['ALL'], db['cap_drop'])
+        self.assertNotIn('cap_add', db)
+        self.assertIn('no-new-privileges:true', db['security_opt'])
+        self.assertTrue(db['read_only'])
+        self.assertEqual(['/tmp', '/var/run/postgresql:uid=999,gid=999'], db['tmpfs'])
+        self.assertEqual('unless-stopped', db['restart'])
+        self.assertEqual(['telephony_internal'], db['networks'])
+        self.assertNotIn('ports', db)
+        self.assertEqual(['5432'], db['expose'])
+        self.assertEqual(
+            {
+                'POSTGRES_DB': 'telephony_pbx',
+                'POSTGRES_USER': 'telephony_pbx',
+                'POSTGRES_PASSWORD': '${LIWAN_TELEPHONY_PBX_DB_PASSWORD:?}',
+            },
+            db['environment'],
+        )
+        self.assertEqual(
+            [
+                'telephony_pbx_db:/var/lib/postgresql/data',
+                './postgres/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro',
+                './postgres/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro',
+            ],
+            db['volumes'],
+        )
+        self.assertEqual(['CMD-SHELL', 'pg_isready -U telephony_pbx -d telephony_pbx'], db['healthcheck']['test'])
+        self.assertEqual('${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-pbx-db', compose['volumes']['telephony_pbx_db']['name'])
 
     def test_the_volume_preparation_job_hands_every_directory_to_the_service_uid(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -398,15 +574,17 @@ class ComposeShape(unittest.TestCase):
         # A container only on an internal network has no path back to the internet, so its published relay cannot work.
         self.assertFalse(all(compose['networks'][name].get('internal') for name in networks))
 
-    def test_the_three_runtime_services_share_the_company_networks(self):
+    def test_the_runtime_services_share_the_company_networks(self):
         with tempfile.TemporaryDirectory() as directory:
             compose = self.compose(directory)
-        self.assertEqual(['asterisk', 'coturn', 'pbx-agent'],
+        self.assertEqual(['asterisk', 'coturn', 'pbx-agent', 'pbx-db'],
                          sorted(name for name in compose['services'] if name != 'volumes-init'))
         self.assertTrue(compose['networks']['telephony_internal']['internal'])
         self.assertNotIn('ports', compose['services']['pbx-agent'])
-        for name in ('asterisk', 'coturn', 'pbx-agent'):
+        self.assertNotIn('ports', compose['services']['pbx-db'])
+        for name in ('asterisk', 'coturn', 'pbx-agent', 'pbx-db'):
             self.assertIn('telephony_internal', compose['services'][name]['networks'])
+        self.assertNotIn('telephony_uplink', compose['services']['pbx-db']['networks'])
         self.assertNotIn('networks', compose['services']['volumes-init'])
 
 
@@ -489,28 +667,71 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('LINE_STATE=available', extensions)
         self.assertIn('[line-unavailable]', extensions)
         self.assertIn('Playback(${UNAVAILABLE_SOUND})', extensions)
-        self.assertIn('exten => _10[123],1,Goto(internal,${EXTEN},1)', extensions)
+        self.assertNotIn('_10[123]', extensions)
+        self.assertIn(
+            'GotoIf($["${DEVICE_STATE(PJSIP/${EXTEN})}"!="INVALID"]?internal,${EXTEN},1:check-length)',
+            extensions,
+        )
         self.assertIn('Dial(PJSIP/${DIAL_NUMBER}@trunk,60)', extensions)
 
+    def test_from_extension_never_routes_short_offline_extensions_to_outbound_and_uses_fail_closed_guards(self):
+        """An offline/unregistered short extension (2-6 digits, e.g. 102 or 911) must play line-unavailable and never
+        fall through to the external SIP trunk. All filter/length guards in from-extension use fail-closed polarity."""
+        with tempfile.TemporaryDirectory() as directory:
+            extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
+        block = extensions.split('\n[from-extension]\n', 1)[1].split('\n[internal]\n', 1)[0]
+        self.assertIn('exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)', block)
+        self.assertIn(
+            'same => n(allow),GotoIf($["${DEVICE_STATE(PJSIP/${EXTEN})}"!="INVALID"]?internal,${EXTEN},1:check-length)',
+            block,
+        )
+        self.assertIn('same => n(check-length),GotoIf($[${LEN(${EXTEN})}>=7]?outbound,${EXTEN},1:unavailable)', block)
+        self.assertIn('same => n(unavailable),Gosub(line-unavailable,s,1)', block)
+        self.assertIn('exten => _+X.,1,GotoIf($["${FILTER(0-9,${EXTEN:1})}"="${EXTEN:1}"]?allow:reject)', block)
+        self.assertIn('same => n(allow),GotoIf($[${LEN(${EXTEN})}>=8]?outbound,${EXTEN},1:reject)', block)
+        # Never unconditionally fall through to outbound from `_X.` or `_+X.`.
+        self.assertNotIn('Goto(outbound,${EXTEN},1)', block)
+        # No `0-9+` character class or fail-open `!=` filter guard anywhere in the rendered dialplan.
+        self.assertNotIn('FILTER(0-9+,', extensions)
+        self.assertNotRegex(extensions, r'FILTER\([^)]*\)"!="')
+
+    def test_internal_dialplan_guards_digits_and_sets_transfer_context_on_all_call_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
+        internal = extensions.split('\n[internal]\n', 1)[1].split('\n[outbound]\n', 1)[0]
+        self.assertIn('exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)', internal)
+        self.assertIn('same => n(allow),NoOp(Internal call from ${CALLERID(num)} to ${EXTEN})', internal)
+        self.assertLess(internal.index('FILTER(0-9,${EXTEN})'), internal.index('Dial(PJSIP/${EXTEN},30)'))
+        self.assertIn('Set(__TRANSFER_CONTEXT=from-extension)', internal)
+        dial_outbound = extensions.split('\n[dial-outbound]\n', 1)[1].split('\n[from-trunk]\n', 1)[0]
+        self.assertIn('Set(__TRANSFER_CONTEXT=from-extension)', dial_outbound)
+        self.assertLess(dial_outbound.index('__TRANSFER_CONTEXT=from-extension'),
+                        dial_outbound.index('Dial(PJSIP/${DIAL_NUMBER}@trunk,60)'))
+        inbound = extensions.split('\n[inbound-call]\n', 1)[1].split('\n[record-call]\n', 1)[0]
+        self.assertIn('Set(__TRANSFER_CONTEXT=from-extension)', inbound)
+        self.assertLess(inbound.index('__TRANSFER_CONTEXT=from-extension'), inbound.index('Dial(PJSIP/101,30)'))
+
     def test_the_outbound_number_is_filtered_and_a_value_that_changes_is_refused_before_any_dial(self):
-        """`_X.` and `_+X.` match `&` and `/`, so an extension of `123&456` would become two Dial destinations, and
-        `123/103` another endpoint that then reaches the trunk. The dialplan keeps only digits and a plus, and hangs up
-        when the filtered value differs, before any Dial is reached."""
+        """`_X.` and `_+X.` match `&`, `/`, or extra `+` after the first character. `_X.` accepts digits only (7+);
+        `_+X.` accepts a single leading `+` followed by digits only (7+ digits, LEN >= 8). Every guard is fail-closed
+        so expression parse errors land in `reject` instead of reaching `Dial`."""
         with tempfile.TemporaryDirectory() as directory:
             extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
         block = extensions.split('[outbound]', 1)[1].split('[dial-outbound]', 1)[0]
-        self.assertIn('FILTER(0-9+,${EXTEN})', block)
-        # The comparison is the guard: a value the filter changes must not be dialled even in its clean form.
-        self.assertIn('${FILTER(0-9+,${EXTEN})}"!="${EXTEN}"', block)
+        self.assertNotIn('FILTER(0-9+,', block)
+        self.assertIn('exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)', block)
+        self.assertIn('same => n(allow),GotoIf($[${LEN(${EXTEN})}>=7]?dial:reject)', block)
+        self.assertIn('exten => _+X.,1,GotoIf($["${FILTER(0-9,${EXTEN:1})}"="${EXTEN:1}"]?allow:reject)', block)
+        self.assertIn('same => n(allow),GotoIf($[${LEN(${EXTEN})}>=8]?dial:reject)', block)
         self.assertIn('Hangup()', block)
-        guard = block.index('FILTER(0-9+,${EXTEN})')
+        guard = block.index('FILTER(0-9,${EXTEN})')
         # Every Goto that reaches the dialling context comes after the guard, so no Dial runs on an unfiltered value.
         self.assertGreater(block.index('Goto(dial-outbound,s,1)'), guard)
         for pattern in ('_X.,', '_+X.,'):
             with self.subTest(pattern=pattern):
                 first = next(line for line in block.splitlines() if line.startswith(f'exten => {pattern}'))
                 self.assertIn('GotoIf(', first)
-                self.assertIn('?reject)', first)
+                self.assertIn('?allow:reject)', first)
 
     def test_every_reference_names_a_section_of_the_type_it_needs(self):
         """A name that exists as another type is not a reference: `aors=aor101` with `[aor101]` is only caught here."""
@@ -529,27 +750,45 @@ class AsteriskShape(unittest.TestCase):
                 self.assertEqual([], sorted(set(unresolved)))
 
     def test_every_extension_endpoint_registers_to_its_own_number(self):
-        """The registrar matches the To user of a REGISTER against the endpoint's aors list, so a browser endpoint named
-        after its extension must list that same name; anything else leaves the endpoint with no AOR to register into."""
+        """The registrar matches the To user of a REGISTER against the endpoint's aors list, so static extension 103
+        must list its own AOR in pjsip.conf while browser extensions 101 and 102 live in postgres/02-seed.sql."""
         for auth in ('credentials', 'ip'):
             with self.subTest(auth=auth), tempfile.TemporaryDirectory() as directory:
-                pjsip = (self.rendered(directory, LIWAN_TELEPHONY_TRUNK_AUTH=auth) / 'asterisk/pjsip.conf').read_text()
+                out = self.rendered(directory, LIWAN_TELEPHONY_TRUNK_AUTH=auth)
+                pjsip = (out / 'asterisk/pjsip.conf').read_text()
                 objects = pjsip_objects(pjsip)
-                for name in ('101', '102', '103'):
-                    endpoints = [section for section in objects.get(name, []) if section.get('type') == 'endpoint']
-                    self.assertEqual(1, len(endpoints), name)
-                    self.assertIn(name, re.split(r'[,\s]+', endpoints[0]['aors']))
+                self.assertNotIn('101', objects)
+                self.assertNotIn('102', objects)
+                endpoints = [section for section in objects.get('103', []) if section.get('type') == 'endpoint']
+                self.assertEqual(1, len(endpoints))
+                self.assertIn('103', re.split(r'[,\s]+', endpoints[0]['aors']))
+                self.assertEqual('yes', endpoints[0].get('allow_transfer'))
 
     def test_every_browser_endpoint_sends_a_from_domain_the_browser_can_parse(self):
         """Without `from_domain` Asterisk fills the From URI host with the container host name. Docker names are hex,
         so most start with a digit, and JsSIP's grammar rejects such a host: the INVITE is dropped and the callee never
         rings. The From domain must be the company host name, which the browser already trusts."""
         with tempfile.TemporaryDirectory() as directory:
-            pjsip = (self.rendered(directory) / 'asterisk/pjsip.conf').read_text()
-        for template in ('endpoint-template', 'endpoint-plain'):
-            with self.subTest(template=template):
-                block = pjsip.split(f'[{template}](!)', 1)[1].split('\n[', 1)[0]
-                self.assertIn('from_domain=acme.liwan.example', block)
+            out = self.rendered(directory)
+            pjsip = (out / 'asterisk/pjsip.conf').read_text()
+            seed = (out / 'postgres/02-seed.sql').read_text()
+        block = pjsip.split('[endpoint-plain](!)', 1)[1].split('\n[', 1)[0]
+        self.assertIn('from_domain=acme.liwan.example', block)
+        self.assertIn('allow_transfer=yes', block)
+        self.assertEqual(2, seed.count("'acme.liwan.example'"))
+
+    def test_the_browser_endpoints_allow_g711_only(self):
+        """The pinned Asterisk image has no opus translator and picks the codec by the order of ``allow``: an opus
+        browser leg records an empty WAV and bridges to the ulaw trunk without audio, so the browser endpoints offer
+        G.711 alone and a peer that offers none is refused. The seed rows keep the codecs of extension 103."""
+        with tempfile.TemporaryDirectory() as directory:
+            out = self.rendered(directory)
+            seed = (out / 'postgres/02-seed.sql').read_text()
+            pjsip = (out / 'asterisk/pjsip.conf').read_text()
+        self.assertEqual(['ulaw,alaw', 'ulaw,alaw'], re.findall(r"'all',\s+'([^']+)'", seed))
+        plain = pjsip.split('[endpoint-plain](!)', 1)[1].split('\n[', 1)[0]
+        # A whole line, not a substring: a longer codec list that merely starts with G.711 must fail too.
+        self.assertIn('allow=ulaw,alaw', plain.splitlines())
 
     def test_the_plain_sip_extension_exists_for_a_softphone(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -605,6 +844,127 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('tlsenable=no', http)
         self.assertIn('bindport=8088', http)
         self.assertEqual(['5060', '8088'], compose['services']['asterisk']['expose'])
+
+
+class PjsipRealtime(unittest.TestCase):
+    """PJSIP realtime configs (sorcery, extconfig, res_pgsql) and Postgres schema/seed files."""
+
+    def rendered(self, directory, **overrides):
+        out = Path(directory) / 'package'
+        self.assertEqual(0, run('--env', write_env(directory, {**FIXED, **overrides}), '--out', out)[0])
+        return out
+
+    def test_sorcery_orders_realtime_before_static_pjsip_conf(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sorcery = (self.rendered(directory) / 'asterisk/sorcery.conf').read_text()
+        self.assertIn('[res_pjsip]', sorcery)
+        lines = [line.strip() for line in sorcery.splitlines() if line.strip() and not line.strip().startswith(';')]
+        for kind, table in (('endpoint', 'ps_endpoints'), ('auth', 'ps_auths'), ('aor', 'ps_aors')):
+            with self.subTest(kind=kind):
+                rt = lines.index(f'{kind}=realtime,{table}')
+                static = lines.index(f'{kind}=config,pjsip.conf,criteria=type={kind}')
+                self.assertLess(rt, static)
+
+    def test_extconfig_and_res_pgsql_wire_telephony_pbx_to_pbx_db(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = self.rendered(directory)
+            extconfig = (out / 'asterisk/extconfig.conf').read_text()
+            res_pgsql = (out / 'asterisk/res_pgsql.conf').read_text()
+        self.assertIn('[settings]', extconfig)
+        for table in ('ps_endpoints', 'ps_auths', 'ps_aors'):
+            self.assertIn(f'{table} => pgsql,telephony_pbx,{table}', extconfig)
+        self.assertIn('[general]', res_pgsql)
+        self.assertNotIn('[telephony_pbx]', res_pgsql)
+        for expected in (
+            'hostname=pbx-db',
+            'port=5432',
+            'dbname=telephony_pbx',
+            'user=telephony_pbx',
+            'password=pbx-db-secret-value',
+            'appname=asterisk',
+            'requirements=warn',
+        ):
+            self.assertIn(expected, res_pgsql)
+        for obsolete in ('dbhost=', 'dbport=', 'dbuser=', 'dbpass=', 'dbappname='):
+            self.assertNotIn(obsolete, res_pgsql)
+
+    def test_postgres_schema_declares_realtime_tables_and_columns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            schema = (self.rendered(directory) / 'postgres/01-schema.sql').read_text()
+        for table in ('CREATE TABLE IF NOT EXISTS ps_aors',
+                      'CREATE TABLE IF NOT EXISTS ps_auths',
+                      'CREATE TABLE IF NOT EXISTS ps_endpoints'):
+            self.assertIn(table, schema)
+        for column in (
+            'auth VARCHAR(200)',
+            'from_domain VARCHAR(255)',
+            'dtmf_mode VARCHAR(40)',
+            'device_state_busy_at INTEGER',
+            'allow_transfer VARCHAR(8)',
+            'callerid VARCHAR(128)',
+            'webrtc VARCHAR(8)',
+            'direct_media VARCHAR(8)',
+            'rtp_symmetric VARCHAR(8)',
+            'force_rport VARCHAR(8)',
+            'rewrite_contact VARCHAR(8)',
+            'disallow VARCHAR(200)',
+            'allow VARCHAR(200)',
+            'transport VARCHAR(64)',
+            'aors VARCHAR(200)',
+            'context VARCHAR(64)',
+            'dtls_auto_generate_cert VARCHAR(8)',
+            'ice_support VARCHAR(8)',
+            'media_encryption VARCHAR(40)',
+            'use_avpf VARCHAR(8)',
+            'media_use_received_transport VARCHAR(8)',
+            'rtcp_mux VARCHAR(8)',
+            'from_user VARCHAR(80)',
+            'identify_by VARCHAR(80)',
+            'mailboxes TEXT',
+            'max_contacts INTEGER',
+            'remove_existing VARCHAR(8)',
+            'default_expiration INTEGER',
+            'maximum_expiration INTEGER',
+            'minimum_expiration INTEGER',
+            'contact VARCHAR(255)',
+            'qualify_frequency INTEGER',
+            'auth_type VARCHAR(40)',
+            'username VARCHAR(80)',
+            'password VARCHAR(128)',
+            'realm VARCHAR(80)',
+            'nonce_lifetime INTEGER',
+        ):
+            with self.subTest(column=column):
+                self.assertIn(column, schema)
+
+    def test_postgres_seed_is_idempotent_and_sql_escapes_passwords(self):
+        tricky = "p'ass-101-o'clock"
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory) / 'package'
+            code, stdout, stderr = run(
+                '--env', write_env(directory, {**FIXED, 'LIWAN_TELEPHONY_EXTENSION_101_PASSWORD': tricky}),
+                '--out', out,
+            )
+            self.assertEqual((0, ''), (code, stderr))
+            self.assertNotIn(tricky, stdout)
+            seed = (out / 'postgres/02-seed.sql').read_text()
+        self.assertEqual(3, seed.count('ON CONFLICT (id) DO NOTHING;'))
+        self.assertIn("'p''ass-101-o''clock'", seed)
+        self.assertNotIn(f"'{tricky}'", seed)
+        for token in (
+            "('101', 1, 'yes', 120, 120)",
+            "('102', 1, 'yes', 120, 120)",
+            "'auth101'",
+            "'auth102'",
+            "'secret-102-value'",
+            "'transport-ws'",
+            "'from-extension'",
+            "'acme.liwan.example'",
+            "'rfc4733'",
+            "'Extension 101 <101>'",
+            "'Extension 102 <102>'",
+        ):
+            self.assertIn(token, seed)
 
 
 class CoturnShape(unittest.TestCase):

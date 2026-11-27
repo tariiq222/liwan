@@ -25,14 +25,19 @@ describe('catalog source resolution by sha256', () => {
     expect((await resolveCatalogSource(repo, sha('platform_v3.json'))).name).toBe('platform_v3.json')
     await expect(readKnownSource(repo, 'platform_v3.json')).rejects.toThrow('catalog_source_not_publishable')
   })
-  it('publishes the v4 operations catalog and only that one', async () => {
+  it('resolves the v4 sha to platform_v4.json but refuses to publish it', async () => {
     expect((await resolveCatalogSource(repo, sha('platform_v4.json'))).name).toBe('platform_v4.json')
-    expect((await readKnownSource(repo, 'platform_v4.json')).name).toBe('platform_v4.json')
-    expect((await readKnownSource(repo)).name).toBe('platform_v4.json')
+    await expect(readKnownSource(repo, 'platform_v4.json')).rejects.toThrow('catalog_source_not_publishable')
+  })
+  it('publishes the v5 catalog and only that one', async () => {
+    expect((await resolveCatalogSource(repo, sha('platform_v5.json'))).name).toBe('platform_v5.json')
+    expect((await readKnownSource(repo, 'platform_v5.json')).name).toBe('platform_v5.json')
+    expect((await readKnownSource(repo)).name).toBe('platform_v5.json')
   })
 
   it('lets a stored entry move towards publication only from the publishable catalog', async () => {
-    expect((await requirePublishableSource(repo, sha('platform_v4.json'))).name).toBe('platform_v4.json')
+    expect((await requirePublishableSource(repo, sha('platform_v5.json'))).name).toBe('platform_v5.json')
+    await expect(requirePublishableSource(repo, sha('platform_v4.json'))).rejects.toThrow('catalog_source_not_publishable')
     await expect(requirePublishableSource(repo, sha('platform_v3.json'))).rejects.toThrow('catalog_source_not_publishable')
     await expect(requirePublishableSource(repo, '0'.repeat(64))).rejects.toThrow('catalog_source_unavailable')
   })

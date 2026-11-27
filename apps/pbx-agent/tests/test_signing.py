@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import base64
 import hashlib
 import hmac
 import sys
@@ -7,13 +10,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pbx_agent.signing import (  # noqa: E402
+    DATABASE_HEADER,
     EVENT_SIGNATURE_HEADER,
     EVENT_TIMESTAMP_HEADER,
+    REVERSE_MAX_SKEW_SECONDS,
     canonical_json,
     event_headers,
     event_signature,
     recording_token,
+    reverse_headers,
+    reverse_signature,
+    turn_rest_credentials,
     verify_recording_token,
+    verify_reverse_request,
 )
 
 KEY = bytes.fromhex("ab" * 32)
@@ -63,6 +72,15 @@ VECTOR_TOKEN = (
     ".d2b12600c8297ebefc5034de4dd41eaeffcf0b635f08c0ad1ec1f450bd8a7cba"
 )
 
+# Shared reverse-direction signing vector (Odoo -> pbx-agent).
+REVERSE_VECTOR_KEY_HEX = "01" * 32
+REVERSE_VECTOR_KEY = bytes.fromhex(REVERSE_VECTOR_KEY_HEX)
+REVERSE_VECTOR_TIMESTAMP = "1700000000"
+REVERSE_VECTOR_METHOD = "POST"
+REVERSE_VECTOR_PATH = "/registration"
+REVERSE_VECTOR_BODY = b'{"database":"liwan_acme","extension":"101"}'
+REVERSE_VECTOR_SIGNATURE = "7ec49cf1d3253e1a030372f29a059d41b6de3577a419428dc0acd955a915236b"
+
 
 class SharedVectorTest(unittest.TestCase):
     def test_the_body_is_the_pinned_vector(self) -> None:
@@ -81,6 +99,132 @@ class SharedVectorTest(unittest.TestCase):
         self.assertEqual(VECTOR_KEY.hex(), VECTOR_KEY_TEXT)
         ascii_signature = event_signature(VECTOR_KEY_TEXT.encode("ascii"), VECTOR_TIMESTAMP, VECTOR_BODY)
         self.assertNotEqual(ascii_signature, VECTOR_SIGNATURE)
+
+    def test_the_reverse_signature_is_the_pinned_vector(self) -> None:
+        sig = reverse_signature(
+            REVERSE_VECTOR_KEY,
+            timestamp=REVERSE_VECTOR_TIMESTAMP,
+            method=REVERSE_VECTOR_METHOD,
+            path=REVERSE_VECTOR_PATH,
+            body=REVERSE_VECTOR_BODY,
+        )
+        self.assertEqual(sig, REVERSE_VECTOR_SIGNATURE)
+        self.assertTrue(
+            verify_reverse_request(
+                REVERSE_VECTOR_KEY,
+                timestamp=REVERSE_VECTOR_TIMESTAMP,
+                signature=REVERSE_VECTOR_SIGNATURE,
+                method=REVERSE_VECTOR_METHOD,
+                path=REVERSE_VECTOR_PATH,
+                body=REVERSE_VECTOR_BODY,
+                now=int(REVERSE_VECTOR_TIMESTAMP),
+            )
+        )
+
+
+class ReverseSignatureTest(unittest.TestCase):
+    def test_accepts_valid_signature_including_uppercase_hex_and_boundary_skew(self) -> None:
+        body = b'{"database":"liwan_acme","extension":"101"}'
+        sig = reverse_signature(KEY, timestamp=1700000000, method="post", path="/registration", body=body)
+        for now in (1700000000 - REVERSE_MAX_SKEW_SECONDS, 1700000000, 1700000000 + REVERSE_MAX_SKEW_SECONDS):
+            self.assertTrue(
+                verify_reverse_request(
+                    KEY,
+                    timestamp="1700000000",
+                    signature=sig,
+                    method="POST",
+                    path="/registration",
+                    body=body,
+                    now=now,
+                )
+            )
+        self.assertTrue(
+            verify_reverse_request(
+                KEY,
+                timestamp="1700000000",
+                signature=sig.upper(),
+                method="POST",
+                path="/registration",
+                body=body,
+                now=1700000000,
+            )
+        )
+
+    def test_rejects_expired_and_future_timestamps(self) -> None:
+        body = b""
+        sig = reverse_signature(KEY, timestamp=1700000000, method="DELETE", path="/registration/101", body=body)
+        self.assertFalse(
+            verify_reverse_request(
+                KEY,
+                timestamp="1700000000",
+                signature=sig,
+                method="DELETE",
+                path="/registration/101",
+                body=body,
+                now=1700000000 + REVERSE_MAX_SKEW_SECONDS + 1,
+            )
+        )
+        self.assertFalse(
+            verify_reverse_request(
+                KEY,
+                timestamp="1700000000",
+                signature=sig,
+                method="DELETE",
+                path="/registration/101",
+                body=body,
+                now=1700000000 - REVERSE_MAX_SKEW_SECONDS - 1,
+            )
+        )
+
+    def test_rejects_wrong_method_path_body_or_key(self) -> None:
+        body = b'{"database":"liwan_acme","extension":"101"}'
+        sig = reverse_signature(KEY, timestamp=1700000000, method="POST", path="/registration", body=body)
+        self.assertFalse(
+            verify_reverse_request(KEY, timestamp="1700000000", signature=sig, method="PUT", path="/registration", body=body, now=1700000000)
+        )
+        self.assertFalse(
+            verify_reverse_request(KEY, timestamp="1700000000", signature=sig, method="POST", path="/extensions/101", body=body, now=1700000000)
+        )
+        self.assertFalse(
+            verify_reverse_request(KEY, timestamp="1700000000", signature=sig, method="POST", path="/registration", body=body + b" ", now=1700000000)
+        )
+        self.assertFalse(
+            verify_reverse_request(OTHER_KEY, timestamp="1700000000", signature=sig, method="POST", path="/registration", body=body, now=1700000000)
+        )
+
+    def test_rejects_malformed_headers(self) -> None:
+        body = b"{}"
+        sig = reverse_signature(KEY, timestamp=1700000000, method="POST", path="/registration", body=body)
+        for bad_ts in (None, "", "-1", "1700000000.0", "abc", "1" * 21, "١٧٠٠٠٠٠٠٠٠"):
+            self.assertFalse(
+                verify_reverse_request(KEY, timestamp=bad_ts, signature=sig, method="POST", path="/registration", body=body, now=1700000000)
+            )
+        for bad_sig in (None, "", "a" * 63, "a" * 65, "g" * 64, "ت" * 64):
+            self.assertFalse(
+                verify_reverse_request(KEY, timestamp="1700000000", signature=bad_sig, method="POST", path="/registration", body=body, now=1700000000)
+            )
+
+    def test_reverse_headers_include_timestamp_signature_and_database(self) -> None:
+        headers = reverse_headers(KEY, method="DELETE", path="/extensions/101", body=b"", database="liwan_acme", timestamp=1700000000)
+        self.assertEqual(headers[EVENT_TIMESTAMP_HEADER], "1700000000")
+        self.assertEqual(headers[DATABASE_HEADER], "liwan_acme")
+        self.assertEqual(
+            headers[EVENT_SIGNATURE_HEADER],
+            reverse_signature(KEY, timestamp=1700000000, method="DELETE", path="/extensions/101", body=b""),
+        )
+
+
+class TurnRestCredentialsTest(unittest.TestCase):
+    def test_matches_coturn_use_auth_secret_format(self) -> None:
+        secret = "s" * 32
+        username, credential = turn_rest_credentials(secret, "101", session_seconds=120, now=1700000000.7)
+        self.assertEqual(username, "1700000300:101")
+        expected = base64.b64encode(hmac.new(secret.encode("utf-8"), username.encode("utf-8"), hashlib.sha1).digest()).decode("ascii")
+        self.assertEqual(credential, expected)
+
+    def test_uses_double_session_seconds_when_larger_than_300(self) -> None:
+        username, _credential = turn_rest_credentials("k" * 32, "202", session_seconds=200, now=1700000000)
+        self.assertEqual(username, "1700000400:202")
 
 
 class EventSignatureTest(unittest.TestCase):

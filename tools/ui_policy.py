@@ -56,7 +56,7 @@ LAYER_COMPONENTS = frozenset(
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'ErrorSummary', 'FileField', 'FormActions', 'FormField', 'InlineConfirm', 'InlineText', 'MoneyField', 'MoneyListField', 'OptionCards', 'RichText', 'UnsavedChanges')]
-    + ['shell/' + name + '.vue' for name in ('ShellAppTile', 'ShellBreadcrumb', 'ShellCoreApps', 'ShellFooterBar', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellTip', 'ShellToolButton', 'ShellTopBar')]
+    + ['shell/' + name + '.vue' for name in ('ShellAppTile', 'ShellBreadcrumb', 'ShellCallChip', 'ShellCoreApps', 'ShellFooterBar', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellTip', 'ShellToolButton', 'ShellTopBar')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@liwan/commercial-ui).
 COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue', 'shared/data/InvoiceDocument.vue'))
@@ -119,7 +119,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue',
     'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
     'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/form/TagPicker.vue',
-    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellSidebar.vue', 'shell/ShellTip.vue', 'shell/ShellNavSection.vue', 'shell/ShellNavRow.vue', 'shell/ShellAppTile.vue', 'shell/ShellOrgCard.vue', 'shell/ShellCoreApps.vue', 'shell/ShellFooterBar.vue', 'shell/ShellTopBar.vue', 'shell/ShellToolButton.vue', 'shell/ShellSlideOver.vue', 'shell/ShellPanelRow.vue', 'shell/ShellPanelStatus.vue', 'shell/ShellTabBar.vue', 'shell/AppSidebar.vue', 'shell/AppTopBar.vue', 'shell/ShellBreadcrumb.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
+    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellSidebar.vue', 'shell/ShellTip.vue', 'shell/ShellNavSection.vue', 'shell/ShellNavRow.vue', 'shell/ShellAppTile.vue', 'shell/ShellOrgCard.vue', 'shell/ShellCoreApps.vue', 'shell/ShellFooterBar.vue', 'shell/ShellTopBar.vue', 'shell/ShellCallChip.vue', 'shell/ShellToolButton.vue', 'shell/ShellSlideOver.vue', 'shell/ShellPanelRow.vue', 'shell/ShellPanelStatus.vue', 'shell/ShellTabBar.vue', 'shell/AppSidebar.vue', 'shell/AppTopBar.vue', 'shell/ShellBreadcrumb.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
     'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
     'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
     'shared/form/RichText.vue', 'shared/data/Pagination.vue', 'shared/data/MetricTile.vue', 'shared/form/InlineConfirm.vue',
@@ -1032,6 +1032,9 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # components, so it cannot become the second UI library this guard exists
     # to catch.
     allowed_source = dependencies(baseline) | REVIEWED_ERROR_REPORTING_SDKS | {
+        # The browser softphone (design 4.1): the SIP stack over WebSocket, MIT, pinned to 3.12.0, the version the
+        # local call gate proved. It renders nothing and is the only SIP implementation in the product.
+        'jssip',
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
         # Internal schemas and server-only signing; no visual components or UI library.
         '@liwan/contracts',  # Same product schemas under the renamed workspace namespace.

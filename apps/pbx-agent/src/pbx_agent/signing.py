@@ -1,12 +1,12 @@
-"""What the agent signs: the Odoo event request (design 4.5) and the recording link (design 4.4).
+"""What the agent signs and verifies: Odoo events (4.5), reverse-direction Odoo requests (12.6), recording links (4.4) and TURN REST credentials.
 
-Both use the two derived company keys of design 12.6. An event signature covers ``<timestamp>\\n<body>`` so the
-exact bytes Odoo receives are the bytes that were signed; a recording token carries only the call id, the company
-host and its expiry, and its signature covers the encoded payload it travels with.
+All HMAC-SHA256 operations use the two derived company keys of design 12.6. An event signature covers
+``<timestamp>\\n<body>``; a reverse-direction request from Odoo covers ``<timestamp>\\n<METHOD>\\n<path>\\n<body>``; a
+recording token carries only the call id, the company host and its expiry.
 
 Key form: Odoo derives each key as 64 hex characters. That text is the key's *encoding*, not its bytes: the HMAC key
 is the 32 raw bytes obtained with ``bytes.fromhex``, never the 64 ASCII characters. This module only ever receives
-those 32 bytes. ``tests/test_signing.py`` pins a shared vector (key text, payload, timestamp, signature hex) so the
+those 32 bytes. ``tests/test_signing.py`` pins shared vectors (key text, payload, timestamp, signature hex) so the
 Odoo side can reproduce these bytes exactly.
 """
 
@@ -21,7 +21,11 @@ import re
 
 EVENT_TIMESTAMP_HEADER = "X-Liwan-Telephony-Timestamp"
 EVENT_SIGNATURE_HEADER = "X-Liwan-Telephony-Signature"
+DATABASE_HEADER = "X-Liwan-Telephony-Database"
+REVERSE_MAX_SKEW_SECONDS = 300
 CALL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+TIMESTAMP_VALUE = re.compile(r"[0-9]{1,20}")
+HEX_SIGNATURE = re.compile(r"[0-9a-fA-F]{64}")
 TOKEN_FIELDS = frozenset({"call", "host", "exp"})
 
 
@@ -41,6 +45,61 @@ def event_headers(key: bytes, body: bytes, timestamp: int) -> dict[str, str]:
         EVENT_TIMESTAMP_HEADER: str(timestamp),
         EVENT_SIGNATURE_HEADER: event_signature(key, timestamp, body),
     }
+
+
+def reverse_signature(key: bytes, *, timestamp: int | str, method: str, path: str, body: bytes) -> str:
+    """Hex HMAC-SHA256 over ``b"<timestamp>\\n<METHOD>\\n<path>\\n<body>"`` for Odoo -> pbx-agent requests."""
+    canonical = f"{timestamp}\n{method.upper()}\n{path}\n".encode("ascii") + body
+    return hmac.new(key, canonical, hashlib.sha256).hexdigest()
+
+
+def reverse_headers(
+    key: bytes,
+    *,
+    method: str,
+    path: str,
+    body: bytes,
+    database: str,
+    timestamp: int,
+) -> dict[str, str]:
+    return {
+        EVENT_TIMESTAMP_HEADER: str(timestamp),
+        EVENT_SIGNATURE_HEADER: reverse_signature(key, timestamp=timestamp, method=method, path=path, body=body),
+        DATABASE_HEADER: database,
+    }
+
+
+def verify_reverse_request(
+    key: bytes,
+    *,
+    timestamp: str | None,
+    signature: str | None,
+    method: str,
+    path: str,
+    body: bytes,
+    now: float,
+) -> bool:
+    """Verify an Odoo -> pbx-agent signed request; returns ``False`` for any malformed, stale, or mismatched input."""
+    if not isinstance(timestamp, str) or not TIMESTAMP_VALUE.fullmatch(timestamp):
+        return False
+    if not isinstance(signature, str) or not HEX_SIGNATURE.fullmatch(signature):
+        return False
+    if abs(int(now) - int(timestamp)) > REVERSE_MAX_SKEW_SECONDS:
+        return False
+    try:
+        expected = reverse_signature(key, timestamp=timestamp, method=method, path=path, body=body)
+    except UnicodeEncodeError:
+        return False
+    return hmac.compare_digest(expected, signature.lower())
+
+
+def turn_rest_credentials(secret: str, extension: str, *, session_seconds: int, now: float) -> tuple[str, str]:
+    """Per-session coturn ``use-auth-secret`` REST credentials (HMAC-SHA1, base64-encoded)."""
+    expiry = int(now) + max(session_seconds * 2, 300)
+    username = f"{expiry}:{extension}"
+    digest = hmac.new(secret.encode("utf-8"), username.encode("utf-8"), hashlib.sha1).digest()
+    credential = base64.b64encode(digest).decode("ascii")
+    return username, credential
 
 
 def recording_token(key: bytes, *, call_id: str, host: str, expires_at: int) -> str:

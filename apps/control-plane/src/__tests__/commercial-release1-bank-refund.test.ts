@@ -31,7 +31,7 @@ async function resetBillingSettings(pool: Pool) {
 /** Publishes the release-1 catalog, whose AI limits these plans carry. */
 async function publishRelease1(pool: Pool, api: ReturnType<typeof client>, reason: string) {
   const version = `commercial-${randomUUID()}`
-  const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))
+  const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v5.json', import.meta.url))
   await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)",
     [randomUUID(), version, JSON.parse(raw.toString()), createHash('sha256').update(raw).digest('hex')])
   const created = await api('POST', '/catalog/releases', { catalog_version: version, reason })
