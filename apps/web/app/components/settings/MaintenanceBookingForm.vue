@@ -66,7 +66,7 @@ const releaseError = computed(() => {
 })
 const timeError = computed(() => {
   if (!attempted.value || usePreference.value) return undefined
-  return localDateTime.value ? undefined : t('settings.maintenance.timeRequired')
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(localDateTime.value) ? undefined : t('settings.maintenance.timeRequired')
 })
 const zoneError = computed(() => {
   if (!attempted.value || usePreference.value) return undefined
@@ -77,7 +77,7 @@ const durationError = computed(() => {
   const minutes = Number(bookingDuration.value)
   return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? undefined : t('settings.maintenance.durationInvalid')
 })
-const generalError = computed(() => failure.value || (attempted.value && !parsed.value.success ? t('settings.maintenance.invalid') : ''))
+const generalError = computed(() => failure.value || (attempted.value && (!parsed.value.success || Boolean(releaseError.value || timeError.value || zoneError.value || durationError.value)) ? t('settings.maintenance.invalid') : ''))
 function focusFirstInvalid() {
   if (typeof document === 'undefined') return
   const first = [releaseError.value && 'maintenance-release', timeError.value && 'maintenance-booking-time', zoneError.value && 'maintenance-booking-zone', durationError.value && 'maintenance-booking-duration'].find(Boolean)
@@ -88,7 +88,7 @@ async function saveBooking() {
   attempted.value = true
   failure.value = ''
   saved.value = false
-  if (!parsed.value.success) { focusFirstInvalid(); return }
+  if (!parsed.value.success || releaseError.value || timeError.value || zoneError.value || durationError.value) { focusFirstInvalid(); return }
   busy.value = true
   try {
     if (props.booking) {
@@ -110,7 +110,7 @@ function formatDate(date: string, zone = timezone.value) {
 <template>
   <form :id="formId" class="liwan-form" novalidate data-testid="maintenance-booking-form" @submit.prevent="saveBooking">
     <SharedUnsavedChanges :dirty="dirty" />
-    <UAlert v-if="generalError" data-testid="maintenance-error" role="alert" color="error" variant="subtle" :title="generalError" :description="t('settings.maintenance.keepDraft')" />
+    <UAlert v-if="generalError" data-testid="maintenance-error" role="alert" color="error" variant="subtle" :title="generalError" :description="failure ? t('settings.maintenance.keepDraft') : undefined" />
     <SharedFormSection panel :title="t(props.booking ? 'settings.maintenance.editBooking' : 'settings.maintenance.newBooking')">
       <UFormField :label="t('settings.maintenance.release')" name="release" required :error="releaseError">
         <USelect id="maintenance-release" v-model="releaseId" data-testid="maintenance-release" :items="releaseItems" :disabled="locked || !!props.booking" />

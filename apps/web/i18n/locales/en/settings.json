@@ -345,7 +345,7 @@
       "timeRequired": "Enter the local date and time.",
       "zoneInvalid": "Enter a valid timezone.",
       "durationInvalid": "Enter a duration between 1 and 1440 minutes.",
-      "keepDraft": "Your draft is preserved. Refresh the data, then use Discard draft to load the latest settings before reapplying your changes.",
+      "keepDraft": "Your draft is preserved so you can adjust the details and try again.",
       "scope": {
         "tenant": "This customer",
         "ai_service": "Shared AI service",

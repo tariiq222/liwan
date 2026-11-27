@@ -8,15 +8,15 @@ import { useMaintenance, useMaintenanceActions } from '@/composables/useMaintena
 const route = useRoute()
 const { t } = useI18n()
 const { parts, shows } = useSettingsPage('system')
-const { data, isLoading, error, refetch } = useMaintenance(() => shows('maintenance'))
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isSubPage = computed(() => normalizedPath.value !== '/settings/system' && normalizedPath.value !== '/settings/system/maintenance/new')
+const { data, isLoading, error, refetch } = useMaintenance(() => !isSubPage.value && shows('maintenance'))
 const { preference, update } = useMaintenanceActions()
 async function reloadSnapshot() {
   const { data: snapshot, error: failure } = await refetch()
   if (!snapshot) throw failure
   return snapshot
 }
-const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
-const isSubPage = computed(() => normalizedPath.value !== '/settings/system' && normalizedPath.value !== '/settings/system/maintenance/new')
 </script>
 
 <template>

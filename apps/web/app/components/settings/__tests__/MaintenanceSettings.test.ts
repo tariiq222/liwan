@@ -201,9 +201,9 @@ describe('maintenance settings', () => {
   })
   it('saves with the newest revision the page knows when the other fields are unchanged', async () => {
     const h = harness(); h.hydrated.value = true; await Vue.nextTick()
-    h.props.savePreference.mockResolvedValueOnce({ ...snapshot().preference, timezone: 'Europe/London', revision: 10 } as never)
+    h.props.savePreference.mockResolvedValueOnce({ ...snapshot().preference!, timezone: 'Europe/London', revision: 10 } as never)
     update(h, 'maintenance-timezone', 'Europe/London'); await Vue.nextTick()
-    h.props.snapshot = { ...snapshot(), preference: { ...snapshot().preference, revision: 9 } }; await Vue.nextTick()
+    h.props.snapshot = { ...snapshot(), preference: { ...snapshot().preference!, revision: 9 } }; await Vue.nextTick()
     h.find('maintenance-preference-save')!.props.onClick(); await new Promise(resolve => setTimeout(resolve)); await Vue.nextTick()
     expect(h.props.savePreference).toHaveBeenCalledWith(expect.objectContaining({ timezone: 'Europe/London', revision: 9 }))
     h.app.unmount()
@@ -212,7 +212,7 @@ describe('maintenance settings', () => {
   it('locks the card instead of overwriting a window another admin changed meanwhile', async () => {
     const h = harness(); h.hydrated.value = true; await Vue.nextTick()
     update(h, 'maintenance-timezone', 'Europe/London'); await Vue.nextTick()
-    h.props.snapshot = { ...snapshot(), preference: { ...snapshot().preference, timezone: 'Asia/Dubai', revision: 2 } }; await Vue.nextTick()
+    h.props.snapshot = { ...snapshot(), preference: { ...snapshot().preference!, timezone: 'Asia/Dubai', revision: 2 } }; await Vue.nextTick()
     expect(h.find('maintenance-preference-card')!.props['data-message']).toBe('app.settingsConflict')
     h.find('maintenance-preference-save')!.props.onClick(); await settle()
     expect(h.props.savePreference).not.toHaveBeenCalled()
@@ -290,6 +290,15 @@ describe('maintenance booking form', () => {
     expect(h.find('maintenance-booking-duration')!.parent!.props.error).toBe('settings.maintenance.durationInvalid')
     h.app.unmount()
   })
+  it('blocks submit when the selected release is unavailable or the local time is malformed', async () => {
+    const h = formHarness()
+    update(h, 'maintenance-release', 999); update(h, 'maintenance-booking-time', '2030-01-01 02:00')
+    await h.find('maintenance-booking-form')!.props.onSubmit({ preventDefault() {} }); await Vue.nextTick()
+    expect(h.props.book).not.toHaveBeenCalled()
+    expect(h.find('maintenance-release')!.parent!.props.error).toBe('settings.maintenance.releaseRequired')
+    expect(h.find('maintenance-booking-time')!.parent!.props.error).toBe('settings.maintenance.timeRequired')
+    h.app.unmount()
+  })
   it('edits on the page: starts clean from the booking, patches with its revision and never resends the release', async () => {
     const h = formHarness(snapshot().bookings.items[0])
     expect(h.find('unsaved-changes')!.props['data-dirty']).toBe(false)
@@ -321,15 +330,18 @@ describe('maintenance booking routes', () => {
     const h = pageHarness(wrapperFile, { route, canAccess: true, data: snapshot() })
     expect(h.find('settings-page')).toBeDefined()
     expect(h.find('nuxt-page')).toBeDefined()
+    expect(h.enabledGetters[0]!()).toBe(true)
     route.path = '/settings/system/maintenance/new'
     await Vue.nextTick()
     expect(h.find('settings-page')).toBeDefined()
     expect(h.find('nuxt-page')).toBeDefined()
+    expect(h.enabledGetters[0]!()).toBe(true)
     for (const subPath of ['/settings/system/storage', '/settings/system/export', '/settings/system/maintenance/3/edit']) {
       route.path = subPath
       await Vue.nextTick()
       expect(h.find('settings-page')).toBeUndefined()
       expect(h.find('nuxt-page')).toBeDefined()
+      expect(h.enabledGetters[0]!()).toBe(false)
     }
     h.app.unmount()
   })
