@@ -156,9 +156,9 @@
       "reason": "finance setup, after the finance.setup.manage check and a field whitelist (owner approved 2026-10-18). Line 53, `company.sudo().write(vals)` (fiscal settings write): the blocker is the res.company write ACL `access_res_company_group_erp_manager` (/Users/tariq/code/odoo/odoo/addons/base/security/ir.model.access.csv:42), which grants write on `res.company` only to group_erp_manager; unelevated it fails with 'Access Denied by ACLs ... write, model: res.company' (E3-FIN82)."
     },
     "odoo-addons/liwan_finance/models/zatca_service.py": {
-      "count": 2,
+      "count": 1,
       "kind": "own_design",
-      "reason": "finance ZATCA e-invoicing, after the finance.zatca.manage/submit and current-company checks; sandbox api mode only until a production policy is approved (owner approved 2026-10-19). Line 81, sales-journal onboarding through the stock `l10n_sa_edi` wizard: blocked by the write ACL on `res.company` (the wizard writes the company) and on `account.journal`; unelevated it raises 'not allowed to modify Companies' (E3-ZAT81). Line 121, one-invoice submission: blocked by the write ACL on `account.move` and `res.company`, 'Access Denied by ACLs ... write, model: account.move/res.company' (E3-ZAT121)."
+      "reason": "finance ZATCA e-invoicing via `_liwan_elevated()` (`self.sudo().with_context(lang='en_US')`), after capability (`finance.zatca.environment`/`manage`/`submit`), current-company, lock and released-mode checks (sandbox/preprod/prod). Used by environment switching (`res.company.write` with `l10n_sa_api_mode`), sales-journal onboarding through the stock `l10n_sa_edi` wizard, and one-invoice submission: blocked by the write ACL on `res.company` (`access_res_company_group_erp_manager`), `account.journal` and `account.move`; unelevated it raises 'not allowed to modify Companies' / 'Access Denied by ACLs ... write, model: account.move/res.company' (E3-ZAT81, E3-ZAT121)."
     },
     "odoo-addons/liwan_hr/models/res_company.py": {
       "count": 1,

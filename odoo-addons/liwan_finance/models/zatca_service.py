@@ -1,12 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""ZATCA e-invoicing (Fatoora phase 2) onboarding and submission, driven through stock ``l10n_sa_edi``.
+"""ZATCA e-invoicing (Fatoora phase 2) onboarding, environment switching and submission, driven through stock ``l10n_sa_edi``.
 
 Stock needs rights no finance group has (``res.company``, ``account.journal`` and ``ir.sequence`` writes,
-system-only fields), so the two public entries below are the only elevated places of this module: the
-documented R7 case "finance ZATCA e-invoicing". Each one checks the capability, resolves the journal or
-invoice inside the current company and refuses any api mode but ``sandbox`` before it elevates, then runs
-one stock flow (the OTP wizard, or the EDI processing of that one invoice). No key material, CSR, CSID or
-raw ZATCA response leaves this model.
+system-only fields), so ``_liwan_elevated`` below is the one elevated entry of this module: the
+documented R7 case "finance ZATCA e-invoicing". Every caller checks its capability, resolves the
+company, journal or invoice inside the current company, acquires the company ZATCA lock and verifies
+a released api mode (``sandbox``, ``preprod`` or ``prod``) before elevating. No key material, CSR,
+CSID or raw ZATCA response leaves this model.
 """
 import logging
 import re
@@ -15,9 +15,11 @@ from odoo import api, fields, models
 from odoo.exceptions import MissingError, UserError
 
 from .res_company import (
-    SANDBOX_API_MODE,
+    RELEASED_ZATCA_MODES,
     SAUDI_COUNTRY_CODE,
     ZATCA_ENVIRONMENT_PERMISSION,
+    ZATCA_MODE_CHANGE_CONTEXT,
+    ZATCA_MODE_FIELD,
 )
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
@@ -30,10 +32,6 @@ from odoo.addons.liwan_finance.serializers.zatca import (
 
 _logger = logging.getLogger(__name__)
 
-MODE_REFUSALS = {
-    'preprod': ('zatca_simulation_not_released', 'ZATCA simulation has not been released'),
-    'prod': ('zatca_production_not_released', 'ZATCA production has not been released'),
-}
 ONBOARDING_UNAVAILABLE = 'ZATCA could not be reached; try again later'
 ONBOARDING_FAILED = 'ZATCA refused the onboarding'
 # What the certificate request needs from the company (stock asks for these and names them in English when one is missing).
@@ -60,30 +58,42 @@ class LiwanFinanceZatca(models.AbstractModel):
             raise ApiError(409, 'zatca_environment_busy', 'another ZATCA operation is running for this company')
 
     @api.model
-    def _liwan_require_sandbox(self):
-        """Keep the approved elevated flows confined to the developer sandbox."""
+    def _liwan_elevated(self):
+        """The single documented R7 elevation helper for ZATCA environment, onboarding and submission flows."""
+        return self.sudo().with_context(lang='en_US')
+
+    @api.model
+    def _liwan_require_released_mode(self):
+        """Lock the company ZATCA fence and verify the configured environment is supported."""
         company = self.env.company
         self._liwan_lock_environment(company)
-        if company._liwan_zatca_runtime_mode() != SANDBOX_API_MODE:
-            raise ApiError(422, 'zatca_mode_not_allowed', 'only the ZATCA sandbox api mode is allowed')
+        if company._liwan_zatca_runtime_mode() not in RELEASED_ZATCA_MODES:
+            raise ApiError(422, 'zatca_mode_not_allowed', 'unsupported ZATCA api mode')
 
     @api.model
     def _liwan_request_environment(self, mode):
-        """Validate the current-company request without allowing an unreleased environment."""
+        """Switch the current company's ZATCA environment after capability, country and lock checks."""
         self.env['liwan.access.service']._liwan_require_capability(ZATCA_ENVIRONMENT_PERMISSION)
         company = self.env.company
         if (company.account_fiscal_country_id or company.country_id).code != SAUDI_COUNTRY_CODE:
             raise ApiError(422, 'zatca_not_applicable', 'ZATCA applies only to a Saudi company')
         self._liwan_lock_environment(company)
+        if mode not in RELEASED_ZATCA_MODES:
+            raise ApiError(422, 'zatca_mode_not_allowed', 'unsupported ZATCA api mode')
         current = company._liwan_zatca_runtime_mode()
-        if current == mode == SANDBOX_API_MODE:
+        if current == mode:
             return {'api_mode': current, 'changed': False}
-        code, message = MODE_REFUSALS.get(mode, ('zatca_mode_not_allowed', 'changing the ZATCA environment is unavailable'))
-        _logger.warning(
-            'finance.zatca.mode_refused company=%s user=%s current=%s target=%s code=%s',
-            company.id, self.env.uid, current, mode, code,
+        self._liwan_elevated().env['res.company'].browse(company.id).with_context(
+            **{ZATCA_MODE_CHANGE_CONTEXT: True},
+        ).write({ZATCA_MODE_FIELD: mode})
+        _logger.info(
+            'finance.zatca.mode_changed company=%s user=%s old=%s new=%s',
+            company.id, self.env.uid, current, mode,
         )
-        raise ApiError(422, code, message)
+        self.env['liwan.finance.audit.event']._liwan_log(
+            'company_written', company, fields_written=[ZATCA_MODE_FIELD], outcome=f'{current}>{mode}',
+        )
+        return {'api_mode': mode, 'changed': True}
 
     @api.model
     def _liwan_onboarding_failed(self, journal, status, code, message):
@@ -123,9 +133,9 @@ class LiwanFinanceZatca(models.AbstractModel):
         """
         self.env['liwan.access.service']._liwan_require_capability('finance.zatca.manage')
         journal = self._liwan_find('account.journal', journal_id, [('type', '=', 'sale')])
-        self._liwan_require_sandbox()
+        self._liwan_require_released_mode()
         self._liwan_require_company_profile(journal.company_id)
-        elevated = self.sudo().with_context(lang='en_US')
+        elevated = self._liwan_elevated()
         # Stock validate uses the wizard fields and journal, so an in-memory transient keeps the OTP out of the database.
         elevated.env['l10n_sa_edi.otp.wizard'].new({'journal_id': journal.id, 'l10n_sa_otp': otp}).validate()
         if not journal._l10n_sa_ready_to_submit_einvoices():
@@ -157,7 +167,7 @@ class LiwanFinanceZatca(models.AbstractModel):
         move = self._liwan_find('account.move', move_id, [('move_type', 'in', INVOICE_MOVE_TYPES)])
         if move.move_type not in SALE_MOVE_TYPES:
             raise ApiError(422, 'zatca_not_applicable', 'the document is not a ZATCA sale document')
-        self._liwan_require_sandbox()
+        self._liwan_require_released_mode()
         document = zatca_document(move)
         if move.state != 'posted' or not document:
             raise ApiError(422, 'zatca_not_applicable', 'the document is not a posted ZATCA e-invoice')
@@ -176,7 +186,7 @@ class LiwanFinanceZatca(models.AbstractModel):
                     422, 'retry_too_soon', 'the document was sent too recently; retry after next_retry_at',
                     details={'next_retry_at': iso(allowed_at), 'retry_count': document.liwan_zatca_retry_count},
                 )
-        elevated_move = self.sudo().with_context(lang='en_US').env['account.move'].browse(move.id)
+        elevated_move = self._liwan_elevated().env['account.move'].browse(move.id)
         self._liwan_record_attempt(zatca_document(elevated_move), repeat)
         if retry:
             self._liwan_retry_zatca_document(elevated_move)

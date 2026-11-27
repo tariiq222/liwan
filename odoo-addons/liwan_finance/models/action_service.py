@@ -113,7 +113,7 @@ class LiwanFinanceActions(models.AbstractModel):
             action = 'zatca_submit' if state in FIRST_SEND_STATES else 'zatca_retry' if state in RESEND_STATES else None
             if action and zatca_document(invoice):
                 onboarding = 'zatca_not_onboarded' if not invoice.journal_id._l10n_sa_ready_to_submit_einvoices() else None
-                mode = 'zatca_mode_not_allowed' if invoice.company_id.l10n_sa_api_mode != 'sandbox' else None
+                mode = 'zatca_mode_not_allowed' if invoice.company_id.l10n_sa_api_mode not in ('sandbox', 'preprod', 'prod') else None
                 offers.append((action, 'finance.zatca.submit', mode or onboarding))
         return offers
 

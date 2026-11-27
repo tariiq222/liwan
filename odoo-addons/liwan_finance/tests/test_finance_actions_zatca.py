@@ -31,11 +31,11 @@ class TestFinanceActionsZatca(LiwanZatcaCase):
         allowed, blocked = self.actions(invoice)
         self.assertFalse({'zatca_submit', 'zatca_retry'} & (allowed | set(blocked)))
 
-    def test_a_mode_other_than_the_sandbox_blocks_the_submission_as_the_route_refuses_it(self):
+    def test_an_unsupported_mode_blocks_the_submission_as_the_route_refuses_it(self):
         self.onboarded_journal()
         invoice = self.sale_invoice()
-        # The ORM refuses a mode other than the sandbox, so a tenant set up elsewhere is simulated in the column.
-        self.env.cr.execute("UPDATE res_company SET l10n_sa_api_mode = 'preprod' WHERE id = %s", [self.company.id])
+        # The ORM refuses an unsupported mode, so a legacy/unconfigured value is simulated in the column.
+        self.env.cr.execute("UPDATE res_company SET l10n_sa_api_mode = 'legacy' WHERE id = %s", [self.company.id])
         self.company.invalidate_recordset(['l10n_sa_api_mode'])
         self.assertEqual(self.actions(invoice)[1], {'zatca_submit': 'zatca_mode_not_allowed'})
         self.assertRefused(self.submit(invoice), 422, 'zatca_mode_not_allowed')

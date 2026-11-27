@@ -224,11 +224,9 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
                 self.assertRefused(self.api('POST', url, json=body), 422, 'invalid', field=field)
         self.assertEqual(self.zatca.calls, [])
 
-    def test_only_the_sandbox_api_mode_is_allowed(self):
-        for mode in ('preprod', 'prod'):
-            with self.subTest(mode):
-                self.force_api_mode(mode)
-                self.assertRefused(self.onboard(), 422, 'zatca_mode_not_allowed')
+    def test_only_released_api_modes_are_allowed(self):
+        self.force_api_mode('legacy')
+        self.assertRefused(self.onboard(), 422, 'zatca_mode_not_allowed')
         self.assertEqual(self.zatca.calls, [])
 
     def test_a_journal_of_another_company_or_type_is_404(self):
@@ -373,9 +371,9 @@ class TestFinanceZatcaSubmission(LiwanZatcaCase):
         self.sale_journal.sudo().l10n_sa_production_csid_json = False
         self.assertRefused(self.submit(invoice), 422, 'zatca_not_onboarded')
 
-    def test_only_the_sandbox_api_mode_is_allowed(self):
+    def test_only_released_api_modes_are_allowed(self):
         invoice = self.sale_invoice()
-        self.force_api_mode('prod')
+        self.force_api_mode('legacy')
         calls = len(self.zatca.calls)
         self.assertRefused(self.submit(invoice), 422, 'zatca_mode_not_allowed')
         self.assertEqual(len(self.zatca.calls), calls)
@@ -774,8 +772,8 @@ class TestFinanceZatcaRetryThrottle(LiwanZatcaCase):
             self.assertRefused(self.submit(invoice), 422, 'invalid_state')
         self.assertEqual(self._document(invoice).liwan_zatca_retry_count, 0)
 
-    def test_the_retry_stays_sandbox_only(self):
+    def test_the_retry_refuses_unsupported_api_mode(self):
         invoice = self._failed()
         self.elapse_retry_spacing(invoice)
-        self.force_api_mode('prod')
+        self.force_api_mode('legacy')
         self.assertRefused(self.submit(invoice, 'retry'), 422, 'zatca_mode_not_allowed')
