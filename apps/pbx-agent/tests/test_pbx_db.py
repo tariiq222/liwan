@@ -127,6 +127,14 @@ class PostgresPbxStoreTest(unittest.TestCase):
             ],
         )
 
+    def test_upsert_endpoint_sql_allows_g711_before_opus(self) -> None:
+        # The pinned Asterisk image has no opus translator: an opus-first browser leg records an empty WAV and bridges
+        # to the ulaw trunk without audio.
+        columns, values = UPSERT_ENDPOINT_SQL.split(") VALUES (")
+        columns = columns.split("ps_endpoints (", 1)[1].split(", ")
+        values = values.split(")", 1)[0].split(", ")
+        self.assertEqual("'ulaw,alaw,opus'", values[columns.index("allow")])
+
     def test_update_endpoint_auths_narrows_auth_and_drops_expired_in_one_transaction(self) -> None:
         conn = FakeConnection()
         store = PostgresPbxStore(TEST_DSN, connect=lambda _dsn, **_kw: conn)
