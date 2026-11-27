@@ -1,7 +1,7 @@
-"""The only Asterisk client (design 2, 4.4-4.6): the event stream and the few calls the agent needs.
+"""The only Asterisk client (design 2, 4.1, 4.4-4.6): the event stream and the few calls the agent needs.
 
-Two seams keep Asterisk out of the tests: ``AriClient`` takes a ``request(method, path, params)`` callable and
-``AriListener`` takes a ``connect(url)`` factory. The api key travels only in a query string, so no URL and no
+Two seams keep Asterisk out of the tests: ``AriClient`` takes a ``request(method, path, params, body)`` callable
+and ``AriListener`` takes a ``connect(url)`` factory. The api key travels only in a query string, so no URL and no
 transport error message is ever logged; only the exception class name is.
 """
 
@@ -31,21 +31,26 @@ EVENTS_APPLICATION = "pbx-agent"
 
 
 class AriError(RuntimeError):
-    """An ARI call that answered something the agent cannot use; the message names a method, a path and a status."""
+    """A failed ARI call. The message names the method, the path and the status or the exception class, never the api key."""
 
 
 class AriTransport:
-    """HTTP against ``PBX_ARI_URL``. Parameters, including the api key, go in the query string."""
+    """HTTP against ``PBX_ARI_URL``. Parameters, including the api key, go in the query string; a body goes as JSON."""
 
     def __init__(self, base_url: str, username: str, password: str, timeout: float = REQUEST_TIMEOUT_SECONDS) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = f"{username}:{password}"
         self._timeout = timeout
 
-    def __call__(self, method: str, path: str, params: dict | None = None) -> tuple[int, object]:
+    def __call__(self, method: str, path: str, params: dict | None = None, body: dict | None = None) -> tuple[int, object]:
         query = dict(params or {})
         query["api_key"] = self._api_key
-        request = urllib.request.Request(f"{self._base_url}{path}?{urlencode(query)}", method=method)
+        request = urllib.request.Request(
+            f"{self._base_url}{path}?{urlencode(query)}",
+            data=None if body is None else json.dumps(body).encode("utf-8"),
+            headers={} if body is None else {"Content-Type": "application/json"},
+            method=method,
+        )
         try:
             with urllib.request.urlopen(request, timeout=self._timeout) as response:
                 raw = response.read()
@@ -65,15 +70,15 @@ class AriTransport:
 
 
 class AriClient:
-    """The ARI surface the agent uses: reachability, one endpoint's state, and a hangup."""
+    """The ARI surface the agent uses: the health probe, one endpoint's state, and the write that gives an extension a new password."""
 
-    def __init__(self, request: Callable[[str, str, dict | None], tuple[int, object]]) -> None:
+    def __init__(self, request: Callable[[str, str, dict | None, dict | None], tuple[int, object]]) -> None:
         self._request = request
 
     def reachable(self) -> bool:
         """``GET /ari/asterisk/info``: the probe behind the health endpoint. A failed call is a no."""
         try:
-            status, _payload = self._request("GET", "/asterisk/info", None)
+            status, _payload = self._request("GET", "/asterisk/info", None, None)
         except AriError:
             return False
         return status == 200
@@ -81,7 +86,7 @@ class AriClient:
     def endpoint_state(self, endpoint: str) -> str | None:
         """A PJSIP endpoint's ``online``/``offline``/``unknown``, or ``None`` when ARI cannot say."""
         try:
-            status, payload = self._request("GET", f"/endpoints/{PJSIP}/{quote(endpoint, safe='')}", None)
+            status, payload = self._request("GET", f"/endpoints/{PJSIP}/{quote(endpoint, safe='')}", None, None)
         except AriError:
             return None
         if status != 200 or not isinstance(payload, dict):
@@ -96,52 +101,27 @@ class AriClient:
         same names again replaces the previous session's password, which is what makes a session password temporary.
         """
         objects = (
-            ('auth', extension, {'auth_type': 'userpass', 'username': extension, 'password': password}),
-            ('aor', extension, {'max_contacts': '1', 'remove_existing': 'yes', 'maximum_expiration': '120'}),
-            ('endpoint', extension, {
-                'aors': extension,
-                'auth': extension,
-                'transport': transport,
-                'context': context,
-                'webrtc': 'yes',
-                'direct_media': 'no',
-                'rtp_symmetric': 'yes',
-                'force_rport': 'yes',
-                'rewrite_contact': 'yes',
+            ("auth", extension, {"auth_type": "userpass", "username": extension, "password": password}),
+            ("aor", extension, {"max_contacts": "1", "remove_existing": "yes", "maximum_expiration": "120"}),
+            ("endpoint", extension, {
+                "aors": extension,
+                "auth": extension,
+                "transport": transport,
+                "context": context,
+                "webrtc": "yes",
+                "direct_media": "no",
+                "rtp_symmetric": "yes",
+                "force_rport": "yes",
+                "rewrite_contact": "yes",
             }),
         )
         for kind, name, fields in objects:
-            body = {'fields': [{'attribute': key, 'value': value} for key, value in fields.items()]}
-            status, _payload = self._json_request(
-                'PUT', f'/asterisk/config/dynamic/res_pjsip/{kind}/{quote(name, safe="")}', body,
-            )
+            body = {"fields": [{"attribute": key, "value": value} for key, value in fields.items()]}
+            path = f"/asterisk/config/dynamic/res_pjsip/{kind}/{quote(name, safe='')}"
+            status, _payload = self._request("PUT", path, None, body)
             if status not in (200, 201, 204):
-                msg = f'ARI could not write the {kind} of extension {extension}: {status}'
+                msg = f"ARI PUT {path} answered {status}"
                 raise AriError(msg)
-
-    def _json_request(self, method: str, path: str, body: dict) -> tuple[int, object]:
-        """A call whose payload is a JSON body, which is what the realtime interface of ARI expects."""
-        data = json.dumps(body).encode('utf-8')
-        request = urllib.request.Request(
-            f'{self._base_url}{path}?api_key={quote(self._api_key, safe=":")}',
-            data=data,
-            headers={'Content-Type': 'application/json'},
-            method=method,
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=self._timeout) as response:
-                return int(response.status), None
-        except urllib.error.HTTPError as exc:
-            return int(exc.code), None
-        except (OSError, http.client.HTTPException) as exc:
-            msg = f'ARI {method} {path} failed: {type(exc).__name__}'
-            raise AriError(msg) from None
-
-    def hangup(self, channel_id: str) -> None:
-        status, _payload = self._request("DELETE", f"/channels/{quote(channel_id, safe='')}", None)
-        if status not in (200, 204):
-            msg = f"ARI DELETE /channels/{quote(channel_id, safe='')} answered {status}"
-            raise AriError(msg)
 
 
 def events_url(base_url: str, username: str, password: str) -> str:

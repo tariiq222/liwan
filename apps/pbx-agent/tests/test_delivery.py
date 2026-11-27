@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fakes import Recorder
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pbx_agent.delivery import (  # noqa: E402
@@ -21,21 +23,6 @@ from pbx_agent.signing import EVENT_SIGNATURE_HEADER, EVENT_TIMESTAMP_HEADER, ev
 KEY = bytes.fromhex("ab" * 32)
 URL = "http://odoo:8069/api/v1/telephony/events"
 PAYLOAD = {"database": "liwan_acme", "call": {"linkedid": "1.1"}}
-
-
-class Recorder:
-    """Stands in for the HTTP call: records every attempt and answers what the test told it to."""
-
-    def __init__(self, answers: list) -> None:
-        self.answers = answers
-        self.calls: list[dict] = []
-
-    def __call__(self, url, body, headers, timeout) -> int:
-        self.calls.append({"url": url, "body": body, "headers": headers, "timeout": timeout})
-        answer = self.answers.pop(0)
-        if isinstance(answer, Exception):
-            raise answer
-        return answer
 
 
 class DeliveryTest(unittest.TestCase):
@@ -78,7 +65,7 @@ class DeliveryTest(unittest.TestCase):
             self.assertEqual(call["headers"][EVENT_SIGNATURE_HEADER], event_signature(KEY, stamp, call["body"]))
 
     def test_a_5xx_is_retried_with_the_same_id_and_body(self) -> None:
-        event_id, _ = self.queue.enqueue(PAYLOAD, now=100)
+        event_id = self.queue.enqueue(PAYLOAD, now=100)
         first = Recorder([500])
         self.assertEqual(self.delivery(first).run_once(), 0)
         self.assertEqual(self.queue.depth(), 1)

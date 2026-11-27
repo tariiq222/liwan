@@ -75,6 +75,9 @@ Every attempt posts the same stored bytes, so the `event_id` never changes:
 - `state` is one of `ringing`, `answered`, `ended`, or `failed` for a leg CEL never closed (see reconciliation).
 - A reconciled row is the same envelope with `source: "cel"`, `reconciled: true`, `state: "ended"` and the times
   CEL recorded.
+- One event per recorded call carries `recording: "ready"` and nothing else uses the field: when a leg of the call
+  has ended and `<linkedid>.wav` exists, the agent sends that leg's end event again with the field set and a new
+  `occurred_at`. Nothing else in `call` differs, and the queue takes the announcement once per call.
 - Headers: `X-Liwan-Telephony-Timestamp` (unix seconds, one per request) and `X-Liwan-Telephony-Signature` =
   `hex(HMAC-SHA256(events_key, "<timestamp>\n" + body))`. The body is the exact bytes sent, serialized with sorted
   keys, no spaces and UTF-8. Odoo refuses an old timestamp and an `event_id` it already processed.
@@ -120,14 +123,16 @@ names the variable and never its value.
 ## The queue and how it stays bounded
 
 `events` holds one row per event: the body, the attempt count, the next attempt time and the acknowledgement time.
-`legs` holds the `uniqueid` of every call the live stream saw finish. `meta` holds the CEL byte offset and the
-identity of the file it belongs to.
+`legs` holds the `uniqueid` of every call the live stream saw finish. `recordings` holds the `linkedid` of every call
+whose recording was announced, so neither the stream nor a CEL replay announces one twice. `meta` holds the CEL byte
+offset and the identity of the file it belongs to.
 
 - A row leaves the queue only after a 2xx. Every other answer and every connection error is retried with a capped
   exponential backoff (2, 4, 8 … 300 seconds) and nothing is dropped.
-- Acknowledged rows are deleted 24 hours after the acknowledgement, and legs 3 days after they were first seen
-  (`queue.py`: `ACKED_RETENTION_SECONDS`, `LEG_RETENTION_SECONDS`); pruning runs hourly from the delivery worker.
-  The file therefore stays proportional to a day of events plus three days of leg keys, not to the agent's lifetime.
+- Acknowledged rows are deleted 24 hours after the acknowledgement, and legs and announced recordings 3 days after
+  they were first seen (`queue.py`: `ACKED_RETENTION_SECONDS`, `LEG_RETENTION_SECONDS`); pruning runs hourly from the
+  delivery worker. The file therefore stays proportional to a day of events plus three days of leg and recording keys,
+  not to the agent's lifetime.
 - SQLite runs in WAL mode with `synchronous=FULL`, so an acknowledged event survives a power loss.
 
 ## Reconciliation and the CEL file
@@ -231,14 +236,15 @@ Verified by the tests above, offline: configuration fail-closed behaviour, signa
 queue and retry semantics, per-request timestamps, transport failures, CEL parsing and re-enqueue, the ARI event
 URL, health payload and worker liveness.
 
-The ARI client keeps only what phase 1 uses: the event stream, reachability, one endpoint's state and a hangup. The
-PJSIP write path (creating an extension's objects) is not here: its shape was unproven and it is not used until the
-session route exists.
+The ARI client keeps only what the agent uses: the event stream, reachability, one endpoint's state and the endpoint
+write behind the session route. The write is verified against a recorded transport only, never a real Asterisk.
 
 Not verified, and open until the phase-1 gate in the design (section 13): a real Asterisk. That includes which ARI
 events the package's dialplan actually produces (the spec allows falling back to AMI for the missing ones), that the
 event URL with `app=pbx-agent` is accepted, that the package writes comma-quoted CEL rows, the ARI health probe,
-streaming a real MixMonitor file, and the Odoo side of both contracts, which belongs to `liwan_telephony` in phase 2.
+that a real Asterisk takes the endpoint write, that a MixMonitor file is closed by the time its channel's end event
+reaches the agent (the recording-ready event is sent on that ordering), streaming a real MixMonitor file, and the Odoo
+side of both contracts, which belongs to `liwan_telephony` in phase 2.
 
 ## Decisions (where the spec is silent)
 
@@ -256,8 +262,9 @@ streaming a real MixMonitor file, and the Odoo side of both contracts, which bel
    left to Odoo, which knows both numbers.
 5. **`PBX_PUBLIC_HOST` exists.** The recording token is bound to the company host (4.4), so verification needs the
    expected host from configuration.
-6. **No PJSIP write path in phase 1.** The realtime object writes are removed rather than kept unproven and unused;
-   they return with the session route that needs them, together with the credentials handling they require.
+6. **The endpoint write is three realtime objects under the extension's name.** `upsert_endpoint` writes the auth,
+   the aor and the endpoint as JSON bodies through ARI, in that order; a refused write answers the session route
+   with 502 and no password.
 7. **The token is a base64url JSON payload plus a hex signature.** The expiry is minted by Odoo (one minute) and only
    checked here.
 8. **Health always answers 200.** The report carries `ok` or `degraded`, so the container healthcheck tests the

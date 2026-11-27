@@ -13,8 +13,9 @@ from pbx_agent.cel import (  # noqa: E402
     legs_from_rows,
     read_rows,
 )
-from pbx_agent.ingest import handle_ari_event  # noqa: E402
-from pbx_agent.queue import EventQueue  # noqa: E402
+from pbx_agent.events import iso_utc  # noqa: E402
+from pbx_agent.ingest import AriIngest  # noqa: E402
+from pbx_agent.queue import LEG_RETENTION_SECONDS, EventQueue  # noqa: E402
 from pbx_agent.reconcile import CEL_IDENTITY, CEL_OFFSET, Reconciler  # noqa: E402
 
 DATABASE = "liwan_acme"
@@ -48,6 +49,11 @@ SECOND_LEG = [
     row("CHAN_START", "2026-11-25 09:03:00", "2.2", "2.2", "PJSIP/1001-2", "1001", "+966522222222", "from-internal"),
     row("HANGUP", "2026-11-25 09:04:00", "2.2", "2.2", "PJSIP/1001-2", "1001", "+966522222222", "from-internal"),
 ]
+# The extension's side of the first call: another channel of the same linkedid, ending a moment later.
+SAME_CALL_LEG = [
+    row("CHAN_START", "2026-11-25 09:00:01", "1.9", "1.1", "PJSIP/1001-9", "1001", "1001", "from-internal"),
+    row("HANGUP", "2026-11-25 09:02:01", "1.9", "1.1", "PJSIP/1001-9", "1001", "1001", "from-internal"),
+]
 UNFINISHED_LEG = [
     row("CHAN_START", "2026-11-25 09:05:00", "3.3", "3.3", "PJSIP/trunk-3", "+966533333333", "1001", "from-trunk"),
 ]
@@ -71,12 +77,12 @@ def lines(rows: list[str]) -> bytes:
     return "".join(f"{line}\n" for line in rows).encode("utf-8")
 
 
-def ari_event(kind: str) -> dict:
+def ari_event(kind: str, uniqueid: str = "1.1") -> dict:
     return {
         "type": kind,
         "timestamp": "2026-11-25T09:00:00.000+0000",
         "channel": {
-            "id": "1.1",
+            "id": uniqueid,
             "linkedid": "1.1",
             "name": "PJSIP/trunk-1",
             "state": "Up",
@@ -201,6 +207,9 @@ class ReconcileTest(unittest.TestCase):
         self.queue = EventQueue(self.root / "queue.sqlite3")
         self.addCleanup(self.queue.close)
         self.cel = self.root / "cel.csv"
+        self.monitor = self.root / "monitor"
+        self.monitor.mkdir()
+        self.stream = AriIngest(self.queue, database=DATABASE, inbound_context="from-trunk", recordings_dir=self.monitor)
 
     def reconciler(self, *, now: float = NOW) -> Reconciler:
         return Reconciler(
@@ -208,12 +217,19 @@ class ReconcileTest(unittest.TestCase):
             CelFile(self.cel),
             database=DATABASE,
             inbound_context="from-trunk",
+            recordings_dir=self.monitor,
             clock=lambda: now,
         )
 
     def write(self, rows: list[str]) -> None:
         with self.cel.open("ab") as handle:
             handle.write(lines(rows))
+
+    def bodies(self) -> list[dict]:
+        return [json.loads(event.body) for event in self.queue.due(now=int(NOW) + 1)]
+
+    def recordings(self) -> list[dict]:
+        return [body for body in self.bodies() if "recording" in body["call"]]
 
     def test_a_leg_the_queue_never_saw_is_enqueued_once(self) -> None:
         reconciler = self.reconciler()
@@ -298,13 +314,7 @@ class ReconcileTest(unittest.TestCase):
         reconciler = self.reconciler()
         reconciler.run_once()
         for kind in ("ChannelCreated", "ChannelStateChange"):
-            handle_ari_event(
-                self.queue,
-                ari_event(kind),
-                database=DATABASE,
-                inbound_context="from-trunk",
-                now=NOW,
-            )
+            self.stream.handle(ari_event(kind), now=NOW)
         self.assertEqual(self.queue.depth(), 2)
         self.write(COMPLETE_LEG)
         self.assertEqual(reconciler.run_once(), 1)
@@ -314,16 +324,63 @@ class ReconcileTest(unittest.TestCase):
         reconciler = self.reconciler()
         reconciler.run_once()
         self.write(COMPLETE_LEG)
-        handle_ari_event(
-            self.queue,
-            ari_event("ChannelDestroyed"),
-            database=DATABASE,
-            inbound_context="from-trunk",
-            now=NOW,
-        )
+        self.stream.handle(ari_event("ChannelDestroyed"), now=NOW)
         self.assertEqual(self.queue.depth(), 1)
         self.assertEqual(reconciler.run_once(), 0)
         self.assertEqual(self.queue.depth(), 1)
+
+    def test_a_recovered_call_with_a_recording_is_announced_with_it(self) -> None:
+        reconciler = self.reconciler()
+        reconciler.run_once()
+        (self.monitor / "1.1.wav").write_bytes(b"RIFF")
+        self.write(COMPLETE_LEG)
+        self.assertEqual(reconciler.run_once(), 1)
+        ready = self.recordings()
+        self.assertEqual(len(ready), 1)
+        self.assertEqual(ready[0]["call"], {**self.bodies()[0]["call"], "recording": "ready"})
+        self.assertEqual(ready[0]["source"], "cel")
+        self.assertTrue(ready[0]["reconciled"])
+        self.assertEqual(ready[0]["occurred_at"], iso_utc(NOW))
+        self.assertEqual(len(self.bodies()), 2)
+        self.assertEqual(reconciler.run_once(), 0)
+        self.assertEqual(len(self.recordings()), 1)
+
+    def test_the_stream_and_cel_announce_one_recording_once_between_them(self) -> None:
+        """A call whose one leg the stream delivered and whose other leg only CEL knows gets one announcement."""
+        reconciler = self.reconciler()
+        reconciler.run_once()
+        (self.monitor / "1.1.wav").write_bytes(b"RIFF")
+        self.stream.handle(ari_event("ChannelDestroyed"), now=NOW)
+        self.assertEqual(len(self.recordings()), 1)
+        self.write(COMPLETE_LEG + SAME_CALL_LEG)
+        self.assertEqual(reconciler.run_once(), 1)  # the extension's leg, 1.9, is the one rebuilt
+        self.assertEqual([body["call"]["uniqueid"] for body in self.bodies()], ["1.1", "1.1", "1.9"])
+        self.assertEqual(len(self.recordings()), 1)
+
+    def test_the_stream_does_not_announce_again_what_cel_announced(self) -> None:
+        reconciler = self.reconciler()
+        reconciler.run_once()
+        (self.monitor / "1.1.wav").write_bytes(b"RIFF")
+        self.write(COMPLETE_LEG)
+        self.assertEqual(reconciler.run_once(), 1)
+        self.assertEqual(len(self.recordings()), 1)
+        self.stream.handle(ari_event("ChannelDestroyed", "1.9"), now=NOW)  # a late live end of the same call
+        self.assertEqual(len(self.recordings()), 1)
+        self.assertEqual(self.queue.depth(), 3)
+
+    def test_a_leg_cel_reads_again_announces_nothing_more(self) -> None:
+        """An open leg that comes first in the file holds the offset, so the finished leg's rows are read again each pass."""
+        reconciler = self.reconciler()
+        reconciler.run_once()
+        (self.monitor / "1.1.wav").write_bytes(b"RIFF")
+        self.write(UNFINISHED_LEG + COMPLETE_LEG)
+        self.assertEqual(reconciler.run_once(), 1)
+        self.assertEqual(int(self.queue.meta_get(CEL_OFFSET)), 0)
+        self.assertEqual(len(self.recordings()), 1)
+        # Both claims live as long as CEL can read the leg again, so the hourly prune never releases them inside the horizon.
+        self.queue.prune(now=int(NOW) + LEG_RETENTION_SECONDS - 1)
+        self.assertEqual(reconciler.run_once(), 0)
+        self.assertEqual(len(self.bodies()), 2)
 
 
 if __name__ == "__main__":

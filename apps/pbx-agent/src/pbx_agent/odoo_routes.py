@@ -16,16 +16,16 @@ import secrets
 import time
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from pbx_agent.ari import AriError
+from pbx_agent.ari import AriClient, AriError
 from pbx_agent.recordings import recording_path
 from pbx_agent.signing import recording_token
 
 if TYPE_CHECKING:
-    from pbx_agent.ari import Ari
+    from pbx_agent.settings import Settings
 
 KEY_HEADER = "X-Liwan-Key"
 SESSION_PASSWORD_BYTES = 18
@@ -63,7 +63,7 @@ def session_password() -> str:
     return secrets.token_urlsafe(SESSION_PASSWORD_BYTES)
 
 
-def registration_route(app, settings, ari: Ari, reverse_key: bytes) -> None:
+def registration_route(app: FastAPI, settings: Settings, ari: AriClient, reverse_key: bytes) -> None:
     @app.post("/registration", response_model=RegistrationAnswer)
     async def registration(body: RegistrationRequest, request: Request) -> RegistrationAnswer:
         require_key(request, reverse_key)
@@ -91,7 +91,7 @@ def registration_route(app, settings, ari: Ari, reverse_key: bytes) -> None:
         )
 
 
-def link_route(app, settings, reverse_key: bytes) -> None:
+def link_route(app: FastAPI, settings: Settings, reverse_key: bytes) -> None:
     @app.post("/recordings/link")
     async def link(body: LinkRequest, request: Request) -> dict:
         require_key(request, reverse_key)

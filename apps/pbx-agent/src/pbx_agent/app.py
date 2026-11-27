@@ -1,6 +1,7 @@
-"""The HTTP surface and the lifecycle of the background work (design 2, 4.4, 4.6).
+"""The HTTP surface and the lifecycle of the background work (design 2, 4.1, 4.4, 4.6).
 
-Two public routes only: ``GET /health`` and ``GET /pbx/recordings/<token>``. The ARI event stream, the delivery
+Two routes are public, ``GET /health`` and ``GET /pbx/recordings/<token>``, and two are called by Odoo alone on the
+company's private network, ``POST /registration`` and ``POST /recordings/link``. The ARI event stream, the delivery
 worker and the reconciliation pass are daemon threads started with the app and stopped with it. The ARI probe,
 the queue and the disk read the health report are pushed off the event loop, since each may wait on the network
 or on SQLite.
@@ -20,14 +21,14 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
-from starlette.concurrency import run_in_threadpool
 
 from pbx_agent.ari import AriClient, AriListener, AriTransport, ConnectionState, events_url
 from pbx_agent.cel import CelFile
 from pbx_agent.delivery import WORKER_STALE_SECONDS, Delivery
 from pbx_agent.health import Liveness, snapshot
-from pbx_agent.ingest import handle_ari_event
+from pbx_agent.ingest import AriIngest
 from pbx_agent.odoo_routes import link_route, registration_route
 from pbx_agent.queue import EventQueue
 from pbx_agent.reconcile import Reconciler
@@ -47,29 +48,34 @@ WORKER_JOIN_SECONDS = 10
 RECORDING_MEDIA_TYPE = "audio/wav"
 
 
-def create_app(settings: Settings, ari_client=None) -> FastAPI:
-    """The HTTP surface. `ari_client` exists so a test can drive the routes without an Asterisk to talk to."""
+def create_app(settings: Settings, ari_client: AriClient | None = None) -> FastAPI:
+    """The HTTP surface.
+
+    ``ari_client`` replaces the Asterisk client, so a test can drive the routes and the health probe without an
+    Asterisk to talk to; without one the agent builds its own from the settings.
+    """
     queue = EventQueue(settings.queue_path)
-    ari = ari_client or AriClient(AriTransport(settings.ari_url, settings.ari_username, settings.ari_password))
+    ari = ari_client if ari_client is not None else AriClient(AriTransport(settings.ari_url, settings.ari_username, settings.ari_password))
     state = ConnectionState()
+    ingest = AriIngest(
+        queue,
+        database=settings.database,
+        inbound_context=settings.inbound_context,
+        recordings_dir=settings.recordings_dir,
+    )
     reconciler = Reconciler(
         queue,
         CelFile(settings.cel_path),
         database=settings.database,
         inbound_context=settings.inbound_context,
+        recordings_dir=settings.recordings_dir,
     )
     delivery = Delivery(queue, url=settings.odoo_events_url, key=settings.events_key)
     delivery_liveness = Liveness(stale_after=WORKER_STALE_SECONDS)
     reconcile_liveness = Liveness(stale_after=settings.reconcile_seconds + 60)
 
     def on_event(event: dict) -> None:
-        handle_ari_event(
-            queue,
-            event,
-            database=settings.database,
-            inbound_context=settings.inbound_context,
-            now=time.time(),
-        )
+        ingest.handle(event, now=time.time())
 
     listener = AriListener(
         url=events_url(settings.ari_url, settings.ari_username, settings.ari_password),

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import http.client
 import sys
 import threading
@@ -5,6 +7,8 @@ import unittest
 import urllib.request
 from pathlib import Path
 from unittest import mock
+
+from fakes import AriRequest, FakeAri
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -18,17 +22,14 @@ from pbx_agent.ari import (  # noqa: E402
     events_url,
 )
 
+AUTH_PATH = "/asterisk/config/dynamic/res_pjsip/auth/101"
+AOR_PATH = "/asterisk/config/dynamic/res_pjsip/aor/101"
+ENDPOINT_PATH = "/asterisk/config/dynamic/res_pjsip/endpoint/101"
 
-class FakeAri:
-    """Answers like ARI without a socket; records every request."""
 
-    def __init__(self, answers: dict) -> None:
-        self.answers = answers
-        self.requests: list[tuple] = []
-
-    def __call__(self, method, path, params):
-        self.requests.append((method, path, params))
-        return self.answers.get((method, path), (204, None))
+def fields(**values: str) -> dict:
+    """The realtime body the write of these fields is expected to put on the wire, in this order."""
+    return {"fields": [{"attribute": key, "value": value} for key, value in values.items()]}
 
 
 class EventsUrlTest(unittest.TestCase):
@@ -49,17 +50,17 @@ class EventsUrlTest(unittest.TestCase):
 
 
 class AriClientTest(unittest.TestCase):
-    def client(self, answers: dict) -> tuple[AriClient, FakeAri]:
+    def client(self, answers: dict | None = None) -> tuple[AriClient, FakeAri]:
         fake = FakeAri(answers)
         return AriClient(fake), fake
 
     def test_reachability_is_the_asterisk_info_call(self) -> None:
         client, fake = self.client({("GET", "/asterisk/info"): (200, {"status": "fully booted"})})
         self.assertTrue(client.reachable())
-        self.assertEqual(fake.requests[0], ("GET", "/asterisk/info", None))
+        self.assertEqual(fake.requests, [AriRequest("GET", "/asterisk/info", None, None)])
 
     def test_a_failed_probe_is_unreachable_not_an_error(self) -> None:
-        def failing(_method, _path, _params):
+        def failing(_method, _path, _params, _body):
             raise AriError("ARI GET /asterisk/info failed: TimeoutError")
 
         self.assertFalse(AriClient(failing).reachable())
@@ -71,13 +72,58 @@ class AriClientTest(unittest.TestCase):
         missing, _fake = self.client({})
         self.assertIsNone(missing.endpoint_state("trunk_main"))
 
-    def test_a_hangup_is_a_delete_on_the_channel(self) -> None:
-        client, fake = self.client({("DELETE", "/channels/1764049999.7"): (204, None)})
-        client.hangup("1764049999.7")
-        self.assertEqual(fake.requests[0], ("DELETE", "/channels/1764049999.7", None))
-        missing, _fake = self.client({("DELETE", "/channels/1764049999.7"): (404, None)})
-        with self.assertRaises(AriError):
-            missing.hangup("1764049999.7")
+    def test_an_endpoint_write_puts_the_auth_the_aor_and_the_endpoint_as_json_bodies(self) -> None:
+        """The wire form of design 4.1: three realtime objects under one name, each a JSON body (design 4.1)."""
+        client, fake = self.client()
+        client.upsert_endpoint("101", "s3cret", "transport-ws", "from-extension")
+        self.assertEqual(
+            fake.requests,
+            [
+                AriRequest(
+                    "PUT",
+                    AUTH_PATH,
+                    None,
+                    fields(auth_type="userpass", username="101", password="s3cret"),
+                ),
+                AriRequest(
+                    "PUT",
+                    AOR_PATH,
+                    None,
+                    fields(max_contacts="1", remove_existing="yes", maximum_expiration="120"),
+                ),
+                AriRequest(
+                    "PUT",
+                    ENDPOINT_PATH,
+                    None,
+                    fields(
+                        aors="101",
+                        auth="101",
+                        transport="transport-ws",
+                        context="from-extension",
+                        webrtc="yes",
+                        direct_media="no",
+                        rtp_symmetric="yes",
+                        force_rport="yes",
+                        rewrite_contact="yes",
+                    ),
+                ),
+            ],
+        )
+
+    def test_a_refused_write_names_the_object_and_the_status_and_stops_there(self) -> None:
+        client, fake = self.client({("PUT", AOR_PATH): (500, None)})
+        with self.assertRaises(AriError) as caught:
+            client.upsert_endpoint("101", "s3cret", "transport-ws", "from-extension")
+        self.assertEqual(str(caught.exception), f"ARI PUT {AOR_PATH} answered 500")
+        self.assertNotIn("s3cret", str(caught.exception))
+        self.assertEqual([request.path for request in fake.requests], [AUTH_PATH, AOR_PATH])
+
+    def test_a_refused_connection_during_a_write_raises_without_the_key(self) -> None:
+        refused = mock.patch.object(urllib.request, "urlopen", side_effect=ConnectionRefusedError("no ari"))
+        with refused, self.assertRaises(AriError) as caught:
+            AriClient(AriTransport("http://ari:8088/ari", "liwan", "secret")).upsert_endpoint("101", "s3cret", "t", "c")
+        self.assertEqual(str(caught.exception), f"ARI PUT {AUTH_PATH} failed: ConnectionRefusedError")
+        self.assertNotIn("secret", str(caught.exception))
 
 
 class AriTransportTest(unittest.TestCase):
@@ -105,6 +151,30 @@ class AriTransportTest(unittest.TestCase):
             self.transport()("GET", "/asterisk/info")
         self.assertIn("/asterisk/info", str(caught.exception))
         self.assertNotIn("secret", str(caught.exception))
+
+    def opened(self, *args, **kwargs) -> tuple[mock.MagicMock, urllib.request.Request]:
+        """One transport call against a scripted 204; returns what went to ``urlopen``."""
+        answer = mock.MagicMock(status=204)
+        answer.__enter__.return_value = answer
+        answer.read.return_value = b""
+        with mock.patch.object(urllib.request, "urlopen", return_value=answer) as opened:
+            self.transport()(*args, **kwargs)
+        return opened.call_args.args[0], opened.call_args.kwargs["timeout"]
+
+    def test_a_json_body_is_put_as_json_with_the_key_only_in_the_query(self) -> None:
+        request, timeout = self.opened("PUT", AUTH_PATH, None, {"fields": [{"attribute": "a", "value": "b c"}]})
+        self.assertEqual(request.get_method(), "PUT")
+        self.assertEqual(request.full_url, f"http://ari:8088/ari{AUTH_PATH}?api_key=liwan%3Asecret")
+        self.assertEqual(request.data, b'{"fields": [{"attribute": "a", "value": "b c"}]}')
+        self.assertEqual(request.get_header("Content-type"), "application/json")
+        self.assertEqual(timeout, 1)
+
+    def test_a_read_carries_no_body(self) -> None:
+        request, _timeout = self.opened("GET", "/endpoints/PJSIP/101", None, None)
+        self.assertEqual(request.get_method(), "GET")
+        self.assertEqual(request.full_url, "http://ari:8088/ari/endpoints/PJSIP/101?api_key=liwan%3Asecret")
+        self.assertIsNone(request.data)
+        self.assertIsNone(request.get_header("Content-type"))
 
 
 class FakeSocket:

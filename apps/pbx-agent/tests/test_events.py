@@ -5,7 +5,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pbx_agent.cel import CallLeg  # noqa: E402
-from pbx_agent.events import ari_call_event, cel_call_event, iso_utc, parse_ari_time  # noqa: E402
+from pbx_agent.events import (  # noqa: E402
+    ari_call_event,
+    cel_call_event,
+    iso_utc,
+    parse_ari_time,
+    recording_ready_event,
+)
 
 DATABASE = "liwan_acme"
 NOW = 1764050000.0
@@ -130,6 +136,41 @@ class CelMappingTest(unittest.TestCase):
         payload = cel_call_event(leg, database=DATABASE, inbound_context="from-trunk", now=NOW)
         self.assertEqual(payload["call"]["state"], "failed")
         self.assertEqual(payload["call"]["ended_at"], "2026-11-25T01:00:00Z")
+
+
+class RecordingReadyEventTest(unittest.TestCase):
+    def test_the_recording_event_is_the_ended_call_with_the_recording_and_a_new_time(self) -> None:
+        event = {"type": "ChannelDestroyed", "timestamp": "2026-11-25T09:01:00.000+0000", "channel": channel()}
+        ended = ari_call_event(event, database=DATABASE, inbound_context="from-trunk", now=NOW)
+        ready = recording_ready_event(ended, now=NOW)
+        self.assertEqual(ready["call"], {**ended["call"], "recording": "ready"})
+        self.assertEqual(ready["call"]["state"], "ended")
+        self.assertEqual(ready["occurred_at"], iso_utc(NOW))
+        self.assertEqual(ready["database"], DATABASE)
+        self.assertEqual(ready["source"], "ari")
+        self.assertFalse(ready["reconciled"])
+        # The ended event it was built from is left as it was queued.
+        self.assertNotIn("recording", ended["call"])
+        self.assertEqual(ended["occurred_at"], "2026-11-25T09:01:00Z")
+
+    def test_a_recovered_call_announces_its_recording_as_reconciled(self) -> None:
+        leg = CallLeg(
+            uniqueid="1764049999.8",
+            linkedid="1764049999.8",
+            channel="PJSIP/trunk-00000008",
+            caller_number="+966511111111",
+            dialed_exten="1001",
+            context="from-trunk",
+            started_at="2026-11-25T09:00:00Z",
+            answered_at="2026-11-25T09:00:04Z",
+            ended_at="2026-11-25T09:02:00Z",
+        )
+        ended = cel_call_event(leg, database=DATABASE, inbound_context="from-trunk", now=NOW)
+        ready = recording_ready_event(ended, now=NOW)
+        self.assertEqual(ready["call"], {**ended["call"], "recording": "ready"})
+        self.assertEqual(ready["source"], "cel")
+        self.assertTrue(ready["reconciled"])
+        self.assertEqual(ready["occurred_at"], iso_utc(NOW))
 
 
 if __name__ == "__main__":

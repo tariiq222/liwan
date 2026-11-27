@@ -209,10 +209,6 @@ class CelFile:
     def __init__(self, path: Path) -> None:
         self._path = path
 
-    @property
-    def path(self) -> Path:
-        return self._path
-
     def identity(self) -> str:
         """A value that changes when the file is rotated or rewritten; raises ``OSError`` when it is absent.
 
