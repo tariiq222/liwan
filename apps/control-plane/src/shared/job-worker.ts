@@ -1,6 +1,5 @@
 import { commercialEnrollmentActor, commercialProvisionAuthoritySql } from './commercial-enrollment-authority.js'
 import type { Config } from '../config.js'
-import { resolvePackageJobAuthorityInTransaction } from '../packages.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
@@ -79,7 +78,6 @@ export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: 
     // exact existing effects and never consumes a second approval.
     if (row.business_key !== businessKey(job) || row.payload_digest !== payloadDigest(job)) throw new Error('shared_job_identity_corrupt')
     if (row.journal && row.journal.attemptId !== row.attempt_id) throw new Error('shared_job_identity_corrupt')
-    await resolvePackageJobAuthorityInTransaction(client,job)
     const target = await resolveProvisionTarget(client,row.control_tenant_id,job)
     reconcileSharedJob(job,target,row.journal,{state:'unknown'})
     return { row, job, target, fence }
@@ -182,7 +180,6 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     }
     const job = bindJob(row.payload)
     if (row.business_key !== businessKey(job) || row.payload_digest !== payloadDigest(job)) throw new Error('shared_job_identity_corrupt')
-    await resolvePackageJobAuthorityInTransaction(client,job)
     const target = await resolveProvisionTarget(client,row.control_tenant_id,job)
     reconcileSharedJob(job,target,row.journal ?? null,{ state:'unknown' })
     const previousFence = Number(row.fence)
@@ -196,7 +193,6 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     const current = await client.query("SELECT * FROM shared_jobs WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() FOR UPDATE", [id,claim.attemptId,claim.fence])
     if (!current.rowCount) throw new Error('shared_lease_lost')
     await requireWorkerAuthority(client, current.rows[0])
-    await resolvePackageJobAuthorityInTransaction(client,claim.job)
     const target = await resolveProvisionTarget(client,claim.row.control_tenant_id,claim.job)
     reconcileSharedJob(claim.job,target,current.rows[0].journal,{state:'unknown'})
     return action(client,current.rows[0])

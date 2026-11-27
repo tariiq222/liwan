@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import { CatalogInvalidError, DESCRIPTOR_GRAMMAR_V2, parseCatalogTiers, parseFeatureDescriptor } from '@liwan/commercial-contracts'
 import { deriveFeatures } from './catalog-features.js'
 import { deriveSharedPolicy } from './job-store.js'
-import { derivePackagePolicy } from '../packages.js'
 
 const root = join(import.meta.dirname, '../../../..')
 const read = (name: string) => JSON.parse(readFileSync(join(root, 'deploy/catalog/solutions', name), 'utf8'))
@@ -79,13 +78,6 @@ describe('policy derivation per catalog version', () => {
     // The required limits are limits, never booleans.
     expect(() => deriveFeatures({ ...v2, tiers: [tierOf(['boolean:users.limit', 'limit:storage.limit_mb'])] }, tierOf(['boolean:users.limit', 'limit:storage.limit_mb']))).toThrow('catalog_invalid')
   })
-  it('package policy: catalog ceiling is not operator-overridable; limits cover only null keys', () => {
-    const v2 = read('platform_v2.json')
-    const ok = derivePackagePolicy(v2, 'core', { 'users.limit': 5, 'storage.limit_mb': 100 })
-    expect(ok.features['branches.extra_limit']).toBe(0)
-    expect(() => derivePackagePolicy(v2, 'core', { 'users.limit': 5, 'storage.limit_mb': 100, 'branches.extra_limit': 3 })).toThrow('package_limits_invalid')
-    expect(() => derivePackagePolicy(v2, 'core', { 'users.limit': 5 })).toThrow('package_limits_invalid')
-  })
 })
 
 describe('schema-3 release-complete policies through every control-plane derivation', () => {
@@ -94,11 +86,6 @@ describe('schema-3 release-complete policies through every control-plane derivat
     const policy = deriveSharedPolicy(v3, 'people')
     expect(policy.modules).toEqual(['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_meetings', 'liwan_hr'])
     expect(policy.features).toEqual({ 'users.limit': null, 'storage.limit_mb': null, 'branches.extra_limit': 0, 'pmo.enabled': false, 'meetings.enabled': false, 'projects.max_projects': 0, 'hr.enabled': true })
-  })
-  it('a package may only set the open tier limits, never a closed one', () => {
-    const policy = derivePackagePolicy(v3, 'projects', { 'users.limit': 5, 'storage.limit_mb': 100, 'projects.max_projects': 3 })
-    expect(policy.features).toMatchObject({ 'projects.max_projects': 3, 'hr.enabled': false })
-    expect(() => derivePackagePolicy(v3, 'people', { 'users.limit': 5, 'storage.limit_mb': 100, 'projects.max_projects': 3 })).toThrow('package_limits_invalid')
   })
   it('v2 stays base plus tier modules', () => {
     expect(deriveSharedPolicy(read('platform_v2.json'), 'people').modules).toEqual(['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_hr'])

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCatalogSource, readKnownSource, requirePublishableSource } from './catalog-source.js'
-import { verifyPackageSource } from '../packages.js'
 
 const repo = join(import.meta.dirname, '../../../..')
 const sha = (name: string) => createHash('sha256').update(readFileSync(join(repo, 'deploy/catalog/solutions', name))).digest('hex')
@@ -51,14 +50,6 @@ describe('catalog source resolution by sha256', () => {
     await expect(readKnownSource(repo, 'platform_v2.json')).rejects.toThrow('catalog_source_not_publishable')
     await expect(readKnownSource(repo, '../../../etc/passwd')).rejects.toThrow('catalog_source_unavailable')
     await expect(readKnownSource(repo, 'other.json')).rejects.toThrow('catalog_source_not_publishable')
-  })
-  it('verifyPackageSource verifies per version and keeps legacy rows valid', async () => {
-    await expect(verifyPackageSource({ repositoryRoot: repo }, sha('platform.json'))).resolves.toBeUndefined()
-    await expect(verifyPackageSource({ repositoryRoot: repo }, sha('platform_v2.json'))).resolves.toBeUndefined()
-    await expect(verifyPackageSource({ repositoryRoot: repo }, 'f'.repeat(64))).rejects.toMatchObject({ code: 'package_source_mismatch' })
-    const empty = mkdtempSync(join(tmpdir(), 'catsrc-empty-'))
-    await expect(verifyPackageSource({ repositoryRoot: empty }, sha('platform.json'))).rejects.toMatchObject({ code: 'package_source_unavailable' })
-    void writeFileSync
   })
 })
 

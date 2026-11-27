@@ -30,8 +30,7 @@
         "request_id": "The request identifier is invalid.",
         "page": "The selected page is invalid.",
         "admin_name": "Enter an administrator name.",
-        "admin_login": "Enter a valid administrator login.",
-        "package_revision_id": "Select an available published package."
+        "admin_login": "Enter a valid administrator login."
       }
     },
     "pagination": {

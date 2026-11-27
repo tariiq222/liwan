@@ -1,8 +1,6 @@
 import { isSignupEndpoint, SIGNUP_BODY_LIMIT, signupFromEnv, signupHttp } from './signup/http.js'
 import {requestRestorePublication,restorePublication} from './shared/restore-publication.js'
 import { accountCapabilities, vendorActorIssuer } from './admin-auth/grants.js'
-import { packageHttp } from './package-http.js'
-import { PackageError } from './packages.js'
 import { commercialHttp } from './commercial/http.js'
 import { customerHttp, type PaymentRuntime } from './commercial/customer-http.js'
 import { returnOriginFromEnv } from './commercial/return-origin.js'
@@ -460,8 +458,6 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       const aiProviderResponse = await aiProviderHttp(pool, config, { method, pathname, raw, auth, requireCapability, fail: (status, code) => new ApiError(status, code, code) })
       if (aiProviderResponse) return respond(res, aiProviderResponse.status, aiProviderResponse.data)
-      const packageResponse = await packageHttp(pool,{method,pathname,raw,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,repositoryRoot:config.repositoryRoot})
-      if(packageResponse)return respond(res,packageResponse.status,packageResponse.data)
       const commercialInput={method,pathname,search:url.search,raw,issuer:vendorActorIssuer(config.installationId),actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,clientAddress:vendorClientAddress(req.headers)}
       const invitationResponse = await invitationVendorHttp(pool, commercialInput)
       if (invitationResponse) return respond(res, invitationResponse.status, invitationResponse.data)
@@ -759,7 +755,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       throw new ApiError(404, 'not_found', 'Endpoint not found')
     } catch (error) {
       const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing','shared_job_not_recoverable','shared_job_not_abandonable','shared_reconciliation_required','tenant_unavailable'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
-      const failure = error instanceof UnsupportedRecoveryOperation || error instanceof UnsupportedAbandonOperation ? new ApiError(409, error.message, error.detail) : known ?? (error instanceof PackageError ? new ApiError(error.status,error.code,error.detail??'Package request rejected',error.field) : error instanceof z.ZodError ? new ApiError(422,'invalid','Invalid request body',String(error.issues[0]?.path[0]??'body')) : error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
+      const failure = error instanceof UnsupportedRecoveryOperation || error instanceof UnsupportedAbandonOperation ? new ApiError(409, error.message, error.detail) : known ?? (error instanceof z.ZodError ? new ApiError(422,'invalid','Invalid request body',String(error.issues[0]?.path[0]??'body')) : error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
       if (error instanceof CatalogGateError) return respond(res, error.status, catalogGatePayload(error))
       if (error instanceof CommercialHttpError) {
         const affectedCount = error.issues.find(i => i.affected_count !== undefined)?.affected_count

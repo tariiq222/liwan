@@ -26,7 +26,7 @@ from deploy.release.tenant_postgres import (
 from tools.liwan_cli.managed_verify import ERROR_CODES, VerificationError, build_policy_script, build_snapshot_script, parse_snapshot
 from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resolve_catalog_path
 from tools.liwan_cli.managed_credentials import build_credentials_script, parse_credentials
-from tools.liwan_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
+from tools.liwan_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy
 
 from tools.catalog_check import TEST_ONLY_MODULES
 from tools.liwan_cli.module_closure import REPO_ADDONS
@@ -381,17 +381,8 @@ class Runner:
         except CatalogSourceError:
             raise
         policy = json.dumps(self.request['job']['policy']).encode()
-        reference = self.request['job'].get('packageAuthority')
-        trusted = self.request.get('packageAuthority')
-        if reference is not None or trusted is not None:
-            if not reference or reference.get('catalog') != self.request['job']['catalog']:
-                raise EffectError('package_authority_mismatch')
-            parse_package_create_policy(policy, catalog_path=catalog,
-                catalog_sha256='sha256:' + self.request['job']['catalog']['sourceSha256'],
-                commercial_mode='saas', package_reference=reference, trusted_authority=trusted)
-        else:
-            parse_create_policy(policy, catalog_path=catalog,
-                                catalog_sha256='sha256:' + self.request['job']['catalog']['sourceSha256'], commercial_mode='saas')
+        parse_create_policy(policy, catalog_path=catalog,
+                            catalog_sha256='sha256:' + self.request['job']['catalog']['sourceSha256'], commercial_mode='saas')
         return ai_enabled
 
     def exists(self):
@@ -582,9 +573,8 @@ try:
             if not assignment:
                 env['liwan.access.assignment'].create({'user_id': admin.id, 'role_id': role.id, 'company_id': profile.root_company_id.id})
         # The stock liwan install seeds admin as vendor support. The first
-        # administrator of a shared SaaS tenant is always the customer's own
-        # (package or catalog provisioning alike), so it is counted against
-        # users.limit and is not vendor support.
+        # administrator of a shared SaaS tenant is always the customer's own,
+        # so it is counted against users.limit and is not vendor support.
         support = env.ref('liwan_core.group_vendor_support')
         admin._liwan_access_write({'group_ids': [(3, support.id, 0)]}, 'access.users.assign_roles')
         # Role creation above may have synced support's wildcard grants.

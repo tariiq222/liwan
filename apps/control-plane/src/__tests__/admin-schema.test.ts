@@ -1,8 +1,20 @@
-import { describe, expect, it, beforeAll, afterAll } from 'vitest'
+import { randomUUID } from 'node:crypto'
+import { describe, expect, it, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
 import { Pool } from 'pg'
 import { migrate } from '../db.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
+
+/** Nothing the old version 11 created for the retired Track A packages: tables, index, column, triggers and functions. */
+async function expectNoTrackAObjects(pool: Pool) {
+  const objects = await pool.query(`SELECT to_regclass('commercial_packages') AS package_table, to_regclass('package_revisions') AS revision_table,
+    to_regclass('tenants_package_revision_idx') AS index,
+    (SELECT count(*)::int FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='tenants' AND column_name='package_revision_id') AS column,
+    (SELECT count(*)::int FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('tenant_package_guard','package_revision_guard')) AS triggers,
+    (SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=current_schema() AND p.proname IN ('protect_tenant_package','protect_package_revision')) AS functions`)
+  expect(objects.rows[0]).toEqual({ package_table: null, revision_table: null, index: null, column: 0, triggers: 0, functions: 0 })
+}
+
 if (!url) describe.skip('admin schema (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('admin schema', () => {
   const pool = new Pool({ connectionString: url })
@@ -18,6 +30,9 @@ else describe('admin schema', () => {
     const column = await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name='subscriptions' AND column_name='legacy_source'")
     expect(column.rowCount).toBe(0)
   })
+  it('keeps no remnant of the retired Track A packages', async () => {
+    await expectNoTrackAObjects(pool)
+  })
   it('stores emails case-insensitively unique', async () => {
     await pool.query("TRUNCATE vendor_accounts CASCADE")
     await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('a@liwanos.com','A')")
@@ -26,5 +41,102 @@ else describe('admin schema', () => {
   it('rejects unknown role keys', async () => {
     const a = await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('r@liwanos.com','R') RETURNING id")
     await expect(pool.query("INSERT INTO vendor_account_roles(account_id,role) VALUES($1,'god')", [a.rows[0].id])).rejects.toThrow()
+  })
+})
+
+/**
+ * schema_082 removes the retired Track A packages (owner decision 2026-11-27) from a database that applied the old
+ * version 11. That version no longer creates them, so each case rebuilds the old state from stand-ins on its own
+ * fresh scratch database and runs the real `migrate()` there: the suite's shared database is never altered.
+ */
+if (!url) describe.skip('schema_082 removes the retired Track A packages (requires CONTROL_TEST_DATABASE_URL)', () => {})
+else describe('schema_082 removes the retired Track A packages', () => {
+  let database = ''
+  let pool: Pool
+  const adminUrl = (() => { const u = new URL(url); u.pathname = '/postgres'; return u.toString() })()
+
+  beforeEach(async () => {
+    database = `liwan_control_scratch_tracka${randomUUID().slice(0, 8).replace(/-/g, '')}`
+    const admin = new Pool({ connectionString: adminUrl })
+    try { await admin.query(`CREATE DATABASE ${database}`) } finally { await admin.end() }
+    const databaseUrl = new URL(url)
+    databaseUrl.pathname = `/${database}`
+    pool = new Pool({ connectionString: databaseUrl.toString(), max: 4 })
+  })
+  afterEach(async () => {
+    await pool?.end()
+    const admin = new Pool({ connectionString: adminUrl })
+    try { await admin.query(`DROP DATABASE IF EXISTS ${database}`) } finally { await admin.end() }
+  })
+
+  const applied = async () => (await pool.query('SELECT count(*)::int AS n FROM schema_migrations WHERE version=82')).rows[0].n as number
+
+  it('leaves a fresh database with no Track A object and records version 82 once', async () => {
+    await migrate(pool)
+    await expectNoTrackAObjects(pool)
+    expect(await applied()).toBe(1)
+    await migrate(pool)
+    expect(await applied()).toBe(1)
+  })
+
+  it('refuses while tenants still reference a package revision, and succeeds once they no longer do', async () => {
+    await migrate(pool)
+    await pool.query('ALTER TABLE tenants ADD COLUMN package_revision_id uuid')
+    const pinned = [randomUUID(), randomUUID()]
+    for (const id of pinned) await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,package_revision_id) VALUES($1,'Pinned tenant','saas','shared_managed',$2,false,$3)", [id, `pinned-${id}`, randomUUID()])
+    await pool.query('DELETE FROM schema_migrations WHERE version=82')
+    await expect(migrate(pool)).rejects.toThrow(/2 tenant\(s\) still reference a retired Track A package revision.*migrate again/)
+    // The refusal rolls back the whole run: the stand-in is intact and nothing is recorded.
+    expect(await applied()).toBe(0)
+    expect((await pool.query('SELECT count(*)::int AS n FROM tenants WHERE package_revision_id IS NOT NULL')).rows[0].n).toBe(2)
+    await pool.query('UPDATE tenants SET package_revision_id=NULL')
+    await migrate(pool)
+    expect(await applied()).toBe(1)
+    await expectNoTrackAObjects(pool)
+    expect((await pool.query('SELECT count(*)::int AS n FROM tenants WHERE id=ANY($1)', [pinned])).rows[0].n).toBe(2)
+  })
+
+  it('refuses while a job payload still carries packageAuthority, and succeeds once the key is gone', async () => {
+    await migrate(pool)
+    const tenant = randomUUID(), slug = `t${tenant.replaceAll('-', '')}`, job = randomUUID()
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Pinned job tenant','saas','shared_managed',$2,false)", [tenant, `job-${tenant}`])
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)', [tenant, slug, `${slug}.tracka.test`, `liwan_scratch_${slug}`])
+    await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,'tracka:guard',$3,$4,'tracka-test',1,'Guard probe')", [job, tenant, { operation: 'provision', packageAuthority: { schemaVersion: 2 } }, 'a'.repeat(64)])
+    await pool.query('DELETE FROM schema_migrations WHERE version=82')
+    await expect(migrate(pool)).rejects.toThrow(/1 shared_jobs row\(s\) still carry packageAuthority in payload.*migrate again/)
+    expect(await applied()).toBe(0)
+    expect((await pool.query("SELECT payload ? 'packageAuthority' AS carries FROM shared_jobs WHERE id=$1", [job])).rows[0].carries).toBe(true)
+    // Probe-row cleanup in this test only; shared_jobs rows are immutable and digest-bound in production.
+    await pool.query('ALTER TABLE shared_jobs DISABLE TRIGGER shared_job_identity')
+    await pool.query("UPDATE shared_jobs SET payload=payload-'packageAuthority' WHERE id=$1", [job])
+    await pool.query('ALTER TABLE shared_jobs ENABLE TRIGGER shared_job_identity')
+    await migrate(pool)
+    expect(await applied()).toBe(1)
+    await expectNoTrackAObjects(pool)
+  })
+
+  it('drops every object of a database that applied the old version 11, without CASCADE', async () => {
+    await migrate(pool)
+    // The dependency edges of the old version 11: the column's foreign key and index, each trigger's function, the child table.
+    await pool.query(`
+      CREATE TABLE commercial_packages (id uuid PRIMARY KEY);
+      CREATE TABLE package_revisions (id uuid PRIMARY KEY, package_id uuid NOT NULL REFERENCES commercial_packages(id));
+      ALTER TABLE tenants ADD COLUMN package_revision_id uuid REFERENCES package_revisions(id);
+      CREATE INDEX tenants_package_revision_idx ON tenants(package_revision_id);
+      CREATE FUNCTION protect_package_revision() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+      CREATE TRIGGER package_revision_guard BEFORE UPDATE OR DELETE ON package_revisions FOR EACH ROW EXECUTE FUNCTION protect_package_revision();
+      CREATE FUNCTION protect_tenant_package() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+      CREATE TRIGGER tenant_package_guard BEFORE INSERT OR UPDATE ON tenants FOR EACH ROW EXECUTE FUNCTION protect_tenant_package();
+    `)
+    await pool.query('INSERT INTO commercial_packages(id) VALUES($1)', [randomUUID()])
+    await pool.query('INSERT INTO package_revisions(id,package_id) VALUES($1,(SELECT id FROM commercial_packages))', [randomUUID()])
+    // No tenant used a package: the column held nothing but NULLs.
+    const tenant = randomUUID()
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Legacy tenant','saas','shared_managed',$2,false)", [tenant, `legacy-${tenant}`])
+    await pool.query('DELETE FROM schema_migrations WHERE version=82')
+    await migrate(pool)
+    expect(await applied()).toBe(1)
+    await expectNoTrackAObjects(pool)
+    expect((await pool.query('SELECT count(*)::int AS n FROM tenants WHERE id=$1', [tenant])).rows[0].n).toBe(1)
   })
 })
