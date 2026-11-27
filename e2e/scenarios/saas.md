@@ -145,8 +145,8 @@ Reading this file:
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | SAAS-111 | Plan detail | vendor operator | Prices per cadence, limits, included and optional bundles, trial days, grace days, auto-suspend, status, history of revisions | `vendor /plans/[id]` | planned | detail page not opened in UI; Unknown id: 404 `plan_missing` |
-| SAAS-122 | Bundle list and detail | vendor operator | Same filters; detail with prices, catalog release, customer count | `vendor /bundles`, `vendor /bundles/[id]` | planned | bundles list/detail via API only (list 200, detail keys incl. customer_count); UI not opened |
-| SAAS-124 | Edit bundle | product role | Same optimistic revision rules; publish, withdraw, restore need pricing rights and step-up | `vendor /bundles/[id]/edit` | planned | validate and publish tried via API (200); edit/withdraw rights per role not tried |
+| SAAS-122 | Bundle list and detail | vendor operator | Same filters; detail with prices, catalog release, customer count | `vendor /addons`, `vendor /addons/[id]` | planned | bundles list/detail via API only (list 200, detail keys incl. customer_count); UI not opened |
+| SAAS-124 | Edit bundle | product role | Same optimistic revision rules; publish, withdraw, restore need pricing rights and step-up | `vendor /addons/[id]/edit` | planned | validate and publish tried via API (200); edit/withdraw rights per role not tried |
 
 ## Vendor console: invoices and billing
 
