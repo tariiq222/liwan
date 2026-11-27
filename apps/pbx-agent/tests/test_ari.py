@@ -144,6 +144,7 @@ class AriClientTest(unittest.TestCase):
                 context="from-extension",
                 from_domain="acme.example.test",
                 session_seconds=120,
+                is_new=True,
             )
         self.assertEqual(str(caught.exception), f"ARI PUT {AOR_PATH} answered 500")
         self.assertNotIn("s3cret", str(caught.exception))
@@ -167,6 +168,7 @@ class AriClientTest(unittest.TestCase):
                 context="from-extension",
                 from_domain="acme.example.test",
                 session_seconds=120,
+                is_new=True,
             )
         self.assertEqual(str(caught.exception), f"ARI PUT {ENDPOINT_PATH} answered 503")
         self.assertEqual(
@@ -183,6 +185,27 @@ class AriClientTest(unittest.TestCase):
                 auth_username="101-a1b2c3d4",
                 password="s3cret",
                 auth_ids=["101_a1b2c3d4", "101_00001111"],
+                transport="transport-ws",
+                context="from-extension",
+                from_domain="acme.example.test",
+                session_seconds=120,
+                is_new=False,
+            )
+        self.assertEqual(str(caught.exception), f"ARI PUT {ENDPOINT_PATH} answered 503")
+        self.assertEqual(
+            [(request.method, request.path) for request in fake.requests],
+            [("PUT", AUTH_PATH), ("PUT", AOR_PATH), ("PUT", ENDPOINT_PATH), ("DELETE", AUTH_PATH)],
+        )
+
+    def test_a_failed_endpoint_write_with_single_auth_and_is_new_false_preserves_existing_aor(self) -> None:
+        client, fake = self.client({("PUT", ENDPOINT_PATH): (503, None)})
+        with self.assertRaises(AriError) as caught:
+            client.upsert_endpoint(
+                "101",
+                auth_id="101_a1b2c3d4",
+                auth_username="101-a1b2c3d4",
+                password="s3cret",
+                auth_ids=["101_a1b2c3d4"],
                 transport="transport-ws",
                 context="from-extension",
                 from_domain="acme.example.test",

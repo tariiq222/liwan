@@ -152,12 +152,13 @@ class AriClient:
         context: str,
         from_domain: str,
         session_seconds: int,
+        is_new: bool = False,
     ) -> None:
         """Atomically write ``auth/{auth_id}``, ``aor/{extension}`` and ``endpoint/{extension}`` in order.
 
         If writing ``aor`` or ``endpoint`` fails, performs a best-effort rollback before re-raising
-        ``AriError``: deletes ``aor/{extension}`` when it was written for a brand-new extension
-        (``len(auth_ids) == 1``), and always deletes ``auth/{auth_id}``.
+        ``AriError``: deletes ``aor/{extension}`` only when ``is_new`` is true and ``aor`` was written
+        by this call, and always deletes ``auth/{auth_id}``.
         """
         self.put_object(
             "auth",
@@ -189,7 +190,7 @@ class AriClient:
                 ),
             )
         except AriError:
-            if aor_written and len(auth_ids) == 1:
+            if aor_written and is_new:
                 try:
                     self.delete_object("aor", extension)
                 except AriError:

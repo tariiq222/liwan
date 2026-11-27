@@ -161,6 +161,7 @@ class SessionManager:
                 context=self._settings.pjsip_context,
                 from_domain=self._settings.public_host,
                 session_seconds=self._settings.session_seconds,
+                is_new=not live,
             )
 
             expires_at = moment + self._settings.session_seconds

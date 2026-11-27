@@ -193,6 +193,63 @@ class SessionManagerTest(unittest.TestCase):
             [(first_id, 1120.0)],
         )
 
+    def test_zero_overlap_rotation_endpoint_failure_preserves_live_aor_and_deletes_new_auth(self) -> None:
+        ari = FakeAri()
+        manager = SessionManager(
+            make_settings(self.root, session_seconds=60, session_overlap_seconds=0),
+            AriClient(ari),
+        )
+        self.addCleanup(manager.close)
+
+        first = manager.issue("101", now=1000.0)
+        first_id = first.auth_username.replace("-", "_")
+
+        ari.requests.clear()
+        ari.answers[("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101")] = (503, None)
+        with self.assertRaises(AriError):
+            manager.issue("101", now=1010.0)
+
+        new_auth_path = ari.requests[0].path
+        self.assertNotEqual(new_auth_path, f"/asterisk/config/dynamic/res_pjsip/auth/{first_id}")
+        self.assertEqual(
+            [(r.method, r.path) for r in ari.requests],
+            [
+                ("PUT", new_auth_path),
+                ("PUT", "/asterisk/config/dynamic/res_pjsip/aor/101"),
+                ("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
+                ("DELETE", new_auth_path),
+            ],
+        )
+        self.assertNotIn(
+            ("DELETE", "/asterisk/config/dynamic/res_pjsip/aor/101"),
+            [(r.method, r.path) for r in ari.requests],
+        )
+        self.assertEqual(
+            [(r["auth_id"], r["expires_at"]) for r in manager.active_sessions("101")],
+            [(first_id, 1060.0)],
+        )
+
+    def test_new_extension_endpoint_failure_rolls_back_aor_and_new_auth(self) -> None:
+        ari = FakeAri({("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"): (503, None)})
+        manager = SessionManager(make_settings(self.root), AriClient(ari))
+        self.addCleanup(manager.close)
+
+        with self.assertRaises(AriError):
+            manager.issue("101", now=1000.0)
+
+        new_auth_path = ari.requests[0].path
+        self.assertEqual(
+            [(r.method, r.path) for r in ari.requests],
+            [
+                ("PUT", new_auth_path),
+                ("PUT", "/asterisk/config/dynamic/res_pjsip/aor/101"),
+                ("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
+                ("DELETE", "/asterisk/config/dynamic/res_pjsip/aor/101"),
+                ("DELETE", new_auth_path),
+            ],
+        )
+        self.assertEqual(manager.active_sessions("101"), [])
+
     def test_reaper_updates_endpoint_on_overlap_expiry_and_deletes_endpoint_on_last_expiry(self) -> None:
         ari = FakeAri()
         manager = SessionManager(make_settings(self.root, session_seconds=120, session_overlap_seconds=30), AriClient(ari))

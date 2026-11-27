@@ -53,10 +53,13 @@ Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pi
    rotation). **`postgres/02-seed.sql`** inserts idempotent (`ON CONFLICT (id) DO NOTHING`) seed rows for the browser
    test extensions `101` and `102` (`webrtc='yes'`, `allow_transfer='yes'`, `from_domain='<host>'`).
 4. **Dynamic dialplan and SIP REFER transfers (`asterisk/extensions.conf`)**: `[from-extension]` routes any existing
-   PJSIP extension (`DEVICE_STATE(PJSIP/${EXTEN}) != INVALID`) to `[internal]` instead of a hardcoded list, while
-   enforcing a strict digits-only guard (`FILTER(0-9,...)`) in `[internal]` and `FILTER(0-9+,...)` in `[outbound]`.
-   `[inbound-call]`, `[internal]` and `[dial-outbound]` all set `Set(__TRANSFER_CONTEXT=from-extension)` so SIP `REFER`
-   blind transfers resolve inside `[from-extension]`.
+   PJSIP extension (`DEVICE_STATE(PJSIP/${EXTEN}) != INVALID`) to `[internal]` instead of a hardcoded list. Non-existent
+   or offline `< 7`-digit numbers play `line-unavailable` and hang up so they never spill onto the external trunk, while
+   `7+`-digit numbers and E.164 numbers (`_+X.`, at least 7 digits after `+`) route to `[outbound]`. `[from-extension]`,
+   `[internal]` and `[outbound]` enforce fail-closed guards (`FILTER(0-9,${EXTEN})` for `_X.` and
+   `FILTER(0-9,${EXTEN:1})` for `_+X.`, rejecting any non-digit or expression error before `Dial`). `[inbound-call]`,
+   `[internal]` and `[dial-outbound]` all set `Set(__TRANSFER_CONTEXT=from-extension)` so SIP `REFER` blind transfers
+   resolve inside `[from-extension]`.
 5. **Per-session browser credentials**: `compose.yml` forwards `PBX_PUBLIC_WS_URL`, `PBX_STUN_URL`, `PBX_TURN_URL`,
    `PBX_TURN_SECRET`, `PBX_SESSION_SECONDS`, `PBX_SESSION_OVERLAP_SECONDS`, `PBX_PJSIP_TRANSPORT` (`transport-ws`) and
    `PBX_PJSIP_CONTEXT` (`from-extension`) to `pbx-agent`, which mints temporary TURN REST HMAC credentials and rotates
