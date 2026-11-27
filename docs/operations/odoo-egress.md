@@ -32,6 +32,7 @@ page describes the route and how to add a host. It states what the files do; it 
 | `business-api.tiktok.com` | `odoo-addons/liwan_inbox/adapters/tiktok.py:15` (`API_BASE`, including the OAuth token calls) |
 | `.tiktokcdn.com`, `.tiktokcdn-us.com`, `.tiktokv.com` | `odoo-addons/liwan_inbox/adapters/tiktok.py:59` (`MEDIA_DOMAINS`; the media URL is named by TikTok's answer, so these are domain suffixes) |
 | `ksa.paymob.com`, `uae.paymob.com`, `accept.paymob.com`, `oman.paymob.com` | stock `payment_paymob/const.py` `API_MAPPING`, one per account country that `liwan_payments` offers (default `SA`) |
+| `gw-fatoora.zatca.gov.sa` | stock `l10n_sa_edi/models/account_journal.py` (`sandbox`, `preprod` simulation and `prod` Fatoora phase 2 gateway, called via `liwan_finance`) |
 | `ctrl.email.me-jeddah-1.oci.oraclecloud.com` | `liwan_notify` tenant mail domain verification (OCI Email control API: create the email domain, DKIM and return path, read their status) |
 | `logging.me-jeddah-1.oci.oraclecloud.com` | `liwan_notify` tenant mail domain verification (create the per-domain email log, read delivery status with SearchLogs) |
 

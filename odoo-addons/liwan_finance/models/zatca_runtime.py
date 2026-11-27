@@ -6,7 +6,7 @@ from contextvars import ContextVar
 from odoo import models
 from odoo.exceptions import UserError
 
-from .res_company import SANDBOX_API_MODE
+from .res_company import RELEASED_ZATCA_MODES
 from odoo.addons.liwan_finance.serializers.zatca import ZATCA_FORMAT_CODE
 
 STOCK_JOURNAL_LOGGER = 'odoo.addons.l10n_sa_edi.models.account_journal'
@@ -64,8 +64,8 @@ class AccountEdiFormat(models.Model):
                 return {invoice: {'error': self.env._('The ZATCA journal belongs to a different company.'), 'blocking_level': 'error'}}
             if not company._liwan_try_lock_zatca():
                 return {invoice: {'error': self.env._('Another ZATCA operation is running for this company.'), 'blocking_level': 'warning'}}
-            if company._liwan_zatca_runtime_mode() != SANDBOX_API_MODE:
-                return {invoice: {'error': self.env._('This ZATCA environment has not been released.'), 'blocking_level': 'error'}}
+            if company._liwan_zatca_runtime_mode() not in RELEASED_ZATCA_MODES:
+                return {invoice: {'error': self.env._('This ZATCA environment is not supported.'), 'blocking_level': 'error'}}
             with _omit_gateway_log_payloads():
                 return post(invoice)
 
@@ -82,7 +82,7 @@ class ZatcaOtpWizard(models.TransientModel):
             raise UserError(self.env._('The ZATCA journal belongs to a different company.'))
         if not company._liwan_try_lock_zatca():
             raise UserError(self.env._('Another ZATCA operation is running for this company.'))
-        if company._liwan_zatca_runtime_mode() != SANDBOX_API_MODE:
-            raise UserError(self.env._('This ZATCA environment has not been released.'))
+        if company._liwan_zatca_runtime_mode() not in RELEASED_ZATCA_MODES:
+            raise UserError(self.env._('This ZATCA environment is not supported.'))
         with _omit_gateway_log_payloads():
             return super().validate()

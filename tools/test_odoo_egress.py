@@ -28,6 +28,7 @@ EXPECTED_HOSTS = (
     'uae.paymob.com',
     'accept.paymob.com',
     'oman.paymob.com',
+    'gw-fatoora.zatca.gov.sa',  # stock l10n_sa_edi/models/account_journal.py (sandbox, preprod and prod Fatoora endpoints)
     'ctrl.email.me-jeddah-1.oci.oraclecloud.com',  # liwan_notify/models/mail_domain_oci.py EMAIL_API at DEFAULT_REGION
     'logging.me-jeddah-1.oci.oraclecloud.com',  # liwan_notify/models/mail_domain_oci.py LOGGING_API and LOG_SEARCH_API at DEFAULT_REGION
 )
