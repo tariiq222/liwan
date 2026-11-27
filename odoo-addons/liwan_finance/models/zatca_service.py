@@ -125,7 +125,7 @@ class LiwanFinanceZatca(models.AbstractModel):
 
     @api.model
     def _liwan_onboard(self, journal_id, otp):
-        """Onboard one sales journal of the current company with the OTP (sandbox only).
+        """Onboard one sales journal of the current company with the OTP (released ZATCA modes).
 
         Runs the stock wizard: compliance CSID, compliance checks, production CSID. Stock stores a
         failure on the journal instead of raising, so the outcome is read back; a failure raises, which
@@ -155,7 +155,7 @@ class LiwanFinanceZatca(models.AbstractModel):
 
     @api.model
     def _liwan_submit(self, move_id, retry):
-        """Send one posted Saudi sale document of the current company to ZATCA now (sandbox only).
+        """Send one posted Saudi sale document of the current company to ZATCA now (released ZATCA modes).
 
         ``retry`` first clears the stock error of a rejected or failed document. A document that was already sent by
         hand once is spaced and counted as a retry on either route (the first manual send is never throttled). Stock persists the

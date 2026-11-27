@@ -105,14 +105,18 @@ class ResCompany(models.Model):
         self.check_access('write')
         mode = vals[ZATCA_MODE_FIELD]
         self._liwan_require_released_zatca_mode(mode)
-        changing = any(company.l10n_sa_api_mode != mode for company in self)
-        if changing and not self.env.context.get(ZATCA_MODE_CHANGE_CONTEXT):
+        changed = self.filtered(lambda company: company.l10n_sa_api_mode != mode)
+        if changed and not self.env.context.get(ZATCA_MODE_CHANGE_CONTEXT):
             raise ValidationError(self.env._('Changing the ZATCA environment requires the dedicated ZATCA environment flow.'))
-        if changing:
-            return super().write(vals)
-        # Stock resets journal certificates and the hash even when the supplied mode is identical.
+        unchanged = self - changed
         remaining = {key: value for key, value in vals.items() if key != ZATCA_MODE_FIELD}
-        return super().write(remaining) if remaining else True
+        result = True
+        if changed:
+            result = super(ResCompany, changed).write(vals)
+        # Stock resets journal certificates and the hash even when the supplied mode is identical.
+        if unchanged and remaining:
+            result = super(ResCompany, unchanged).write(remaining) and result
+        return result
 
     @api.model
     def _liwan_require_released_zatca_mode(self, mode):
@@ -120,7 +124,7 @@ class ResCompany(models.Model):
             raise ValidationError(self.env._('Unsupported ZATCA API mode.'))
 
     @api.constrains('l10n_sa_api_mode')
-    def _check_zatca_api_mode_is_sandbox(self):
+    def _check_zatca_api_mode_is_released(self):
         for company in self:
             self._liwan_require_released_zatca_mode(company.l10n_sa_api_mode)
 

@@ -60,7 +60,7 @@
       "environment": {
         "title": "ZATCA environment",
         "modes": { "sandbox": "Developer sandbox", "preprod": "FATOORA simulation", "prod": "FATOORA production" },
-        "releaseGate": "Only the developer sandbox is available. Simulation and production are closed pending release approval."
+        "releaseGate": "Developer sandbox, FATOORA simulation and FATOORA production are supported. Switching environments resets journal certificates and requires the ZATCA environment permission."
       },
       "expiry": {
         "date": "Certificate expires",
