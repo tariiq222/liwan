@@ -22,7 +22,7 @@ class TestTelephonySettings(LiwanTelephonyCase):
 
     def test_the_announcement_cannot_be_turned_off_while_recording_always(self):
         self.authenticate('telephony_manager', 'telephony_manager_pass_123')
-        result = self.api('PATCH', '/api/v1/telephony/settings', json={'recordingAnnouncement': False})
+        result = self.api('PATCH', '/api/v1/telephony/settings', json={'announcementEnabled': False})
         self.assertIn(result.status_code, (400, 422, 500))
 
     def test_a_line_never_returns_its_password(self):

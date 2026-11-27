@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useQueryClient } from '@tanstack/vue-query'
 import type { TelephonySettings } from '@liwan/contracts'
 
 /**
@@ -17,7 +18,7 @@ const { $api } = useApi()
 const queryClient = useQueryClient()
 const draft = ref({
   recordingPolicy: props.settings.recordingPolicy,
-  recordingAnnouncement: props.settings.recordingAnnouncement,
+  announcementEnabled: props.settings.announcementEnabled,
   retentionDays: props.settings.retentionDays,
 })
 const saving = ref(false)
@@ -37,7 +38,7 @@ async function save() {
   try {
     const patch = {
       recordingPolicy: draft.value.recordingPolicy,
-      recordingAnnouncement: announcementLocked.value ? true : draft.value.recordingAnnouncement,
+      announcementEnabled: announcementLocked.value ? true : draft.value.announcementEnabled,
       retentionDays: draft.value.retentionDays,
     }
     const result = await $api('/api/v1/telephony/settings', {
@@ -54,7 +55,7 @@ async function save() {
 
 const dirty = computed(() =>
   draft.value.recordingPolicy !== props.settings.recordingPolicy
-  || draft.value.recordingAnnouncement !== props.settings.recordingAnnouncement
+  || draft.value.announcementEnabled !== props.settings.announcementEnabled
   || draft.value.retentionDays !== props.settings.retentionDays,
 )
 </script>
@@ -77,7 +78,7 @@ const dirty = computed(() =>
       </SharedSettingRow>
       <SharedSettingRow :label="t('telephony.settings.announcement')" :description="t('telephony.settings.announcementHint')">
         <USwitch
-          v-model="draft.recordingAnnouncement"
+          v-model="draft.announcementEnabled"
           :disabled="!canEdit || announcementLocked"
           :aria-label="t('telephony.settings.announcement')"
         />

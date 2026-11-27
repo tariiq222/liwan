@@ -4,7 +4,7 @@
 def dump_settings(settings):
     return {
         'recordingPolicy': settings.recording_policy,
-        'recordingAnnouncement': settings.recording_announcement,
+        'announcementEnabled': settings.recording_announcement,
         'retentionDays': settings.retention_days,
         'defaultLine': {'id': settings.default_line_id.id, 'name': settings.default_line_id.name}
         if settings.default_line_id else None,

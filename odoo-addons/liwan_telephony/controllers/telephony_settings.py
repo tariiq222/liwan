@@ -21,7 +21,7 @@ from odoo.addons.liwan_telephony.serializers.telephony_settings import dump_sett
 
 SETTINGS_FIELDS = {
     'recordingPolicy': 'recording_policy',
-    'recordingAnnouncement': 'recording_announcement',
+    'announcementEnabled': 'recording_announcement',
     'retentionDays': 'retention_days',
     'ivrEnabled': 'ivr_enabled',
     'businessHoursEnabled': 'business_hours_enabled',

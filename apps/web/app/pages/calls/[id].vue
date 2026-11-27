@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query'
 import type { TelephonyCallDetail } from '@liwan/contracts'
 import { TelephonyCallDetailSchema } from '@liwan/contracts'
 
