@@ -7,9 +7,7 @@
       "converted": "{count} of {total} eligible trials converted",
       "renewed": "{count} of {total} eligible first renewals paid on time",
       "apps": {
-        "crm": "CRM",
-        "inbox": "Customer messages",
-        "both": "Both apps"
+        "base": "Base only"
       }
     },
     "title": "Analytics",

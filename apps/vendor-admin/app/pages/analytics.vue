@@ -3,7 +3,7 @@ import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial
 import type { RankedRow } from '@/components/analytics/RankedList.vue'
 import { usageMetricLabel } from '@/utils/vendorSubscriptions'
 import { downloadCsv } from '@/utils/csv'
-import { figureNumber, formatFigure, HEADLINE_IDS, KPIS, periodFromQuery, presetRange, riyadhToday, toCsv, type KpiGroup, type PeriodChoice } from '@/utils/vendorAnalytics'
+import { figureNumber, formatFigure, HEADLINE_IDS, KPIS, periodFromQuery, presetRange, riyadhToday, signupFunnelLabel, toCsv, type KpiGroup, type PeriodChoice } from '@/utils/vendorAnalytics'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, te, locale } = useI18n()
 const route = useRoute()
@@ -119,7 +119,7 @@ function exportCsv() {
             <p class="mb-3 text-sm text-muted">{{ t('analytics.signupFunnel.window') }}</p>
             <div class="grid gap-3 sm:grid-cols-3" data-testid="analytics-signup-funnel">
               <div v-for="row in data.signup_funnel" :key="row.selection" class="rounded-inner border border-default p-3">
-                <h3 class="text-sm font-semibold">{{ t(`analytics.signupFunnel.apps.${row.selection}`) }}</h3>
+                <h3 class="text-sm font-semibold">{{ signupFunnelLabel(row, t, te) }}</h3>
                 <ul class="mt-2 grid gap-1 text-sm text-muted">
                   <li>{{ t('analytics.signupFunnel.started', { count: number(row.started), total: number(row.registered) }) }}</li>
                   <li>{{ t('analytics.signupFunnel.converted', { count: number(row.converted), total: number(row.conversion_eligible) }) }}</li>

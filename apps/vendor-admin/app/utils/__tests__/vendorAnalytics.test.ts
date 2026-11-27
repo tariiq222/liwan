@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { deltaOf, deltaTone, figureNumber, formatFigure, periodFromQuery, presetRange, riyadhToday, toCsv } from '../vendorAnalytics'
+import { deltaOf, deltaTone, figureNumber, formatFigure, periodFromQuery, presetRange, riyadhToday, signupFunnelLabel, toCsv } from '../vendorAnalytics'
 
 describe('riyadhToday', () => {
   it('reads the calendar day in Asia/Riyadh, not UTC', () => {
@@ -72,5 +74,46 @@ describe('toCsv', () => {
   })
   it('writes its own formatted figures as they are, even a negative or signed one', () => {
     expect(toCsv(['a', 'b', 'c', 'd'], [{ section: 'قسم', metric: 'صافي', current: '-SAR 5.00', previous: '+12%' }])).toBe('﻿a,b,c,d\r\nقسم,صافي,-SAR 5.00,+12%\r\n')
+  })
+})
+
+describe('signupFunnelLabel', () => {
+  const localesRoot = resolve(import.meta.dirname, '../../../i18n/locales')
+  function makeI18n(lang: 'ar' | 'en') {
+    const messages = {
+      ...JSON.parse(readFileSync(resolve(localesRoot, lang, 'analytics.json'), 'utf8')),
+      ...JSON.parse(readFileSync(resolve(localesRoot, lang, 'vendor.json'), 'utf8')),
+    } as Record<string, unknown>
+    const lookup = (key: string): string | undefined => {
+      let current: unknown = messages
+      for (const part of key.split('.')) {
+        if (!current || typeof current !== 'object' || !(part in current)) return undefined
+        current = (current as Record<string, unknown>)[part]
+      }
+      return typeof current === 'string' ? current : undefined
+    }
+    return {
+      t: (key: string) => lookup(key) ?? key,
+      te: (key: string) => lookup(key) !== undefined,
+    }
+  }
+
+  it('formats base-only, single-app, multi-app, and unknown cohorts in Arabic and English', () => {
+    const en = makeI18n('en')
+    const ar = makeI18n('ar')
+
+    expect(signupFunnelLabel({ apps: [] }, en.t, en.te)).toBe('Base only')
+    expect(signupFunnelLabel({ apps: [] }, ar.t, ar.te)).toBe('الأساس فقط')
+
+    expect(signupFunnelLabel({ apps: ['projects'] }, en.t, en.te)).toBe('Projects')
+    expect(signupFunnelLabel({ apps: ['projects'] }, ar.t, ar.te)).toBe('المشاريع')
+
+    expect(signupFunnelLabel({ apps: ['finance', 'projects'] }, en.t, en.te)).toBe('Finance + Projects')
+    expect(signupFunnelLabel({ apps: ['finance', 'projects'] }, ar.t, ar.te)).toBe('المالية + المشاريع')
+
+    expect(signupFunnelLabel({ apps: ['crm', 'inbox'] }, en.t, en.te)).toBe('Customer management + Customer inbox')
+    expect(signupFunnelLabel({ apps: ['crm', 'inbox'] }, ar.t, ar.te)).toBe('إدارة العملاء + صندوق رسائل العملاء')
+
+    expect(signupFunnelLabel({ apps: ['custom_app'] }, en.t, en.te)).toBe('custom_app')
   })
 })

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
+import { signupFunnelRowSchema } from '@liwan/commercial-contracts'
 import { setup, client, money, monthly } from './commercial-helpers.js'
 import { seedAttempt, seedCustomer, seedInvoice, seedSignup, type SignupInput } from './analytics-fixtures.js'
 import { routesB } from '../commercial/routes-b.js'
@@ -52,7 +53,7 @@ describe('analytics model', () => {
 
 suite('live PostgreSQL vendor analytics', () => {
   const pool = new Pool({ connectionString: url, max: 4 })
-  let p1: string, p2: string
+  let p1: string, p2: string, releaseId: string
   let a: Awaited<ReturnType<typeof seedCustomer>>, b: Awaited<ReturnType<typeof seedCustomer>>, j: Awaited<ReturnType<typeof seedCustomer>>
   async function plan(name: string) {
     const c = await client(pool)('POST', '/plans', { name, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [], extra_branches_limit: null, included_users: 1, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 5, auto_suspend: true, auto_renew_allowed: false, reason: 'Analytics fixture' })
@@ -61,7 +62,8 @@ suite('live PostgreSQL vendor analytics', () => {
   }
   beforeAll(async () => {
     const { version } = await setup(pool)
-    await client(pool)('POST', '/catalog/releases', { catalog_version: version, reason: 'Analytics fixture' })
+    const rel = await client(pool)('POST', '/catalog/releases', { catalog_version: version, reason: 'Analytics fixture' })
+    releaseId = rel.body.id as string
     await pool.query('TRUNCATE customers CASCADE')
     p1 = await plan(`Basic ${randomUUID()}`)
     p2 = await plan(`Pro ${randomUUID()}`)
@@ -428,44 +430,121 @@ suite('live PostgreSQL vendor analytics', () => {
 
   describe('signup funnel', () => {
     /** Runs the seeding and the funnel inside one rolled-back transaction, so no signup outlives its test. */
-    async function funnel(seed: (db: Pool, base: Pick<SignupInput, 'plan_revision_id'>) => Promise<void>) {
+    async function funnelRows(seed: (db: Pool, base: Pick<SignupInput, 'plan_revision_id'>) => Promise<void>) {
       const solo = new Pool({ connectionString: url, max: 1 })
       try {
         await solo.query('BEGIN')
         await seed(solo, { plan_revision_id: p1 })
         const rows = await signupFunnel(solo, period, now)
         await solo.query('ROLLBACK')
-        expect(rows.map(row => row.selection)).toEqual(['both', 'crm', 'inbox'])
-        return Object.fromEntries(rows.map(({ selection, ...counts }) => [selection, counts])) as Record<'both' | 'crm' | 'inbox', typeof zero>
+        return rows
       } finally { await solo.end() }
+    }
+    async function funnel(seed: (db: Pool, base: Pick<SignupInput, 'plan_revision_id'>) => Promise<void>) {
+      const rows = await funnelRows(seed)
+      return Object.fromEntries(rows.map(row => [row.selection, row]))
+    }
+    async function seedBundle(db: Pool, appIds: string[]) {
+      const bundleId = randomUUID(), revId = randomUUID()
+      await db.query('INSERT INTO commercial_bundles(id) VALUES($1)', [bundleId])
+      await db.query(
+        `INSERT INTO bundle_revisions(id,bundle_id,version,name,description,audience,catalog_release_id,selections,domain_limits,prices,content_digest)
+         VALUES($1,$2,1,$3,'Fixture',$4,$5,$6,'{}','[]',$7)`,
+        [revId, bundleId, `Bundle ${appIds.join('+')}`, JSON.stringify({ kind: 'public' }), releaseId,
+          JSON.stringify(appIds.map(app_id => ({ app_id, feature_keys: [] }))), `digest-${revId}`],
+      )
+      return revId
     }
     const zero = { registered: 0, started: 0, conversion_eligible: 0, converted: 0, renewal_eligible: 0, renewed: 0 }
     const creditNote = (db: Pool, where: string, params: unknown[], amount: string, reference: string) => db.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause,refund_reference,refunded_at,refunded_by)
       SELECT $1,i.id,i.customer_id,'credit_note','Fixture refund',${amount},'SAR',2,'refunded','vendor-test','vendor','vendor_refund','${reference}',now(),'vendor-test' FROM invoices i WHERE ${where}`, [randomUUID(), ...params])
 
-    it('files a public signup under the apps it selected, and ignores one that selected none', async () => {
-      const rows = await funnel(async (db, base) => {
-        await seedSignup(db, { ...base, name: 'crm only', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z' })
-        await seedSignup(db, { ...base, name: 'inbox only', apps: { inbox: true }, registered_at: '2026-10-02T09:00:00Z' })
-        await seedSignup(db, { ...base, name: 'inbox two', apps: { inbox: true }, registered_at: '2026-10-03T09:00:00Z' })
-        await seedSignup(db, { ...base, name: 'both', apps: { crm: true, inbox: true }, registered_at: '2026-10-04T09:00:00Z' })
-        await seedSignup(db, { ...base, name: 'none', apps: {}, registered_at: '2026-10-04T09:00:00Z' })
+    it('returns an empty array when no public signups occurred in the period', async () => {
+      const rows = await funnelRows(async () => {})
+      expect(rows).toEqual([])
+    })
+
+    it('files every public signup under the sorted apps of its bundle revisions, including base-only signups', async () => {
+      const rows = await funnelRows(async (db, base) => {
+        const crmBundle = await seedBundle(db, ['crm'])
+        const inboxBundle = await seedBundle(db, ['inbox'])
+        await seedSignup(db, { ...base, name: 'none', bundle_revision_ids: [], registered_at: '2026-10-04T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'crm only', bundle_revision_ids: [crmBundle], registered_at: '2026-10-02T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'inbox only', bundle_revision_ids: [inboxBundle], registered_at: '2026-10-02T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'inbox two', bundle_revision_ids: [inboxBundle], registered_at: '2026-10-03T09:00:00Z' })
+        // The revisions are listed unsorted.
+        await seedSignup(db, { ...base, name: 'both', bundle_revision_ids: [inboxBundle, crmBundle], registered_at: '2026-10-04T09:00:00Z' })
+        // One bundle selects two apps.
+        await seedSignup(db, { ...base, name: 'pair bundle', bundle_revision_ids: [await seedBundle(db, ['people', 'finance'])], registered_at: '2026-10-04T09:00:00Z' })
+        // Two listed bundles select the same app.
+        await seedSignup(db, { ...base, name: 'crm twice', bundle_revision_ids: [crmBundle, await seedBundle(db, ['crm', 'inbox'])], registered_at: '2026-10-04T09:00:00Z' })
       })
-      expect(rows).toEqual({ crm: { ...zero, registered: 1 }, inbox: { ...zero, registered: 2 }, both: { ...zero, registered: 1 } })
+      expect(rows).toEqual([
+        { selection: 'base', apps: [], ...zero, registered: 1 },
+        { selection: 'crm', apps: ['crm'], ...zero, registered: 1 },
+        { selection: 'crm+inbox', apps: ['crm', 'inbox'], ...zero, registered: 2 },
+        { selection: 'finance+people', apps: ['finance', 'people'], ...zero, registered: 1 },
+        { selection: 'inbox', apps: ['inbox'], ...zero, registered: 2 },
+      ])
+      // getAnalytics parses its answer with the contract, so every row must satisfy it.
+      for (const row of rows) expect(signupFunnelRowSchema.parse(row)).toEqual(row)
+    })
+
+    it('sorts apps by code point, not by the database collation, which puts a digit before an underscore', async () => {
+      const rows = await funnelRows(async (db, base) => {
+        await seedSignup(db, { ...base, name: 'digit and underscore', bundle_revision_ids: [await seedBundle(db, ['a_', 'a0'])], registered_at: '2026-10-02T09:00:00Z' })
+      })
+      expect(rows).toEqual([{ selection: 'a0+a_', apps: ['a0', 'a_'], ...zero, registered: 1 }])
+    })
+
+    it('keeps counting a signup whose listed bundles no longer exist or select nothing, under the base plan', async () => {
+      const rows = await funnelRows(async (db, base) => {
+        const crmBundle = await seedBundle(db, ['crm'])
+        await seedSignup(db, { ...base, name: 'gone', bundle_revision_ids: [randomUUID()], registered_at: '2026-10-02T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'empty', bundle_revision_ids: [await seedBundle(db, [])], registered_at: '2026-10-02T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'one of two left', bundle_revision_ids: [randomUUID(), crmBundle], registered_at: '2026-10-02T09:00:00Z' })
+      })
+      expect(rows).toEqual([
+        { selection: 'base', apps: [], ...zero, registered: 2 },
+        { selection: 'crm', apps: ['crm'], ...zero, registered: 1 },
+      ])
+    })
+
+    it('tracks conversion, renewal, and credit-note exclusion on non-CRM/non-Inbox cohorts', async () => {
+      const rows = await funnel(async (db, base) => {
+        const projectsBundle = await seedBundle(db, ['projects'])
+        await seedSignup(db, {
+          ...base, name: 'projects renewed', bundle_revision_ids: [projectsBundle],
+          registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z',
+          first_paid_at: '2026-10-03T09:00:00Z', renewal: { due_at: '2026-10-04T00:00:00Z', paid_at: '2026-10-08T00:00:00Z' },
+        })
+        const refunded = await seedSignup(db, {
+          ...base, name: 'projects renewal refunded', bundle_revision_ids: [projectsBundle],
+          registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z',
+          first_paid_at: '2026-10-03T09:00:00Z', renewal: { due_at: '2026-10-04T00:00:00Z', paid_at: '2026-10-05T00:00:00Z' },
+        })
+        await creditNote(db, "i.subscription_id=$2 AND i.paid_at='2026-10-05T00:00:00Z'", [refunded.subscription_id], 'i.total_minor', 'MOY-PROJ-REN')
+      })
+      expect(rows.projects).toEqual({
+        selection: 'projects', apps: ['projects'],
+        registered: 2, started: 2, conversion_eligible: 2, converted: 2, renewal_eligible: 2, renewed: 1,
+      })
     })
 
     it('counts a trial as started only once the first sign-in recorded its deadline', async () => {
       const rows = await funnel(async (db, base) => {
-        await seedSignup(db, { ...base, name: 'signed in', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z', trial_ends_at: '2026-10-16T09:00:00Z' })
-        await seedSignup(db, { ...base, name: 'never signed in', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z' })
+        const crmBundle = await seedBundle(db, ['crm'])
+        await seedSignup(db, { ...base, name: 'signed in', bundle_revision_ids: [crmBundle], registered_at: '2026-10-02T09:00:00Z', trial_ends_at: '2026-10-16T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'never signed in', bundle_revision_ids: [crmBundle], registered_at: '2026-10-02T09:00:00Z' })
       })
-      expect(rows.crm).toEqual({ ...zero, registered: 2, started: 1 })
+      expect(rows.crm).toEqual({ selection: 'crm', apps: ['crm'], ...zero, registered: 2, started: 1 })
     })
 
     it('counts conversion only after the trial deadline plus seven days, and only when paid inside that window', async () => {
       const rows = await funnel(async (db, base) => {
+        const crmBundle = await seedBundle(db, ['crm'])
         const trial = (name: string, trial_ends_at: string, first_paid_at?: string) =>
-          seedSignup(db, { ...base, name, apps: { crm: true }, registered_at: '2026-10-01T09:00:00Z', trial_ends_at, first_paid_at })
+          seedSignup(db, { ...base, name, bundle_revision_ids: [crmBundle], registered_at: '2026-10-01T09:00:00Z', trial_ends_at, first_paid_at })
         await trial('paid in window', '2026-10-02T09:00:00Z', '2026-10-06T09:00:00Z')
         await trial('paid at the edge', '2026-10-02T09:00:00Z', '2026-10-09T09:00:00Z')
         await trial('paid too late', '2026-10-02T09:00:00Z', '2026-10-12T09:00:00Z')
@@ -480,7 +559,8 @@ suite('live PostgreSQL vendor analytics', () => {
         .then(id => db.query(`INSERT INTO invoice_lines(id,invoice_id,position,key,kind,timing,description,quantity,unit_minor,amount_minor,currency,exponent,period_start,period_end,source_revision_id)
           VALUES($1,$2,0,'ai_topup','ai_topup','now','AI top-up',1,5000,5000,'SAR',2,$3,$3,$1)`, [randomUUID(), id, paid_at.slice(0, 10)]))
       const rows = await funnel(async (db, base) => {
-        const trial = (name: string) => seedSignup(db, { ...base, name, apps: { crm: true }, registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z' })
+        const crmBundle = await seedBundle(db, ['crm'])
+        const trial = (name: string) => seedSignup(db, { ...base, name, bundle_revision_ids: [crmBundle], registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z' })
         await topup(db, await trial('only a top-up'), '2026-10-01T12:00:00Z')
         const both = await trial('top-up then plan')
         await topup(db, both, '2026-10-01T12:00:00Z')
@@ -491,7 +571,8 @@ suite('live PostgreSQL vendor analytics', () => {
 
     it('does not count a first invoice that was credited in full, but counts one credited in part', async () => {
       const rows = await funnel(async (db, base) => {
-        const trial = (name: string) => seedSignup(db, { ...base, name, apps: { crm: true }, registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z', first_paid_at: '2026-10-05T09:00:00Z' })
+        const crmBundle = await seedBundle(db, ['crm'])
+        const trial = (name: string) => seedSignup(db, { ...base, name, bundle_revision_ids: [crmBundle], registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z', first_paid_at: '2026-10-05T09:00:00Z' })
         await creditNote(db, 'i.subscription_id=$2', [(await trial('refunded in full')).subscription_id], '11500', 'MOY-FULL')
         await creditNote(db, 'i.subscription_id=$2', [(await trial('refunded in part')).subscription_id], '1500', 'MOY-PART')
       })
@@ -500,7 +581,8 @@ suite('live PostgreSQL vendor analytics', () => {
 
     it('makes the first renewal eligible after its due date plus the plan grace days, and renewed only when paid by then', async () => {
       const rows = await funnel(async (db, base) => {
-        const renewal = (name: string, due_at: string, paid_at?: string) => seedSignup(db, { ...base, name, apps: { inbox: true }, registered_at: '2026-10-01T09:00:00Z',
+        const inboxBundle = await seedBundle(db, ['inbox'])
+        const renewal = (name: string, due_at: string, paid_at?: string) => seedSignup(db, { ...base, name, bundle_revision_ids: [inboxBundle], registered_at: '2026-10-01T09:00:00Z',
           trial_ends_at: '2026-10-02T09:00:00Z', first_paid_at: '2026-10-03T09:00:00Z', renewal: { due_at, paid_at } })
         // The plan fixture grants five grace days, so a renewal due October 4 is measured from October 9.
         await renewal('paid inside grace', '2026-10-04T00:00:00Z', '2026-10-08T00:00:00Z')
@@ -513,21 +595,24 @@ suite('live PostgreSQL vendor analytics', () => {
 
     it('does not count a first renewal invoice that was credited in full as renewed', async () => {
       const rows = await funnel(async (db, base) => {
-        const seeded = await seedSignup(db, { ...base, name: 'renewal refunded', apps: { crm: true, inbox: true }, registered_at: '2026-10-01T09:00:00Z',
+        const crmBundle = await seedBundle(db, ['crm'])
+        const inboxBundle = await seedBundle(db, ['inbox'])
+        const seeded = await seedSignup(db, { ...base, name: 'renewal refunded', bundle_revision_ids: [crmBundle, inboxBundle], registered_at: '2026-10-01T09:00:00Z',
           trial_ends_at: '2026-10-02T09:00:00Z', first_paid_at: '2026-10-03T09:00:00Z', renewal: { due_at: '2026-10-04T00:00:00Z', paid_at: '2026-10-05T00:00:00Z' } })
         await creditNote(db, "i.subscription_id=$2 AND i.paid_at='2026-10-05T00:00:00Z'", [seeded.subscription_id], 'i.total_minor', 'MOY-RENEWAL')
       })
-      expect(rows.both).toMatchObject({ renewal_eligible: 1, renewed: 0 })
+      expect(rows['crm+inbox']).toMatchObject({ selection: 'crm+inbox', apps: ['crm', 'inbox'], renewal_eligible: 1, renewed: 0 })
     })
 
     it('leaves out signups outside the period and trials that are not public first-login signups', async () => {
       const rows = await funnel(async (db, base) => {
-        await seedSignup(db, { ...base, name: 'before the period', apps: { crm: true }, registered_at: '2026-09-20T09:00:00Z', trial_ends_at: '2026-09-21T09:00:00Z' })
-        await seedSignup(db, { ...base, name: 'after now', apps: { crm: true }, registered_at: '2026-10-16T09:00:00Z' })
-        await seedSignup(db, { ...base, name: 'vendor started', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z', trial_ends_at: '2026-10-03T09:00:00Z', requires_first_login: false })
-        await seedSignup(db, { ...base, name: 'counted', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z' })
+        const crmBundle = await seedBundle(db, ['crm'])
+        await seedSignup(db, { ...base, name: 'before the period', bundle_revision_ids: [crmBundle], registered_at: '2026-09-20T09:00:00Z', trial_ends_at: '2026-09-21T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'after now', bundle_revision_ids: [crmBundle], registered_at: '2026-10-16T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'vendor started', bundle_revision_ids: [crmBundle], registered_at: '2026-10-02T09:00:00Z', trial_ends_at: '2026-10-03T09:00:00Z', requires_first_login: false })
+        await seedSignup(db, { ...base, name: 'counted', bundle_revision_ids: [crmBundle], registered_at: '2026-10-02T09:00:00Z' })
       })
-      expect(rows.crm).toEqual({ ...zero, registered: 1 })
+      expect(rows.crm).toEqual({ selection: 'crm', apps: ['crm'], ...zero, registered: 1 })
     })
   })
 })

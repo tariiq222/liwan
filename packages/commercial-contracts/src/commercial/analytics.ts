@@ -74,6 +74,25 @@ export const analyticsSnapshotSchema = z.strictObject({
   }),
 })
 
+/** Strictly rising by code unit, so unique and sorted; the control plane returns apps in this order (`COLLATE "C"`). */
+const strictlyAscending = (values: readonly string[]) => values.every((value, index) => index === 0 || values[index - 1]! < value)
+
+/**
+ * One selection observed in the period: the apps a signup's bundles enabled, or the base plan alone (`base`, no apps).
+ * `selection` is the apps joined with `+`, so it carries no bound of its own. No app may be named `base`: that name
+ * is reserved for the base plan, which the rows are told apart by.
+ */
+export const signupFunnelRowSchema = z.strictObject({
+  selection: z.string(),
+  apps: z.array(z.string().regex(/^[a-z][a-z0-9_]*$/).max(64)),
+  registered: count, started: count, conversion_eligible: count, converted: count,
+  renewal_eligible: count, renewed: count,
+}).refine(
+  row => row.apps.length === 0 ? row.selection === 'base'
+    : strictlyAscending(row.apps) && !row.apps.includes('base') && row.selection === row.apps.join('+'),
+  { path: ['selection'], message: 'Selection is base for no apps, or the ascending, unique apps, none named base, joined with +' },
+)
+
 export const analyticsSchema = z.strictObject({
   period: z.strictObject({ from: isoDate, to: isoDate }),
   previous_period: z.strictObject({ from: isoDate, to: isoDate }),
@@ -86,16 +105,13 @@ export const analyticsSchema = z.strictObject({
   previous: analyticsFiguresSchema,
   /** Months whose book cannot be restated honestly carry unavailable figures. */
   trend: z.array(z.strictObject({ month: z.string().regex(/^\d{4}-\d{2}$/), mrr: money, customers: figure(count) })),
-  signup_funnel: z.array(z.strictObject({
-    selection: z.enum(['crm', 'inbox', 'both']),
-    registered: count, started: count, conversion_eligible: count, converted: count,
-    renewal_eligible: count, renewed: count,
-  })),
+  signup_funnel: z.array(signupFunnelRowSchema),
   snapshot: analyticsSnapshotSchema,
 })
 
 export type AnalyticsQuery = z.infer<typeof analyticsQuerySchema>
 export type AnalyticsFigures = z.infer<typeof analyticsFiguresSchema>
 export type AnalyticsSnapshot = z.infer<typeof analyticsSnapshotSchema>
+export type SignupFunnelRow = z.infer<typeof signupFunnelRowSchema>
 export type Analytics = z.infer<typeof analyticsSchema>
 export type AnalyticsFigure<T> = { available: true, value: T } | { available: false, reason: z.infer<typeof analyticsUnavailableReasonSchema> }

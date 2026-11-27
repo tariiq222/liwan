@@ -15,6 +15,8 @@ export interface Step {
   storage_unit_minor?: number
   /** Recurring price per bundle revision in the snapshot's pricing. */
   bundle_minor?: Record<string, number>
+  /** Bundle revision IDs recorded in the snapshot; the signup funnel reads them off the enrollment order. */
+  bundle_revision_ids?: string[]
   kind?: 'new' | 'change' | 'renewal'
   fulfillment_state?: 'applied' | 'queued' | 'applying' | 'failed' | 'needs_intervention'
   currency?: string
@@ -57,7 +59,9 @@ export async function seedCustomer(pool: Pool, input: Customer): Promise<Seeded>
     const state = step.fulfillment_state ?? 'applied'
     const currency = step.currency ?? 'SAR'
     const snapshot = {
-      plan_revision_id: step.plan_revision_id, cadence: step.cadence ?? { unit: 'month', count: 1 },
+      plan_revision_id: step.plan_revision_id,
+      ...(step.bundle_revision_ids !== undefined ? { bundle_revision_ids: step.bundle_revision_ids } : {}),
+      cadence: step.cadence ?? { unit: 'month', count: 1 },
       entitlement: { features: input.features ?? {} },
       pricing: { base_minor: step.base_minor, bundle_minor: step.bundle_minor ?? {}, paid_extra_branches: step.paid_extra_branches ?? 0, branch_unit_minor: step.branch_unit_minor ?? 0, paid_users: step.paid_users ?? 0, user_unit_minor: step.user_unit_minor ?? 0, paid_storage_gb: step.paid_storage_gb ?? 0, storage_unit_minor: step.storage_unit_minor ?? 0 },
     }
@@ -100,8 +104,8 @@ export async function seedAttempt(pool: Pool, input: { order_id: string, invoice
 export interface SignupInput {
   name: string
   plan_revision_id: string
-  /** Apps selected at enrollment, as the first revision's entitlement features. */
-  apps: { crm?: boolean, inbox?: boolean }
+  /** Bundle revision IDs the enrollment order records; none for the base plan alone. */
+  bundle_revision_ids: string[]
   /** When the public signup was enrolled (the first, unpaid `new` order). */
   registered_at: string
   /** When the first sign-in started the trial; omitted for a signup that never signed in. */
@@ -116,8 +120,8 @@ export interface SignupInput {
 
 /** A public self-service signup with its trial audit, first payment and first renewal, so a test fixes every funnel milestone. */
 export async function seedSignup(pool: Pool, input: SignupInput): Promise<Seeded> {
-  const seeded = await seedCustomer(pool, { name: input.name, state: 'trialing', features: { 'crm.enabled': input.apps.crm ?? false, 'inbox.enabled': input.apps.inbox ?? false }, steps: [
-    { at: input.registered_at, plan_revision_id: input.plan_revision_id, base_minor: 0, payment_state: 'not_required' }] })
+  const seeded = await seedCustomer(pool, { name: input.name, state: 'trialing', steps: [
+    { at: input.registered_at, plan_revision_id: input.plan_revision_id, bundle_revision_ids: input.bundle_revision_ids, base_minor: 0, payment_state: 'not_required' }] })
   await pool.query('INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login) VALUES($1,$2,$3,$4)',
     [seeded.customer_id, `${seeded.customer_id}@example.com`, seeded.customer_id.slice(0, 13), input.requires_first_login ?? true])
   if (input.trial_ends_at) {
