@@ -28,6 +28,7 @@ from pbx_agent.cel import CelFile
 from pbx_agent.delivery import WORKER_STALE_SECONDS, Delivery
 from pbx_agent.health import Liveness, snapshot
 from pbx_agent.ingest import handle_ari_event
+from pbx_agent.odoo_routes import link_route, registration_route
 from pbx_agent.queue import EventQueue
 from pbx_agent.reconcile import Reconciler
 from pbx_agent.recordings import recording_path
@@ -46,9 +47,10 @@ WORKER_JOIN_SECONDS = 10
 RECORDING_MEDIA_TYPE = "audio/wav"
 
 
-def create_app(settings: Settings) -> FastAPI:
+def create_app(settings: Settings, ari_client=None) -> FastAPI:
+    """The HTTP surface. `ari_client` exists so a test can drive the routes without an Asterisk to talk to."""
     queue = EventQueue(settings.queue_path)
-    ari = AriClient(AriTransport(settings.ari_url, settings.ari_username, settings.ari_password))
+    ari = ari_client or AriClient(AriTransport(settings.ari_url, settings.ari_username, settings.ari_password))
     state = ConnectionState()
     reconciler = Reconciler(
         queue,
@@ -104,6 +106,9 @@ def create_app(settings: Settings) -> FastAPI:
             queue.close()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+
+    registration_route(app, settings, ari, settings.reverse_key)
+    link_route(app, settings, settings.reverse_key)
 
     @app.get("/health")
     async def health() -> dict:

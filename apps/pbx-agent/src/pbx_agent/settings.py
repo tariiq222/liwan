@@ -51,6 +51,11 @@ class Settings:
     cel_path: Path
     inbound_context: str
     line_endpoint: str | None
+    # The browser side (design 4.1): the WebSocket the phone registers on, the ICE servers it is given, and how long a
+    # session's password lives. The URL is public; the ICE credential is minted per session when TURN is in use.
+    public_ws_url: str
+    ice_servers: list[dict]
+    session_seconds: int
 
     def __repr__(self) -> str:
         """Never show a password or a key, including from an unexpected traceback."""
@@ -122,7 +127,29 @@ class Settings:
             cel_path=_read_path(environ, "PBX_CEL_PATH"),
             inbound_context=environ.get("PBX_INBOUND_CONTEXT", "").strip() or "from-trunk",
             line_endpoint=environ.get("PBX_LINE_ENDPOINT", "").strip() or None,
+            public_ws_url=_websocket_url(environ, "PBX_PUBLIC_WS_URL", f"wss://{public_host}/ws"),
+            ice_servers=_ice_servers(environ),
+            session_seconds=_integer(environ, "PBX_SESSION_SECONDS", 60, 30, 3600),
         )
+
+
+def _ice_servers(environ: Mapping[str, str]) -> list[dict]:
+    """The ICE servers the browser is offered: one STUN URL, and TURN when the package published it."""
+    servers: list[dict] = []
+    stun = environ.get("PBX_STUN_URL", "").strip()
+    if stun:
+        servers.append({"urls": stun})
+    turn = environ.get("PBX_TURN_URL", "").strip()
+    if turn:
+        entry: dict = {"urls": turn}
+        user = environ.get("PBX_TURN_USER", "").strip()
+        secret = environ.get("PBX_TURN_CREDENTIAL", "").strip()
+        if user:
+            entry["username"] = user
+        if secret:
+            entry["credential"] = secret
+        servers.append(entry)
+    return servers
 
 
 def _required(environ: Mapping[str, str], name: str) -> str:
@@ -161,6 +188,22 @@ def _read_path(environ: Mapping[str, str], name: str) -> Path:
         msg = f"{name} must be an absolute path"
         raise SettingsError(name, msg)
     return path
+
+
+def _websocket_url(environ: Mapping[str, str], name: str, default: str) -> str:
+    """The browser's WebSocket endpoint: `ws` or `wss`, a host, and the `/ws` path the edge forwards."""
+    value = environ.get(name, "").strip() or default
+    parts = urlsplit(value)
+    if (
+        parts.scheme not in ("ws", "wss")
+        or not parts.netloc
+        or not parts.path
+        or parts.query
+        or parts.fragment
+    ):
+        msg = "must be a ws:// or wss:// URL with a host and the /ws path, and no query or fragment"
+        raise SettingsError(name, msg)
+    return value
 
 
 def _url(environ: Mapping[str, str], name: str) -> str:

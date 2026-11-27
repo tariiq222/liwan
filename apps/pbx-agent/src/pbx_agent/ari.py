@@ -89,6 +89,54 @@ class AriClient:
         state = payload.get("state")
         return state if isinstance(state, str) else None
 
+    def upsert_endpoint(self, extension: str, password: str, transport: str, context: str) -> None:
+        """Give one extension a fresh password in the Asterisk realtime database (design 4.1).
+
+        ARI writes the three objects PJSIP needs (auth, aor, endpoint) through its ``realtime`` interface; writing the
+        same names again replaces the previous session's password, which is what makes a session password temporary.
+        """
+        objects = (
+            ('auth', extension, {'auth_type': 'userpass', 'username': extension, 'password': password}),
+            ('aor', extension, {'max_contacts': '1', 'remove_existing': 'yes', 'maximum_expiration': '120'}),
+            ('endpoint', extension, {
+                'aors': extension,
+                'auth': extension,
+                'transport': transport,
+                'context': context,
+                'webrtc': 'yes',
+                'direct_media': 'no',
+                'rtp_symmetric': 'yes',
+                'force_rport': 'yes',
+                'rewrite_contact': 'yes',
+            }),
+        )
+        for kind, name, fields in objects:
+            body = {'fields': [{'attribute': key, 'value': value} for key, value in fields.items()]}
+            status, _payload = self._json_request(
+                'PUT', f'/asterisk/realtime/{kind}s/{quote(name, safe="")}', body,
+            )
+            if status not in (200, 201, 204):
+                msg = f'ARI could not write the {kind} of extension {extension}: {status}'
+                raise AriError(msg)
+
+    def _json_request(self, method: str, path: str, body: dict) -> tuple[int, object]:
+        """A call whose payload is a JSON body, which is what the realtime interface of ARI expects."""
+        data = json.dumps(body).encode('utf-8')
+        request = urllib.request.Request(
+            f'{self._base_url}{path}?api_key={quote(self._api_key, safe=":")}',
+            data=data,
+            headers={'Content-Type': 'application/json'},
+            method=method,
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self._timeout) as response:
+                return int(response.status), None
+        except urllib.error.HTTPError as exc:
+            return int(exc.code), None
+        except (OSError, http.client.HTTPException) as exc:
+            msg = f'ARI {method} {path} failed: {type(exc).__name__}'
+            raise AriError(msg) from None
+
     def hangup(self, channel_id: str) -> None:
         status, _payload = self._request("DELETE", f"/channels/{quote(channel_id, safe='')}", None)
         if status not in (200, 204):
