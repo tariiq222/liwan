@@ -403,7 +403,7 @@
     "odoo-addons/liwan_telephony/models/agent_client.py": {
       "count": 1,
       "kind": "required",
-      "reason": "liwan_telephony agent client: `self.env['ir.config_parameter'].sudo()` in `LiwanTelephonyAgent._liwan_ask` reads `liwan.telephony.agent_url` and `liwan.telephony.reverse_key`; `base/security/ir.model.access.csv` `access_ir_config_parameter_system` restricts `ir.config_parameter` read to `base.group_system` only, while authenticated telephony routes (`telephony.use`, `telephony.recordings.listen`) hold no system group and no capability grants system parameters."
+      "reason": "liwan_telephony agent client: `self.env['ir.config_parameter'].sudo()` in `LiwanTelephonyAgent._liwan_config` reads `liwan.telephony.agent_url`, `liwan.telephony.events_key_root`, and `liwan.telephony.reverse_key`; `base/security/ir.model.access.csv` `access_ir_config_parameter_system` restricts `ir.config_parameter` read to `base.group_system` only, while authenticated telephony routes (`telephony.use`, `telephony.manage`, `telephony.recordings.listen`) hold no system group and no capability grants system parameters."
     }
   }
 }

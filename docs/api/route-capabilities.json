@@ -750,6 +750,20 @@
       "handler": "delete_task_attachment",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/telephony/session": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "delete_session",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/access-log": {
       "addon": "liwan_api",
       "auth": "user",
@@ -9159,6 +9173,20 @@
         "pmo.enabled"
       ],
       "handler": "patch_task",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/telephony/extensions/{extension_id}": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "patch_extension",
       "no_capability_reason": null
     },
     "PATCH /api/v1/telephony/lines/{line_id}": {

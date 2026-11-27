@@ -20,7 +20,7 @@ PHONE_USER_PASSWORD = 'telephony_phone_user_pass_123'
 # The deployment's events key root, as the operator hands it to the package and the database.
 EVENTS_KEY_ROOT = 'ab' * 32
 AGENT_URL = 'http://pbx-agent.test:8080'
-AGENT_KEY = 'reverse-key'
+AGENT_KEY = 'cd' * 32
 PARTNER_NUMBER = '+966500000000'
 LINE_NUMBERS = ('+966500000001', '+966500000002')
 CALL_SHAPE = frozenset({
@@ -132,11 +132,23 @@ class LiwanTelephonyCase(LiwanApiCase):
     def sign_in(self, user, password):
         self.authenticate(user.login, password)
 
-    def set_agent(self):
+    def set_agent(self, url=AGENT_URL, reverse_key=AGENT_KEY, key_root=None):
         """Name the company's agent the way the deployment does."""
         params = self.env['ir.config_parameter'].sudo()
-        params.set_param('liwan.telephony.agent_url', AGENT_URL)
-        params.set_param('liwan.telephony.reverse_key', AGENT_KEY)
+        params.set_param('liwan.telephony.agent_url', url)
+        if key_root is not None:
+            params.set_param('liwan.telephony.events_key_root', key_root)
+        if reverse_key is not None:
+            params.set_param('liwan.telephony.reverse_key', reverse_key)
+
+    def patch_agent(self, handler):
+        """Replace ``_liwan_send`` on ``liwan.telephony.agent`` with ``handler(method, url, payload, headers)``."""
+        agent = type(self.env['liwan.telephony.agent'])
+        self.patch(
+            agent,
+            '_liwan_send',
+            lambda _model, method, url, payload, headers: handler(method, url, payload, headers),
+        )
 
 
 class LiwanTelephonyEventsCase(LiwanTelephonyCase):

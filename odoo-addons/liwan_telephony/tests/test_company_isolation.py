@@ -2,7 +2,7 @@
 """Company isolation of the call routes: a call belongs to one company and is not-found in every other."""
 from odoo.tests import tagged
 
-from .common import EVENTS_FEATURE, set_feature
+from .common import AGENT_KEY, AGENT_URL, EVENTS_FEATURE, set_feature
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
     assert_isolation_discovery,
@@ -41,10 +41,14 @@ class TestTelephonyCompanyIsolation(CompanyIsolationCase):
     def setUp(self):
         super().setUp()
         agent = type(self.env['liwan.telephony.agent'])
-        self.patch(agent, '_liwan_post', lambda model, url, payload, key: {'url': 'https://recordings.test/x.wav'})
+        self.patch(
+            agent,
+            '_liwan_send',
+            lambda model, method, url, payload, headers: {'url': 'https://recordings.test/x.wav'},
+        )
         params = self.env['ir.config_parameter'].sudo()
-        params.set_param('liwan.telephony.agent_url', 'http://pbx-agent.test:8080')
-        params.set_param('liwan.telephony.reverse_key', 'reverse-key')
+        params.set_param('liwan.telephony.agent_url', AGENT_URL)
+        params.set_param('liwan.telephony.reverse_key', AGENT_KEY)
 
     def test_a_call_and_its_recording_belong_to_one_company(self):
         for current, company in self.by_tag.items():

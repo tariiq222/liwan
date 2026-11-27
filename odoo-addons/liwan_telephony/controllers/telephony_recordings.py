@@ -56,7 +56,7 @@ class TelephonyRecordingController(http.Controller):
         call = get_visible_record('liwan.telephony.call', call_id)
         if call.recording_state != 'available':
             raise ApiError(404, 'not_found', NO_RECORDING)
-        answer = request.env['liwan.telephony.agent']._liwan_ask('/recordings/link', {
+        answer = request.env['liwan.telephony.agent']._liwan_request('POST', '/recordings/link', {
             'linkedid': call.linkedid,
             'database': request.env.cr.dbname,
             'expires_at': int(time.time()) + RECORDING_LINK_SECONDS,

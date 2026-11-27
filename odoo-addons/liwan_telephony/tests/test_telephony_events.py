@@ -10,17 +10,24 @@ from odoo.tests import mute_logger, new_test_user, tagged
 
 from .common import (
     AGENT_URL,
+    EVENTS_KEY_ROOT,
     LINE_NUMBERS,
     MANAGER_PASSWORD,
     SIGNATURE_HEADER,
     TIMESTAMP_HEADER,
     LiwanTelephonyCase,
     LiwanTelephonyEventsCase,
+    derived_key,
     envelope,
     set_feature,
 )
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_telephony.models.access_service import EVENTS_APPLY
+from odoo.addons.liwan_telephony.models.agent_client import (
+    DATABASE_HEADER,
+    REVERSE_LABEL,
+    _liwan_sign_reverse,
+)
 from odoo.addons.liwan_telephony.models.feature_registry import RECORDING_FEATURE
 
 EVENTS = '/api/v1/telephony/events'
@@ -146,11 +153,11 @@ class TestTelephonyEvents(LiwanTelephonyEventsCase):
         self.set_agent()
         sent = []
 
-        def agent(agent_model, url, payload, key):
-            sent.append((url, key, json.loads(payload)))
+        def agent(method, url, payload, headers):
+            sent.append((method, url, payload, headers))
             return {'url': 'https://recordings.test/1764049999.9.wav'}
 
-        self.patch(type(self.env['liwan.telephony.agent']), '_liwan_post', agent)
+        self.patch_agent(agent)
         self.post_event(envelope('rec-1'))
         call = self.call_of('1764049999.9')
         link = f'{CALLS}/{call.id}/recording'
@@ -165,10 +172,20 @@ class TestTelephonyEvents(LiwanTelephonyEventsCase):
         self.assertEqual((granted.status_code, granted.json()), (200, {
             'url': 'https://recordings.test/1764049999.9.wav', 'expiresInSeconds': 60,
         }))
-        self.assertEqual(sent, [(f'{AGENT_URL}/recordings/link', 'reverse-key', {
+        self.assertEqual(len(sent), 1)
+        method, url, payload, headers = sent[0]
+        body = json.loads(payload)
+        self.assertEqual((method, url), ('POST', f'{AGENT_URL}/recordings/link'))
+        self.assertEqual(body, {
             'linkedid': '1764049999.9', 'database': self.env.cr.dbname,
-            'expires_at': sent[0][2]['expires_at'],
-        })])
+            'expires_at': body['expires_at'],
+        })
+        reverse_key = derived_key(EVENTS_KEY_ROOT, self.env.cr.dbname, REVERSE_LABEL)
+        self.assertEqual(headers[DATABASE_HEADER], self.env.cr.dbname)
+        self.assertEqual(
+            headers[SIGNATURE_HEADER],
+            _liwan_sign_reverse(reverse_key, headers[TIMESTAMP_HEADER], 'POST', '/recordings/link', payload),
+        )
         audit = self.env['liwan.telephony.recording.access'].search([('call_id', '=', call.id)])
         self.assertEqual(audit.user_id, self.manager)
 

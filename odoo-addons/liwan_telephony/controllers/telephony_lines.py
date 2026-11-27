@@ -8,6 +8,7 @@ A write names the field it refuses: an unknown key, a wrong type and an out-of-r
 import re
 
 from odoo import http
+from odoo.exceptions import MissingError
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
@@ -43,6 +44,7 @@ LINE_KEYS = frozenset({
     'maxConcurrent',
 })
 EXTENSION_KEYS = frozenset({'number', 'userId'})
+EXTENSION_PATCH_KEYS = frozenset({'userId', 'active'})
 EXTENSION_NUMBER_PATTERN = re.compile(EXTENSION_NUMBER)
 E164_EXAMPLE = 'for example +966501234567'
 
@@ -205,4 +207,48 @@ class TelephonyLinesController(http.Controller):
             values['user_id'] = _extension_user(payload['userId']).id
         # The limit is claimed under the tenant profile lock before the row exists.
         request.env['liwan.entitlement.service']._liwan_claim_extensions(1)
-        return dump_extension(request.env['liwan.telephony.extension'].create(values))
+        extension = request.env['liwan.telephony.extension'].create(values)
+        agent = request.env['liwan.telephony.agent']
+        if agent._liwan_is_configured():
+            agent._liwan_request('PUT', f'/extensions/{extension.number}', {
+                'database': request.env.cr.dbname,
+                'active': True,
+            })
+        return dump_extension(extension)
+
+    @http.route('/api/v1/telephony/extensions/<int:extension_id>', type='json2', auth='user', methods=['PATCH'])
+    @api_handler
+    @requires_feature(EVENTS_FEATURE, operation='write')
+    @requires_capability('telephony.manage')
+    def patch_extension(self, extension_id, **payload):
+        """Update an extension's user or active flag in the current company, keeping the agent in sync."""
+        extension = request.env['liwan.telephony.extension'].with_context(active_test=False).search(
+            [('id', '=', extension_id), ('company_id', '=', request.env.company.id)], limit=1,
+        )
+        if not extension:
+            raise MissingError(request.env._('Record does not exist'))
+        _no_extra_keys(payload, EXTENSION_PATCH_KEYS)
+        values = {}
+        if 'userId' in payload:
+            values['user_id'] = False if payload['userId'] is None else _extension_user(payload['userId']).id
+        if 'active' in payload:
+            if type(payload['active']) is not bool:
+                _refuse('active', 'active must be a boolean')
+            values['active'] = payload['active']
+        was_active = bool(extension.active)
+        next_active = values.get('active', was_active)
+        agent = request.env['liwan.telephony.agent']
+        if was_active and not next_active:
+            # Fail closed: notify Asterisk before disabling in Odoo so the two never disagree.
+            if agent._liwan_is_configured():
+                agent._liwan_request('DELETE', f'/extensions/{extension.number}')
+        elif not was_active and next_active:
+            request.env['liwan.entitlement.service']._liwan_claim_extensions(1)
+            if agent._liwan_is_configured():
+                agent._liwan_request('PUT', f'/extensions/{extension.number}', {
+                    'database': request.env.cr.dbname,
+                    'active': True,
+                })
+        if values:
+            extension.write(values)
+        return dump_extension(extension)

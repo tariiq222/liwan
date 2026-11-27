@@ -1,9 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The lines and extensions of the settings page (design sections 5, 8): what a write accepts and what it refuses."""
+import json
+import urllib.error
+
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
 from .common import (
+    AGENT_KEY,
+    AGENT_URL,
     LINE_NUMBERS,
     LINE_SHAPE,
     MANAGER_PASSWORD,
@@ -12,6 +17,12 @@ from .common import (
     set_feature,
 )
 from .test_telephony_calls import assert_refused
+from odoo.addons.liwan_telephony.models.agent_client import (
+    DATABASE_HEADER,
+    SIGNATURE_HEADER,
+    TIMESTAMP_HEADER,
+    _liwan_sign_reverse,
+)
 from odoo.addons.liwan_telephony.models.feature_registry import (
     EVENTS_FEATURE,
     EXTENSIONS_LIMIT,
@@ -197,3 +208,33 @@ class TestTelephonyExtensions(LiwanTelephonyCase):
         self.sign_in(self.phone_user, PHONE_USER_PASSWORD)
         self.assertEqual(self.api('GET', EXTENSIONS).status_code, 200)
         assert_refused(self, self.create(number='1003'), 403, 'forbidden')
+
+    def test_creating_an_extension_notifies_the_agent_when_configured_and_rolls_back_on_failure(self):
+        self.set_agent()
+        sent = []
+
+        def record(method, url, payload, headers):
+            sent.append((method, url, payload, headers))
+            return {'ok': True}
+
+        self.patch_agent(record)
+        created = self.create(number='1007')
+        self.assertEqual(created.status_code, 200, created.text)
+        self.assertEqual(len(sent), 1)
+        method, url, payload, headers = sent[0]
+        self.assertEqual((method, url), ('PUT', f'{AGENT_URL}/extensions/1007'))
+        self.assertEqual(json.loads(payload), {'database': self.env.cr.dbname, 'active': True})
+        self.assertEqual(headers[DATABASE_HEADER], self.env.cr.dbname)
+        self.assertEqual(
+            headers[SIGNATURE_HEADER],
+            _liwan_sign_reverse(AGENT_KEY, headers[TIMESTAMP_HEADER], 'PUT', '/extensions/1007', payload),
+        )
+
+        def fail(method, url, payload, headers):
+            reason = 'agent down'
+            raise urllib.error.URLError(reason)
+
+        self.patch_agent(fail)
+        refused = self.create(number='1008')
+        assert_refused(self, refused, 503, 'unavailable')
+        self.assertFalse(self.env['liwan.telephony.extension'].search([('number', '=', '1008')]))

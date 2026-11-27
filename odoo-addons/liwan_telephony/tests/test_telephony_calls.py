@@ -174,19 +174,18 @@ class TestTelephonyCalls(LiwanTelephonyCase):
         assert_refused(self, unconfigured, 503, 'unavailable')
         self.assertEqual(unconfigured.json()['message'], AGENT_NOT_CONFIGURED)
         self.set_agent()
-        agent = type(self.env['liwan.telephony.agent'])
 
-        def failing(agent_model, url, payload, key):
+        def failing(method, url, payload, headers):
             message = 'secret-host-internal: refused'
             raise urllib.error.URLError(message)
 
-        self.patch(agent, '_liwan_post', failing)
+        self.patch_agent(failing)
         with self.assertNoLogs(API_LOGGER, 'ERROR'):
             failed = self.api('GET', link)
         assert_refused(self, failed, 503, 'unavailable')
         self.assertEqual(failed.json()['message'], AGENT_UNREACHABLE)
         self.assertNotIn('secret-host-internal', failed.text)
-        self.patch(agent, '_liwan_post', lambda agent_model, url, payload, key: {'link': 'https://x'})
+        self.patch_agent(lambda method, url, payload, headers: {'link': 'https://x'})
         assert_refused(self, self.api('GET', link), 502, 'bad_gateway')
         self.assertFalse(self.env['liwan.telephony.recording.access'].search([('call_id', '=', self.call.id)]))
 
@@ -197,14 +196,13 @@ class TestTelephonyCalls(LiwanTelephonyCase):
         unconfigured = self.api('POST', SESSION, json={})
         self.assertEqual((unconfigured.status_code, unconfigured.json()['message']), (503, AGENT_NOT_CONFIGURED))
         self.set_agent()
-        agent = type(self.env['liwan.telephony.agent'])
-        self.patch(agent, '_liwan_post', lambda agent_model, url, payload, key: {'ws_url': '', 'password': 'x'})
+        self.patch_agent(lambda method, url, payload, headers: {'ws_url': '', 'password': 'x'})
         assert_refused(self, self.api('POST', SESSION, json={}), 502, 'bad_gateway')
-        self.patch(agent, '_liwan_post', lambda agent_model, url, payload, key: {
-            'ws_url': 'wss://pbx.test/ws', 'password': 'once', 'ice_servers': [{'urls': 'turn:turn.test'}],
-            'expires_in_seconds': 90,
+        self.patch_agent(lambda method, url, payload, headers: {
+            'ws_url': 'wss://pbx.test/ws', 'auth_username': '1001-auth', 'password': 'once',
+            'ice_servers': [{'urls': 'turn:turn.test'}], 'expires_in_seconds': 90,
         })
         self.assertEqual(self.api('POST', SESSION, json={}).json(), {
-            'wsUrl': 'wss://pbx.test/ws', 'extension': '1001', 'password': 'once',
+            'wsUrl': 'wss://pbx.test/ws', 'extension': '1001', 'authUsername': '1001-auth', 'password': 'once',
             'iceServers': [{'urls': 'turn:turn.test'}], 'expiresInSeconds': 90,
         })

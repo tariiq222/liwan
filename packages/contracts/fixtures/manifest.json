@@ -1495,6 +1495,22 @@
       "route": "/api/v1/telephony/extensions",
       "status": 200,
       "schema": "TelephonyExtensionListSchema"
+    },
+    {
+      "name": "telephony/session",
+      "addon": "liwan_telephony",
+      "method": "POST",
+      "route": "/api/v1/telephony/session",
+      "status": 200,
+      "schema": "TelephonySessionSchema"
+    },
+    {
+      "name": "telephony/session-revoke",
+      "addon": "liwan_telephony",
+      "method": "DELETE",
+      "route": "/api/v1/telephony/session",
+      "status": 200,
+      "schema": "TelephonySessionRevokeSchema"
     }
   ]
 }

@@ -118823,6 +118823,40 @@
         ],
         "type": "object"
       },
+      "TelephonyIceServerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "credential": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "urls": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array"
+              }
+            ]
+          },
+          "username": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "urls"
+        ],
+        "type": "object"
+      },
       "TelephonyIdSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "exclusiveMinimum": 0,
@@ -119451,6 +119485,92 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "TelephonySessionRevokeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "revoked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revoked"
+        ],
+        "type": "object"
+      },
+      "TelephonySessionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "authUsername": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "extension": {
+            "pattern": "^\\d{2,10}$",
+            "type": "string"
+          },
+          "iceServers": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "credential": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "urls": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "items": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "type": "array"
+                    }
+                  ]
+                },
+                "username": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "urls"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "password": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "wsUrl": {
+            "pattern": "^wss?:\\/\\/.+",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wsUrl",
+          "extension",
+          "authUsername",
+          "password",
+          "iceServers",
+          "expiresInSeconds"
         ],
         "type": "object"
       },
@@ -172468,6 +172588,59 @@
         }
       }
     },
+    "/api/v1/telephony/extensions/{extension_id}": {
+      "patch": {
+        "operationId": "liwan_telephony.TelephonyLinesController.patch_extension.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "extension_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Update an extension's user or active flag in the current company, keeping the agent in sync.",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonyLinesController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_extension",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/telephony/lines": {
       "get": {
         "operationId": "liwan_telephony.TelephonyLinesController.list_lines.get",
@@ -172640,6 +172813,44 @@
       }
     },
     "/api/v1/telephony/session": {
+      "delete": {
+        "operationId": "liwan_telephony.TelephonySessionController.delete_session.delete",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_session",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySessionController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_session",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      },
       "post": {
         "operationId": "liwan_telephony.TelephonySessionController.create_session.post",
         "responses": {

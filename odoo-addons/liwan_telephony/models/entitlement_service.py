@@ -15,7 +15,8 @@ class LiwanTelephonyEntitlementService(models.AbstractModel):
 
     @api.model
     def _liwan_count_extensions(self):
-        self.env.cr.execute('SELECT count(*) FROM liwan_telephony_extension')
+        self.env['liwan.telephony.extension'].flush_model(['active'])
+        self.env.cr.execute('SELECT count(*) FROM liwan_telephony_extension WHERE active IS TRUE')
         return self.env.cr.fetchone()[0]
 
     @api.model
