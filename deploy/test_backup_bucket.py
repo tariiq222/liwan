@@ -14,10 +14,14 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+from urllib.parse import parse_qs, unquote, urlsplit
 
-from deploy.backup import bucket
-from deploy.backup.artifact import CONTENTS_MEMBER, OBJECTS_DIRECTORY
-from deploy.backup.bucket import BucketManifest, ObjectMeta
+from deploy import s3_client
+from deploy.backup import bucket, verify
+from deploy.backup.artifact import CONTENTS_MEMBER, DATABASE_MEMBER, MANIFEST_NAME, OBJECTS_DIRECTORY
+from deploy.backup.bucket import BucketManifest, ObjectMeta, S3BucketSource
 from deploy.backup.errors import BackupError
 from deploy.s3_client import StorageError
 
@@ -429,6 +433,165 @@ class TestNoSecret(BucketCase):
         with self.assertRaises(BackupError) as refused:
             bucket.copy_out(Missing({'ab/cdef': b'attachment'}), self.destination('second'))
         self.assertNotIn(SECRET, str(refused.exception))
+
+
+class FakeS3Transport:
+    """In-memory S3 HTTP transport supporting ListObjectsV2, HEAD, GET, PUT, and multipart uploads."""
+
+    def __init__(self, bucket_name: str, initial: dict[str, bytes] | None = None) -> None:
+        self.bucket = bucket_name
+        self.objects: dict[str, bytes] = dict(initial or {})
+        self._uploads: dict[str, tuple[str, dict[int, bytes]]] = {}
+        self._next_upload = 1
+
+    def __call__(self, request: s3_client.HttpRequest) -> tuple[int, dict[str, str], bytes]:
+        parsed = urlsplit(request.url)
+        prefix = f'/{self.bucket}'
+        assert parsed.path.startswith(prefix), parsed.path
+        raw_key = parsed.path[len(prefix):].lstrip('/')
+        key = unquote(raw_key)
+        query = parse_qs(parsed.query, keep_blank_values=True)
+
+        if request.method == 'GET' and not key and query.get('list-type') == ['2']:
+            filter_prefix = query.get('prefix', [''])[0]
+            items = [
+                f'<Contents><Key>{k}</Key><Size>{len(v)}</Size></Contents>'
+                for k, v in sorted(self.objects.items()) if k.startswith(filter_prefix)
+            ]
+            body = f'<ListBucketResult><IsTruncated>false</IsTruncated>{"".join(items)}</ListBucketResult>'.encode('utf-8')
+            return 200, {}, body
+
+        if request.method == 'HEAD':
+            if key not in self.objects:
+                return 404, {}, b''
+            return 200, {'Content-Length': str(len(self.objects[key]))}, b''
+
+        if request.method == 'GET':
+            if key not in self.objects:
+                return 404, {}, b''
+            data = self.objects[key]
+            if request.download is not None:
+                request.download.write(data)
+                return 200, {'Content-Length': str(len(data))}, b''
+            return 200, {'Content-Length': str(len(data))}, data
+
+        if request.method == 'POST' and 'uploads' in query:
+            upload_id = f'up-{self._next_upload}'
+            self._next_upload += 1
+            self._uploads[upload_id] = (key, {})
+            body = f'<InitiateMultipartUploadResult><UploadId>{upload_id}</UploadId></InitiateMultipartUploadResult>'.encode('utf-8')
+            return 200, {}, body
+
+        if request.method == 'PUT' and 'uploadId' in query:
+            upload_id = query['uploadId'][0]
+            part_number = int(query['partNumber'][0])
+            self._uploads[upload_id][1][part_number] = request.body
+            return 200, {'ETag': f'"part-{part_number}"'}, b''
+
+        if request.method == 'POST' and 'uploadId' in query:
+            upload_id = query['uploadId'][0]
+            target_key, parts = self._uploads.pop(upload_id)
+            headers_lower = {k.lower(): v for k, v in request.headers.items()}
+            if headers_lower.get('if-none-match') == '*' and target_key in self.objects:
+                return 412, {}, b''
+            self.objects[target_key] = b''.join(parts[n] for n in sorted(parts))
+            return 200, {}, b'<CompleteMultipartUploadResult/>'
+
+        if request.method == 'DELETE' and 'uploadId' in query:
+            self._uploads.pop(query['uploadId'][0], None)
+            return 204, {}, b''
+
+        if request.method == 'PUT':
+            headers_lower = {k.lower(): v for k, v in request.headers.items()}
+            if headers_lower.get('if-none-match') == '*' and key in self.objects:
+                return 412, {}, b''
+            self.objects[key] = request.body
+            return 200, {}, b''
+
+        return 405, {}, b''
+
+
+class TestS3BucketSourceAndVerify(BucketCase):
+    def _credentials(self, bucket_name: str = 'tenant-bucket') -> s3_client.Credentials:
+        return s3_client.Credentials(
+            access_key='AKIA_TEST_KEY',
+            secret_key=SECRET,
+            region='me-jeddah-1',
+            endpoint='https://namespace.compat.objectstorage.me-jeddah-1.oraclecloud.com',
+            bucket=bucket_name,
+        )
+
+    def test_copy_out_and_populate_round_trip_including_empty_object(self):
+        initial = {'ab/cdef': b'invoice-pdf-bytes', '00/empty': b''}
+        src_transport = FakeS3Transport('tenant-src', initial)
+        dst_transport = FakeS3Transport('tenant-dst')
+        src = S3BucketSource.from_credentials(self._credentials('tenant-src'), transport=src_transport)
+        dst = S3BucketSource.from_credentials(self._credentials('tenant-dst'), transport=dst_transport)
+
+        copied_dir = self.destination('artifact')
+        manifest = bucket.copy_out(src, copied_dir)
+        self.assertEqual(manifest.object_count, 2)
+        self.assertEqual(manifest.object_bytes, len(b'invoice-pdf-bytes'))
+
+        bucket.populate(copied_dir, dst, manifest.index_sha256)
+        self.assertEqual(dst_transport.objects, initial)
+        # Re-populating into the same non-empty bucket refuses overwrite (If-None-Match: *).
+        with self.assertRaises(BackupError) as refused:
+            bucket.populate(copied_dir, dst, manifest.index_sha256)
+        self.assertNotIn(SECRET, str(refused.exception))
+
+    def test_restore_verified_populates_target_bucket_and_checks_attachments(self):
+        import json as _json
+
+        initial = {'ab/cdef': b'attachment-one'}
+        src_transport = FakeS3Transport('tenant-src', initial)
+        dst_transport = FakeS3Transport('tenant-dst')
+        src = S3BucketSource.from_credentials(self._credentials('tenant-src'), transport=src_transport)
+        dst = S3BucketSource.from_credentials(self._credentials('tenant-dst'), transport=dst_transport)
+
+        artifact_dir = self.destination('verified-artifact')
+        dump_path = artifact_dir / DATABASE_MEMBER
+        dump_path.write_bytes(b'PGDMP-fake')
+        copied = bucket.copy_out(src, artifact_dir)
+        (artifact_dir / MANIFEST_NAME).write_text(_json.dumps({
+            'db_name': 'liwan_tenant_a',
+            'format': 'odoo-pg-bucket-v1',
+            'consistency': 'UNVERIFIED',
+            'database_sha256': hashlib.sha256(b'PGDMP-fake').hexdigest(),
+            **copied.payload(),
+        }), encoding='utf-8')
+
+        fake_bin = self.root / 'fake-bin'
+        fake_bin.write_text('#!/bin/sh\nexit 0\n', encoding='utf-8')
+        fake_bin.chmod(0o755)
+
+        def fake_runner(argv, **kwargs):
+            cmd = ' '.join(argv)
+            if 'ir_module_module' in cmd and 'installed' in cmd:
+                return SimpleNamespace(returncode=0, stdout='liwan_core\nliwan_platform\n', stderr='')
+            if 'ir_module_module' in cmd:
+                return SimpleNamespace(returncode=0, stdout='0\n', stderr='')
+            if 'ir_attachment' in cmd:
+                return SimpleNamespace(returncode=0, stdout='ab/cdef\n', stderr='')
+            return SimpleNamespace(returncode=0, stdout='', stderr='')
+
+        tools = verify.RestoreTools(pg_restore=fake_bin, psql=fake_bin, runner=fake_runner)
+        pg = verify.PostgresConnection(user='odoo')
+
+        with self.assertRaises(BackupError):
+            verify.restore_verified(artifact=artifact_dir, target_db='liwan_scratch_bad', tools=tools, pg=pg)
+
+        with patch.object(verify, 'expected_modules', return_value=['liwan_core', 'liwan_platform']):
+            result = verify.restore_verified(
+                artifact=artifact_dir,
+                target_db='liwan_scratch_oci_ok',
+                target_bucket=dst,
+                tools=tools,
+                pg=pg,
+            )
+        self.assertTrue(result['restore_verified'], result)
+        self.assertEqual(result['checks']['missing_attachment_files'], [])
+        self.assertEqual(dst_transport.objects, initial)
 
 
 if __name__ == '__main__':

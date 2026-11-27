@@ -51,6 +51,7 @@ IF_NONE_MATCH_ANY = '*'
 LIST_TYPE = '2'
 LIST_CONTENTS = 'Contents'
 LIST_KEY = 'Key'
+LIST_SIZE = 'Size'
 LIST_IS_TRUNCATED = 'IsTruncated'
 LIST_NEXT_CONTINUATION_TOKEN = 'NextContinuationToken'
 TRUE_LITERAL = 'true'
@@ -509,6 +510,23 @@ class S3Store:
             if not token:
                 return sorted(keys)
 
+    def list_objects(self, prefix: str) -> list[tuple[str, int]]:
+        """List objects under ``prefix`` as key-sorted ``(key, size)`` pairs."""
+        objects: list[tuple[str, int]] = []
+        token = ''
+        while True:
+            params = {'list-type': LIST_TYPE, 'prefix': prefix}
+            if token:
+                params['continuation-token'] = token
+            status, _headers, body = self._send(
+                'GET', (), query=canonical_query_string(params),
+            )
+            self._require_success(status, prefix, 'list')
+            page, token = _parse_listing_objects(body, prefix)
+            objects.extend(page)
+            if not token:
+                return sorted(objects, key=lambda item: item[0])
+
     def delete(self, key: str) -> None:
         # S3 answers 204 for an absent key, so absence is checked first: retention
         # pruning must behave identically against a bucket and against a filesystem.
@@ -611,3 +629,37 @@ def _parse_listing(body: bytes, prefix: str) -> tuple[list[str], str]:
         message = f'list response for {prefix} claims more pages without a continuation token'
         raise StorageError(message)
     return keys, token
+
+
+def _parse_listing_objects(body: bytes, prefix: str) -> tuple[list[tuple[str, int]], str]:
+    """Read one ListBucketResult page: its ``(key, size)`` entries and continuation token."""
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError as error:
+        message = f'list response for {prefix} is not valid XML'
+        raise StorageError(message) from error
+    namespace = _namespace_of(root.tag)
+    entries = root.findall(namespace + LIST_CONTENTS)
+    objects: list[tuple[str, int]] = []
+    for entry in entries:
+        key = _element_text(entry, LIST_KEY, namespace)
+        if not key:
+            continue
+        raw_size = _element_text(entry, LIST_SIZE, namespace)
+        try:
+            size = int(raw_size)
+        except ValueError as error:
+            message = f'list response for {prefix} has invalid size for {key}'
+            raise StorageError(message) from error
+        if size < 0:
+            message = f'list response for {prefix} has negative size for {key}'
+            raise StorageError(message)
+        objects.append((key, size))
+    truncated = _element_text(root, LIST_IS_TRUNCATED, namespace).lower() == TRUE_LITERAL
+    token = _element_text(root, LIST_NEXT_CONTINUATION_TOKEN, namespace)
+    if not truncated:
+        return objects, ''
+    if not token:
+        message = f'list response for {prefix} claims more pages without a continuation token'
+        raise StorageError(message)
+    return objects, token
