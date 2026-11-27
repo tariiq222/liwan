@@ -29,7 +29,7 @@ export const AUDIT_ACTIONS = [
   'shared_backup.verified', 'shared_job.abandon_refused', 'shared_job.abandon_requested', 'shared_job.abandoned', 'shared_job.enrollment_authority_invalid', 'shared_job.lease_expired',
   'shared_job.queued', 'shared_job.recovery_completed', 'shared_job.recovery_observed', 'shared_job.recovery_requested', 'shared_job.replayed',
   'shared_odoo_backup.verified', 'shared_odoo_restore.approved', 'shared_odoo_restore.publication_requested', 'shared_odoo_restore.route_published',
-  'shared_onboarding.reserved', 'shared_order.created', 'shared_restore.completed',
+  'shared_onboarding.reserved', 'shared_restore.completed',
   'subscription.cancel_requested', 'subscription.cancel_withdrawn', 'subscription.cancellation_effective', 'subscription.refund_lock_armed', 'subscription.resumed', 'subscription.suspended',
   'tenant.operations.disabled', 'tenant.operations.enabled', 'tenant.registered',
   'tenant_deletion.card_not_deleted', 'tenant_deletion.code_invalidated', 'tenant_deletion.code_sent', 'tenant_deletion.committed', 'tenant_deletion.confirmed', 'tenant_deletion.deleted',

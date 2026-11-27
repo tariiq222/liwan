@@ -9,4 +9,9 @@ services:
     networks: [control_data, control_db_host]
 
 networks:
-  control_db_host: {}
+  # Same two-layer isolation as `db_host` in deploy/stack/compose.yml: no masquerade and a fixed bridge
+  # interface name matched by deploy/release/liwan-firewall.sh (docs/operations/environment-bringup.md A3.6).
+  control_db_host:
+    driver_opts:
+      com.docker.network.bridge.name: liwan-cpdbhost
+      com.docker.network.bridge.enable_ip_masquerade: "false"

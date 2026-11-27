@@ -30,7 +30,7 @@ describe('the Plan 6d pages stay on their templates', () => {
   })
 
   it.each([
-    'pages/settings/company/index.vue', 'pages/settings/system/index.vue', 'pages/settings/team/users/[userId]/access.vue',
+    'pages/settings/company/index.vue', 'pages/settings/system.vue', 'pages/settings/team/users/[userId]/access.vue',
     'pages/settings/team/users/[userId]/security.vue', 'pages/settings/team/roles/[roleId]/edit.vue', 'pages/account/settings.vue',
   ])('%s stays on the settings template', (file) => {
     const source = read(file)

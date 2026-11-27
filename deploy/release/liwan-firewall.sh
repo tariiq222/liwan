@@ -1,5 +1,5 @@
 #!/bin/sh
-# The three host firewall rules of docs/operations/environment-bringup.md step A3.6, added only when absent.
+# The five host firewall rules of docs/operations/environment-bringup.md step A3.6, added only when absent.
 # Run at boot by liwan-firewall.service and by bringup.py. `--check` adds nothing: it lists the absent rules and exits 1.
 # Every rule is attempted on its own; the exit status is 1 when any rule is absent (`--check`) or could not be added.
 set -u
@@ -31,6 +31,8 @@ ensure() {
 
 ensure DOCKER-USER -i liwan-dbhost -m conntrack --ctstate NEW -j DROP
 ensure INPUT -i liwan-dbhost -m conntrack --ctstate NEW -j DROP
+ensure DOCKER-USER -i liwan-cpdbhost -m conntrack --ctstate NEW -j DROP
+ensure INPUT -i liwan-cpdbhost -m conntrack --ctstate NEW -j DROP
 ensure INPUT -s 172.29.40.0/24 -d 172.29.40.1 -p tcp --dport 4188 -m conntrack --ctstate NEW -j ACCEPT
 
 exit "$failed"

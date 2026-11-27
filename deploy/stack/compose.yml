@@ -444,7 +444,7 @@ services:
     tmpfs: ["/run:uid=13,gid=13,mode=0750", "/var/spool/squid:uid=13,gid=13,mode=0750", "/var/log/squid:uid=13,gid=13,mode=0750"]
     expose: ["3128"]
     environment:
-      AI_EGRESS_HOSTS: "${ODOO_EGRESS_HOSTS:-api.authentica.sa,graph.facebook.com,lookaside.fbsbx.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,.tiktokv.com,ksa.paymob.com,uae.paymob.com,accept.paymob.com,oman.paymob.com,ctrl.email.me-jeddah-1.oci.oraclecloud.com,logging.me-jeddah-1.oci.oraclecloud.com}${LIWAN_OBJECT_STORAGE_COMPAT_HOST:+,${LIWAN_OBJECT_STORAGE_COMPAT_HOST}}"
+      AI_EGRESS_HOSTS: "${ODOO_EGRESS_HOSTS:-api.authentica.sa,graph.facebook.com,lookaside.fbsbx.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,.tiktokv.com,ksa.paymob.com,uae.paymob.com,accept.paymob.com,oman.paymob.com,gw-fatoora.zatca.gov.sa,ctrl.email.me-jeddah-1.oci.oraclecloud.com,logging.me-jeddah-1.oci.oraclecloud.com}${LIWAN_OBJECT_STORAGE_COMPAT_HOST:+,${LIWAN_OBJECT_STORAGE_COMPAT_HOST}}"
       EGRESS_DENY_PRIVATE: "yes"
       # No tenant host files: nothing writes a tenant's own hosts for Odoo.
       AI_TENANT_EGRESS_DIR: ""

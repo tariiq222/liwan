@@ -55,7 +55,7 @@ else describe('shared backup and restore authority', () => {
     await migrate(pool)
     await ensureTenantDatabases(pool, scratchDatabases)
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
-    await pool.query('TRUNCATE shared_payment_events, shared_orders, shared_restore_approvals, shared_backups CASCADE')
+    await pool.query('TRUNCATE shared_restore_approvals, shared_backups CASCADE')
     await pool.query('TRUNCATE tenants, catalog_entries CASCADE')
     await pool.query('TRUNCATE vendor_accounts CASCADE')
     await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')

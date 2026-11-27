@@ -50,10 +50,12 @@ STATE = '/var/lib/liwan-release/staging'
 POOL_ROOT, POOL_STATE = f'{STATE}/pools', f'{STATE}/pools/default/state'
 # The fake's scratch directory: a capability probe writes here and nothing it writes is kept or reused.
 SCRATCH = '/scratch/docker-config'
-# The three rules of A3.6, as the arguments after the chain name.
+# The five rules of A3.6, as the arguments after the chain name.
 FIREWALL_RULES = [
     ['DOCKER-USER', '-i', 'liwan-dbhost', '-m', 'conntrack', '--ctstate', 'NEW', '-j', 'DROP'],
     ['INPUT', '-i', 'liwan-dbhost', '-m', 'conntrack', '--ctstate', 'NEW', '-j', 'DROP'],
+    ['DOCKER-USER', '-i', 'liwan-cpdbhost', '-m', 'conntrack', '--ctstate', 'NEW', '-j', 'DROP'],
+    ['INPUT', '-i', 'liwan-cpdbhost', '-m', 'conntrack', '--ctstate', 'NEW', '-j', 'DROP'],
     ['INPUT', '-s', '172.29.40.0/24', '-d', '172.29.40.1', '-p', 'tcp', '--dport', '4188', '-m', 'conntrack', '--ctstate',
      'NEW', '-j', 'ACCEPT'],
 ]
@@ -530,7 +532,7 @@ class BringupTest(unittest.TestCase):
 
 
 class FirewallFilesTest(unittest.TestCase):
-    def test_script_ensures_the_three_rules_of_a3_6_and_checks_before_inserting(self):
+    def test_script_ensures_the_five_rules_of_a3_6_and_checks_before_inserting(self):
         text = (HERE / 'liwan-firewall.sh').read_text(encoding='utf-8')
         found = [line.split()[1:] for line in text.splitlines() if line.startswith('ensure ')]
         self.assertEqual(FIREWALL_RULES, found)
@@ -558,7 +560,10 @@ class FirewallFilesTest(unittest.TestCase):
     def test_every_rule_is_attempted_and_a_failure_is_reported_at_the_end(self):
         done, log = self.run_script(fail_chain='DOCKER-USER')
         inserts = [line for line in log if ' -I ' in line]
-        self.assertEqual(['-w 5 -I DOCKER-USER', '-w 5 -I INPUT', '-w 5 -I INPUT'], [' '.join(line.split()[:4]) for line in inserts])
+        self.assertEqual(
+            ['-w 5 -I DOCKER-USER', '-w 5 -I INPUT', '-w 5 -I DOCKER-USER', '-w 5 -I INPUT', '-w 5 -I INPUT'],
+            [' '.join(line.split()[:4]) for line in inserts],
+        )
         self.assertEqual(1, done.returncode)
         self.assertIn('failed: DOCKER-USER', done.stderr)
         self.assertTrue(all(line.startswith('-w 5 ') for line in log))
@@ -571,7 +576,7 @@ class FirewallFilesTest(unittest.TestCase):
     def test_check_mode_lists_absent_rules_and_inserts_nothing(self):
         done, log = self.run_script('--check')
         self.assertEqual(1, done.returncode)
-        self.assertEqual(3, done.stdout.count('absent:'))
+        self.assertEqual(5, done.stdout.count('absent:'))
         self.assertEqual([], [line for line in log if ' -I ' in line])
 
     def test_unit_is_a_oneshot_after_and_part_of_docker(self):

@@ -57,8 +57,9 @@ type Call = <T>(path: string, options?: { method?: string; body?: unknown }) => 
 
 /**
  * Restores one backup to a separate copy: approve it (unless an open approval is given), then queue the restore job. The two
- * calls run in that order, each after its own fresh passkey check. A failure of the second leaves the approval open: the
- * error carries its id so the caller can resume it instead of approving again.
+ * calls run in that order; both `POST .../restore-approvals` and `POST .../jobs` require a fresh passkey step-up (valid for
+ * the 5-minute `STEP_UP_MS` session window, so a single fresh confirmation covers both calls within that window). A failure of
+ * the second leaves the approval open: the error carries its id so the caller can resume it instead of approving again.
  */
 export async function restoreFromBackup(request: Call, input: { tenantId: string; backupId: string; reason: string; requestId: string; approvalId?: string | null }): Promise<{ approvalId: string; jobId: string }> {
   const base = `shared/tenants/${encodeURIComponent(input.tenantId)}`

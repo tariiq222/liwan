@@ -21,7 +21,7 @@ const status = useFinanceZatcaStatus(() => can('finance.zatca.read'))
         :title="t('financeGovernance.zatca.backlog.overdueReporting', { count: status.data.value.overdue_reporting })" />
       <ZatcaBacklog :backlog="status.data.value.backlog" />
       <ZatcaWorkList />
-      <ZatcaJournals :journals="status.data.value.journals" :onboarding-available="status.data.value.api_mode === 'sandbox'" />
+      <ZatcaJournals :journals="status.data.value.journals" :onboarding-available="['sandbox', 'preprod', 'prod'].includes(status.data.value.api_mode)" />
       <p class="text-sm text-muted">
         {{ t('financeGovernance.zatca.setupHint') }}
         <NuxtLink to="/settings/apps/finance#setup" class="text-primary hover:underline">{{ t('financeGovernance.zatca.setupLink') }}</NuxtLink>

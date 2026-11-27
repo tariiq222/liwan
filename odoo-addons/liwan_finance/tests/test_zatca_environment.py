@@ -21,7 +21,7 @@ MODE_URL = '/api/v1/finance/zatca/mode'
 @tagged('post_install', '-at_install', 'liwan')
 class TestZatcaEnvironment(LiwanFinanceWriteCase):
 
-    def test_mode_permission_is_independent_and_release_gate_refuses_both_modes(self):
+    def test_mode_permission_is_independent_and_switches_released_modes(self):
         self.assertRefused(self.api('POST', MODE_URL, json={
             'mode': 'preprod', 'confirmation': 'SIMULATION',
         }), 403, 'forbidden')
@@ -30,20 +30,26 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
         self.assertRefused(self.api('POST', MODE_URL, json={
             'mode': 'preprod', 'confirmation': 'simulation',
         }), 422, 'invalid', 'confirmation')
-        for mode, confirmation, code in (
-            ('preprod', 'SIMULATION', 'zatca_simulation_not_released'),
-            ('prod', 'PRODUCTION', 'zatca_production_not_released'),
-        ):
-            self.assertRefused(self.api('POST', MODE_URL, json={
-                'mode': mode, 'confirmation': confirmation,
-            }), 422, code)
         self.assertRefused(self.api('POST', MODE_URL, json={
             'mode': 'preprod', 'confirmation': 'SIMULATION', 'company_id': self.other_company.id,
         }), 404, 'not_found')
         replay = self.api('POST', MODE_URL, json={'mode': 'sandbox', 'confirmation': 'SANDBOX'})
         self.assertEqual(replay.status_code, 200, replay.text)
         self.assertEqual(replay.json(), {'api_mode': 'sandbox', 'changed': False})
-        self.assertEqual(self.company.l10n_sa_api_mode, 'sandbox')
+        for mode, confirmation in (
+            ('preprod', 'SIMULATION'),
+            ('prod', 'PRODUCTION'),
+            ('sandbox', 'SANDBOX'),
+        ):
+            response = self.api('POST', MODE_URL, json={'mode': mode, 'confirmation': confirmation})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.json(), {'api_mode': mode, 'changed': True})
+            self.company.invalidate_recordset(['l10n_sa_api_mode'])
+            self.assertEqual(self.company.l10n_sa_api_mode, mode)
+            # Replaying the current mode is a no-op and does not reset certificates.
+            again = self.api('POST', MODE_URL, json={'mode': mode, 'confirmation': confirmation})
+            self.assertEqual(again.status_code, 200, again.text)
+            self.assertEqual(again.json(), {'api_mode': mode, 'changed': False})
         self.assertEqual(self.other_company.l10n_sa_api_mode, 'sandbox')
 
     def test_vendor_support_does_not_hold_the_environment_permission(self):
@@ -63,7 +69,7 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
             self.assertRefused(result, 403, 'forbidden')
             lock.assert_not_called()
 
-    def test_stock_company_noop_keeps_journal_credentials_and_disallows_other_modes(self):
+    def test_stock_company_noop_keeps_journal_credentials_and_direct_change_requires_dedicated_flow(self):
         journal = self._journal(self.company, 'sale')
         with patch.object(type(journal), '_l10n_sa_reset_certificates', autospec=True) as reset:
             self.company.write({'l10n_sa_api_mode': 'sandbox'})
@@ -72,7 +78,7 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
             with self.subTest(mode=mode), self.assertRaises(ValidationError), self.env.cr.savepoint():
                 self.company.sudo().write({'l10n_sa_api_mode': mode})
         with self.assertRaises(ValidationError), self.env.cr.savepoint():
-            self.env['res.company'].with_context(default_l10n_sa_api_mode='prod').create(company_values('Refused'))
+            self.env['res.company'].with_context(default_l10n_sa_api_mode='invalid').create(company_values('Refused'))
 
     def test_native_sandbox_post_callback_delegates_and_other_operations_are_preserved(self):
         move = self.env['account.move'].browse(self.create_invoice()['id'])
@@ -91,7 +97,7 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
         journal = move.journal_id
         edi = self.env.ref('l10n_sa_edi.edi_sa_zatca')
         wizard = self.env['l10n_sa_edi.otp.wizard'].create({'journal_id': journal.id, 'l10n_sa_otp': '123345'})
-        for mode in ('preprod', 'prod'):
+        for mode in (False, 'unknown'):
             with self.subTest(mode=mode), patch.object(type(move.company_id), '_liwan_zatca_runtime_mode',
                                                         create=True, return_value=mode):
                 with patch.object(type(edi), '_l10n_sa_post_zatca_edi', autospec=True) as post:

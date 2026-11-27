@@ -105,6 +105,9 @@ const METHOD_BOUND = [
   // The shared backup flow: read the listing, approve a restore of one backup, queue a backup or a restore job.
   { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/backups$`), methods: ['GET'] },
   { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/(restore-approvals|jobs)$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/restore-publications/${SEGMENT}$`), methods: ['GET', 'POST'] },
+  { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/jobs/${SEGMENT}$`), methods: ['GET'] },
+  { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/storage$`), methods: ['GET', 'POST'] },
 ] as const
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */

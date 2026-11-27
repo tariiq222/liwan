@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { appSettingsPages, partIsExact, settingsActiveGroup, settingsPageForPath, settingsPages, settingsPartGroup, settingsPartPath, settingsPartTarget, visibleSettingsGroups } from '../settingsSections'
 import { isContextLinkActive } from '../../useShellNavigation'
-import { canReachPath } from '../../../utils/accessPolicy'
+import { canReachPath, requiredCapabilityForPath } from '../../../utils/accessPolicy'
 import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 
@@ -33,6 +33,16 @@ describe('settings pages', () => {
     expect(canReachPath(maintenanceManager, path)).toBe(false)
     expect(canReachPath({ capabilities: ['settings.company.read'] }, path)).toBe(false)
     expect(canReachPath({ capabilities: ['settings.company.manage'] }, path)).toBe(true)
+  })
+  it('gates the maintenance booking routes on exactly the maintenance part capability, never failing open', () => {
+    for (const path of ['/settings/system/maintenance/new', '/settings/system/maintenance/3/edit']) {
+      expect(requiredCapabilityForPath(path)).toBe('settings.maintenance.manage')
+      expect(canReachPath({ capabilities: ['settings.maintenance.manage'] }, path)).toBe(true)
+      expect(canReachPath({ capabilities: [] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['settings.company.manage'] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['tenant.export'] }, path)).toBe(false)
+    }
+    expect(settingsPageForPath('/settings/system/maintenance/3/edit')?.id).toBe('system')
   })
   it('keep billing as pages of their own', () => {
     expect(page('billing').parts.map(part => part.to)).toEqual(['/subscription', '/subscription/change', '/subscription/status', '/subscription/branches', '/subscription/invoices'])
