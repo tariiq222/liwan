@@ -369,16 +369,31 @@ class TestS3StoreOverAnInjectedTransport(unittest.TestCase):
             ),
         )
         replies = [first, second]
-        store = s3_client.S3Store(self.credentials, transport=lambda request: replies.pop(0))
+        seen_urls = []
+
+        def transport(request):
+            seen_urls.append(request.url)
+            return replies.pop(0)
+
+        store = s3_client.S3Store(self.credentials, transport=transport)
         self.assertEqual(store.list_objects(''), [('a/zero', 0), ('b/two', 12)])
+        self.assertIn('continuation-token=page-two', seen_urls[1])
 
         for bad_xml in (
+            b'<Error><Code>InternalError</Code></Error>',
+            b'<not-xml',
+            b'<ListBucketResult><IsTruncated>true</IsTruncated></ListBucketResult>',
             b'<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>a/x</Key></Contents></ListBucketResult>',
             b'<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>a/x</Key><Size>-1</Size></Contents></ListBucketResult>',
             b'<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>a/x</Key><Size>nan</Size></Contents></ListBucketResult>',
         ):
             with self.subTest(bad_xml=bad_xml), self.assertRaises(s3_client.StorageError):
                 s3_client.S3Store(self.credentials, transport=lambda _r, body=bad_xml: (200, {}, body)).list_objects('')
+        with self.assertRaises(s3_client.StorageError):
+            s3_client.S3Store(
+                self.credentials,
+                transport=lambda _r: (200, {}, b'<Error><Code>InternalError</Code></Error>'),
+            ).list('')
 
     def test_head_reads_the_content_length_and_an_unusable_one_raises(self):
         self.reply = (200, {'Content-Length': '10'}, b'')

@@ -611,11 +611,7 @@ def _require_xml(body: bytes, expected: str) -> ET.Element:
 
 def _parse_listing(body: bytes, prefix: str) -> tuple[list[str], str]:
     """Read one ListBucketResult page: its object keys and its continuation token."""
-    try:
-        root = ET.fromstring(body)
-    except ET.ParseError as error:
-        message = f'list response for {prefix} is not valid XML'
-        raise StorageError(message) from error
+    root = _require_xml(body, 'ListBucketResult')
     namespace = _namespace_of(root.tag)
     entries = root.findall(namespace + LIST_CONTENTS)
     keys = [
@@ -633,11 +629,7 @@ def _parse_listing(body: bytes, prefix: str) -> tuple[list[str], str]:
 
 def _parse_listing_objects(body: bytes, prefix: str) -> tuple[list[tuple[str, int]], str]:
     """Read one ListBucketResult page: its ``(key, size)`` entries and continuation token."""
-    try:
-        root = ET.fromstring(body)
-    except ET.ParseError as error:
-        message = f'list response for {prefix} is not valid XML'
-        raise StorageError(message) from error
+    root = _require_xml(body, 'ListBucketResult')
     namespace = _namespace_of(root.tag)
     entries = root.findall(namespace + LIST_CONTENTS)
     objects: list[tuple[str, int]] = []

@@ -540,6 +540,30 @@ class TestS3BucketSourceAndVerify(BucketCase):
             bucket.populate(copied_dir, dst, manifest.index_sha256)
         self.assertNotIn(SECRET, str(refused.exception))
 
+        # Non-empty multipart overwrite is also refused (412 + abort) directly via S3BucketSource.put_file.
+        payload = self.root / 'nonempty'
+        payload.write_bytes(b'second-bytes')
+        with self.assertRaises(StorageError):
+            dst.put_file('ab/cdef', payload)
+        self.assertEqual(dst_transport.objects['ab/cdef'], b'invoice-pdf-bytes')
+
+        # Symlink sources and traversal/control-char keys are refused before any HTTP call.
+        link = self.root / 'link'
+        link.symlink_to(payload)
+        calls = []
+        guard_src = S3BucketSource.from_credentials(
+            self._credentials('tenant-dst'),
+            transport=lambda req: (calls.append(req), (500, {}, b''))[1],
+        )
+        with self.assertRaises(BackupError):
+            guard_src.put_file('ab/new', link)
+        for bad_key in ('../escape', 'ab/bad\nkey'):
+            with self.assertRaises(BackupError):
+                guard_src.put_file(bad_key, payload)
+            with self.assertRaises(BackupError):
+                guard_src.get_file(bad_key, self.root / 'out')
+        self.assertEqual(calls, [])
+
     def test_restore_verified_populates_target_bucket_and_checks_attachments(self):
         import json as _json
 
@@ -580,6 +604,15 @@ class TestS3BucketSourceAndVerify(BucketCase):
 
         with self.assertRaises(BackupError):
             verify.restore_verified(artifact=artifact_dir, target_db='liwan_scratch_bad', tools=tools, pg=pg)
+        with self.assertRaises(BackupError):
+            verify.restore_verified(
+                artifact=artifact_dir,
+                target_db='liwan_scratch_both',
+                target_filestore=self.root / 'liwan_scratch_both',
+                target_bucket=dst,
+                tools=tools,
+                pg=pg,
+            )
 
         with patch.object(verify, 'expected_modules', return_value=['liwan_core', 'liwan_platform']):
             result = verify.restore_verified(
@@ -592,6 +625,26 @@ class TestS3BucketSourceAndVerify(BucketCase):
         self.assertTrue(result['restore_verified'], result)
         self.assertEqual(result['checks']['missing_attachment_files'], [])
         self.assertEqual(dst_transport.objects, initial)
+
+        # Missing attachment referenced in DB marks restore_verified False.
+        dst2 = S3BucketSource.from_credentials(self._credentials('tenant-dst2'), transport=FakeS3Transport('tenant-dst2'))
+
+        def missing_runner(argv, **kwargs):
+            if 'ir_attachment' in ' '.join(argv):
+                return SimpleNamespace(returncode=0, stdout='ab/cdef\nzz/missing\n', stderr='')
+            return fake_runner(argv, **kwargs)
+
+        tools_missing = verify.RestoreTools(pg_restore=fake_bin, psql=fake_bin, runner=missing_runner)
+        with patch.object(verify, 'expected_modules', return_value=['liwan_core', 'liwan_platform']):
+            bad_result = verify.restore_verified(
+                artifact=artifact_dir,
+                target_db='liwan_scratch_oci_missing',
+                target_bucket=dst2,
+                tools=tools_missing,
+                pg=pg,
+            )
+        self.assertFalse(bad_result['restore_verified'])
+        self.assertEqual(bad_result['checks']['missing_attachment_files'], ['zz/missing'])
 
 
 if __name__ == '__main__':
