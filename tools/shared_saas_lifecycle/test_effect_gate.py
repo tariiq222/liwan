@@ -544,10 +544,6 @@ def provision_request(**over):
     return request
 
 
-def package_authority():
-    return {'schemaVersion': 2, 'revisionId': UUID_B, 'digest': DIGEST, 'catalog': CATALOG, 'policy': POLICY}
-
-
 def backup_request(**over):
     request = {'action': 'apply', 'job': {'schemaVersion': 1, 'requestId': UUID_A, 'binding': BINDING, 'operation': 'backup'},
                'businessKey': business_key('backup'), 'payloadDigest': DIGEST,
@@ -670,7 +666,6 @@ IDENTIFIER_FIELDS = [
 VALID = [
     ('odoo_effect', provision_request()),
     ('odoo_effect', provision_request(action='observe', attemptId=DELETE, fence=DELETE)),
-    ('odoo_effect', at(provision_request(packageAuthority=package_authority()), ('job', 'packageAuthority'), package_authority())),
     ('odoo_effect', at(provision_request(), ('admin',), {'name': 'A', 'login': 'a@b.test'})),
     ('odoo_backup', backup_request()),
     ('odoo_backup', at(backup_request(action='observe'), ('authority', 'manifestSha256'), DELETE)),

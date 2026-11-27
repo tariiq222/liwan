@@ -1,5 +1,4 @@
 import { provisioningActor } from './commercial-enrollment-authority.js'
-import { resolvePackageJobAuthority,assertPackageJobAuthority } from '../packages.js'
 import { randomUUID } from 'node:crypto'
 import { assertReconfigureAuthority, type SubscriptionRunner } from './subscription-reconfigure.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
@@ -35,7 +34,7 @@ export function subscriptionObservationRequest(binding:{tenantId:string;database
   if(binding.database!==input.database || binding.filestore!==input.database)throw Error('tenant_binding_mismatch')
   return {action:'observe',tenant:{database:binding.database,host:binding.host},attemptId:randomUUID(),fence:0}
 }
-export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch','runtime_writer_present','runtime_writer_after_effect','odoo_restart_failed','inventory_too_large','backup_key_unavailable'])
+export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','runtime_writer_present','runtime_writer_after_effect','odoo_restart_failed','inventory_too_large','backup_key_unavailable'])
 
 /** Whether a failed apply may have left the shared Odoo stopped, so that a reconcile repairs it.
  * A refusal that ran no effect repairs nothing, and its job need not be the tenant whose intent the reconcile
@@ -58,7 +57,6 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   const adminPasswordRunner=createAdminPasswordRunner(pool,config)
   const tenantStatusRunner=createTenantStatusRunner(pool,config,signal)
   const execute=async(job:SharedJob,action:'observe'|'apply'|'reconcile',claim?:{attemptId:string;fence:number;assertOwned:()=>Promise<void>},attemptId?:string)=>{
-    const packageAuthority=job.operation==='provision'?await resolvePackageJobAuthority(pool,job):undefined
     const authority=job.operation==='provision'?null:await resolveOdooBackupAuthority(pool,runtime,job,{starting:action==='apply'})
     const commercial = job.operation==='restore' && action==='observe' && authority && 'targetDatabase' in authority && typeof authority.targetDatabase==='string'
       ? await findVerifiedRestoreCommercialEffect(pool,authority.controlTenantId,job.approvalId,authority.targetDatabase)
@@ -73,8 +71,6 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
       await claim.assertOwned()
       if(job.operation==='provision'){
         await transaction(pool,client=>requireOnboardingAuthority(client,provisioningActor(config,row)))
-        const current=await resolvePackageJobAuthority(pool,job)
-        if(packageAuthority)assertPackageJobAuthority(current,packageAuthority)
       }
       else {
         const current=await resolveOdooBackupAuthority(pool,runtime,job)
@@ -87,7 +83,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
       let result:unknown,failed=false,checking=false,chain=Promise.resolve(),errorCode:string|undefined
       const fail=()=>{if(!failed){failed=true;channel.stop()}}
       const channel=openEffectChannel({config,effect:job.operation==='provision'?'odoo_effect':'odoo_backup',
-        request:{action,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:provisionAdmin(row),companyName:row.name,host:row.host,controlTenantId:row.control_tenant_id,...(packageAuthority?{packageAuthority}:{})}:{authority,...(commercial?{commercial}:{})}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:attemptId?{attemptId,fence:0}:{})},
+        request:{action,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:provisionAdmin(row),companyName:row.name,host:row.host,controlTenantId:row.control_tenant_id}:{authority,...(commercial?{commercial}:{})}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:attemptId?{attemptId,fence:0}:{})},
         onFault:fail,
         onLine:line=>{
           chain=chain.then(async()=>{

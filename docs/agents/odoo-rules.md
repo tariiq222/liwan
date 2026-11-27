@@ -52,7 +52,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   and record-specific allowed actions decide transitions; do not infer them
   from a legacy role label.
 - Plans («باقة») are what customers buy; bundles («حزمة», managed only in the LiwanOS vendor administration, `apps/vendor-admin`) are
-  the app groups inside them; Track A packages are read-only history. Every
+  the app groups inside them. Every
   application of the release is installed in every shared-SaaS tenant, and a
   policy or compiled entitlement carries every key of every release application
   (closed: `false` / `0`; catalog `deploy/catalog/solutions/platform_v5.json`, `commercial-compiler/5`).

@@ -107,10 +107,9 @@ function setPage(next: number) {
   void router.replace({ query: listQuery({ offset: next === 1 ? undefined : String((next - 1) * CHARTER_CATALOG_PAGE_SIZE) }) })
 }
 
-function openNew() {
-  if (!resource.value) return
-  void navigateTo({ path: `/settings/apps/projects/catalogs/${resource.value}/new`, query: returnToQuery(route.fullPath) })
-}
+const createTo = computed(() => resource.value && !forbidden.value
+  ? { path: `/settings/apps/projects/catalogs/${resource.value}/new`, query: returnToQuery(route.fullPath) }
+  : undefined)
 
 function openEdit(id: number) {
   if (!resource.value) return
@@ -153,12 +152,15 @@ async function confirmAction() {
 </script>
 
 <template>
-  <SharedSettingsPage>
-    <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
-      <UButton v-if="resource && !forbidden" icon="i-lucide-plus" data-shortcut-create aria-keyshortcuts="c" :disabled="!hydrated" :label="t('settings.projects.catalogs.add')" @click="openNew" />
-    </SharedPageHeader>
-    <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
-    <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
+  <SharedListPage
+    :title="title"
+    :back-to="returnTo"
+    :back-label="t('settings.projects.catalogs.back')"
+    :create-to="createTo"
+    :create-label="t('settings.projects.catalogs.add')"
+  >
+    <SharedNotFoundState v-if="!resource" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
+    <SharedForbiddenState v-else-if="forbidden" :description="t('settings.forbidden')" />
     <template v-else>
       <SharedListCard>
         <template #filters>
@@ -224,5 +226,5 @@ async function confirmAction() {
         <p v-if="actionError" role="alert" class="text-error">{{ actionError }}</p>
       </SharedInlineConfirm>
     </template>
-  </SharedSettingsPage>
+  </SharedListPage>
 </template>

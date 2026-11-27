@@ -17,17 +17,17 @@ const ROLES: Record<string, string[]> = {
 const caps = (role: string) => ROLES[role]!.map(name => `vendor.${name}`)
 const ids = (capabilities: string[]) => adminNav(capabilities).map(item => item.id)
 
-const READ_SECTIONS = ['overview', 'customers', 'catalog', 'operations']
+const READ_SECTIONS = ['overview', 'customers', 'catalog', 'operations', 'releases']
 const BEFORE_INVOICES = ['overview', 'analytics', 'customers', 'catalog']
 
 describe('adminNav', () => {
   it('shows the owner every section in the fixed order', () => {
-    expect(ids(caps('owner'))).toEqual([...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations', 'audit', 'ai-provider', 'team'])
+    expect(ids(caps('owner'))).toEqual([...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations', 'releases', 'audit', 'ai-provider', 'team'])
   })
 
   it.each([
     ['customer_success', READ_SECTIONS],
-    ['finance', [...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations']],
+    ['finance', [...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations', 'releases']],
     ['product', READ_SECTIONS],
     ['operations', READ_SECTIONS],
     ['support', [...READ_SECTIONS, 'audit']],
@@ -48,9 +48,9 @@ describe('adminNav', () => {
     expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['analytics', 'invoices', 'billing-settings', 'ai-billing-settings', 'audit', 'ai-provider', 'team'])
   })
 
-  it('points every item at a root path without the old /vendor prefix', () => {
+  it('points every item at its own route without the old /vendor prefix', () => {
     for (const item of adminNav(caps('owner'))) {
-      expect(item.to).toBe(`/${item.id}`)
+      expect(item.to).toBe(item.id === 'releases' ? '/catalog/releases' : `/${item.id}`)
       expect(item.labelKey).toBe(`app.nav.${item.id}`)
       expect(item.icon).toMatch(/^i-lucide-/)
     }
@@ -75,6 +75,15 @@ describe('activeNavId', () => {
     expect(items.map(item => item.id)).not.toContain('tenants')
   })
 
+  it('gives the releases timeline its own read-only item, ahead of the catalog that contains its path', () => {
+    expect(activeNavId(items, '/catalog/releases')).toBe('releases')
+    expect(activeNavId(items, '/catalog/releases/cat-1')).toBe('releases')
+    expect(activeNavId(items, '/catalog/releases?status=draft')).toBe('releases')
+    expect(activeNavId(items, '/catalog/releasesx')).toBe('catalog')
+    expect(activeNavId(items, '/catalog')).toBe('catalog')
+    expect(items.find(item => item.id === 'releases')).toMatchObject({ to: '/catalog/releases', labelKey: 'app.nav.releases' })
+  })
+
   it('keeps the catalog tabs and their records under the catalog', () => {
     for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/c-1']) expect(activeNavId(items, path), path).toBe('catalog')
     expect(items.map(item => item.id)).not.toContain('plans')
@@ -83,7 +92,8 @@ describe('activeNavId', () => {
   })
 
   it('derives the catalog section from the catalog tabs', () => {
-    expect(items.find(item => item.id === 'catalog')?.to).toBe(CATALOG_TABS[0].to)
+    const catalog = items.find(item => item.id === 'catalog')
+    expect(CATALOG_TABS.map(tab => tab.to)).toContain(catalog?.to)
     for (const tab of CATALOG_TABS) expect(activeNavId(items, `${tab.to}/x`), tab.to).toBe('catalog')
   })
 
@@ -127,7 +137,7 @@ describe('splitRail', () => {
     const { top, applications, utility } = splitRail(items)
     expect(utility.map(item => item.id)).toEqual(['audit', 'ai-provider', 'team'])
     expect(top).toEqual([])
-    expect(applications.map(item => item.id)).toEqual([...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations'])
+    expect(applications.map(item => item.id)).toEqual([...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations', 'releases'])
     expect([...applications, ...utility]).toHaveLength(items.length)
     expect(splitRail(adminNav(caps('finance'))).utility).toEqual([])
   })

@@ -40,6 +40,7 @@ const PATHS: Record<SetupResource, string> = {
 
 export const financeRecordKeys = {
   list: (resource: SetupResource, params: RecordParams) => ['finance', 'records', resource, params] as const,
+  item: (resource: SetupResource, id: number) => ['finance', 'records', resource, 'item', id] as const,
   resource: (resource: SetupResource) => ['finance', 'records', resource] as const,
 }
 
@@ -50,6 +51,16 @@ function useList<T>(resource: SetupResource, schema: z.ZodType<T>, params: Maybe
     enabled: computed(() => toValue(enabled)),
     placeholderData: keepPreviousData,
     queryFn: () => $api(PATHS[resource], { query: { ...toValue(params) }, schema }),
+  })
+}
+
+function useItem<T>(resource: SetupResource, schema: z.ZodType<T>, id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  const itemId = computed(() => toValue(id))
+  return useQuery({
+    queryKey: computed(() => financeRecordKeys.item(resource, itemId.value ?? 0)),
+    enabled: computed(() => toValue(enabled) && itemId.value !== null && itemId.value > 0),
+    queryFn: () => $api(`${PATHS[resource]}/${itemId.value}`, { schema }),
   })
 }
 
@@ -74,26 +85,31 @@ const patch = <B>() => ({ id, patch: body }: { id: number; patch: B }) => (base:
 const archive = () => ({ id, archive: on }: { id: number; archive: boolean }) => (base: string) => ({ method: 'POST' as const, path: `${base}/${id}/${on ? 'archive' : 'unarchive'}` })
 
 export const useSetupAccounts = (params: MaybeRefOrGetter<RecordParams>, enabled: MaybeRefOrGetter<boolean> = true) => useList('accounts', FinanceAccountListSchema, params, enabled)
+export const useSetupAccount = (id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) => useItem('accounts', FinanceAccountSchema, id, enabled)
 export const useCreateSetupAccount = () => useWrite('accounts', create<FinanceAccountCreate>(), FinanceAccountSchema)
 export const usePatchSetupAccount = () => useWrite('accounts', patch<FinanceAccountPatch>(), FinanceAccountSchema)
 export const useArchiveSetupAccount = () => useWrite('accounts', archive(), FinanceAccountSchema)
 
 export const useSetupJournals = (params: MaybeRefOrGetter<RecordParams>, enabled: MaybeRefOrGetter<boolean> = true) => useList('journals', FinanceJournalListSchema, params, enabled)
+export const useSetupJournal = (id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) => useItem('journals', FinanceJournalSchema, id, enabled)
 export const useCreateSetupJournal = () => useWrite('journals', create<FinanceJournalCreate>(), FinanceJournalSchema)
 export const usePatchSetupJournal = () => useWrite('journals', patch<FinanceJournalPatch>(), FinanceJournalSchema)
 export const useArchiveSetupJournal = () => useWrite('journals', archive(), FinanceJournalSchema)
 
 export const useSetupTaxes = (params: MaybeRefOrGetter<RecordParams>, enabled: MaybeRefOrGetter<boolean> = true) => useList('taxes', FinanceTaxListSchema, params, enabled)
+export const useSetupTax = (id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) => useItem('taxes', FinanceTaxSchema, id, enabled)
 export const useCreateSetupTax = () => useWrite('taxes', create<FinanceTaxCreate>(), FinanceTaxSchema)
 export const usePatchSetupTax = () => useWrite('taxes', patch<FinanceTaxPatch>(), FinanceTaxSchema)
 export const useArchiveSetupTax = () => useWrite('taxes', archive(), FinanceTaxSchema)
 
 export const useSetupPaymentTerms = (params: MaybeRefOrGetter<RecordParams>, enabled: MaybeRefOrGetter<boolean> = true) => useList('payment-terms', FinancePaymentTermListSchema, params, enabled)
+export const useSetupPaymentTerm = (id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) => useItem('payment-terms', FinancePaymentTermSchema, id, enabled)
 export const useCreateSetupPaymentTerm = () => useWrite('payment-terms', create<FinancePaymentTermCreate>(), FinancePaymentTermSchema)
 export const usePatchSetupPaymentTerm = () => useWrite('payment-terms', patch<FinancePaymentTermPatch>(), FinancePaymentTermSchema)
 export const useArchiveSetupPaymentTerm = () => useWrite('payment-terms', archive(), FinancePaymentTermSchema)
 
 export const useSetupAssetProfiles = (params: MaybeRefOrGetter<RecordParams>, enabled: MaybeRefOrGetter<boolean> = true) => useList('asset-profiles', FinanceAssetProfileListSchema, params, enabled)
+export const useSetupAssetProfile = (id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) => useItem('asset-profiles', FinanceAssetProfileSchema, id, enabled)
 export const useCreateSetupAssetProfile = () => useWrite('asset-profiles', create<FinanceAssetProfileCreate>(), FinanceAssetProfileSchema)
 export const usePatchSetupAssetProfile = () => useWrite('asset-profiles', patch<FinanceAssetProfilePatch>(), FinanceAssetProfileSchema)
 export const useArchiveSetupAssetProfile = () => useWrite('asset-profiles', archive(), FinanceAssetProfileSchema)

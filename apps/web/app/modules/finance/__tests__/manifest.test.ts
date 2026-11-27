@@ -14,9 +14,12 @@ import type { AppSearchApi } from '../../types'
 const ALL = [
   'finance.invoices.read', 'finance.invoices.manage', 'finance.payments.read', 'finance.payments.manage',
   'finance.partners.read', 'finance.partners.manage', 'finance.setup.read', 'finance.setup.manage', 'finance.statements.read',
-  'finance.entries.read', 'finance.entries.manage', 'finance.entries.post', 'finance.accounts.read', 'finance.bank.read', 'finance.bank.manage',
+  'finance.entries.read', 'finance.entries.manage', 'finance.entries.post',
+  'finance.accounts.read', 'finance.accounts.manage', 'finance.journals.read', 'finance.journals.manage',
+  'finance.taxes.read', 'finance.taxes.manage', 'finance.payment_terms.read', 'finance.payment_terms.manage',
+  'finance.bank.read', 'finance.bank.manage',
   'finance.reports.read', 'finance.budgets.read', 'finance.budgets.manage', 'finance.assets.read', 'finance.assets.manage',
-  'finance.analytic.read', 'finance.closing.read', 'finance.zatca.read', 'finance.audit.read', 'finance.zakat.read',
+  'finance.analytic.read', 'finance.analytic.manage', 'finance.closing.read', 'finance.zatca.read', 'finance.audit.read', 'finance.zakat.read',
 ]
 const features = { readable_features: ['finance.enabled'], writable_features: ['finance.enabled'] }
 const admin = { role: 'admin', capabilities: ALL, platform: features }
@@ -75,6 +78,25 @@ describe('finance manifest', () => {
     ['/finance/reports/budget-vs-actual', 'finance.budgets.read'],
     ['/settings/apps/finance', 'finance.setup.read'],
     ['/settings/apps/finance/audit', 'finance.audit.read'],
+    ['/settings/apps/finance/accounts', 'finance.accounts.read'],
+    ['/settings/apps/finance/accounts/new', 'finance.accounts.manage'],
+    ['/settings/apps/finance/accounts/5/edit', 'finance.accounts.manage'],
+    ['/settings/apps/finance/journals', 'finance.journals.read'],
+    ['/settings/apps/finance/journals/new', 'finance.journals.manage'],
+    ['/settings/apps/finance/journals/2/edit', 'finance.journals.manage'],
+    ['/settings/apps/finance/taxes', 'finance.taxes.read'],
+    ['/settings/apps/finance/taxes/new', 'finance.taxes.manage'],
+    ['/settings/apps/finance/taxes/4/edit', 'finance.taxes.manage'],
+    ['/settings/apps/finance/payment-terms', 'finance.payment_terms.read'],
+    ['/settings/apps/finance/payment-terms/new', 'finance.payment_terms.manage'],
+    ['/settings/apps/finance/payment-terms/7/edit', 'finance.payment_terms.manage'],
+    ['/settings/apps/finance/asset-profiles', 'finance.assets.read'],
+    ['/settings/apps/finance/asset-profiles/new', 'finance.assets.manage'],
+    ['/settings/apps/finance/asset-profiles/3/edit', 'finance.assets.manage'],
+    ['/settings/apps/finance/analytic-plans/new', 'finance.analytic.manage'],
+    ['/settings/apps/finance/analytic-plans/2/edit', 'finance.analytic.manage'],
+    ['/settings/apps/finance/analytic-accounts/new', 'finance.analytic.manage'],
+    ['/settings/apps/finance/analytic-accounts/8/edit', 'finance.analytic.manage'],
   ])('requires %s -> %s', (path, capability) => {
     expect(requiredCapabilityForPath(path)).toBe(capability)
   })
@@ -85,6 +107,19 @@ describe('finance manifest', () => {
     expect(canReachPath(reader, '/finance/partners/new')).toBe(false)
     expect(canReachPath(reader, '/finance/sales/invoices/new')).toBe(false)
     expect(canReachPath(reader, '/finance/payments/2')).toBe(true)
+    for (const slug of ['accounts', 'journals', 'taxes', 'payment-terms', 'asset-profiles']) {
+      expect(canReachPath(reader, `/settings/apps/finance/${slug}`), slug).toBe(true)
+      expect(canReachPath(reader, `/settings/apps/finance/${slug}/new`), `${slug}/new`).toBe(false)
+      expect(canReachPath(reader, `/settings/apps/finance/${slug}/1/edit`), `${slug}/edit`).toBe(false)
+      expect(canReachPath(admin, `/settings/apps/finance/${slug}/new`), `admin ${slug}/new`).toBe(true)
+      expect(canReachPath(admin, `/settings/apps/finance/${slug}/1/edit`), `admin ${slug}/edit`).toBe(true)
+    }
+    for (const slug of ['analytic-plans', 'analytic-accounts']) {
+      expect(canReachPath(reader, `/settings/apps/finance/${slug}/new`), `${slug}/new`).toBe(false)
+      expect(canReachPath(reader, `/settings/apps/finance/${slug}/1/edit`), `${slug}/edit`).toBe(false)
+      expect(canReachPath(admin, `/settings/apps/finance/${slug}/new`), `admin ${slug}/new`).toBe(true)
+      expect(canReachPath(admin, `/settings/apps/finance/${slug}/1/edit`), `admin ${slug}/edit`).toBe(true)
+    }
     expect(canReachPath({ capabilities: ALL, platform: { readable_features: ['hr.enabled'], writable_features: [] } }, '/finance')).toBe(false)
   })
 

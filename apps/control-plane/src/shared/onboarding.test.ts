@@ -78,8 +78,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, vi } from 'vitest'
 import { onboardSharedTenant } from './onboarding.js'
-describe('Track A is retired for new shared onboarding (owner decision O1)',()=>{
-  const packageInput={request_id:input.request_id,name:'Example',package_revision_id:'11111111-1111-4111-8111-111111111111',admin_name:'Administrator',admin_login:'admin@example.test',slug:'acme-co',reason:'Create first customer'}
+describe('shared onboarding replay',()=>{
   let config:never
   let previousMode:string|undefined
   beforeEach(()=>{
@@ -104,15 +103,10 @@ describe('Track A is retired for new shared onboarding (owner decision O1)',()=>
     const client={query:vi.fn(reply),release:vi.fn()}
     return {sql,pool:{connect:async()=>client,query:vi.fn(reply)} as never}
   }
-  it('refuses a new package_revision_id request with 410 package_retired before any write',async()=>{
-    const {pool,sql}=fakePool([])
-    await expect(onboardSharedTenant(pool,config,actor,packageInput)).rejects.toMatchObject({status:410,code:'package_retired',field:'package_revision_id'})
-    expect(sql.some(text=>/INSERT INTO|UPDATE \w+ SET/.test(text))).toBe(false)
-  })
-  it('still replays an already accepted request instead of answering 410',async()=>{
-    const identity=onboardingIdentity(packageInput,'local.test')
+  it('replays an already accepted catalog request without inserting a duplicate tenant',async()=>{
+    const identity=onboardingIdentity(input,'local.test')
     const {pool,sql}=fakePool([{issuer:actor.issuer,actor_uid:actor.actorUid,request_digest:identity.digest}])
-    await expect(onboardSharedTenant(pool,config,actor,packageInput)).resolves.toMatchObject({replay:true,tenant_id:input.request_id})
+    await expect(onboardSharedTenant(pool,config,actor,input)).resolves.toMatchObject({replay:true,tenant_id:input.request_id})
     expect(sql.some(text=>text.includes('INSERT INTO tenants'))).toBe(false)
   })
 })

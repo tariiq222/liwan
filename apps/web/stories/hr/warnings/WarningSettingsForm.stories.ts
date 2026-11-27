@@ -6,7 +6,7 @@ import { warningSettingsFixture } from './fixtures'
 const meta = {
   title: 'HR/Warnings/WarningSettingsForm',
   component: WarningSettingsForm,
-  parameters: storyContext('apps/web/app/pages/settings/apps/hr/index.vue:225', 'سياسات الإنذارات الإدارية للشركة: من يصدر، ورد الموظف، ومدة التصعيد.'),
+  parameters: storyContext('apps/web/app/pages/settings/apps/hr/index.vue:229', 'سياسات الإنذارات الإدارية للشركة: من يصدر، ورد الموظف، ومدة التصعيد.'),
   args: { settings: warningSettingsFixture, canEdit: true, reloadSettings: async () => ({ ...warningSettingsFixture, revision: 2 }) },
 } satisfies Meta<typeof WarningSettingsForm>
 

@@ -20,18 +20,13 @@ export const sharedPolicySchema = z.strictObject({
   features: z.record(z.string().regex(/^(?:[a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*$/).refine((key) => !/^(local_policy|support|status)\./.test(key)), z.union([z.boolean(), z.number().int().nonnegative().max(1000000000), z.null()]))
     .refine((features) => Object.hasOwn(features, 'users.limit') && Object.hasOwn(features, 'storage.limit_mb')),
 })
-export const packageAuthoritySchema = z.strictObject({
-  schemaVersion: z.literal(2), revisionId: z.uuid(), digest,
-  catalog: z.strictObject({ version: label, tier: label, sourceSha256: digest }), policy: sharedPolicySchema,
-})
-export type PackageAuthority = z.infer<typeof packageAuthoritySchema>
 export const sharedBackupSchema = z.strictObject({
   schemaVersion: z.literal(1), backupId: z.uuid(), binding: tenantBindingSchema,
   databaseSha256: digest, filestoreSha256: digest, consistency: z.literal('verified'),
 })
 const common = { schemaVersion: z.literal(1), requestId: z.uuid(), binding: tenantBindingSchema }
 export const sharedJobSchema = z.discriminatedUnion('operation', [
-  z.strictObject({ ...common, operation: z.literal('provision'), catalog: z.strictObject({ version: label, tier: label, sourceSha256: digest }), policy: sharedPolicySchema, packageAuthority: packageAuthoritySchema.optional() }),
+  z.strictObject({ ...common, operation: z.literal('provision'), catalog: z.strictObject({ version: label, tier: label, sourceSha256: digest }), policy: sharedPolicySchema }),
   z.strictObject({ ...common, operation: z.literal('backup') }),
   z.strictObject({ ...common, operation: z.literal('restore'), backup: sharedBackupSchema, approvalId: z.uuid() }),
 ])

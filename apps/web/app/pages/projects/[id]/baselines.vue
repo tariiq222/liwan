@@ -39,7 +39,7 @@ const columns = computed(() => [
   { id: 'dates', header: t('projects.baselines.fields.plannedDates'), meta: { class: { th: 'w-52', td: 'w-52 whitespace-nowrap' } } },
   { id: 'budget', header: t('projects.baselines.fields.budget'), meta: { class: { th: 'w-36 text-end', td: 'w-36 text-end whitespace-nowrap' } } },
   { accessorKey: 'task_count', header: t('projects.baselines.fields.tasks'), meta: { class: { th: 'w-20', td: 'w-20 tabular-nums' } } },
-  { id: 'note', header: t('projects.baselines.fields.note'), meta: { class: { th: 'min-w-40', td: 'max-w-0 min-w-40 truncate' } } },
+  { id: 'note', header: t('projects.baselines.fields.note'), meta: { title: true, class: { th: 'min-w-40', td: 'max-w-0 min-w-40 truncate' } } },
 ])
 const items = computed(() => list.data.value?.items ?? [])
 const total = computed(() => list.data.value?.total ?? 0)
@@ -65,7 +65,7 @@ const empty = computed(() => Boolean(list.data.value) && !items.value.length && 
             <template #dates-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ dates(row.original) }}</span></template>
             <template #budget-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ money(row.original) }}</span></template>
             <template #note-cell="{ row }">
-              <NuxtLink :to="itemTo(row.original)" class="block truncate hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.note || t('projects.baselines.openBaseline', { number: row.original.number }) }}</NuxtLink>
+              <NuxtLink :to="itemTo(row.original)" class="block min-w-0 truncate hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.note || t('projects.baselines.openBaseline', { number: row.original.number })">{{ row.original.note || t('projects.baselines.openBaseline', { number: row.original.number }) }}</NuxtLink>
             </template>
             <template #mobile-row="{ row: item }">
               <div class="space-y-2">

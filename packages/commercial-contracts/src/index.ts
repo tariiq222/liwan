@@ -91,13 +91,12 @@ export * from './ai-provider.js'
 export const e164MobileSchema = z.string().regex(/^\+[1-9][0-9]{7,14}$/)
 export const sharedOnboardingRequestSchema = z.strictObject({
   request_id: z.uuid(), name: z.string().trim().min(1).max(200),
-  catalog_version: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/).optional(), catalog_tier: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional(),
-  package_revision_id: z.uuid().optional(),
+  catalog_version: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/), catalog_tier: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/),
   admin_name: z.string().trim().min(1).max(120), admin_login: z.email().max(100), admin_mobile: e164MobileSchema.optional(),
   // The host the customer picked at signup; vendor registration of a dedicated workspace carries one too.
   slug: workspaceSlugSchema,
   reason: z.string().trim().min(3).max(1000),
-}).refine(input => input.package_revision_id ? !input.catalog_version && !input.catalog_tier : Boolean(input.catalog_version && input.catalog_tier), { path: ['package_revision_id'], message: 'Select exactly one package or catalog source' })
+})
 export const sharedOnboardingResponseSchema = z.strictObject({
   tenant_id: z.uuid(), job_id: z.uuid().nullable(), status: tenantStatusSchema, host: z.string(), replay: z.boolean(),
 })
@@ -153,7 +152,6 @@ export const operationFeedSchema = z.discriminatedUnion('source', [
 ])
 export type OperationFeed = z.infer<typeof operationFeedSchema>
 
-export * from './packages.js'
 export * from './commercial/index.js'
 export * from './commercial/feature-descriptor.js'
 export * from './commercial-http.js'

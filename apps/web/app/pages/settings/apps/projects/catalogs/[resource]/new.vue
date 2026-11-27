@@ -26,8 +26,8 @@ function onSaved() {
 
 <template>
   <SharedCreatePanel :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo">
-    <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
-    <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
+    <SharedNotFoundState v-if="!resource" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
+    <SharedForbiddenState v-else-if="forbidden" :description="t('settings.forbidden')" />
     <ProjectCharterReferenceForm v-else :resource="resource" @saved="onSaved" @cancel="router.push(returnTo)" />
   </SharedCreatePanel>
 </template>

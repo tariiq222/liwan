@@ -12,3 +12,8 @@ export function catalogLabel(kind: 'module' | 'feature', value: string, t: (key:
   // A newer application's module id reads as its name; other unknown values stay as sent.
   return kind === 'module' && /^(?:liwan|customer)_[a-z0-9_]+$/.test(value) ? humanizeId(value) : value
 }
+
+/** An application tier's readable name: its locale key when it has one, else the name the catalog sent, else its id. */
+export function tierLabel(id: string, name: string | undefined, t: (key: string) => string, te: (key: string) => boolean): string {
+  return te(`vendor.catalog.tiers.${id}`) ? t(`vendor.catalog.tiers.${id}`) : name || id
+}

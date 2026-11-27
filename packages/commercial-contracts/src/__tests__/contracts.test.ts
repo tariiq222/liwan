@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hostingModelSchema, operationRequestSchema, tenantCreateSchema, vendorCapabilitySchema } from '../index'
+import { hostingModelSchema, operationRequestSchema, sharedJobSchema, sharedOnboardingRequestSchema, tenantCreateSchema, vendorCapabilitySchema } from '../index'
 import { signServiceRequest, verifyServiceRequest } from '../server'
 
 describe('commercial input contracts', () => {
@@ -24,6 +24,44 @@ describe('commercial input contracts', () => {
     expect(operationRequestSchema.safeParse(base).success).toBe(true)
     expect(operationRequestSchema.safeParse({ ...base, expected_revision: undefined }).success).toBe(false)
     expect(operationRequestSchema.safeParse({ ...base, features: { local_policy: true } }).success).toBe(false)
+  })
+
+  it('takes exactly the catalog keys in shared onboarding, each one required, and nothing else', () => {
+    const base = {
+      request_id: '11111111-1111-4111-8111-111111111111', name: 'Acme',
+      catalog_version: 'v1', catalog_tier: 'core',
+      admin_name: 'Admin', admin_login: 'admin@example.com', slug: 'acme', reason: 'Enroll tenant',
+    }
+    // The onboarding has one source, the catalog: no second authority has a key here.
+    expect(Object.keys(sharedOnboardingRequestSchema.shape)).toEqual(['request_id', 'name', 'catalog_version', 'catalog_tier', 'admin_name', 'admin_login', 'admin_mobile', 'slug', 'reason'])
+    const { slug: _slug, ...withoutSlug } = base
+    const { catalog_version: _version, ...withoutVersion } = base
+    const { catalog_tier: _tier, ...withoutTier } = base
+    expect(sharedOnboardingRequestSchema.safeParse(base).success).toBe(true)
+    expect(sharedOnboardingRequestSchema.safeParse({ ...base, slug: 'API' }).success).toBe(false)
+    expect(sharedOnboardingRequestSchema.safeParse(withoutSlug).success).toBe(false)
+    expect(sharedOnboardingRequestSchema.safeParse(withoutVersion).success).toBe(false)
+    expect(sharedOnboardingRequestSchema.safeParse(withoutTier).success).toBe(false)
+    expect(sharedOnboardingRequestSchema.safeParse({ ...base, extra: 'unexpected' }).success).toBe(false)
+  })
+
+  it('gives a provision job exactly its binding, catalog and policy keys, and refuses any other', () => {
+    const provision = {
+      schemaVersion: 1, requestId: '11111111-1111-4111-8111-111111111111', operation: 'provision',
+      binding: { tenantId: 't1', database: 'liwan_scratch_1', filestore: 'liwan_scratch_1', registryRevision: 1 },
+      catalog: { version: 'v1', tier: 'core', sourceSha256: 'a'.repeat(64) },
+      policy: { schema_version: 1, channel: 'control_plane', modules: ['liwan_core'], features: { 'users.limit': null, 'storage.limit_mb': null } },
+    }
+    const schema = sharedJobSchema.options[0].shape
+    // The policy is the job's only authority: nothing may sit above or inside it.
+    expect(Object.keys(schema)).toEqual(['schemaVersion', 'requestId', 'binding', 'operation', 'catalog', 'policy'])
+    expect(Object.keys(schema.catalog.shape)).toEqual(['version', 'tier', 'sourceSha256'])
+    expect(Object.keys(schema.policy.shape)).toEqual(['schema_version', 'channel', 'modules', 'features'])
+    expect(sharedJobSchema.safeParse(provision).success).toBe(true)
+    for (const key of ['extra', 'authority']) {
+      expect(sharedJobSchema.safeParse({ ...provision, [key]: { schemaVersion: 2 } }).success).toBe(false)
+      expect(sharedJobSchema.safeParse({ ...provision, policy: { ...provision.policy, [key]: 1 } }).success).toBe(false)
+    }
   })
 })
 

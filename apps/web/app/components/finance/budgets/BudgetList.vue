@@ -45,7 +45,7 @@ function setState(value: unknown) {
 
 const columns = computed<TableColumn<FinanceBudget>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { id: 'name', header: t('financeBudgets.columns.name') },
+  { id: 'name', header: t('financeBudgets.columns.name'), meta: { title: true } },
   { id: 'period', header: t('financeBudgets.columns.period') },
   { id: 'line_count', header: t('financeBudgets.columns.lineCount') },
   { id: 'state', header: t('financeBudgets.columns.state') },
@@ -74,7 +74,7 @@ const lineCount = (budget: FinanceBudget) => t('financeBudgets.lines.count', { c
         <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('financeBudgets.budgets.title')">
           <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }">
-            <NuxtLink :to="recordTo(row.original)" class="font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :data-testid="`finance-budget-row-${row.original.id}`" @click="!hydrated && $event.preventDefault()">{{ row.original.name }}</NuxtLink>
+            <NuxtLink :to="recordTo(row.original)" class="block min-w-0 truncate font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name" :data-testid="`finance-budget-row-${row.original.id}`" @click="!hydrated && $event.preventDefault()">{{ row.original.name }}</NuxtLink>
           </template>
           <template #period-cell="{ row }"><bdi class="tabular-nums">{{ budgetPeriod(row.original) }}</bdi></template>
           <template #line_count-cell="{ row }">{{ lineCount(row.original) }}</template>

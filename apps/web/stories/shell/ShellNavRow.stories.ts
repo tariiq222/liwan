@@ -11,7 +11,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const context = storyContext('packages/ui/app/components/shell/ShellNavSection.vue:65')
+const context = storyContext('packages/ui/app/components/shell/ShellNavSection.vue:66')
 
 export const AppTile: Story = { name: 'تطبيق ببلاطته الملونة', parameters: context }
 export const Active: Story = { name: 'الصفحة الحالية', parameters: context, args: { item: { id: 'tasks', label: 'مهامي', icon: 'i-lucide-check-square', to: '/my-tasks', active: true, app: 'tasks' } } }

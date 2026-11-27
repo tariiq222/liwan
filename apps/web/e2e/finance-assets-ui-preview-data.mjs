@@ -143,6 +143,8 @@ const summary = ({ lines: _lines, note: _note, date_remove: _removed, method: _m
 export function financeAssetsPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
   if (route === '/api/v1/finance/asset-profiles') return page(financeAssetProfiles, url)
+  const profileRecord = /^\/api\/v1\/finance\/asset-profiles\/(\d+)$/.exec(route)
+  if (profileRecord) return financeAssetProfiles.find(item => item.id === Number(profileRecord[1]))
   if (route === '/api/v1/finance/assets/summary') return financeSummaryPreview(filterAssets, url, ['draft', 'open', 'close'])
   if (route === '/api/v1/finance/assets') return page(filterAssets(url).map(summary), url)
   const record = /^\/api\/v1\/finance\/assets\/(\d+)$/.exec(route)

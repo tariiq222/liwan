@@ -32,7 +32,7 @@ function card(approval: HrLeaveApprovalProcess, createDefault = vi.fn().mockReso
   const render = new Function('Vue', transpile(template.code))(Vue)
   const html = async () => {
     const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, approval, t: (key: string, values?: { number: number }) => values ? `${key}#${values.number}` : key }), render }))
-    for (const name of ['SharedFormSection', 'SharedSubCard', 'SharedInlineConfirm', 'UAlert']) app.component(name, Vue.defineComponent({ props: ['title'], setup(props, { slots }) { return () => Vue.h('div', { 'data-component': name }, [props.title, slots.default?.()]) } }))
+    for (const name of ['SharedRecordSection', 'SharedSubCard', 'SharedInlineConfirm', 'UAlert']) app.component(name, Vue.defineComponent({ props: ['title'], setup(props, { slots }) { return () => Vue.h('div', { 'data-component': name }, [props.title, slots.default?.()]) } }))
     app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs }) { return () => Vue.h('button', { 'data-testid': attrs['data-testid'], 'data-to': attrs.to }, String(attrs.label)) } }))
     return renderToString(app)
   }

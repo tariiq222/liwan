@@ -7,7 +7,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellFooterBar',
   component: ShellFooterBar,
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:90'),
+  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:103'),
   args: { label: 'اختصارات عامة', tools: footerTools, expandLabel: 'عرض القائمة بالأسماء', collapseLabel: 'إخفاء الأسماء' },
   render: args => ({
     components: { ShellFooterBar, ShellNavSection },

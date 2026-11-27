@@ -135,5 +135,8 @@ export function financeAccountingPreviewData(path, url) {
     return found && withEntryActions(found)
   }
   if (route === '/api/v1/finance/accounts') return page(filterAccounts(url), url)
+  if (route.startsWith('/api/v1/finance/accounts/')) {
+    return financeAccounts.find(item => item.id === recordId(route, '/api/v1/finance/accounts'))
+  }
   return undefined
 }

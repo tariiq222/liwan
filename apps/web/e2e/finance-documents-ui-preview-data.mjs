@@ -308,5 +308,8 @@ export function financeDocumentsPreviewData(path, url) {
   }
   if (route === '/api/v1/finance/payments') return page(filterPayments(url).map(withPaymentActions), url)
   if (route === '/api/v1/finance/journals') return page(journals.filter(item => !url.searchParams.get('type') || item.type === url.searchParams.get('type')), url)
+  if (route.startsWith('/api/v1/finance/journals/')) {
+    return journals.find(item => item.id === recordId(route, '/api/v1/finance/journals'))
+  }
   return undefined
 }

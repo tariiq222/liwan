@@ -1,5 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import io
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -137,6 +140,72 @@ class TestLaneGuard(LanePoolCase):
                 mock.patch.object(hooks.sys, 'stderr', io.StringIO()) as err:
             self.assertEqual(hooks.pre_commit(), 1)
         self.assertEqual(err.getvalue(), 'pre-commit: lane guard: this lane is resting\n')
+
+
+class TestCommitMsgSilentRevert(unittest.TestCase):
+    """`commit-msg` on a real repository: a staged silent revert of `origin/main` is refused, and acknowledged."""
+
+    ENV = {
+        'GIT_AUTHOR_NAME': 't', 'GIT_AUTHOR_EMAIL': 't@example.com',
+        'GIT_COMMITTER_NAME': 't', 'GIT_COMMITTER_EMAIL': 't@example.com',
+    }
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.repo = Path(directory.name).resolve()
+        patches = [mock.patch.dict(os.environ, self.ENV), mock.patch.object(hooks, 'REPO', self.repo)]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.git('init', '-q', '-b', 'main')
+        self.write('base.txt', 'base\n')
+        self.write('modified.txt', 'one\n')
+        self.commit('chore(tools): base')
+        self.base = self.git('rev-parse', 'HEAD').strip()
+        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+        self.git('switch', '-q', '-c', 'pr911')
+        self.write('modified.txt', 'pr911\n')
+        self.write('added.txt', 'added\n')
+        self.commit('feat(tools): pr 911')
+        self.git('switch', '-q', 'main')
+        self.git('merge', '-q', '--no-ff', 'pr911', '-m', 'Merge pull request #911 from x/pr911')
+        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+        self.git('switch', '-q', '-c', 'feature', self.base)
+        self.write('feature.txt', 'feat\n')
+        self.commit('feat(pmo): feature work')
+        self.git('reset', '-q', '--soft', 'origin/main')
+        self.merge_sha = self.git('rev-parse', 'origin/main').strip()
+
+    def git(self, *argv):
+        return subprocess.run(['git', *argv], cwd=self.repo, check=True, capture_output=True, text=True).stdout
+
+    def write(self, path, text):
+        target = self.repo / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding='utf-8')
+
+    def commit(self, subject):
+        self.git('add', '-A')
+        self.git('commit', '-q', '--allow-empty', '-m', subject)
+
+    def run_hook(self, message):
+        path = self.repo / 'COMMIT_EDITMSG'
+        path.write_text(message, encoding='utf-8')
+        with mock.patch.object(hooks.sys, 'stderr', io.StringIO()) as err:
+            code = hooks.commit_msg(str(path))
+        return code, err.getvalue()
+
+    def test_a_staged_silent_revert_is_refused_and_names_the_clobbered_merge(self):
+        code, error = self.run_hook('fix(cp): squash onto main\n')
+        self.assertEqual(code, 1)
+        self.assertIn('commit-msg: ', error)
+        self.assertIn(self.merge_sha[:9], error)
+        self.assertIn('Merge pull request #911', error)
+
+    def test_a_reverts_trailer_acknowledges_it(self):
+        code, error = self.run_hook(f'chore(cp): drop the change\n\nReverts: {self.merge_sha[:9]}\n')
+        self.assertEqual(code, 0, error)
 
 
 if __name__ == '__main__':

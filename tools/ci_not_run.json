@@ -99,7 +99,7 @@
       ]
     },
     {
-      "reason": "the design audit's opt-in staff surfaces: it needs the mock_caps=ops_desk grant and answers with empty envelopes, so it proves the page structure and permissions on demand instead of adding a permanent CI minute; run it by hand after changing the operations, helpdesk or appointments shells",
+      "reason": "the design audit's opt-in staff surfaces: it needs the mock_caps=ops_desk grant and answers with seeded Arabic preview rows and KPI counts, so it proves the rendered tables, mobile cards, RTL/LTR layout fits and permissions on demand instead of adding a permanent CI minute; run it by hand after changing the operations, helpdesk or appointments shells",
       "files": [
         "apps/web/e2e/r4-staff-surfaces.spec.ts"
       ]

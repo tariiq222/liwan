@@ -75,8 +75,8 @@ describe('vendor locale', () => {
       const v = titles(lang)
       expect(new Set([v.catalog.applications, v.plans.title, v.bundles.title]).size).toBe(3)
     }
-    expect([titles('ar').catalog.applications, titles('ar').bundles.title, titles('ar').plans.title]).toEqual(['التطبيقات', 'الحزم', 'الباقات'])
-    expect([titles('en').catalog.applications, titles('en').bundles.title, titles('en').plans.title]).toEqual(['Applications', 'Bundles', 'Plans'])
+    expect([titles('ar').catalog.applications, titles('ar').bundles.title, titles('ar').plans.title]).toEqual(['التطبيقات', 'الإضافات', 'الباقات'])
+    expect([titles('en').catalog.applications, titles('en').bundles.title, titles('en').plans.title]).toEqual(['Applications', 'Add-ons', 'Plans'])
   })
 
   it('has a text in both languages for every invoice line kind the contract names', () => {

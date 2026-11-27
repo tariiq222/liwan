@@ -12,59 +12,62 @@ const hydrated = useHydrated()
 const create = useCreateHrInsuranceProvider()
 const patch = usePatchHrInsuranceProvider()
 
-type Draft = { name: string; revision: number }
-const drafts = ref<Record<number, Draft>>({})
+const revisions = ref<Record<number, number>>({})
 const newName = ref('')
-const attempted = ref(false)
 const savingId = ref<number | null>(null)
 const failure = ref<unknown>(null)
 const reloading = ref(false)
+const reloadGeneration = ref(0)
 
 const conflict = computed(() => failure.value instanceof ApiError && failure.value.status === 409)
-const busy = computed(() => !props.canEdit || create.isPending.value || savingId.value !== null || reloading.value || conflict.value)
+const busy = computed(() => create.isPending.value || savingId.value !== null || reloading.value || conflict.value)
+const locked = computed(() => !hydrated.value || !props.canEdit || busy.value)
 const message = computed(() => failure.value ? (conflict.value ? t('hrInsurance.providers.conflict') : saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))) : '')
-const nameError = computed(() => attempted.value && !newName.value.trim() ? t('hrInsurance.providers.nameRequired') : undefined)
 
-function draft(provider: HrInsuranceProvider) {
-  return drafts.value[provider.id] ?? { name: provider.name, revision: provider.revision }
+function captureRevision(provider: HrInsuranceProvider) {
+  if (revisions.value[provider.id] === undefined) {
+    revisions.value = { ...revisions.value, [provider.id]: provider.revision }
+  }
 }
-function setName(provider: HrInsuranceProvider, name: string) {
-  drafts.value = { ...drafts.value, [provider.id]: { ...draft(provider), name } }
+function clearRevision(id: number) {
+  if (revisions.value[id] === undefined) return
+  const { [id]: _cleared, ...rest } = revisions.value
+  revisions.value = rest
 }
-function changed(provider: HrInsuranceProvider) {
-  return draft(provider).name !== provider.name
-}
-function savable(provider: HrInsuranceProvider) {
-  return changed(provider) && !!draft(provider).name.trim()
+function releaseRevision(id: number, event?: FocusEvent) {
+  if (event?.currentTarget instanceof HTMLElement && event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+  if (savingId.value !== id && !conflict.value) clearRevision(id)
 }
 
 async function run(id: number | null, action: () => Promise<unknown>) {
-  if (!hydrated.value || busy.value) return
+  if (locked.value) return
   failure.value = null
   savingId.value = id
   try {
     await action()
   } catch (error) { failure.value = error } finally { savingId.value = null }
 }
-async function saveName(provider: HrInsuranceProvider) {
-  const current = draft(provider)
-  if (!savable(provider)) return
+async function saveName(provider: HrInsuranceProvider, name: string) {
+  const trimmed = name.trim()
+  if (!trimmed || trimmed === provider.name) return
+  const revision = revisions.value[provider.id] ?? provider.revision
   await run(provider.id, async () => {
-    await patch.mutateAsync({ id: provider.id, body: { revision: current.revision, name: current.name.trim() } })
-    const { [provider.id]: _saved, ...rest } = drafts.value
-    drafts.value = rest
+    await patch.mutateAsync({ id: provider.id, body: { revision, name: trimmed } })
+    clearRevision(provider.id)
   })
 }
 async function setActive(provider: HrInsuranceProvider, active: boolean) {
-  await run(provider.id, () => patch.mutateAsync({ id: provider.id, body: { revision: provider.revision, active } }))
+  await run(provider.id, async () => {
+    await patch.mutateAsync({ id: provider.id, body: { revision: provider.revision, active } })
+    clearRevision(provider.id)
+  })
 }
 async function addProvider() {
-  attempted.value = true
-  if (!newName.value.trim()) return
+  const name = newName.value.trim()
+  if (!name) return
   await run(null, async () => {
-    await create.mutateAsync({ name: newName.value.trim() })
+    await create.mutateAsync({ name })
     newName.value = ''
-    attempted.value = false
   })
 }
 async function reload() {
@@ -72,34 +75,60 @@ async function reload() {
   reloading.value = true
   try {
     await props.reloadProviders()
-    drafts.value = {}
+    revisions.value = {}
     failure.value = null
+    reloadGeneration.value += 1
   } catch (error) { failure.value = error } finally { reloading.value = false }
 }
 </script>
 
 <template>
-  <SharedFormSection panel :title="t('hrInsurance.providers.title')" :description="t('hrInsurance.providers.hint')">
-    <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('hrInsurance.providers.saveError')" :description="message" data-testid="hr-insurance-providers-error" />
-    <UButton v-if="conflict" color="neutral" variant="outline" :label="t('hrInsurance.providers.reload')" :loading="reloading" :disabled="reloading" data-testid="hr-insurance-providers-reload" @click="reload" />
-    <SharedEmptyState icon="i-lucide-heart-pulse" v-if="!props.providers.length" :title="t('hrInsurance.providers.emptyTitle')" :description="t('hrInsurance.providers.emptyHint')" />
-    <ul v-else class="grid gap-4" data-testid="hr-insurance-providers">
-      <li v-for="provider in props.providers" :key="provider.id" class="grid items-end gap-3 sm:grid-cols-[1fr_13rem]" :data-testid="`hr-insurance-provider-${provider.id}`">
-        <UFormField :label="t('hrInsurance.providers.name')" :name="`hr-insurance-provider-name-${provider.id}`">
-          <UInput :id="`hr-insurance-provider-name-${provider.id}`" class="w-full" :model-value="draft(provider).name" :disabled="!hydrated || busy" @update:model-value="setName(provider, String($event ?? ''))" />
-        </UFormField>
-        <div class="flex flex-wrap items-center justify-end gap-2">
-          <SharedStatusBadge v-if="!provider.active" size="sm" tone="neutral" :label="t('hrInsurance.providers.archived')" />
-          <UButton v-if="changed(provider)" color="primary" :disabled="!hydrated || busy || !savable(provider)" :loading="savingId === provider.id" :label="t('hrInsurance.providers.save')" data-testid="hr-insurance-provider-save" @click="saveName(provider)" />
-          <UButton v-if="props.canEdit" color="neutral" variant="outline" :disabled="!hydrated || busy" :label="provider.active ? t('hrInsurance.providers.archive') : t('hrInsurance.providers.restore')" data-testid="hr-insurance-provider-toggle" @click="setActive(provider, !provider.active)" />
-        </div>
-      </li>
-    </ul>
-    <form v-if="props.canEdit" class="mt-3 grid items-end gap-3 border-t border-default pt-4 sm:grid-cols-[1fr_13rem]" data-testid="hr-insurance-provider-add" @submit.prevent="addProvider">
-      <UFormField :label="t('hrInsurance.providers.name')" name="hr-insurance-provider-new-name" :error="nameError">
-        <UInput id="hr-insurance-provider-new-name" v-model="newName" class="w-full" :placeholder="t('hrInsurance.providers.namePlaceholder')" :disabled="!hydrated || busy" />
-      </UFormField>
-      <UButton type="submit" color="primary" :disabled="!hydrated || busy" :loading="create.isPending.value" :label="t('hrInsurance.providers.add')" data-testid="hr-insurance-provider-add-submit" />
-    </form>
-  </SharedFormSection>
+  <SharedSettingsList
+    id="insurance-providers"
+    data-testid="hr-insurance-providers"
+    :title="t('hrInsurance.providers.title')"
+    :description="t('hrInsurance.providers.hint')"
+    :can-edit="canEdit"
+    :message="message"
+    :empty="!props.providers.length"
+    :adding="create.isPending.value"
+    :add-disabled="busy || !newName.trim()"
+    @add="addProvider"
+  >
+    <template v-if="conflict" #before>
+      <UButton
+        class="justify-self-start"
+        color="neutral"
+        variant="outline"
+        :label="t('hrInsurance.providers.reload')"
+        :loading="reloading"
+        :disabled="!hydrated || reloading"
+        data-testid="hr-insurance-providers-reload"
+        @click="reload"
+      />
+    </template>
+    <SharedSettingsListRow
+      v-for="provider in props.providers"
+      :key="`${provider.id}-${reloadGeneration}`"
+      :name="provider.name"
+      :active="provider.active"
+      :can-edit="canEdit"
+      :busy="busy"
+      :data-testid="`hr-insurance-provider-${provider.id}`"
+      @focusin="captureRevision(provider)"
+      @focusout="releaseRevision(provider.id, $event)"
+      @rename="name => saveName(provider, name)"
+      @toggle="active => setActive(provider, active)"
+    />
+    <template #add>
+      <UInput
+        v-model="newName"
+        class="min-w-40 flex-1"
+        :placeholder="t('hrInsurance.providers.namePlaceholder')"
+        :aria-label="t('hrInsurance.providers.name')"
+        :maxlength="200"
+        :disabled="!hydrated || busy"
+      />
+    </template>
+  </SharedSettingsList>
 </template>

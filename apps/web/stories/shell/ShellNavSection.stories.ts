@@ -12,7 +12,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const context = storyContext('apps/web/app/components/shell/AppSidebar.vue:80')
+const context = storyContext('apps/web/app/components/shell/AppSidebar.vue:93')
 
 export const Applications: Story = { name: 'تطبيقات بشارة العدد', parameters: context, args: { action: { label: 'تخصيص الشريط', to: '/apps', icon: 'i-lucide-pencil' } } }
 export const Branches: Story = { name: 'فرع مفتوح فيه الصفحة الحالية', parameters: context, args: { label: 'المشاريع', title: 'المشاريع', items: appLinkRows.map(row => row.id === 'planning' ? { ...row, children: row.children!.map(child => child.id === 'planning-mine' ? { ...child, active: true } : child) } : { ...row, active: false }) } }

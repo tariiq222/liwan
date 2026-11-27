@@ -142,8 +142,15 @@ land together: it merges only those agreed branches with merge commits and goes 
    coupled branches only, with merge
    commits and one PR to `main`. Preserve incoming commits and approved behavior;
    do not replace entire files, use blanket `ours`/`theirs`, reset `main` to an
-   incoming tree or treat ancestry as proof behavior survives. Generated API files
-   follow the rule in [parallel-work.md](../parallel-work.md#generated-api-files): the branch that changes a route
+   incoming tree or treat ancestry as proof behavior survives. Never `git reset --soft origin/main` to update or
+   squash a branch: use `git rebase origin/main`, or squash only down to `$(git merge-base origin/main HEAD)`,
+   because a soft reset moves HEAD without the tree and stages the inverse of every commit merged since the
+   branch started. `tools/git_policy.py` and the `commit-msg` hook refuse such a silent revert of a recent
+   `main` commit unless the message acknowledges it with `Revert "..."` or a `Reverts: <sha>` trailer.
+   The same check fires when a deliberate cleanup restores a recently added line or file to its exact
+   pre-commit state; name the commit it removes with `git revert` or `Reverts: <sha>` there too, as the
+   error message explains.
+   Generated API files follow the rule in [parallel-work.md](../parallel-work.md#generated-api-files): the branch that changes a route
    regenerates and commits both, and PR CI checks them. Two PRs that both regenerate can merge textually clean and
    leave `main` stale; the next PR then regenerates them (the check names the fix), so nothing stays broken.
 3. **Review the complete delta.** Compare the candidate with the recorded

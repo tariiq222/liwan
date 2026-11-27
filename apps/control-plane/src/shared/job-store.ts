@@ -1,5 +1,4 @@
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
-import { resolvePackageAuthority } from '../packages.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
@@ -96,13 +95,12 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
     let restoreApprovalAvailable = false
     if (value && typeof value === 'object' && (value as { operation?: unknown }).operation === 'provision') {
       const request = z.strictObject({ schemaVersion: z.literal(1), operation: z.literal('provision'), requestId: z.uuid() }).parse(value)
-      const tenant = await client.query('SELECT catalog_version,catalog_tier,package_revision_id FROM tenants WHERE id=$1 FOR SHARE', [controlTenantId])
+      const tenant = await client.query('SELECT catalog_version,catalog_tier FROM tenants WHERE id=$1 FOR SHARE', [controlTenantId])
       const version = tenant.rows[0]?.catalog_version, tier = tenant.rows[0]?.catalog_tier
       if (!version || !tier) throw new Error('catalog_required')
       const catalog = await client.query("SELECT source_sha256,solution FROM catalog_entries WHERE version=$1 AND status='published' FOR SHARE", [version])
       if (!catalog.rowCount) throw new Error('published_catalog_missing')
-      const packageAuthority = tenant.rows[0].package_revision_id ? await resolvePackageAuthority(client,tenant.rows[0].package_revision_id) : undefined
-      authoritative = { ...request, catalog: { version, tier, sourceSha256: catalog.rows[0].source_sha256 }, policy: packageAuthority?.policy??deriveSharedPolicy(catalog.rows[0].solution, tier), ...(packageAuthority?{packageAuthority}:{}) }
+      authoritative = { ...request, catalog: { version, tier, sourceSha256: catalog.rows[0].source_sha256 }, policy: deriveSharedPolicy(catalog.rows[0].solution, tier) }
     }
     if (value && typeof value === 'object' && (value as { operation?: unknown }).operation === 'restore') {
       const request = restoreInputSchema.parse(value)

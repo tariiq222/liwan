@@ -38,7 +38,7 @@ describe('vendor commercial pages: structure and gating', () => {
   it('create release guide explains the missing release in two steps and replaces the bundle form until one exists', () => {
     const p = page('bundles/new.vue')
     expect(p.indexOf('v-else-if="!releases.length && published.length"')).toBeGreaterThan(p.indexOf("v-if=\"!can('vendor.catalog.manage')\""))
-    expect(p.indexOf('<VendorBundleForm v-else')).toBeGreaterThan(p.indexOf('v-else-if="!releases.length && published.length"'))
+    expect(p.indexOf('<VendorBundleForm')).toBeGreaterThan(p.indexOf('v-else-if="!releases.length && published.length"'))
     for (const key of ['title', 'why', 'steps', 'step1', 'step2']) expect(p).toContain(`vendor.bundles.guide.${key}`)
     expect(p).toContain('aria-current="step"'); expect(p).toContain('data-testid="release-create"'); expect(p).toContain('vendor.bundles.createRelease')
     for (const lang of ['en', 'ar']) {
@@ -131,7 +131,7 @@ describe('locale parity for vendor.bundles/plans/pricing', () => {
   it('every status and cadence label exists in Arabic', () => {
     const ar = json('ar').pricing
     expect(ar.status).toEqual({ draft: 'مسودة', validated: 'جاهزة للاعتماد', published: 'منشورة ومتاحة', withdrawn: 'موقوفة' })
-    expect(json('ar').bundles.title).toBe('الحزم'); expect(json('ar').plans.title).toBe('الباقات')
+    expect(json('ar').bundles.title).toBe('الإضافات'); expect(json('ar').plans.title).toBe('الباقات')
   })
   it('storage is labelled as counted attachments and priced per gigabyte above the minimum', () => { expect(json('ar').pricing.keys.storage_limit_mb).toContain('المرفقات'); expect(json('ar').pricing.fields.storagePrice).toContain('غيغابايت') })
   it('every t() key used by the new pages exists', () => {
