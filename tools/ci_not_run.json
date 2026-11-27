@@ -93,9 +93,9 @@
       ]
     },
     {
-      "reason": "needs a scratch Odoo tenant liwan_scratch_<32 hex> with an Odoo shell and the real Python effect, which no CI stage provisions beside the control plane; run with npm -w apps/control-plane run test:packages-acceptance",
+      "reason": "needs a scratch Odoo tenant liwan_scratch_<32 hex> with an Odoo shell and the real Python effect, which no CI stage provisions beside the control plane; run with npm -w apps/control-plane run test:plans-acceptance",
       "files": [
-        "apps/control-plane/src/__tests__/packages-acceptance.live.test.ts"
+        "apps/control-plane/src/__tests__/plans-acceptance.live.test.ts"
       ]
     },
     {

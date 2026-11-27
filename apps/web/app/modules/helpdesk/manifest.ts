@@ -54,6 +54,7 @@ const manifest: AppManifest = {
     { pattern: /^\/helpdesk\/[^/]+\/edit$/, capability: WRITE },
     // The queue and the ticket: `requires_capability(READ, REQUESTS_READ, match='any')` on the routes.
     { pattern: /^\/helpdesk(?:\/|$)/, capability: READ, anyCapabilities: [REQUESTS_READ], match: 'any' },
+    { pattern: /^\/settings\/apps\/helpdesk\/(?:teams|stages|sla)\/(?:new|[^/]+\/edit)$/, capability: 'helpdesk.settings.manage' },
     { pattern: /^\/settings\/apps\/helpdesk(?:\/|$)/, capability: 'helpdesk.settings.read' },
   ],
   commands: [
