@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { csrfTokenFor, formatSubscriptionMoney, FREE_BASE_BADGE, initialBundleSelection, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, signupOfferTotals, trialDaysRemaining, type SignupOffer } from '../subscription'
+import { csrfTokenFor, FREE_BASE_BADGE, initialBundleSelection, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, signupOfferTotals, trialDaysRemaining, type SignupOffer } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
