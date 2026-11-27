@@ -31,7 +31,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
   beforeAll(async () => {
     await migrate(pool)
     const version = `commercial-${randomUUID()}`
-    const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))
+    const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v5.json', import.meta.url))
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)",
       [randomUUID(), version, JSON.parse(raw.toString()), createHash('sha256').update(raw).digest('hex')])
     const release = await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Vendor paid acceptance' })

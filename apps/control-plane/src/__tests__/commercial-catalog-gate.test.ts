@@ -110,8 +110,8 @@ suite('commercial catalog compatibility gate & catalog-sync', () => {
   let origin: string
   let authHeaders: (method: string, path: string, body?: string) => Record<string, string>
   let baseSolution: SolutionJson
-  let platformV4Bytes: Buffer
-  let platformV4Sha256: string
+  let platformV5Bytes: Buffer
+  let platformV5Sha256: string
   let seededPlans: Record<string, unknown>[] = []
   let seededPlanRevs: Record<string, unknown>[] = []
 
@@ -278,9 +278,9 @@ suite('commercial catalog compatibility gate & catalog-sync', () => {
 
   beforeAll(async () => {
     await migrate(pool)
-    platformV4Bytes = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform_v4.json'))
-    platformV4Sha256 = createHash('sha256').update(platformV4Bytes).digest('hex')
-    baseSolution = JSON.parse(platformV4Bytes.toString('utf8')) as SolutionJson
+    platformV5Bytes = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform_v5.json'))
+    platformV5Sha256 = createHash('sha256').update(platformV5Bytes).digest('hex')
+    baseSolution = JSON.parse(platformV5Bytes.toString('utf8')) as SolutionJson
 
     // Preserve the migration-seeded LiwanOS plan so other suites running after us see the pristine post-migrate DB.
     seededPlans = (await pool.query('SELECT * FROM commercial_plans WHERE id=$1', [SEEDED_PLAN_ID])).rows
@@ -831,11 +831,11 @@ suite('commercial catalog compatibility gate & catalog-sync', () => {
   })
 
   it('allows publishing an unchanged catalog while active subscriptions hold terms.limits or domain_limits overrides above the catalog ceiling', async () => {
-    // 1) Unchanged platform_v4.json (ai.assist.monthly:100) with a customer terms.limits override of 200 and no usage snapshots.
+    // 1) Unchanged platform_v5.json (ai.assist.monthly:100) with a customer terms.limits override of 200 and no usage snapshots.
     await seedRelease(cloneBase())
     const basePlan = await seedPublishedPlan()
     await seedActiveSubscription(basePlan.id, [], { termsLimits: { 'ai.assist.monthly': 200 } })
-    await expect(assertCatalogCompatible(pool, cloneBase(), 'unchanged-platform-v4')).resolves.toBeUndefined()
+    await expect(assertCatalogCompatible(pool, cloneBase(), 'unchanged-platform-v5')).resolves.toBeUndefined()
 
     // 2) Bundle domain_limits override (25) above the catalog ceiling (10) passes both when catalog ceiling is unchanged
     //    and when the catalog ceiling lowers to 5 (the bundle override still governs the subscription).
@@ -902,7 +902,7 @@ suite('commercial catalog compatibility gate & catalog-sync', () => {
   it('runs catalog-sync end-to-end: syncs fresh, is idempotent on repeat, and logs catalog.sync_failed on errors', async () => {
     const version = `sync-${randomUUID()}`
 
-    // 1) Fresh catalog-sync against platform_v4.json.
+    // 1) Fresh catalog-sync against platform_v5.json.
     const first = await runCli(['catalog-sync', version, 'Initial catalog sync'])
     expect(first.stderr).toBe('')
     expect(first.code).toBe(0)
@@ -925,7 +925,7 @@ suite('commercial catalog compatibility gate & catalog-sync', () => {
     expect(entryRow).toHaveLength(1)
     expect(entryRow[0].status).toBe('published')
     expect(entryRow[0].published_at).toBeTruthy()
-    expect(entryRow[0].source_sha256).toBe(platformV4Sha256)
+    expect(entryRow[0].source_sha256).toBe(platformV5Sha256)
 
     const releaseRow = (await pool.query('SELECT id, catalog_version FROM catalog_releases WHERE catalog_version=$1', [version])).rows
     expect(releaseRow).toHaveLength(1)
@@ -981,13 +981,13 @@ suite('commercial catalog compatibility gate & catalog-sync', () => {
     expect((await pool.query('SELECT count(*)::int AS n FROM catalog_entries WHERE version=$1', [checkFailVersion])).rows[0].n).toBe(0)
     expect((await pool.query('SELECT count(*)::int AS n FROM catalog_releases WHERE catalog_version=$1', [checkFailVersion])).rows[0].n).toBe(0)
 
-    // 3c) Incompatible candidate (a published available bundle uses an app absent from platform_v4.json)
+    // 3c) Incompatible candidate (a published available bundle uses an app absent from platform_v5.json)
     // refuses both `catalog-sync` (writing catalog.sync_failed) and `POST /v1/catalog/:id/publish` (returning 409).
     const extendedSolution = cloneBase()
     extendedSolution.tiers.push({
       id: 'fieldwork',
       name: 'Fieldwork',
-      description: 'Extra application absent from platform_v4.json',
+      description: 'Extra application absent from platform_v5.json',
       sellable: true,
       modules: ['liwan_fieldwork'],
       features: ['boolean:fieldwork.enabled'],
@@ -1011,7 +1011,7 @@ suite('commercial catalog compatibility gate & catalog-sync', () => {
     const validatedId = randomUUID()
     await pool.query(
       "INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'validated',$3,$4)",
-      [validatedId, `http-incompat-${validatedId}`, baseSolution, platformV4Sha256],
+      [validatedId, `http-incompat-${validatedId}`, baseSolution, platformV5Sha256],
     )
     const httpRefused = await httpPost(`/v1/catalog/${validatedId}/publish`, { reason: REASON })
     expect(httpRefused.status).toBe(409)

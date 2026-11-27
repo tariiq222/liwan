@@ -67,7 +67,7 @@ describe('spec 3.6 acceptance: plans flip keys and limits on a tenant with every
   const api = client(pool, ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage'] as any)
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.pricing.manage'] }
   const reason = 'Phase 3 acceptance'
-  const solution = JSON.parse(readFileSync(`${repo}deploy/catalog/solutions/platform_v4.json`, 'utf8'))
+  const solution = JSON.parse(readFileSync(`${repo}deploy/catalog/solutions/platform_v5.json`, 'utf8'))
   // A tier must list modules (the parser refuses none). liwan_directory is a real release module (already in the
   // install closure of messaging/projects), so the effect accepts it and installs nothing extra.
   solution.tiers.push({ id: 'probe', name: 'Probe', description: 'Registry probe (acceptance only).', sellable: true, modules: ['liwan_directory'], features: ['boolean:probe.enabled'] })

@@ -58,15 +58,17 @@ describe.skipIf(!url)('catalog publish is the only transition and re-checks the 
   })
 
   it('no longer offers a validate transition', async () => {
-    const id = await entry('draft', sha('platform_v4.json'))
+    const id = await entry('draft', sha('platform_v5.json'))
     expect(await transition(origin, id, 'validate')).toMatchObject({ status: 404, body: { code: 'not_found' } })
     expect((await status(id)).status).toBe('draft')
   })
 
   it('refuses to publish an entry stored from an earlier catalog file', async () => {
-    const id = await entry('validated', sha('platform_v3.json'))
-    expect(await transition(origin, id, 'publish')).toMatchObject({ status: 409, body: { code: 'catalog_source_not_publishable' } })
-    expect((await status(id)).status).toBe('validated')
+    for (const earlier of ['platform_v3.json', 'platform_v4.json']) {
+      const id = await entry('validated', sha(earlier))
+      expect(await transition(origin, id, 'publish'), earlier).toMatchObject({ status: 409, body: { code: 'catalog_source_not_publishable' } })
+      expect((await status(id)).status).toBe('validated')
+    }
   })
 
   it('refuses an entry whose source bytes match no known catalog file', async () => {
@@ -76,13 +78,13 @@ describe.skipIf(!url)('catalog publish is the only transition and re-checks the 
   })
 
   it('refuses a publish whose repository check fails and leaves the row validated', async () => {
-    const id = await entry('validated', sha('platform_v4.json'))
+    const id = await entry('validated', sha('platform_v5.json'))
     expect(await transition(brokenOrigin, id, 'publish')).toMatchObject({ status: 422, body: { code: 'catalog_invalid' } })
     expect(await status(id)).toEqual({ status: 'validated', published_at: null })
   })
 
   it('publishes a validated entry, records published_at and resolves the import and publish actors', async () => {
-    const id = await entry('validated', sha('platform_v4.json'))
+    const id = await entry('validated', sha('platform_v5.json'))
     await pool.query("INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,'operator','catalog.imported',$2,'imported before the test')", [randomUUID(), id])
     const published = await transition(origin, id, 'publish')
     expect(published).toMatchObject({ status: 200, body: { status: 'published' } })

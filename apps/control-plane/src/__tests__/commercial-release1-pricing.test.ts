@@ -85,7 +85,7 @@ suite('release 1 pricing seeds', () => {
     // Bundle prices live on published revisions, which a fresh control database creates from the release
     // composition (default-bundles) using the per-application seed amounts.
     const version = `commercial-${randomUUID()}`
-    const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))
+    const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v5.json', import.meta.url))
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)", [randomUUID(), version, JSON.parse(raw.toString()), createHash('sha256').update(raw).digest('hex')])
     const created = await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Release 1 prices' })
     expect(created.status, JSON.stringify(created.body)).toBe(201)

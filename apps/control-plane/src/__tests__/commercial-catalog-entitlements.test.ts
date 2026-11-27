@@ -84,7 +84,7 @@ suite('catalog entitlement follow', () => {
   let base: any
   beforeAll(async () => {
     await migrate(pool)
-    base = JSON.parse((await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))).toString())
+    base = JSON.parse((await readFile(new URL('../../../../deploy/catalog/solutions/platform_v5.json', import.meta.url))).toString())
     const release = await publish(catalog(5))
     const projects = release.applications.find((a: any) => a.id === 'projects')
     const featureKeys = projects.features.filter((f: any) => f.kind === 'boolean' && f.selectable).map((f: any) => f.key)

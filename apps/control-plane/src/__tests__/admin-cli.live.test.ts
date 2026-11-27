@@ -94,7 +94,7 @@ else describe('admin CLI', () => {
   }, 120_000)
   it('validates a legacy draft on re-import and refuses different bytes under the same version', async () => {
     const version = `cli-draft-${randomUUID()}`, id = randomUUID()
-    const source = readFileSync(join(repositoryRoot, 'deploy/catalog/solutions/platform_v4.json'))
+    const source = readFileSync(join(repositoryRoot, 'deploy/catalog/solutions/platform_v5.json'))
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'draft',$3,$4)", [id, version, JSON.parse(source.toString('utf8')), createHash('sha256').update(source).digest('hex')])
 
     const reimported = await runCli(['catalog-import', version, 'legacy draft'], { LIWAN_REPOSITORY_ROOT: repositoryRoot })

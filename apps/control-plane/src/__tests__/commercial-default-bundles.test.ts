@@ -48,7 +48,7 @@ suite('default bundles for a catalog release', () => {
     expect((await pool.query('SELECT count(*)::int AS n FROM bundle_revisions WHERE catalog_release_id=$1', [unpriced.id])).rows[0].n).toBe(before)
   })
   it('starts every platform limit the release adds (the AI limits) unlimited, except the free assistant budget at its catalog ceiling, on the new plan revision', async () => {
-    const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))
+    const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v5.json', import.meta.url))
     const version = `commercial-${randomUUID()}`
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)", [randomUUID(), version, JSON.parse(raw.toString()), createHash('sha256').update(raw).digest('hex')])
     const platform = (await api('POST', '/catalog/releases', { catalog_version: version, reason })).body
@@ -65,7 +65,7 @@ suite('default bundles for a catalog release', () => {
       await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)", [randomUUID(), version, JSON.parse(text), createHash('sha256').update(text).digest('hex')])
       return (await api('POST', '/catalog/releases', { catalog_version: version, reason })).body
     }
-    const raw = (await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))).toString()
+    const raw = (await readFile(new URL('../../../../deploy/catalog/solutions/platform_v5.json', import.meta.url))).toString()
     // The preceding release still names the budget `ai.setup.monthly`.
     const before = await publish(raw.replace('limit:ai.assist.monthly:100', 'limit:ai.setup.monthly'))
     const first = await api('POST', `/catalog/releases/${before.id}/default-bundles`, { reason })
