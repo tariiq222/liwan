@@ -5,7 +5,7 @@
 
 Creates the application's own folders from tools/new_app_templates, its AI agent with one read tool and the access test
 inside the application (the registries belong to liwan_api, so no bridge to liwan_ai), makes the three registration
-edits (tools/arch_layers.json, the platform_v4 catalog tier,
+edits (tools/arch_layers.json, the active release catalog tier,
 packages/contracts/src/index.ts) and runs catalog_check.py --sync-release-copies.
 Nothing is written when any target already exists or any check fails.
 """
@@ -204,12 +204,21 @@ def platform_solution(root):
     return current_solution(root)
 
 
+def _solution_order(path):
+    """Order solution files by the numeric suffix of platform_vN, so v10 follows v5."""
+    match = re.search(r'_v(\d+)$', path.stem)
+    return (int(match.group(1)) if match else -1, path.name)
+
+
 def current_solution(root):
     """The release catalog a new application joins: the newest schema-3 solution file."""
     directory = Path(root) / SOLUTION_DIR
     candidates = sorted(
-        path for path in directory.glob('*.json')
-        if json.loads(path.read_text(encoding='utf-8')).get('schema_version') == RELEASE_SCHEMA
+        (
+            path for path in directory.glob('*.json')
+            if json.loads(path.read_text(encoding='utf-8')).get('schema_version') == RELEASE_SCHEMA
+        ),
+        key=_solution_order,
     )
     if not candidates:
         msg = f'{SOLUTION_DIR} holds no published solution'

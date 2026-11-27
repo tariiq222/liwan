@@ -569,6 +569,24 @@ class TestNewApp(unittest.TestCase):
                     node = node[part]
                 self.assertIsInstance(node, str, key)
 
+    def test_current_solution_sorts_versions_numerically(self):
+        solutions = self.root / new_app.SOLUTION_DIR
+        (solutions / 'platform_v10.json').write_text(
+            json.dumps({'schema_version': new_app.RELEASE_SCHEMA}) + '\n',
+            encoding='utf-8',
+        )
+        (solutions / 'platform_v11.json').write_text(
+            json.dumps({'schema_version': 2}) + '\n',
+            encoding='utf-8',
+        )
+        self.assertEqual(new_app.current_solution(self.root), f'{new_app.SOLUTION_DIR}/platform_v10.json')
+
+    def test_generated_manifest_declares_app_card(self):
+        code, _, err = run(self.root, *ARGS)
+        self.assertEqual(code, 0, err)
+        manifest = (self.root / 'apps/web/app/modules/zzprobe/manifest.ts').read_text(encoding='utf-8')
+        self.assertIn("appCard: { category: 'team', plan: 'addon' }", manifest)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -55,7 +55,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   the app groups inside them; Track A packages are read-only history. Every
   application of the release is installed in every shared-SaaS tenant, and a
   policy or compiled entitlement carries every key of every release application
-  (closed: `false` / `0`; catalog `deploy/catalog/solutions/platform_v4.json`, `commercial-compiler/5`).
+  (closed: `false` / `0`; catalog `deploy/catalog/solutions/platform_v5.json`, `commercial-compiler/5`).
   `_liwan_validate_features` stays strict; operator scripts complete a target with
   `_liwan_close_unlisted_features`, and `liwan.tenant.profile._register_hook`
   registers a newly installed application's keys closed. Usage is collected per
@@ -114,13 +114,14 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   with the application's AI agent, one read tool and the access test inside the addon (registered in the
   `liwan_api` registries, no AI bridge). Outside those folders it edits exactly three registration files:
   `tools/arch_layers.json` (the application at rank 4 and its `web_apps` entry),
-  `deploy/catalog/solutions/platform_v4.json` (a sellable tier with module `liwan_<app>` and feature
-  `boolean:<app>.enabled`) and `packages/contracts/src/index.ts` (one export line). It then runs
+  `deploy/catalog/solutions/platform_v5.json`, the active release catalog that `tools/new_app.py::current_solution`
+  resolves (a sellable tier with module `liwan_<app>` and feature `boolean:<app>.enabled`) and
+  `packages/contracts/src/index.ts` (one export line). It then runs
   `python3 -B tools/catalog_check.py --sync-release-copies`, which rewrites the release module
   lists in `deploy/check_isolated.py`, `deploy/OPERATIONS.md`,
   `deploy/verification-checks.json`, `tools/liwan_cli/operator.py` and the other copies named in
   `RELEASE_COPIES` of `tools/catalog_check.py`. Nothing is written when any target exists or a check fails.
-  It edits `deploy/catalog/solutions/platform_v4.json` in place only while that catalog is unpublished; after the
+  It edits the active catalog in place only while that catalog is unpublished; after the
   first publish a new application needs a new `platform_vN.json`, decided before the first
   server deploy.
 

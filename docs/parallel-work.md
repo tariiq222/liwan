@@ -59,7 +59,7 @@ orchestrator edits these shared integration points, or coordinates a single
 one-line addition from the owning team:
 
 - `tools/arch_layers.json` — the addon rank (weakening it needs the owner's approval).
-- The active release catalog under `deploy/catalog/solutions/` — currently `deploy/catalog/solutions/platform_v4.json`, selected by `tools/catalog_check.py::current_release`; follow `docs/agents/odoo-rules.md` for publication and versioning. Older catalogs are not the registration target.
+- The active release catalog under `deploy/catalog/solutions/` — currently `deploy/catalog/solutions/platform_v5.json`, selected by `tools/catalog_check.py::current_release`; follow `docs/agents/odoo-rules.md` for publication and versioning. Older catalogs are not the registration target.
 - `packages/contracts/src/index.ts` — one pillar barrel export.
 - The release module lists in `deploy/check_isolated.py` and `deploy/OPERATIONS.md`
   are synced from the catalog by `python3 -B tools/catalog_check.py --sync-release-copies`; do not edit them

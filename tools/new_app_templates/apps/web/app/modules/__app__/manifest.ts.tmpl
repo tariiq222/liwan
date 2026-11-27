@@ -8,6 +8,7 @@ const manifest: AppManifest = {
   nav: [
     { to: '/{{route}}', labelKey: '{{ns}}.nav.records', icon: 'i-lucide-layout-grid', shortcut: '{{shortcut}}', capability: '{{app}}.records.read' },
   ],
+  appCard: { category: 'team', plan: 'addon' },
   contextLinks: () => [
     { id: '{{app}}-records', labelKey: '{{ns}}.nav.records', icon: 'i-lucide-layout-grid', to: '/{{route}}', capability: '{{app}}.records.read' },
   ],
