@@ -27,7 +27,6 @@ policies() {
   # setup action; local callers supply PyYAML in their own test environment.
   if [ "${GITHUB_ACTIONS:-}" = true ]; then
     python3 -m pip install --quiet pyyaml==6.0.3
-    python3 -m pip install --quiet --require-hashes -r apps/pbx-agent/requirements-dev.txt
   fi
   PYTHONPATH=deploy python3 -B -m unittest deploy/test_*.py
   # The environment templates live in their own package, so `deploy/test_*.py` does not
@@ -70,7 +69,19 @@ policies() {
   PYTHONPATH=tools/documents_acceptance python3 -B -m unittest tools/documents_acceptance/test_acceptance.py
   # The telephony package: the agent's tests (they put their own src on sys.path) and the renderer's. Neither tests
   # folder is a package, so each is discovered from its own directory rather than from the repository root.
-  python3 -B -m unittest discover -s apps/pbx-agent/tests -p 'test_*.py'
+  # On GitHub Actions, install apps/pbx-agent/requirements-dev.txt into an isolated temp venv so its pins cannot
+  # overwrite ruff or collide with semgrep in the shared CI Python environment.
+  if [ "${GITHUB_ACTIONS:-}" = true ]; then
+    (
+      pbx_venv="$(mktemp -d)"
+      trap 'rm -rf "$pbx_venv"' EXIT
+      python3 -m venv "$pbx_venv"
+      "$pbx_venv/bin/pip" install --quiet --require-hashes -r apps/pbx-agent/requirements-dev.txt
+      PATH="$pbx_venv/bin:$PATH" python3 -B -m unittest discover -s apps/pbx-agent/tests -p 'test_*.py'
+    )
+  else
+    python3 -B -m unittest discover -s apps/pbx-agent/tests -p 'test_*.py'
+  fi
   python3 -B -m unittest discover -s deploy/telephony/tests -p 'test_*.py'
   # The shared edge snippet; its Caddy probe builds the pinned proxy image and skips when docker cannot.
   python3 -B -m unittest discover -s deploy/telephony/edge -p 'test_*.py'
