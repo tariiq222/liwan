@@ -41,15 +41,15 @@ UPSERT_AOR_SQL = (
     "maximum_expiration = EXCLUDED.maximum_expiration"
 )
 
-# G.711 before opus: the pinned Asterisk image has no opus translator, so an opus-first browser leg would record an
-# empty WAV and bridge to the ulaw trunk without audio.
+# G.711 only: the pinned Asterisk image has no opus translator, so an opus browser leg would record an empty WAV and
+# bridge to the ulaw trunk without audio. A peer that offers no G.711 is refused instead of recorded empty.
 UPSERT_ENDPOINT_SQL = (
     "INSERT INTO ps_endpoints ("
     "id, transport, aors, auth, context, disallow, allow, direct_media, webrtc, "
     "rtp_symmetric, force_rport, rewrite_contact, from_domain, dtmf_mode, "
     "device_state_busy_at, allow_transfer, callerid"
     ") VALUES ("
-    "%s, %s, %s, %s, %s, 'all', 'ulaw,alaw,opus', 'no', 'yes', "
+    "%s, %s, %s, %s, %s, 'all', 'ulaw,alaw', 'no', 'yes', "
     "'yes', 'yes', 'yes', %s, 'rfc4733', 1, 'yes', %s"
     ") ON CONFLICT (id) DO UPDATE SET "
     "transport = EXCLUDED.transport, "
