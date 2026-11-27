@@ -15,7 +15,7 @@ and `apps/control-plane/src/shared/admin-password-runner.ts`.
 | `tenant_storage_effect.py` | Provision one tenant's object storage: bucket, IAM user, policy and secret key on OCI, wired into the tenant's `fs.storage` record (see "Tenant storage effect"). Its `drop` removes the same resources of a tenant being deleted. `oci_provision.py` is the OCI side, run only inside the one-shot `tenant-storage` container. |
 | `effect_gate.py` | The only entry to the seven effects above (see below). |
 | `effect_schema.py` | The gate's per-effect request schemas: allowed keys, exact types, strict identifier patterns. |
-| `scratch_effect.py` | Scratch-only driver used by the packages acceptance test. |
+| `scratch_effect.py` | Scratch-only driver used by the plans acceptance test. |
 | `catalog_source.py` | Re-export of the registered catalog source resolver from `tools/liwan_cli`. |
 
 ## Tenant storage effect

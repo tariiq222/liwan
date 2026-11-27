@@ -306,7 +306,7 @@
     "goHome": "Back to home",
     "serverUnreachable": "Unable to reach the server",
     "badPayload": "Invalid response from the server",
-    "packageQuota": {
+    "planQuota": {
       "branches": "You have reached the branch limit for your plan.",
       "users": "You have reached the user limit for your plan.",
       "projects": "You have reached the project limit for your plan.",
