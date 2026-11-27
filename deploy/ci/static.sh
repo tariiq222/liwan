@@ -27,6 +27,7 @@ policies() {
   # setup action; local callers supply PyYAML in their own test environment.
   if [ "${GITHUB_ACTIONS:-}" = true ]; then
     python3 -m pip install --quiet pyyaml==6.0.3
+    python3 -m pip install --quiet --require-hashes -r apps/pbx-agent/requirements-dev.txt
   fi
   PYTHONPATH=deploy python3 -B -m unittest deploy/test_*.py
   # The environment templates live in their own package, so `deploy/test_*.py` does not
