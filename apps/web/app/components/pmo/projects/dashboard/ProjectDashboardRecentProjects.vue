@@ -45,7 +45,7 @@ const projectListQuery = computed(() => ({
 }))
 const columns = computed<TableColumn<DashboardProject>[]>(() => [
   { id: 'record', header: () => recordNumberHeader(t) },
-  { id: 'project', header: t('projects.dashboard.recentProject') },
+  { id: 'project', header: t('projects.dashboard.recentProject'), meta: { title: true } as TableColumn<DashboardProject>['meta'] },
   { id: 'status', header: t('projects.dashboard.recentStatus') },
   { id: 'progress', header: t('projects.dashboard.recentProgress') },
   { id: 'overdue', header: t('projects.dashboard.attention.overdueTasks') },
@@ -68,8 +68,8 @@ function updatedAt(value: string | null | undefined) {
     <SharedDataTable bare :rows="[...rows]" :columns="columns" :row-key="row => row.project.id" :empty-text="emptyText" :caption="t('projects.dashboard.attention.title')">
       <template #record-cell="{ row }"><RecordNumber :value="row.original.project.id" /></template>
       <template #project-cell="{ row }">
-        <div data-testid="recent-project-row">
-          <NuxtLink class="font-medium text-highlighted hover:underline" :to="entryTo(row.original.project.id, route.fullPath)">{{ row.original.project.name }}</NuxtLink>
+        <div data-testid="recent-project-row" class="min-w-0">
+          <NuxtLink class="block min-w-0 truncate font-medium text-highlighted hover:underline" :title="row.original.project.name" :to="entryTo(row.original.project.id, route.fullPath)">{{ row.original.project.name }}</NuxtLink>
         </div>
       </template>
       <template #status-cell="{ row }"><SharedStatusBadge v-bind="projectBadge(row.original.project.status)" data-testid="project-status" /></template>

@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellCoreApps',
   component: ShellCoreApps,
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:77'),
+  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:90'),
   args: { label: 'التطبيقات الأساسية', items: coreAppRows },
   render: args => ({ components: { ShellCoreApps }, setup: () => ({ args }), template: '<div class="liwan-shell" style="width: 264px; padding: 18px 14px"><ShellCoreApps v-bind="args" /></div>' }),
 } satisfies Meta<typeof ShellCoreApps>
