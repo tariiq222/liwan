@@ -12,7 +12,7 @@
       "failed": "We could not prepare the workspace",
       "ready": "Your workspace is ready"
     },
-    "trial": "Try Liwan free for 14 days. No payment card required.",
+    "trial": "Try Liwan free for {days} days. No payment card required.",
     "companyName": "Company name",
     "adminName": "Administrator’s full name",
     "email": "Work email",
@@ -51,28 +51,39 @@
     "humanCheck": "Security check",
     "offer": {
       "title": "Choose the apps you want to try",
+      "includedApps": "Included in the plan",
+      "basePrice": "Base plan price: {price} per month after the trial",
       "month": "{price} per month after the trial",
       "base": "The free workspace includes {users} users, {storage} GB of storage and {branches} extra branches.",
       "after": "Your workspace and data stay available after the trial. Paid apps start when you choose to subscribe and pay.",
       "total": "Today {today} · If you subscribe after the trial {monthly} per month",
+      "vatNote": "Includes {rate}% VAT ({tax})",
       "unlimited": "Unlimited",
       "loading": "Loading apps and prices",
       "retry": "Reload offer",
       "begin": "Start my free trial",
       "apps": {
         "crm": {
-          "name": "Customer Relationship Management (CRM)",
           "description": "Create and track sales opportunities from first contact to close."
         },
         "inbox": {
-          "name": "Customer Messages",
           "description": "Receive and reply to customer messages from one inbox."
+        },
+        "projects": {
+          "description": "Plan projects and track tasks and deadlines with your team."
+        },
+        "people": {
+          "description": "Manage employee records, leave and attendance in one place."
+        },
+        "finance": {
+          "description": "Issue invoices and track expenses and payments clearly."
         }
       },
-      "inboxLimits": {
-        "0": "Channels: {count}",
-        "1": "Outgoing messages per month (UTC): {count}",
-        "2": "Campaign recipients: {count}"
+      "limits": {
+        "inbox_channels": "Channels: {count}",
+        "inbox_messages_out": "Outgoing messages per month (UTC): {count}",
+        "inbox_campaign_recipients": "Campaign recipients: {count}",
+        "projects_max_projects": "Projects: {count}"
       }
     },
     "slug": {

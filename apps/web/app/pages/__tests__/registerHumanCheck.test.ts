@@ -6,6 +6,7 @@ import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
 import { errorCode, errorSeconds, normalizeCode } from '../../components/auth/loginFlow'
 import { normalizeMobileInput } from '../../composables/useMe'
+import { signupOfferTotals, type SignupOffer } from '../../utils/subscription'
 import { suggestWorkspaceSlug, workspaceSlugShapeOk } from '../../utils/workspaceSlug'
 import ar from '../../../i18n/locales/ar/signup.json'
 import en from '../../../i18n/locales/en/signup.json'
@@ -14,17 +15,31 @@ const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { targ
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
 const config = { legal_base_url: 'https://legal.example.test', terms_version: '2026-11-01', human_check: { site_key: 'site-key-fixture', script_url: 'https://widget.example.test/api.js' } }
 const page = readFileSync(resolve(import.meta.dirname, '../register.vue'), 'utf8')
+const offerFixture: SignupOffer = {
+  offer_revision: 'test-revision',
+  plan_name: 'Starter',
+  trial_days: 14,
+  currency: 'SAR',
+  currency_exponent: 2,
+  base_monthly_minor: 0,
+  tax: { kind: 'none' },
+  included_users: 3,
+  included_storage_mb: 20480,
+  included_extra_branches: 1,
+  included_apps: [],
+  apps: [{ id: 'crm', name_ar: 'إدارة العملاء', name_en: 'CRM', monthly_minor: 9900, limits: {} }],
+}
 
 function mount(fetch: ReturnType<typeof vi.fn>) {
   const filename = resolve(import.meta.dirname, '../register.vue')
   const descriptor = parse(page, { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'register-human' }).content).replace('export default', 'return')
   const bindings = {
-    errorCode, errorSeconds, normalizeCode, normalizeMobileInput, suggestWorkspaceSlug, workspaceSlugShapeOk, onBeforeUnmount: () => {},
+    errorCode, errorSeconds, normalizeCode, normalizeMobileInput, signupOfferTotals, suggestWorkspaceSlug, workspaceSlugShapeOk, onBeforeUnmount: () => {},
     ForgotPasswordInputSchema: { safeParse: () => ({ success: true }) },
     _defineComponent: Vue.defineComponent, computed: Vue.computed, onMounted: () => {}, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
     definePageMeta: () => {}, useHydrated: () => Vue.ref(true),
-    useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar'), setLocale: () => {} }),
+    useI18n: () => ({ t: (key: string) => key, te: () => true, locale: Vue.ref('ar'), setLocale: () => {} }),
     useResendWait: () => ({ seconds: Vue.ref(0), waiting: Vue.ref(false), start: () => {}, stop: () => {} }),
   }
   const state = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings)).setup({}, { expose: () => {} })
@@ -32,7 +47,8 @@ function mount(fetch: ReturnType<typeof vi.fn>) {
   state.widget.value = { reset }
   state.legal.value = config
   state.details.accept_terms = true
-  state.offer.value = { offer_revision: 'test-revision' }
+  state.offer.value = offerFixture
+  state.selectedApps.value = ['crm']
   return { state, reset }
 }
 

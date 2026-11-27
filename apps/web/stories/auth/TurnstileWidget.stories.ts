@@ -15,7 +15,7 @@ const placeholder = (container: HTMLElement, text: string) => {
 const meta = {
   title: 'Auth/TurnstileWidget',
   component: TurnstileWidget,
-  parameters: { layout: 'centered', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/register.vue:468') },
+  parameters: { layout: 'centered', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/register.vue:507') },
   args: { siteKey: 'site-key-fixture', scriptUrl: 'https://widget.example.test/api.js', language: 'ar', label: 'التحقق الأمني' },
 } satisfies Meta<typeof TurnstileWidget>
 export default meta

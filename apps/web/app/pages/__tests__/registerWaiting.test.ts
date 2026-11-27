@@ -6,6 +6,7 @@ import ts from 'typescript'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { errorCode, errorSeconds, normalizeCode } from '../../components/auth/loginFlow'
 import { normalizeMobileInput } from '../../composables/useMe'
+import { signupOfferTotals } from '../../utils/subscription'
 import { suggestWorkspaceSlug, workspaceSlugShapeOk } from '../../utils/workspaceSlug'
 import ar from '../../../i18n/locales/ar/signup.json'
 import en from '../../../i18n/locales/en/signup.json'
@@ -20,12 +21,12 @@ function mount(fetch: ReturnType<typeof vi.fn>) {
   const script = stripImports(compileScript(descriptor, { id: 'register-waiting' }).content).replace('export default', 'return')
   const mounted: Array<() => unknown> = []
   const bindings = {
-    errorCode, errorSeconds, normalizeCode, normalizeMobileInput, suggestWorkspaceSlug, workspaceSlugShapeOk,
+    errorCode, errorSeconds, normalizeCode, normalizeMobileInput, signupOfferTotals, suggestWorkspaceSlug, workspaceSlugShapeOk,
     ForgotPasswordInputSchema: { safeParse: () => ({ success: true }) },
     _defineComponent: Vue.defineComponent, computed: Vue.computed, onMounted: (fn: () => unknown) => mounted.push(fn), onBeforeUnmount: () => {},
     reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
     definePageMeta: () => {}, useHydrated: () => Vue.ref(true),
-    useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar'), setLocale: () => {} }),
+    useI18n: () => ({ t: (key: string) => key, te: () => true, locale: Vue.ref('ar'), setLocale: () => {} }),
     useResendWait: () => ({ seconds: Vue.ref(0), waiting: Vue.ref(false), start: () => {}, stop: () => {} }),
   }
   const state = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings)).setup({}, { expose: () => {} })

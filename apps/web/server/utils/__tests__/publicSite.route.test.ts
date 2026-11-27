@@ -17,7 +17,8 @@ const SITE = 'https://site.example'
 const saved = { mode: process.env.LIWAN_TENANCY_MODE, token: process.env.LIWAN_SHARED_PROXY_TOKEN }
 
 const pricing = {
-  schema_version: 1, currency: 'SAR', tax: 'none',
+  schema_version: 1, currency: 'SAR', tax: 'none', trial_days: 14,
+  base: { monthly: 0, annual: null },
   free: { users: 3, storage_gb: 20, branches: 1, apps: ['tasks'] },
   apps: [{ key: 'crm', name_ar: 'إدارة العملاء', name_en: 'CRM', monthly: 99, annual: 990 }],
   extra_user: { monthly: 29, annual: 290, max_users: 100 },

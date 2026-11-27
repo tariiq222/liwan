@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { csrfTokenFor, formatSubscriptionMoney, FREE_BASE_BADGE, initialBundleSelection, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, trialDaysRemaining } from '../subscription'
+import { csrfTokenFor, FREE_BASE_BADGE, initialBundleSelection, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, signupOfferTotals, trialDaysRemaining, type SignupOffer } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
@@ -121,6 +121,70 @@ describe('change-page refusals', () => {
   it('explains an unavailable usage reading and a downgrade below usage', () => {
     expect(refusalKey('usage_unavailable')).toBe('subscription.change.usageUnavailable')
     expect(refusalKey('downgrade_below_usage')).toBe('subscription.change.downgradeBelowUsage')
+  })
+})
+
+describe('signupOfferTotals', () => {
+  const baseOffer: SignupOffer = {
+    offer_revision: '00000000-0000-4000-8000-000000000001',
+    plan_name: 'Starter',
+    trial_days: 14,
+    currency: 'SAR',
+    currency_exponent: 2,
+    base_monthly_minor: 0,
+    tax: { kind: 'none' },
+    included_users: 3,
+    included_storage_mb: 20480,
+    included_extra_branches: 1,
+    included_apps: [],
+    apps: [
+      { id: 'crm', name_ar: 'إدارة العملاء', name_en: 'CRM', monthly_minor: 9900, limits: {} },
+      { id: 'inbox', name_ar: 'رسائل العملاء', name_en: 'Inbox', monthly_minor: 25000, limits: {} },
+      { id: 'projects', name_ar: 'المشاريع', name_en: 'Projects', monthly_minor: 14900, limits: { 'projects.max_projects': 25 } },
+    ],
+  }
+
+  it('sums base price and selected apps with no tax and requires selection when base and included apps are empty', () => {
+    expect(signupOfferTotals(baseOffer, ['crm', 'projects'])).toEqual({
+      subtotalMinor: 24800,
+      taxMinor: 0,
+      totalMinor: 24800,
+      requiresAppSelection: true,
+    })
+    // Ignores duplicate and unknown app ids.
+    expect(signupOfferTotals(baseOffer, ['crm', 'crm', 'unknown'])).toEqual({
+      subtotalMinor: 9900,
+      taxMinor: 0,
+      totalMinor: 9900,
+      requiresAppSelection: true,
+    })
+  })
+
+  it('adds base price and computes 15% vat_exclusive tax using half-up rounding', () => {
+    const taxed: SignupOffer = {
+      ...baseOffer,
+      base_monthly_minor: 10000,
+      tax: { kind: 'vat_exclusive', rate_bps: 1500 },
+    }
+    // 10000 + 9900 = 19900; 15% = 2985; total = 22885.
+    expect(signupOfferTotals(taxed, ['crm'])).toEqual({
+      subtotalMinor: 19900,
+      taxMinor: 2985,
+      totalMinor: 22885,
+      requiresAppSelection: false,
+    })
+    // Odd minor to verify half-up VAT rounding: 10003 * 1500 / 10000 = 1500.45 -> 1500; 10004 * 1500 / 10000 = 1500.6 -> 1501.
+    expect(signupOfferTotals({ ...taxed, base_monthly_minor: 10003 }, [])).toMatchObject({ subtotalMinor: 10003, taxMinor: 1500, totalMinor: 11503 })
+    expect(signupOfferTotals({ ...taxed, base_monthly_minor: 10004 }, [])).toMatchObject({ subtotalMinor: 10004, taxMinor: 1501, totalMinor: 11505 })
+  })
+
+  it('does not require optional app selection when apps are included or there are no optional apps', () => {
+    const withIncluded: SignupOffer = {
+      ...baseOffer,
+      included_apps: [{ id: 'projects', name_ar: 'المشاريع', name_en: 'Projects', limits: { 'projects.max_projects': null } }],
+    }
+    expect(signupOfferTotals(withIncluded, []).requiresAppSelection).toBe(false)
+    expect(signupOfferTotals({ ...baseOffer, apps: [] }, []).requiresAppSelection).toBe(false)
   })
 })
 

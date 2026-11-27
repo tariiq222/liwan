@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  signupCompleteSchema, signupResendSchema, signupStartSchema, signupStatusRequestSchema, signupStatusSchema,
-  signupVerifySchema, slugCheckResultSchema, slugCheckSchema,
+  signupAppSchema, signupAppsSchema, signupCompleteSchema, signupOfferSchema, signupResendSchema, signupStartSchema,
+  signupStatusRequestSchema, signupStatusSchema, signupVerifySchema, slugCheckResultSchema, slugCheckSchema,
 } from '../commercial/signup.js'
 
 const signup_id = 'ba91699b-c25b-4a01-8c84-b2d39dc4b873'
@@ -18,11 +18,54 @@ const form = {
   human_token: 'turnstile-token',
 }
 
+const offer = {
+  offer_revision: signup_id,
+  plan_name: 'Liwan Starter',
+  trial_days: 14,
+  currency: 'SAR',
+  currency_exponent: 2,
+  base_monthly_minor: 0,
+  tax: { kind: 'none' as const },
+  included_users: 3,
+  included_storage_mb: 20480,
+  included_extra_branches: 1,
+  included_apps: [{ id: 'projects', name_ar: 'المشاريع', name_en: 'Projects', limits: { 'projects.max_projects': null } }],
+  apps: [
+    { id: 'crm', name_ar: 'إدارة العملاء', name_en: 'CRM', monthly_minor: 9900, limits: {} },
+    { id: 'people', name_ar: 'الموارد البشرية', name_en: 'People', monthly_minor: 0, limits: {} },
+  ],
+}
+
 describe('signup wire contracts', () => {
   it('accepts the form and normalizes its email, mobile and slug', () => {
     expect(signupStartSchema.parse(form)).toMatchObject({
       email: 'owner@example.test', mobile: '+966555000111', slug: 'example-trading', app_ids: ['crm', 'inbox'],
     })
+  })
+  it('accepts dynamic app ids including empty selection and rejects malformed or duplicate ids', () => {
+    expect(signupAppSchema.parse('projects')).toBe('projects')
+    expect(signupAppSchema.parse('people')).toBe('people')
+    expect(signupAppSchema.parse('custom_app_2')).toBe('custom_app_2')
+    for (const bad of ['', 'CRM', '1app', 'bad-app', 'a'.repeat(65)]) {
+      expect(signupAppSchema.safeParse(bad).success, bad).toBe(false)
+    }
+    expect(signupAppsSchema.parse([])).toEqual([])
+    expect(signupAppsSchema.parse(['crm', 'projects', 'people'])).toEqual(['crm', 'projects', 'people'])
+    expect(signupAppsSchema.safeParse(['crm', 'crm']).success).toBe(false)
+  })
+  it('validates dynamic signup offers with base price, included apps, optional apps and tax', () => {
+    expect(signupOfferSchema.parse(offer)).toEqual(offer)
+    expect(signupOfferSchema.parse({
+      ...offer,
+      trial_days: 30,
+      currency: 'USD',
+      currency_exponent: 2,
+      base_monthly_minor: 19900,
+      tax: { kind: 'vat_exclusive', rate_bps: 1500 },
+    })).toMatchObject({ trial_days: 30, currency: 'USD', base_monthly_minor: 19900, tax: { kind: 'vat_exclusive', rate_bps: 1500 } })
+    expect(signupOfferSchema.safeParse({ ...offer, trial_days: 0 }).success).toBe(false)
+    expect(signupOfferSchema.safeParse({ ...offer, currency: 'sar' }).success).toBe(false)
+    expect(signupOfferSchema.safeParse({ ...offer, extra_field: true }).success).toBe(false)
   })
   it('requires a slug the workspace may use', () => {
     const { slug, ...withoutSlug } = form
