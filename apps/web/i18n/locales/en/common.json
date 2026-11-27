@@ -434,6 +434,12 @@
       "title": "Add-ons",
       "subtitle": "Specialised apps for your work."
     },
+    "available": {
+      "title": "Available to add",
+      "subtitle": "Additional apps you can add to your subscription.",
+      "addAction": "Add to subscription",
+      "addShort": "Add"
+    },
     "figures": {
       "tasks": {
         "open": "open",

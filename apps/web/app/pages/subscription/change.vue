@@ -2,9 +2,11 @@
 import { payPath } from '@/utils/cardPayment'
 import type { Quote } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { fitStorageMb, hasTrialPreview, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, sameQuoteEconomics, storageOptions, storageUnlisted, trialBundleNames, trialEndActions, usersOverCap } from '@/utils/subscription'
+import { queryText } from '@/utils/routeQuery'
+import { fitStorageMb, hasTrialPreview, initialBundleSelection, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, sameQuoteEconomics, storageOptions, storageUnlisted, trialBundleNames, trialEndActions, usersOverCap } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
-const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
+const { t, locale } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
+const requestedAddId = computed(() => queryText(route.query.add))
 const allowed = computed(() => can('subscription.manage'))
 const isMissing = (cause: any) => (cause?.statusCode ?? cause?.status ?? cause?.response?.status) === 404
 const { data, error, pending, refresh } = await useAsyncData('subscription:change', async () => {
@@ -25,11 +27,11 @@ const planId = ref(''); const bundleIds = ref<string[]>([]); const cadenceKey = 
 const quote = ref<Quote | null>(null); const previewPending = ref(false); const previewError = ref('')
 const notice = ref<'expired' | 'conflict' | 'changed' | 'failed' | 'start' | 'refused' | null>(null); const refusal = ref<string | null>(null); const busy = ref(false); const redirecting = ref(false)
 const plan = computed(() => plans.value.find((p: Record<string, any>) => p.id === planId.value) ?? null)
-const includedIds = computed(() => new Set(plan.value?.included_bundle_revision_ids ?? []))
+const includedIds = computed(() => new Set<string>(plan.value?.included_bundle_revision_ids ?? []))
 // The plan's optional revisions are the application menu; an existing subscription keeps the
 // bundles it already bought even if the current plan revision narrowed the menu.
-const appliedBundleIds = computed(() => new Set(data.value?.sub?.applied?.bundle_revision_ids ?? []))
-const allowedBundleIds = computed(() => new Set([...(plan.value?.optional_bundle_revision_ids ?? []), ...(plan.value?.included_bundle_revision_ids ?? []), ...appliedBundleIds.value]))
+const appliedBundleIds = computed(() => new Set<string>(data.value?.sub?.applied?.bundle_revision_ids ?? []))
+const allowedBundleIds = computed(() => new Set<string>([...(plan.value?.optional_bundle_revision_ids ?? []), ...(plan.value?.included_bundle_revision_ids ?? []), ...appliedBundleIds.value]))
 const selectableBundles = computed(() => bundles.value.filter(b => allowedBundleIds.value.has(b.id) && !includedIds.value.has(b.id)))
 const keyOf = (c: { unit: string; count: number }) => `${c.unit}:${c.count}`
 const cadence = computed(() => { const [unit, count] = cadenceKey.value.split(':'); return { unit: unit as 'month' | 'year', count: Number(count) } })
@@ -78,6 +80,16 @@ const body = computed(() => {
 })
 const baseline = ref('')
 const dirty = computed(() => !redirecting.value && Boolean(baseline.value) && JSON.stringify(body.value) !== baseline.value)
+function syncPlanDefaults() {
+  const p = plan.value
+  if (!p) return
+  // Only cadences with complete unit prices are offered; a missing one is unavailable, never zero.
+  if (!cadenceOptions.value.some((o: { value: string }) => o.value === cadenceKey.value)) cadenceKey.value = cadenceOptions.value[0]?.value ?? ''
+  users.value = Math.max(users.value, minUsers.value)
+  storageMb.value = fitStorageMb(storageChoices.value, storageMb.value)
+  extra.value = Math.max(extra.value, minBranches.value)
+  bundleIds.value = bundleIds.value.filter(id => allowedBundleIds.value.has(id) && !includedIds.value.has(id))
+}
 watch(data, d => {
   if (!d || planId.value) return
   const applied = d.sub?.applied
@@ -88,20 +100,20 @@ watch(data, d => {
     users.value = Number(applied.entitlement.features['users.limit'] ?? 1)
     storageMb.value = Number(applied.entitlement.features['storage.limit_mb'] ?? 0)
     extra.value = applied.extra_branch_count
-    nextTick(() => { bundleIds.value = applied.bundle_revision_ids.filter(id => allowedBundleIds.value.has(id) && !includedIds.value.has(id)) })
   }
-  nextTick(() => { baseline.value = body.value ? JSON.stringify(body.value) : '' })
+  // `useAsyncData` already resolved before `watch(planId)` is registered: synchronize cadence and minimums synchronously first.
+  syncPlanDefaults()
+  const addId = requestedAddId.value
+  const addBundle = addId ? bundles.value.find(b => b.id === addId) : undefined
+  bundleIds.value = initialBundleSelection({
+    appliedBundleIds: applied?.bundle_revision_ids ?? [],
+    allowedBundleIds: allowedBundleIds.value,
+    includedBundleIds: includedIds.value,
+    requestedAddId: addBundle && bundleSelectable(addBundle) ? addId : null,
+  })
+  baseline.value = body.value ? JSON.stringify(body.value) : ''
 }, { immediate: true })
-watch(planId, () => {
-  const p = plan.value
-  if (!p) return
-  // Only cadences with complete unit prices are offered; a missing one is unavailable, never zero.
-  if (!cadenceOptions.value.some((o: { value: string }) => o.value === cadenceKey.value)) cadenceKey.value = cadenceOptions.value[0]?.value ?? ''
-  users.value = Math.max(users.value, minUsers.value)
-  storageMb.value = fitStorageMb(storageChoices.value, storageMb.value)
-  extra.value = Math.max(extra.value, minBranches.value)
-  bundleIds.value = bundleIds.value.filter(id => allowedBundleIds.value.has(id) && !includedIds.value.has(id))
-})
+watch(planId, syncPlanDefaults)
 // The storage options depend on the plan and the cadence: a different plan or cycle must not keep a quantity it does not sell.
 watch(storageChoices, (options) => {
   if (!options.length) return
