@@ -36,3 +36,15 @@ class TestTelephonyCalls(LiwanTelephonyCase):
         result = self.api('GET', '/api/v1/telephony/lookup?number=%2B966500000000')
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json()['lastCalls'][0]['linkedid'], '1764049999.1')
+
+    def test_a_recording_link_needs_the_listen_capability(self):
+        """Listening is its own capability: reading the call log does not grant it."""
+        self.call.recording_state = 'available'
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        result = self.api('GET', f'/api/v1/telephony/calls/{self.call.id}/recording')
+        self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'))
+
+    def test_a_call_without_a_recording_answers_not_found(self):
+        self.authenticate('telephony_manager', 'telephony_manager_pass_123')
+        result = self.api('GET', f'/api/v1/telephony/calls/{self.call.id}/recording')
+        self.assertEqual(result.status_code, 404)
