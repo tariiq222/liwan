@@ -2,7 +2,7 @@
 
 سجل حالة حيّ لمتابعة التنفيذ، وليس سياسة تصميم. المرجع الملزم للشكل هو [DESIGN.md](../../DESIGN.md)، وقواعد العمل في [AGENTS.md](../../AGENTS.md) و[parallel-work.md](../parallel-work.md). تُحدَّث الحالات بعده فقط، ولا تُعدَّل حالة بند قبل دمج PR الخاص به. القواعد الواردة هنا تنسيق لهذه الجولة بين اللينات، ولا تنشئ سياسة جديدة ولا تتقدم على المراجع المذكورة.
 
-آخر تحديث: 2026-11-27 · `web-settings-phase1` فوق `main` (`8f4d3aeaf`) · المنسّق: `claude-1`
+آخر تحديث: 2026-11-27 · `main` (`23ba4d2df`) · المنسّق: `lead-settings-p3-pmo`
 
 ## دلالة الرموز
 
@@ -132,7 +132,7 @@
 - [ ] `inbox/[id]/[[panel]]`: بطل المحادثة + `#aside`.
 - [ ] `inbox/campaigns/**` و`audiences/**`: قائمة + سجل + لوحة إنشاء.
 - [ ] `inbox/flows/**` و`reports/**`: قائمة + سجل.
-- [ ] `settings/apps/inbox/**` (25 صفحة): بطاقات ومجموعات وإجراءات.
+- [x] `settings/apps/inbox/**` (25 صفحة): بطاقات ومجموعات وإجراءات (القوالب المسجّلة). قوائم الإعدادات ومحررّاتها (`departments` و`canned-replies` عبر `/new` و`/<id>/edit`) حُدِّثت في المرحلة 2 لتوحيد الإعدادات `web-settings-phase2`، مع حفظ القنوات والكتالوج والأتمتة على قالب السجل وفق قرار R2.
 - [ ] شريط جانبي لـ inbox بعدّادات.
 
 #### ملخص R2 المنفَّذ
@@ -196,8 +196,8 @@
 - [x] `settings/apps/projects/catalogs/**`: تحويل قائمة الكتالوجات إلى `SharedListPage`، والتعديل إلى `SharedPageContainer`، واستبدال نصوص المنع وعدم الوجود اليدوية بـ`SharedForbiddenState` و`SharedNotFoundState`.
 - [x] `settings/apps/crm`: توحيد تباعد بطاقات التبويبات الأربعة (`basics`, `workflow`, `sales`, `privacy`) إلى `gap-(--liwan-gap-card)`.
 - [x] `DESIGN.md`: توضيح التمييز بين `SharedSettingsPage` (أقسام الإعدادات) و`SharedListPage` (قوائم الإعدادات الكاملة)، وتثبيت قرار المالك (2026-11-27) لتوحيد التحرير في الإعدادات.
-- [ ] **المرحلة 2 (متابعة لاحقة):** مراجعة وتوحيد إعدادات `helpdesk` و`inbox` مع حفظ سياق القنوات وإجراءاتها وفق قرار R2.
-- [ ] **المرحلة 3 (متابعة لاحقة):** نقل محررات السجلات المضمّنة في `settings/team/**` وإعدادات `pmo` إلى `/new` و`/<id>/edit` وفق قرار 2026-11-27.
+- [x] **المرحلة 2 (متابعة لاحقة):** مراجعة وتوحيد إعدادات `helpdesk` و`inbox` مع حفظ سياق القنوات وإجراءاتها وفق قرار R2 — مدموجة في `#925` (`web-settings-phase2`، كومِت `23ba4d2df`): `helpdesk` (`HelpdeskPolicyCard` على `SharedSettingsCard`، و`HelpdeskValueListSection` على `SharedSettingsList`، ومسارات `/new` و`/[id]/edit` لـ`teams` و`stages` و`sla`)، و`inbox` (`InboxTagsSection` على `SharedSettingsList`، ومسارات `/new` و`/[id]/edit` لـ`departments` و`canned-replies`، مع حفظ القنوات والكتالوج والأتمتة وفق قرار R2).
+- [~] **المرحلة 3 (متابعة لاحقة):** نقل محررات السجلات المضمّنة في `settings/team/**` وإعدادات `pmo` إلى `/new` و`/<id>/edit` وفق قرار 2026-11-27 — قيد التنفيذ في `web-settings-phase3-pmo` و`web-settings-phase3-team`.
 
 ## خارج النطاق (بقرار)
 
@@ -245,3 +245,7 @@
 | #915 | `web-restore-911` | استعادة ملفات #911 بعد التراجع الصامت في #912 | مدموج | 2026-11-27 |
 | #916 | `web-r4-polish` | وسم عمود العنوان في سبعة جداول وحارس التمرير | مدموج | 2026-11-27 |
 | #919 | `tools-silent-revert-guard` | حارس ضد التراجع الصامت لدمجات `main` | مدموج | 2026-11-27 |
+| #920 | `web-projects-title-meta` | وسم عمود العنوان في جداول المشاريع وتحديث مراجع `storyContext` واعتماد القرارات | مدموج | 2026-11-27 |
+| #921 | `web-inbox-orders-table` | تحويل قائمة طلبات رسائل العملاء إلى `SharedDataTable` و`SharedListFooter` | مدموج | 2026-11-27 |
+| #922 | `web-settings-phase1` | المرحلة 1 لتوحيد صفحات الإعدادات (HR والمالية والمشاريع وCRM وقاعدة DESIGN.md) | مدموج | 2026-11-27 |
+| #925 | `web-settings-phase2` | المرحلة 2 لتوحيد صفحات الإعدادات (الدعم الفني ورسائل العملاء) | مدموج | 2026-11-27 |
