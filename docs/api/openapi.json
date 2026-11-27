@@ -117736,6 +117736,1895 @@
         ],
         "type": "object"
       },
+      "TelephonyBusinessHoursSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "closedMessage": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "days": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "from": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "type": "string"
+                },
+                "to": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "type": "string"
+                },
+                "weekday": {
+                  "maximum": 6,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "weekday",
+                "from",
+                "to"
+              ],
+              "type": "object"
+            },
+            "maxItems": 42,
+            "type": "array"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "timezone",
+          "days",
+          "closedMessage"
+        ],
+        "type": "object"
+      },
+      "TelephonyCallDetailSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "answeredAt": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canListen": {
+            "type": "boolean"
+          },
+          "companyId": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "direction": {
+            "enum": [
+              "in",
+              "out",
+              "internal"
+            ],
+            "type": "string"
+          },
+          "durationSeconds": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extension": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "linkedid": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recordingState": {
+            "enum": [
+              "none",
+              "pending",
+              "available",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "remoteNumber": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{6,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "ringing",
+              "answered",
+              "missed",
+              "rejected",
+              "failed",
+              "ended"
+            ],
+            "type": "string"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "linkedid",
+          "direction",
+          "state",
+          "remoteNumber",
+          "partner",
+          "user",
+          "extension",
+          "queue",
+          "startedAt",
+          "answeredAt",
+          "endedAt",
+          "durationSeconds",
+          "recordingState",
+          "companyId",
+          "canListen"
+        ],
+        "type": "object"
+      },
+      "TelephonyCallDirectionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "in",
+          "out",
+          "internal"
+        ],
+        "type": "string"
+      },
+      "TelephonyCallListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "answeredAt": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "companyId": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "direction": {
+                  "enum": [
+                    "in",
+                    "out",
+                    "internal"
+                  ],
+                  "type": "string"
+                },
+                "durationSeconds": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "endedAt": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "extension": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "linkedid": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "queue": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recordingState": {
+                  "enum": [
+                    "none",
+                    "pending",
+                    "available",
+                    "expired"
+                  ],
+                  "type": "string"
+                },
+                "remoteNumber": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\+[1-9]\\d{6,14}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "startedAt": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "ringing",
+                    "answered",
+                    "missed",
+                    "rejected",
+                    "failed",
+                    "ended"
+                  ],
+                  "type": "string"
+                },
+                "user": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "linkedid",
+                "direction",
+                "state",
+                "remoteNumber",
+                "partner",
+                "user",
+                "extension",
+                "queue",
+                "startedAt",
+                "answeredAt",
+                "endedAt",
+                "durationSeconds",
+                "recordingState",
+                "companyId"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "TelephonyCallSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "answeredAt": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "companyId": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "direction": {
+            "enum": [
+              "in",
+              "out",
+              "internal"
+            ],
+            "type": "string"
+          },
+          "durationSeconds": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extension": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "linkedid": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recordingState": {
+            "enum": [
+              "none",
+              "pending",
+              "available",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "remoteNumber": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{6,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "ringing",
+              "answered",
+              "missed",
+              "rejected",
+              "failed",
+              "ended"
+            ],
+            "type": "string"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "linkedid",
+          "direction",
+          "state",
+          "remoteNumber",
+          "partner",
+          "user",
+          "extension",
+          "queue",
+          "startedAt",
+          "answeredAt",
+          "endedAt",
+          "durationSeconds",
+          "recordingState",
+          "companyId"
+        ],
+        "type": "object"
+      },
+      "TelephonyCallStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "ringing",
+          "answered",
+          "missed",
+          "rejected",
+          "failed",
+          "ended"
+        ],
+        "type": "string"
+      },
+      "TelephonyDateTimeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+        "type": "string"
+      },
+      "TelephonyEventCallSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "description": "One channel's transition as the agent saw it",
+        "properties": {
+          "answered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "caller_number": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "connected_number": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dialed_exten": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "direction": {
+            "enum": [
+              "in",
+              "out",
+              "internal"
+            ],
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "linkedid": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "ringing",
+              "answered",
+              "ended",
+              "missed",
+              "rejected",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "uniqueid": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "linkedid",
+          "uniqueid",
+          "channel",
+          "direction",
+          "caller_number",
+          "connected_number",
+          "dialed_exten",
+          "state",
+          "started_at",
+          "answered_at",
+          "ended_at"
+        ],
+        "type": "object"
+      },
+      "TelephonyEventCallStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "ringing",
+          "answered",
+          "ended",
+          "missed",
+          "rejected",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "TelephonyEventSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "description": "One event of the machine route",
+        "properties": {
+          "call": {
+            "additionalProperties": false,
+            "description": "One channel's transition as the agent saw it",
+            "properties": {
+              "answered_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "caller_number": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "channel": {
+                "anyOf": [
+                  {
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "connected_number": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dialed_exten": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "direction": {
+                "enum": [
+                  "in",
+                  "out",
+                  "internal"
+                ],
+                "type": "string"
+              },
+              "ended_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "linkedid": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              "started_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "state": {
+                "enum": [
+                  "ringing",
+                  "answered",
+                  "ended",
+                  "missed",
+                  "rejected",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "uniqueid": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "linkedid",
+              "uniqueid",
+              "channel",
+              "direction",
+              "caller_number",
+              "connected_number",
+              "dialed_exten",
+              "state",
+              "started_at",
+              "answered_at",
+              "ended_at"
+            ],
+            "type": "object"
+          },
+          "database": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "event_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string"
+          },
+          "reconciled": {
+            "type": "boolean"
+          },
+          "source": {
+            "enum": [
+              "ari",
+              "cel"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "database",
+          "occurred_at",
+          "source",
+          "reconciled",
+          "call"
+        ],
+        "type": "object"
+      },
+      "TelephonyEventSourceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "ari",
+          "cel"
+        ],
+        "type": "string"
+      },
+      "TelephonyExtensionListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "number": {
+                  "pattern": "^\\d{2,10}$",
+                  "type": "string"
+                },
+                "user": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "id",
+                "number",
+                "user",
+                "active"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "TelephonyExtensionNumberSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^\\d{2,10}$",
+        "type": "string"
+      },
+      "TelephonyExtensionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "number": {
+            "pattern": "^\\d{2,10}$",
+            "type": "string"
+          },
+          "user": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "user",
+          "active"
+        ],
+        "type": "object"
+      },
+      "TelephonyIdSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991,
+        "type": "integer"
+      },
+      "TelephonyLineAuthMethodSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "ip",
+          "credentials"
+        ],
+        "type": "string"
+      },
+      "TelephonyLineKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "trunk",
+          "device"
+        ],
+        "type": "string"
+      },
+      "TelephonyLineListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "authMethod": {
+                  "enum": [
+                    "ip",
+                    "credentials"
+                  ],
+                  "type": "string"
+                },
+                "callerId": {
+                  "pattern": "^\\+[1-9]\\d{6,14}$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "trunk",
+                    "device"
+                  ],
+                  "type": "string"
+                },
+                "maxConcurrent": {
+                  "maximum": 1000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "mode": {
+                  "enum": [
+                    "mode_a",
+                    "mode_b"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 120,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "numbers": {
+                  "items": {
+                    "pattern": "^\\+[1-9]\\d{6,14}$",
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "outboundFormat": {
+                  "pattern": "^\\d{0,10}$",
+                  "type": "string"
+                },
+                "provider": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "host": {
+                      "maxLength": 253,
+                      "minLength": 1,
+                      "pattern": "^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                      "type": "string"
+                    },
+                    "port": {
+                      "maximum": 65535,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "host",
+                    "port"
+                  ],
+                  "type": "object"
+                },
+                "state": {
+                  "enum": [
+                    "registered",
+                    "available",
+                    "unavailable"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "kind",
+                "mode",
+                "authMethod",
+                "provider",
+                "numbers",
+                "outboundFormat",
+                "callerId",
+                "maxConcurrent",
+                "state"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "TelephonyLineModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "mode_a",
+          "mode_b"
+        ],
+        "type": "string"
+      },
+      "TelephonyLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "authMethod": {
+            "enum": [
+              "ip",
+              "credentials"
+            ],
+            "type": "string"
+          },
+          "callerId": {
+            "pattern": "^\\+[1-9]\\d{6,14}$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "trunk",
+              "device"
+            ],
+            "type": "string"
+          },
+          "maxConcurrent": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "mode_a",
+              "mode_b"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "numbers": {
+            "items": {
+              "pattern": "^\\+[1-9]\\d{6,14}$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "outboundFormat": {
+            "pattern": "^\\d{0,10}$",
+            "type": "string"
+          },
+          "provider": {
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "maxLength": 253,
+                "minLength": 1,
+                "pattern": "^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              },
+              "port": {
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ],
+            "type": "object"
+          },
+          "state": {
+            "enum": [
+              "registered",
+              "available",
+              "unavailable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "mode",
+          "authMethod",
+          "provider",
+          "numbers",
+          "outboundFormat",
+          "callerId",
+          "maxConcurrent",
+          "state"
+        ],
+        "type": "object"
+      },
+      "TelephonyLineStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "registered",
+          "available",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "TelephonyLookupPartnerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "isCompany": {
+            "type": "boolean"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isCompany",
+          "company"
+        ],
+        "type": "object"
+      },
+      "TelephonyLookupSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "calls": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "answeredAt": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "companyId": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "direction": {
+                  "enum": [
+                    "in",
+                    "out",
+                    "internal"
+                  ],
+                  "type": "string"
+                },
+                "durationSeconds": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "endedAt": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "extension": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "linkedid": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "queue": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recordingState": {
+                  "enum": [
+                    "none",
+                    "pending",
+                    "available",
+                    "expired"
+                  ],
+                  "type": "string"
+                },
+                "remoteNumber": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\+[1-9]\\d{6,14}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "startedAt": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "ringing",
+                    "answered",
+                    "missed",
+                    "rejected",
+                    "failed",
+                    "ended"
+                  ],
+                  "type": "string"
+                },
+                "user": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "linkedid",
+                "direction",
+                "state",
+                "remoteNumber",
+                "partner",
+                "user",
+                "extension",
+                "queue",
+                "startedAt",
+                "answeredAt",
+                "endedAt",
+                "durationSeconds",
+                "recordingState",
+                "companyId"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "number": {
+            "pattern": "^\\+[1-9]\\d{6,14}$",
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "company": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "isCompany": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "isCompany",
+                  "company"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "number",
+          "partner",
+          "calls"
+        ],
+        "type": "object"
+      },
+      "TelephonyNumberSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^\\+[1-9]\\d{6,14}$",
+        "type": "string"
+      },
+      "TelephonyRecordingPolicySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "always",
+          "on_demand",
+          "off"
+        ],
+        "type": "string"
+      },
+      "TelephonyRecordingStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "none",
+          "pending",
+          "available",
+          "expired"
+        ],
+        "type": "string"
+      },
+      "TelephonyRefSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "TelephonySettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "announcementEnabled": {
+            "type": "boolean"
+          },
+          "businessHours": {
+            "additionalProperties": false,
+            "properties": {
+              "closedMessage": {
+                "anyOf": [
+                  {
+                    "maxLength": 1000,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "days": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "from": {
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                      "type": "string"
+                    },
+                    "to": {
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                      "type": "string"
+                    },
+                    "weekday": {
+                      "maximum": 6,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "weekday",
+                    "from",
+                    "to"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 42,
+                "type": "array"
+              },
+              "timezone": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "timezone",
+              "days",
+              "closedMessage"
+            ],
+            "type": "object"
+          },
+          "defaultLine": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ivrEnabled": {
+            "type": "boolean"
+          },
+          "queueCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "recordingPolicy": {
+            "enum": [
+              "always",
+              "on_demand",
+              "off"
+            ],
+            "type": "string"
+          },
+          "retentionDays": {
+            "maximum": 365,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "recordingPolicy",
+          "announcementEnabled",
+          "retentionDays",
+          "defaultLine",
+          "queueCount",
+          "ivrEnabled",
+          "businessHours"
+        ],
+        "type": "object"
+      },
       "TenantExportCountsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -170487,6 +172376,556 @@
           "route_type": "json2"
         }
       }
+    },
+    "/api/v1/telephony/calls": {
+      "get": {
+        "operationId": "liwan_telephony.TelephonyCallsController.list_calls.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_calls",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonyCallsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_calls",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/calls/{call_id}": {
+      "get": {
+        "operationId": "liwan_telephony.TelephonyCallsController.get_call.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_call",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonyCallsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_call",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/calls/{call_id}/recording": {
+      "get": {
+        "operationId": "liwan_telephony.TelephonyRecordingController.recording_link.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "recording_link",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonyRecordingController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "recording_link",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/events": {
+      "post": {
+        "description": "Signed machine request: `X-Liwan-Telephony-Timestamp` and `X-Liwan-Telephony-Signature` over the raw body with the company's derived key.",
+        "operationId": "liwan_telephony.TelephonyEventsController.receive_event.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [],
+        "summary": "Apply one event, once. The body is the agent's envelope (contracts/src/telephony/event.ts).",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "telephony_events",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonyEventsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "receive_event",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/extensions": {
+      "get": {
+        "operationId": "liwan_telephony.TelephonySettingsController.list_extensions.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_extensions",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_extensions",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_telephony.TelephonySettingsController.create_extension.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_extension",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_extension",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/lines": {
+      "get": {
+        "operationId": "liwan_telephony.TelephonySettingsController.list_lines.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_lines",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_lines",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_telephony.TelephonySettingsController.create_line.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_line",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_line",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/lines/{line_id}": {
+      "patch": {
+        "operationId": "liwan_telephony.TelephonySettingsController.patch_line.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_line",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_line",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/lookup": {
+      "get": {
+        "operationId": "liwan_telephony.TelephonyCallsController.lookup.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The caller card: the partner this number belongs to and the last calls with it.",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonyCallsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "lookup",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/session": {
+      "post": {
+        "operationId": "liwan_telephony.TelephonySessionController.create_session.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_session",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySessionController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_session",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/settings": {
+      "get": {
+        "operationId": "liwan_telephony.TelephonySettingsController.get_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_settings",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_telephony.TelephonySettingsController.patch_settings.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_settings",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_settings",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      }
     }
   },
   "servers": [
@@ -170531,6 +172970,7 @@
     "liwan_sales_crm",
     "liwan_sales_finance",
     "liwan_tasks",
-    "liwan_tasks_pmo"
+    "liwan_tasks_pmo",
+    "liwan_telephony"
   ]
 }

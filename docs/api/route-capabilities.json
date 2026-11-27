@@ -7060,6 +7060,104 @@
       "handler": "timeline",
       "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_liwan_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
+    "GET /api/v1/telephony/calls": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "list_calls",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/telephony/calls/{call_id}": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "get_call",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/telephony/calls/{call_id}/recording": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.recordings.listen"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "recording_link",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/telephony/extensions": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "list_extensions",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/telephony/lines": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "list_lines",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/telephony/lookup": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "lookup",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/telephony/settings": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "get_settings",
+      "no_capability_reason": null
+    },
     "HEAD /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files/{file_id}/download": {
       "addon": "liwan_document_service",
       "auth": "user",
@@ -9074,6 +9172,34 @@
         "pmo.enabled"
       ],
       "handler": "patch_task",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/telephony/lines/{line_id}": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "patch_line",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/telephony/settings": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "patch_settings",
       "no_capability_reason": null
     },
     "POST /api/v1/admin/branches": {
@@ -14797,6 +14923,60 @@
       ],
       "handler": "unarchive_task",
       "no_capability_reason": "Task restore: task._liwan_can_archive() answers 404 (MissingError, not 403) unless the caller may archive the task, then write access is checked; the analysis only credits a 403 or AccessError refusal."
+    },
+    "POST /api/v1/telephony/events": {
+      "addon": "liwan_telephony",
+      "auth": "telephony_events",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "receive_event",
+      "no_capability_reason": "The telephony machine route is called by the company's pbx-agent, not by a user: it proves the caller with the per-database derived key of design 12.6 (an HMAC over the raw body and a five-minute clock window) and the event_id idempotency, so no user capability applies."
+    },
+    "POST /api/v1/telephony/extensions": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "create_extension",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/telephony/lines": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "create_line",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/telephony/session": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "create_session",
+      "no_capability_reason": null
     },
     "PUT /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/access": {
       "addon": "liwan_document_service",
