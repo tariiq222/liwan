@@ -40,6 +40,19 @@ useShellShortcuts({
     return true
   },
 })
+const callChipLabels = computed(() => ({
+  idle: t('telephony.chip.idle'),
+  label: t('telephony.chip.label'),
+  callerCard: t('telephony.chip.callerCard'),
+  answer: t('telephony.chip.answer'),
+  reject: t('telephony.chip.reject'),
+  hangUp: t('telephony.chip.hangUp'),
+  failedHint: t('telephony.chip.failedHint'),
+  failed: t('telephony.chip.failed'),
+  ringing: (number: string) => t('telephony.chip.ringing', { number }),
+  calling: (number: string) => t('telephony.chip.calling', { number }),
+  inCall: (duration: string) => t('telephony.chip.inCall', { duration }),
+}))
 </script>
 
 <template>
@@ -53,6 +66,11 @@ useShellShortcuts({
     <template #search><GlobalSearch /></template>
     <template #end>
       <AssistantButton />
+      <ShellCallChip
+        v-if="can('telephony.use')"
+        :visible="true"
+        :labels="callChipLabels"
+      />
       <div v-if="can('liwan.notifications')" class="liwan-tools" role="group" :aria-label="t('nav.tools')">
         <NotificationCenter />
       </div>

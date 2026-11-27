@@ -11,7 +11,11 @@
       "canNotListen": "You cannot listen to recordings",
       "count": "{shown} of {total} calls"
     },
-    "direction": { "in": "Incoming", "out": "Outgoing", "internal": "Internal" },
+    "direction": {
+      "in": "Incoming",
+      "out": "Outgoing",
+      "internal": "Internal"
+    },
     "state": {
       "ringing": "Ringing",
       "answered": "Answered",
@@ -20,7 +24,10 @@
       "failed": "Failed",
       "ended": "Ended"
     },
-    "filter": { "all": "All directions", "allStates": "All states" },
+    "filter": {
+      "all": "All directions",
+      "allStates": "All states"
+    },
     "column": {
       "started": "Time",
       "direction": "Direction",
@@ -28,12 +35,27 @@
       "state": "State",
       "duration": "Duration"
     },
-    "nav": { "calls": "Calls" },
+    "nav": {
+      "calls": "Calls"
+    },
     "settings": {
       "lines": "Lines",
       "routing": "Routing",
       "extensions": "Extensions",
       "recording": "Recording"
+    },
+    "chip": {
+      "label": "Call",
+      "idle": "Phone",
+      "ringing": "Call from {number}",
+      "calling": "Calling {number}",
+      "inCall": "In a call {duration}",
+      "failed": "The call failed",
+      "failedHint": "Check the connection and try again",
+      "callerCard": "Caller card",
+      "answer": "Answer",
+      "reject": "Reject",
+      "hangUp": "Hang up"
     }
   }
 }

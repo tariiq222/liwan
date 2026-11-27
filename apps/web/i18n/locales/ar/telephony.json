@@ -43,6 +43,19 @@
       "routing": "التوجيه",
       "extensions": "التمثيلات",
       "recording": "التسجيل"
+    },
+    "chip": {
+      "label": "المكالمة",
+      "idle": "الهاتف",
+      "ringing": "مكالمة من {number}",
+      "calling": "جارٍ الاتصال بـ {number}",
+      "inCall": "في مكالمة {duration}",
+      "failed": "تعذّرت المكالمة",
+      "failedHint": "تحقق من الاتصال ثم أعد المحاولة",
+      "callerCard": "بطاقة المتصل",
+      "answer": "رد",
+      "reject": "رفض",
+      "hangUp": "إنهاء"
     }
   }
 }
