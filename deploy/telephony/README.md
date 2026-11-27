@@ -56,9 +56,10 @@ Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pi
    `VARCHAR(8)` yes/no columns and `ps_endpoints.auth VARCHAR(200)` for comma-separated overlap auth IDs during session
    rotation). **`postgres/02-seed.sql`** inserts idempotent (`ON CONFLICT (id) DO NOTHING`) seed rows for the browser
    test extensions `101` and `102` (`webrtc='yes'`, `allow_transfer='yes'`, `from_domain='<host>'`). Their `allow` is
-   `ulaw,alaw,opus`, the G.711-first order of `103` in `asterisk/pjsip.conf` and of the per-session rows `pbx-agent`
-   writes: the pinned Asterisk image has no opus translator, so an opus-first browser leg records an empty WAV and
-   bridges to the `ulaw` trunk without audio.
+   `ulaw,alaw` (G.711 only), the same as `103` in `asterisk/pjsip.conf` and as the per-session rows `pbx-agent`
+   writes: the pinned Asterisk image has no opus translator, so an opus browser leg would record an empty WAV and
+   bridge to the `ulaw` trunk without audio, and a peer that offers no G.711 is refused instead of recorded empty.
+   Wideband `opus` on the browser legs would need an Asterisk image with `codec_opus`, not the pinned one.
 4. **Dynamic dialplan and SIP REFER transfers (`asterisk/extensions.conf`)**: `[from-extension]` routes any existing
    PJSIP extension (`DEVICE_STATE(PJSIP/${EXTEN}) != INVALID`) to `[internal]` instead of a hardcoded list. Non-existent
    or offline `< 7`-digit numbers play `line-unavailable` and hang up so they never spill onto the external trunk, while
@@ -110,7 +111,11 @@ comment characters) and refuses a non-empty target directory unless `--force` is
 0700 and the files inside are 0644: the container's non-root Asterisk process has to read its configuration, and the
 directory is the boundary that keeps the ARI, extension and trunk passwords from other host users. The command prints
 file names only, never a value. Re-render with `--force` after changing the env file, then `docker compose up -d`
-again.
+again. A change to `postgres/01-schema.sql` or `postgres/02-seed.sql` takes effect only on a new database: the two
+files are mounted into PostgreSQL's `/docker-entrypoint-initdb.d` and run once, when it initializes an empty data
+directory, so a re-render on a host that already has the `<company>-telephony-pbx-db` volume changes nothing inside the
+database (the seed is `ON CONFLICT (id) DO NOTHING` and never overwrites an existing row), and after such a change
+that volume must be removed before `docker compose up -d` (nothing in it is kept before release).
 
 The first start runs `volumes-init` before anything else: it prepares the recordings, CEL/log, Asterisk-state and
 agent-queue volumes for uid/gid `10002` with only `CHOWN` and `DAC_OVERRIDE`, then exits. Asterisk and the agent then

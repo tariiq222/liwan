@@ -777,16 +777,18 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('allow_transfer=yes', block)
         self.assertEqual(2, seed.count("'acme.liwan.example'"))
 
-    def test_the_browser_endpoints_allow_g711_before_opus(self):
-        """The pinned Asterisk image has no opus translator and picks the codec by the order of ``allow``: with opus
-        first a browser leg records an empty WAV and bridges to the ulaw trunk without audio. The seed rows keep the
-        G.711-first order of extension 103 in pjsip.conf."""
+    def test_the_browser_endpoints_allow_g711_only(self):
+        """The pinned Asterisk image has no opus translator and picks the codec by the order of ``allow``: an opus
+        browser leg records an empty WAV and bridges to the ulaw trunk without audio, so the browser endpoints offer
+        G.711 alone and a peer that offers none is refused. The seed rows keep the codecs of extension 103."""
         with tempfile.TemporaryDirectory() as directory:
             out = self.rendered(directory)
             seed = (out / 'postgres/02-seed.sql').read_text()
             pjsip = (out / 'asterisk/pjsip.conf').read_text()
-        self.assertEqual(['ulaw,alaw,opus', 'ulaw,alaw,opus'], re.findall(r"'all',\s+'([^']+)'", seed))
-        self.assertIn('allow=ulaw,alaw,opus', pjsip.split('[endpoint-plain](!)', 1)[1].split('\n[', 1)[0])
+        self.assertEqual(['ulaw,alaw', 'ulaw,alaw'], re.findall(r"'all',\s+'([^']+)'", seed))
+        plain = pjsip.split('[endpoint-plain](!)', 1)[1].split('\n[', 1)[0]
+        # A whole line, not a substring: a longer codec list that merely starts with G.711 must fail too.
+        self.assertIn('allow=ulaw,alaw', plain.splitlines())
 
     def test_the_plain_sip_extension_exists_for_a_softphone(self):
         with tempfile.TemporaryDirectory() as directory:

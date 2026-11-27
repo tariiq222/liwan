@@ -42,7 +42,7 @@ bind=0.0.0.0
 type=endpoint
 context=from-extension
 disallow=all
-allow=ulaw,alaw,opus
+allow=ulaw,alaw
 ; The domain of this leg's From URI: a softphone that parses a digit-leading container host name strictly would drop
 ; the INVITE this leg sends it. The company host is a name the client already trusts.
 from_domain={{HOST_NAME}}
