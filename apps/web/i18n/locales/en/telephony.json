@@ -2,14 +2,17 @@
   "telephony": {
     "title": "Telephony",
     "calls": {
-      "description": "Every call in one log, linked to the customer and the employee",
+      "description": "A call log that shows the customer and the employee of each call, and the recording for whoever may listen to it.",
       "empty": "No calls yet",
+      "count": "{shown} of 1 call | {shown} of {total} calls",
       "detail": "Call details",
+      "started": "Started at",
+      "answered": "Answered at",
+      "ended": "Ended at",
       "recording": "Recording",
       "listen": "Listen to the recording",
       "noRecording": "This call has no recording",
-      "canNotListen": "You cannot listen to recordings",
-      "count": "{shown} of {total} calls"
+      "canNotListen": "You cannot listen to recordings"
     },
     "direction": {
       "in": "Incoming",
@@ -32,6 +35,7 @@
       "started": "Time",
       "direction": "Direction",
       "number": "Number",
+      "user": "Employee",
       "state": "State",
       "duration": "Duration"
     },
@@ -39,22 +43,15 @@
       "calls": "Calls"
     },
     "settings": {
-      "lines": "Lines",
-      "routing": "Routing",
       "extensions": "Extensions",
-      "recording": "Recording",
-      "recordingHint": "Control call recording policy, caller announcement, and retention period.",
-      "policy": "Recording policy",
-      "policyHint": "Choose when incoming and outgoing calls are recorded.",
-      "recordingAlways": "Record all calls",
-      "recordingOnDemand": "On demand",
-      "recordingOff": "Off",
-      "announcement": "Recording announcement",
-      "announcementHint": "Play an audio notice to the caller before recording starts (required when recording all calls).",
-      "retention": "Retention (days)",
-      "retentionHint": "Recordings are removed automatically after this period.",
-      "saved": "Settings saved",
-      "save": "Save"
+      "extensionsHint": "Each phone or browser registers with an extension: its number and the user it belongs to.",
+      "extensionNumber": "Extension number",
+      "extensionNumberHint": "2 to 10 digits, not used by another extension in the company.",
+      "extensionNumberPlaceholder": "Example: 1001",
+      "extensionUser": "User",
+      "extensionUserHint": "Optional: the employee who uses this extension.",
+      "extensionNoUser": "No user",
+      "extensionsEmpty": "No extensions yet"
     },
     "chip": {
       "label": "Call",

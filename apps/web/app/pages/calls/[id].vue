@@ -1,22 +1,41 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import type { TelephonyCallDetail } from '@liwan/contracts'
-import { TelephonyCallDetailSchema } from '@liwan/contracts'
+import { TelephonyCallDetailSchema, TelephonyRecordingLinkSchema } from '@liwan/contracts'
+import { callDuration, callNumber, callParty, callTime } from '@/components/telephony/callPresentation'
+import { ApiError } from '@/composables/useApi'
+import { owningListBack } from '@/utils/recordListOrigin'
 
 /**
- * The call's own page (design section 8): who called whom, when, for how long, and the recording when the reader may
- * listen to it. The link the server hands out lives one minute, so it is asked for on a click rather than on load.
+ * One call of the log: who it was with (the title), the employee who took it, when it started, was answered and ended,
+ * and its recording for a reader who may listen. The back link and Escape return to the list the reader came from, with
+ * its filters and page; opened directly, they return to the whole log. The recording link lives one minute, so it is
+ * asked for on a click rather than on load.
  */
 const { t } = useI18n()
 const { $api } = useApi()
 const route = useRoute()
+const { me } = useMe()
+const sourcePaths = useRecordListPaths(['/calls'])
 const id = computed(() => Number(route.params.id))
+const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
 
 const call = useQuery({
   queryKey: ['telephony', 'call', id],
+  enabled: validId,
   queryFn: () => $api(`/api/v1/telephony/calls/${id.value}`, { schema: TelephonyCallDetailSchema }),
 })
 const data = computed(() => call.data.value)
+// An id that is not a positive integer has no record to load: it shows the same not-found state as an unknown one.
+const pageError = computed(() => call.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+const timeZone = computed(() => me.value?.tz)
+const tags = computed(() => data.value
+  ? [
+      { label: t(`telephony.direction.${data.value.direction}`) },
+      { label: t(`telephony.state.${data.value.state}`) },
+    ]
+  : [])
+
 const player = ref<string | null>(null)
 const busy = ref(false)
 const failed = ref<string | null>(null)
@@ -25,7 +44,10 @@ async function listen() {
   busy.value = true
   failed.value = null
   try {
-    const link = await $api<{ url: string }>(`/api/v1/telephony/calls/${id.value}/recording`, { method: 'GET' })
+    const link = await $api(`/api/v1/telephony/calls/${id.value}/recording`, {
+      method: 'GET',
+      schema: TelephonyRecordingLinkSchema,
+    })
     player.value = link.url
   }
   catch (error) {
@@ -35,60 +57,47 @@ async function listen() {
     busy.value = false
   }
 }
-
-function duration(seconds: number | null) {
-  if (!seconds) return '—'
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-}
 </script>
 
 <template>
-  <SharedRecordPage :title="t('telephony.calls.detail')" :back-to="'/calls'" :back-label="t('telephony.nav.calls')">
-    <SharedPageState
-      :loading="call.isPending.value"
-      :error="call.error.value"
-      :empty="!data"
-      :empty-text="t('telephony.calls.empty')"
-      @retry="call.refetch"
-    >
-      <template v-if="data">
-        <SharedRecordSection variant="panel" :title="t('telephony.calls.detail')">
-          <dl class="grid gap-(--liwan-gap-card)">
-            <div class="flex justify-between gap-4">
-              <dt class="text-muted">{{ t('telephony.column.direction') }}</dt>
-              <dd>{{ t(`telephony.direction.${data.direction}`) }}</dd>
-            </div>
-            <div class="flex justify-between gap-4">
-              <dt class="text-muted">{{ t('telephony.column.number') }}</dt>
-              <dd dir="ltr">{{ data.remoteNumber || '—' }}</dd>
-            </div>
-            <div class="flex justify-between gap-4">
-              <dt class="text-muted">{{ t('telephony.column.state') }}</dt>
-              <dd>{{ t(`telephony.state.${data.state}`) }}</dd>
-            </div>
-            <div class="flex justify-between gap-4">
-              <dt class="text-muted">{{ t('telephony.column.duration') }}</dt>
-              <dd dir="ltr">{{ duration(data.durationSeconds) }}</dd>
-            </div>
-          </dl>
-        </SharedRecordSection>
+  <SharedRecordPage
+    :title="data ? callParty(data) : ''"
+    :tags="tags"
+    :back-to="backTo"
+    :back-label="t('telephony.nav.calls')"
+    :loading="call.isLoading.value"
+    :error="pageError"
+    :keep-content="!!data"
+    aside-first
+    @retry="call.refetch"
+  >
+    <template v-if="data" #aside>
+      <SharedPropertiesPanel :title="t('telephony.calls.detail')">
+        <SharedPropertyRow :label="t('telephony.calls.started')" :value="callTime(data.startedAt, timeZone)" />
+        <SharedPropertyRow :label="t('telephony.calls.answered')" :value="callTime(data.answeredAt, timeZone)" />
+        <SharedPropertyRow :label="t('telephony.calls.ended')" :value="callTime(data.endedAt, timeZone)" />
+        <SharedPropertyRow :label="t('telephony.column.duration')" :value="callDuration(data.durationSeconds)" />
+        <SharedPropertyRow :label="t('telephony.column.user')" :value="data.user?.name" />
+        <SharedPropertyRow v-if="data.partner && callNumber(data)" :label="t('telephony.column.number')">
+          <bdi dir="ltr">{{ callNumber(data) }}</bdi>
+        </SharedPropertyRow>
+      </SharedPropertiesPanel>
+    </template>
 
-        <SharedRecordSection variant="panel" :title="t('telephony.calls.recording')">
-          <p v-if="!data.canListen" class="text-sm text-muted">
-            {{ t('telephony.calls.canNotListen') }}
-          </p>
-          <p v-else-if="data.recordingState !== 'available'" class="text-sm text-muted">
-            {{ t('telephony.calls.noRecording') }}
-          </p>
-          <div v-else class="grid gap-3">
-            <UButton v-if="!player" :loading="busy" icon="i-lucide-play" @click="listen">
-              {{ t('telephony.calls.listen') }}
-            </UButton>
-            <audio v-if="player" :src="player" controls class="w-full" />
-            <p v-if="failed" class="text-sm text-error">{{ failed }}</p>
-          </div>
-        </SharedRecordSection>
-      </template>
-    </SharedPageState>
+    <SharedRecordSection v-if="data" variant="panel" :title="t('telephony.calls.recording')">
+      <p v-if="!data.canListen" class="text-sm text-muted">
+        {{ t('telephony.calls.canNotListen') }}
+      </p>
+      <p v-else-if="data.recordingState !== 'available'" class="text-sm text-muted">
+        {{ t('telephony.calls.noRecording') }}
+      </p>
+      <div v-else class="grid gap-(--liwan-gap-card)">
+        <UButton v-if="!player" :loading="busy" icon="i-lucide-play" @click="listen">
+          {{ t('telephony.calls.listen') }}
+        </UButton>
+        <audio v-if="player" :src="player" controls class="w-full" />
+        <p v-if="failed" class="text-sm text-error">{{ failed }}</p>
+      </div>
+    </SharedRecordSection>
   </SharedRecordPage>
 </template>

@@ -518,7 +518,7 @@
         "description": "The product and service catalogue and their prices."
       },
       "telephony": {
-        "description": "Company calls, recordings, and links to customers and employees."
+        "description": "A call log that shows the customer and the employee of each call, and the recording for whoever may listen to it."
       }
     }
   }

@@ -165,6 +165,7 @@ export default defineNuxtConfig({
         '@unovis/ts',
         '@unovis/vue',
         '@vue/devtools-core',
+        'jssip',
         'vue-draggable-plus',
         'zod',
       ],
