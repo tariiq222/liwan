@@ -99,6 +99,20 @@ for (const surface of SURFACES) {
         await expect(kpiTiles).toHaveCount(surface.expectedKpis.length)
         await expect(kpiTiles.locator('p[dir="ltr"]')).toHaveText(surface.expectedKpis)
 
+        // The card is wide enough for the table at 1440, so the frame must not scroll on its own: a column count that
+        // outgrows the card there hides the last column behind an invisible scroll. `meta.title` on the wrong column
+        // measured the table's minimum from the record number instead of the name and did exactly that.
+        if (!viewport.mobile) {
+          const frameOverflow = await page.evaluate(() => {
+            const table = document.querySelector('[data-slot="data-table-frame"] table')
+            const scroller = table?.closest('[data-slot="root"]')
+            return scroller ? { scrollWidth: scroller.scrollWidth, clientWidth: scroller.clientWidth } : null
+          })
+          expect(frameOverflow, `${surface.path} must render a data table frame`).not.toBeNull()
+          expect(frameOverflow!.scrollWidth, `${surface.path} table must fit its card at ${viewport.width}px`)
+            .toBeLessThanOrEqual(frameOverflow!.clientWidth)
+        }
+
         const overflow = await page.evaluate(() => ({
           scrollWidth: document.documentElement.scrollWidth,
           clientWidth: document.documentElement.clientWidth,

@@ -76,8 +76,8 @@ const scopeItems = computed(() => props.personal ? [] : [
 
 const columns = computed<TableColumn<HrLeave>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  ...(scope.value === 'mine' ? [] : [{ accessorKey: 'employee', header: t('hr.leave.columns.employee') }]),
-  { accessorKey: 'leave_type', header: t('hr.leave.columns.type') },
+  ...(scope.value === 'mine' ? [] : [{ accessorKey: 'employee', header: t('hr.leave.columns.employee'), meta: { title: true } }]),
+  { accessorKey: 'leave_type', header: t('hr.leave.columns.type'), ...(scope.value === 'mine' ? { meta: { title: true } } : {}) },
   { accessorKey: 'date_from', header: t('hr.leave.columns.period') },
   { accessorKey: 'number_of_days', header: t('hr.leave.columns.days') },
   { accessorKey: 'state', header: t('hr.leave.columns.state') },
@@ -257,8 +257,8 @@ const allocationsTo = { path: '/hr/leave/allocations' }
             :caption="t('hr.leave.requestsTitle')"
           >
             <template #id-cell="{ row }"><RecordNumber :value="row.original.id" :data-testid="`hr-leave-row-${row.original.id}`" /></template>
-            <template #employee-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.employee.name }}</span></template>
-            <template #leave_type-cell="{ row }"><NuxtLink :to="leaveTo(row.original)" class="font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ row.original.leave_type.name }}</NuxtLink></template>
+            <template #employee-cell="{ row }"><span class="block min-w-0 truncate font-semibold text-highlighted" :title="row.original.employee.name">{{ row.original.employee.name }}</span></template>
+            <template #leave_type-cell="{ row }"><NuxtLink :to="leaveTo(row.original)" class="block min-w-0 truncate font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.leave_type.name" @click="!hydrated && $event.preventDefault()">{{ row.original.leave_type.name }}</NuxtLink></template>
             <template #date_from-cell="{ row }"><bdi>{{ period(row.original) }}</bdi></template>
             <template #number_of_days-cell="{ row }"><span class="tabular-nums">{{ days(row.original.number_of_days) }}</span></template>
             <template #state-cell="{ row }">
