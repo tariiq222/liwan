@@ -183,10 +183,13 @@ const retry = () => Promise.all([refresh(), refreshUsage()])
               <span class="text-sm text-muted">{{ t('vendor.catalog.app.requires') }}</span>
               <UBadge v-for="ref in feature.requires" :key="ref" color="neutral" variant="subtle" dir="ltr">{{ ref }}</UBadge>
             </div>
-            <div v-if="feature.enforcementRefs.length" class="mt-2 flex flex-wrap items-center gap-1.5">
-              <span class="text-sm text-muted">{{ t('vendor.catalog.app.enforcement') }}</span>
-              <UBadge v-for="ref in feature.enforcementRefs" :key="ref" color="neutral" variant="subtle" dir="ltr">{{ ref }}</UBadge>
-            </div>
+            <details v-if="feature.enforcementRefs.length" class="mt-2 text-sm">
+              <summary class="cursor-pointer text-muted">{{ t('vendor.pricing.technical') }}</summary>
+              <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                <span class="text-muted">{{ t('vendor.catalog.app.enforcement') }}</span>
+                <UBadge v-for="ref in feature.enforcementRefs" :key="ref" color="neutral" variant="subtle" dir="ltr">{{ ref }}</UBadge>
+              </div>
+            </details>
           </SharedSubCard>
         </ul>
       </SharedRecordSection>

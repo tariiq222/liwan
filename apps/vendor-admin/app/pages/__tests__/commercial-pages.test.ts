@@ -131,7 +131,7 @@ describe('locale parity for vendor.bundles/plans/pricing', () => {
   it('every status and cadence label exists in Arabic', () => {
     const ar = json('ar').pricing
     expect(ar.status).toEqual({ draft: 'مسودة', validated: 'جاهزة للاعتماد', published: 'منشورة ومتاحة', withdrawn: 'موقوفة' })
-    expect(json('ar').bundles.title).toBe('الحزم'); expect(json('ar').plans.title).toBe('الباقات')
+    expect(json('ar').bundles.title).toBe('الإضافات'); expect(json('ar').plans.title).toBe('الباقات')
   })
   it('storage is labelled as counted attachments and priced per gigabyte above the minimum', () => { expect(json('ar').pricing.keys.storage_limit_mb).toContain('المرفقات'); expect(json('ar').pricing.fields.storagePrice).toContain('غيغابايت') })
   it('every t() key used by the new pages exists', () => {

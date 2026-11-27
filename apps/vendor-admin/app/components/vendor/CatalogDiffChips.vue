@@ -7,7 +7,7 @@ const { t } = useI18n()
 const chips = computed(() => (props.diff ? catalogDiffSummary(props.diff) : null))
 </script>
 <template>
-  <div v-if="diff" class="flex flex-wrap items-center gap-1.5" data-testid="catalog-diff-chips">
+  <div v-if="diff" class="flex min-w-0 flex-wrap items-center gap-1.5" data-testid="catalog-diff-chips">
     <UBadge v-for="chip in chips" :key="chip.key" color="neutral" variant="subtle" :data-testid="`catalog-diff-${chip.key}`">
       {{ t(`vendor.catalog.diff.${chip.key}`, { count: chip.count }, chip.count) }}
     </UBadge>
