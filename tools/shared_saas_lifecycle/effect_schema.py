@@ -157,13 +157,12 @@ FEATURES = mapping_of(FEATURE_KEY, FEATURE_VALUE, 256)
 MODULES = list_of(MODULE, 1024, 1, unique=True)
 CATALOG = shape({'version': LABEL, 'tier': LABEL, 'sourceSha256': DIGEST})
 POLICY = shape({'schema_version': literal(1), 'channel': literal('control_plane'), 'modules': MODULES, 'features': mapping_of(FEATURE_KEY, FEATURE_VALUE, 1024)})
-PACKAGE_AUTHORITY = shape({'schemaVersion': literal(2), 'revisionId': UUID, 'digest': DIGEST, 'catalog': CATALOG, 'policy': POLICY})
 ATTEMPT = {'attemptId': UUID, 'fence': integer()}
 FIXED = {'businessKey': BUSINESS_KEY, 'payloadDigest': DIGEST}
 
 
-def _job(operation, extra=None, optional=None):
-    return shape({'schemaVersion': literal(1), 'requestId': UUID, 'binding': BINDING, 'operation': literal(operation), **(extra or {})}, optional)
+def _job(operation, extra=None):
+    return shape({'schemaVersion': literal(1), 'requestId': UUID, 'binding': BINDING, 'operation': literal(operation), **(extra or {})})
 
 
 # ---- one schema per effect ----------------------------------------------------------------------------------------
@@ -173,8 +172,8 @@ ADMIN = shape({'name': free_text(1, 256), 'login': free_text(1, 256)}, {'mobile'
 ODOO_EFFECT = shape(
     {'action': literal('observe', 'apply'), 'businessKey': BUSINESS_KEY, 'payloadDigest': DIGEST, 'admin': ADMIN,
      'companyName': free_text(1, 512), 'host': HOST, 'controlTenantId': UUID,
-     'job': _job('provision', {'catalog': CATALOG, 'policy': POLICY}, {'packageAuthority': PACKAGE_AUTHORITY})},
-    {'packageAuthority': PACKAGE_AUTHORITY, **ATTEMPT})
+     'job': _job('provision', {'catalog': CATALOG, 'policy': POLICY})},
+    ATTEMPT)
 
 _ACTOR = shape({'issuer': free_text(1, 256), 'actorUid': integer(1)})
 _BACKUP_AUTHORITY = shape({'controlTenantId': UUID, 'actor': _ACTOR, 'backupId': UUID}, {'manifestSha256': DIGEST})

@@ -29,8 +29,7 @@ POLICY_ERROR_CODES = frozenset({
     'policy_channel_mismatch', 'commercial_mode_unsupported',
     'catalog_reference_invalid', 'catalog_unavailable',
     'catalog_digest_mismatch', 'catalog_invalid',
-    'policy_composition_mismatch', 'package_authority_invalid',
-    'package_authority_mismatch',
+    'policy_composition_mismatch',
 })
 
 
@@ -218,79 +217,4 @@ def parse_create_policy(raw: bytes, *, catalog_path: Path,
     for modules, features in compositions:
         if policy['modules'] == modules and _same_features(policy['features'], features):
             return policy
-    _fail('policy_composition_mismatch')
-
-
-def parse_package_create_policy(raw: bytes, *, catalog_path: Path,
-                                catalog_sha256: str, commercial_mode: str,
-                                package_reference: dict, trusted_authority: dict) -> dict:
-    """Validate v2 package authority independently resolved by the worker.
-
-    ``trusted_authority`` is a separate IPC field supplied by the control worker
-    after reading the tenant's pinned immutable server record and comparing the
-    queued job. Never populate it from an HTTP caller or the job itself. The
-    package digest identifies content; it is deliberately not a signature.
-    Legacy ``parse_create_policy`` retains its null-only contract.
-    """
-    if type(raw) is not bytes or len(raw) > POLICY_MAX_BYTES:
-        _fail('policy_invalid')
-    policy = _decode(raw)
-    keys = {'schemaVersion', 'revisionId', 'digest', 'catalog', 'policy'}
-    authority = trusted_authority
-    if (type(authority) is not dict or set(authority) != keys
-            or type(authority['schemaVersion']) is not int or authority['schemaVersion'] != 2
-            or type(authority['revisionId']) is not str
-            or not re.fullmatch(r'[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}', authority['revisionId'])
-            or type(authority['digest']) is not str or not re.fullmatch(r'[0-9a-f]{64}', authority['digest'])
-            or type(authority['catalog']) is not dict
-            or set(authority['catalog']) != {'version', 'tier', 'sourceSha256'}):
-        _fail('package_authority_invalid')
-    # Canonical JSON equality distinguishes true/1 and integer/fractional values.
-    try:
-        if (json.dumps(package_reference, sort_keys=True, allow_nan=False)
-                != json.dumps(authority, sort_keys=True, allow_nan=False)
-                or json.dumps(policy, sort_keys=True, allow_nan=False)
-                != json.dumps(authority['policy'], sort_keys=True, allow_nan=False)):
-            _fail('package_authority_mismatch')
-    except (TypeError, ValueError):
-        _fail('package_authority_mismatch')
-    reference = authority['catalog']
-    if (any(type(reference[k]) is not str for k in reference)
-            or not re.fullmatch(r'[a-zA-Z0-9._-]{1,100}', reference['version'])
-            or not re.fullmatch(r'[a-z][a-z0-9._-]{0,63}', reference['tier'])
-            or 'sha256:' + reference['sourceSha256'] != catalog_sha256
-            or not _DIGEST.fullmatch(catalog_sha256)):
-        _fail('catalog_reference_invalid')
-    if commercial_mode != 'saas':
-        _fail('commercial_mode_unsupported')
-    if (type(policy) is not dict or set(policy) != _POLICY_KEYS
-            or type(policy['schema_version']) is not int or policy['schema_version'] != 1
-            or policy['channel'] != 'control_plane' or not _module_list(policy['modules'])
-            or type(policy['features']) is not dict):
-        _fail('policy_invalid')
-    try:
-        catalog_raw = catalog_path.read_bytes()
-    except (AttributeError, OSError, ValueError):
-        _fail('catalog_unavailable')
-    if 'sha256:' + hashlib.sha256(catalog_raw).hexdigest() != catalog_sha256:
-        _fail('catalog_digest_mismatch')
-    catalog = _decode(catalog_raw, catalog=True)
-    compositions = _catalog_compositions(catalog)
-    for tier, (modules, features) in zip(catalog['tiers'], compositions):
-        if tier['id'] != reference['tier']:
-            continue
-        if policy['modules'] != modules or set(policy['features']) != set(features):
-            _fail('policy_composition_mismatch')
-        for key, expected in features.items():
-            actual = policy['features'][key]
-            if expected is True:
-                if actual is not True:
-                    _fail('policy_composition_mismatch')
-            elif type(expected) is int and type(expected) is not bool:
-                # A catalog-declared ceiling is fixed; operators cannot override it.
-                if type(actual) is not int or actual != expected:
-                    _fail('policy_composition_mismatch')
-            elif actual is not None and (type(actual) is not int or not 0 <= actual <= 1000000000):
-                _fail('policy_invalid')
-        return policy
     _fail('policy_composition_mismatch')

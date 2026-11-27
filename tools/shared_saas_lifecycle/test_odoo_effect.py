@@ -79,16 +79,16 @@ class PasswordStepScriptTests(unittest.TestCase):
                 )
 
 
-class PackageAdministratorScriptTests(unittest.TestCase):
+class AdministratorScriptTests(unittest.TestCase):
     """Execute the generated control flow with a minimal Odoo protocol double.
 
-    This verifies package and catalog provisioning and fail-closed readback, not ORM or
+    This verifies catalog provisioning and fail-closed readback, not ORM or
     actual quota semantics; the parent owns fresh isolated Odoo acceptance.
     """
     HOST = 't' + 'c' * 32 + '.example.test'
     CONTROL_TENANT = '3f2b8c1e-5d4a-4e6f-9a7b-0c1d2e3f4a5b'
 
-    def run_script(self, *, package=True, snapshot=False, support=True, count=None, limit=None, origin=None, marker=CONTROL_TENANT, mobile=None, mobile_taken=False):
+    def run_script(self, *, snapshot=False, support=True, count=None, limit=None, origin=None, marker=CONTROL_TENANT, mobile=None, mobile_taken=False):
         writes = []
 
         class AccessRule(Exception):
@@ -208,8 +208,6 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         runner.request = {'admin': {'name': 'Customer administrator', 'login': 'customer@example.test'},
                           'companyName': 'Company', 'host': self.HOST,
                           'controlTenantId': self.CONTROL_TENANT, 'job': {'policy': {'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_hr']}}}
-        if package:
-            runner.request['job']['packageAuthority'] = {'schemaVersion': 2}
         if mobile is not None:
             runner.request['admin']['mobile'] = mobile
         output = io.StringIO()
@@ -259,7 +257,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         self.assertNotIn("'liwan_pmo' in values['modules']", text)
         self.assertNotIn('"modules"', text.split('\n', 2)[1])
 
-    def test_package_apply_removes_only_support_and_preserves_customer_roles(self):
+    def test_apply_removes_only_support_and_preserves_customer_roles(self):
         result, writes, admin, roles = self.run_script()
         self.assertEqual(result, {'verified': True, 'uid': 2})
         self.assertEqual(admin.email, 'customer@example.test')
@@ -268,14 +266,14 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         self.assertIn(('user', {'group_ids': [(3, 99, 0)]}, 'access.users.assign_roles'), writes)
         self.assertTrue(any(entry[0] == 'sync' for entry in writes))
 
-    def test_package_snapshot_refuses_support_or_missing_count_without_writes(self):
+    def test_snapshot_refuses_support_or_missing_count_without_writes(self):
         for support, count in [(True, 1), (False, 0)]:
             with self.subTest(support=support, count=count):
                 result, writes, _admin, _roles = self.run_script(snapshot=True, support=support, count=count)
                 self.assertEqual(result, {'verified': False})
                 self.assertEqual(writes, [])
 
-    def test_package_snapshot_accepts_counted_customer_without_writes(self):
+    def test_snapshot_accepts_counted_customer_without_writes(self):
         result, writes, _admin, _roles = self.run_script(snapshot=True, support=False, count=1)
         self.assertEqual(result, {'verified': True, 'uid': 2})
         self.assertEqual(writes, [])
@@ -330,41 +328,12 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                 odoo_effect.validate_host(host, 'example.test')
         self.assertEqual(odoo_effect.validate_host(self.HOST, 'example.test'), self.HOST)
 
-    def test_catalog_apply_treats_first_admin_as_counted_customer(self):
-        # A commercial tenant provisioned from the catalog (no package authority)
-        # gets the same customer administrator as a package tenant.
-        result, writes, admin, roles = self.run_script(package=False)
-        self.assertEqual(result, {'verified': True, 'uid': 2})
-        self.assertFalse(admin.support_member)
-        self.assertEqual(roles, {'existing_customer_role', 'system_admin', 'pmo_manager', 'hr_manager'})
-        self.assertIn(('user', {'group_ids': [(3, 99, 0)]}, 'access.users.assign_roles'), writes)
-        self.assertTrue(any(entry[0] == 'sync' for entry in writes))
-
-    def test_catalog_snapshot_refuses_support_or_missing_count_without_writes(self):
-        for support, count in [(True, 1), (False, 0)]:
-            with self.subTest(support=support, count=count):
-                result, writes, _admin, _roles = self.run_script(package=False, snapshot=True, support=support, count=count)
-                self.assertEqual(result, {'verified': False})
-                self.assertEqual(writes, [])
-        result, writes, _admin, _roles = self.run_script(package=False, snapshot=True, support=False, count=1)
-        self.assertEqual(result, {'verified': True, 'uid': 2})
-        self.assertEqual(writes, [])
-
     def test_apply_refuses_a_tenant_born_over_its_users_limit(self):
-        for package in (True, False):
-            with self.subTest(package=package):
-                result, writes, _admin, _roles = self.run_script(package=package, limit=0)
-                self.assertEqual(result, {'verified': False})
-                self.assertNotIn(('commit',), writes)
-        result, _writes, _admin, _roles = self.run_script(package=False, limit=1)
+        result, writes, _admin, _roles = self.run_script(limit=0)
+        self.assertEqual(result, {'verified': False})
+        self.assertNotIn(('commit',), writes)
+        result, _writes, _admin, _roles = self.run_script(limit=1)
         self.assertEqual(result, {'verified': True, 'uid': 2})
-
-    def test_admin_script_has_no_package_branch(self):
-        runner = object.__new__(odoo_effect.Runner)
-        runner.database = 'liwan_scratch_' + 'a' * 32
-        runner.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'host': 'a.example.test', 'controlTenantId': self.CONTROL_TENANT, 'job': {'policy': {}}}
-        text = runner.admin_script('known-secret', snapshot=False)
-        self.assertNotIn('packageAdmin', text)
 
 class DiagnosticsAndCatalogTests(unittest.TestCase):
     SYNTHETIC_DIAGNOSTIC = (
@@ -439,7 +408,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
                 (odoo_effect.Runner, ('exists', 'filestore_exists', 'shell', 'apply_owned', 'apply',
                                       'assert_no_effect_containers')),
                 (odoo_effect.RuntimeGate, ('acquire', 'complete')),
-                (odoo_effect, ('parse_create_policy', 'parse_package_create_policy', 'reserve', 'permit')),
+                (odoo_effect, ('parse_create_policy', 'reserve', 'permit')),
             ):
                 for name in names:
                     guard = stack.enter_context(unittest.mock.patch.object(

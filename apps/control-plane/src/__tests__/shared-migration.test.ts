@@ -67,6 +67,16 @@ it('rolls back on failed forward SQL without marking migration applied', async (
   expect(sql.at(-1)).toBe('ROLLBACK')
   expect(f.release).toHaveBeenCalledOnce()
 })
+it('registers version eleven as a no-op without creating Track A package objects', async () => {
+  const f = fixture([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  const mark11 = sql.indexOf('INSERT INTO schema_migrations(version) VALUES(11)')
+  expect(mark11).toBeGreaterThan(0)
+  const body11 = sql[mark11 - 1]!
+  expect(body11).not.toMatch(/CREATE\s+(TABLE|INDEX|FUNCTION|TRIGGER)|ALTER\s+TABLE/i)
+  expect(body11).not.toMatch(/commercial_packages|package_revisions|package_revision_id|protect_package_revision|protect_tenant_package/)
+})
 it('registers commercial catalog migration twelve', async () => {
   const f = fixture([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
   await migrate(f.pool)
@@ -260,4 +270,34 @@ it('registers the outbox retry columns in version twenty-eight once', async () =
   expect(sql.some(s=>s.includes('ADD COLUMN next_attempt_at timestamptz'))).toBe(true)
   const g=fixture([...applied,28]); await migrate(g.pool)
   expect(g.query.mock.calls.map(([s])=>s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(28)')
+})
+it('registers version eighty-two once and drops the retired Track A package objects without CASCADE', async () => {
+  const applied = Array.from({ length: 81 }, (_, i) => i + 1).filter((v) => v !== 40 && v !== 41)
+  const f = fixture(applied)
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  expect(sql.filter((s) => s === 'INSERT INTO schema_migrations(version) VALUES(82)')).toHaveLength(1)
+  const mark82 = sql.indexOf('INSERT INTO schema_migrations(version) VALUES(82)')
+  // The file is sent as one batch, and the run commits right after its ledger row: it has no transaction control of its own.
+  expect(sql.slice(mark82, mark82 + 2)).toEqual(['INSERT INTO schema_migrations(version) VALUES(82)', 'COMMIT'])
+  const body82 = sql[mark82 - 1]!
+  expect(body82).not.toMatch(/\b(COMMIT|ROLLBACK)\b/i)
+  // Exactly the two guards: no tenant still pinned, and no job payload still carrying the retired authority.
+  expect(body82.match(/RAISE EXCEPTION/g)).toHaveLength(2)
+  expect(body82).toContain('FROM tenants WHERE package_revision_id IS NOT NULL')
+  expect(body82).toContain("FROM shared_jobs WHERE payload ? 'packageAuthority'")
+  // The guards precede the drops, so a refusal leaves every object in place.
+  expect(body82.indexOf('END $$;')).toBeLessThan(body82.indexOf('DROP TRIGGER IF EXISTS'))
+  for (const statement of [
+    'DROP TRIGGER IF EXISTS tenant_package_guard ON tenants',
+    'DROP TRIGGER IF EXISTS package_revision_guard ON package_revisions',
+    'DROP FUNCTION IF EXISTS protect_tenant_package(), protect_package_revision()',
+    'ALTER TABLE tenants DROP COLUMN IF EXISTS package_revision_id',
+    'DROP TABLE IF EXISTS package_revisions',
+    'DROP TABLE IF EXISTS commercial_packages',
+  ]) expect(body82).toContain(statement)
+  expect(body82).not.toMatch(/\bCASCADE\b/i)
+  const g = fixture([...applied, 82])
+  await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(82)')
 })

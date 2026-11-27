@@ -33,7 +33,7 @@ else describe('control-plane PostgreSQL integration', () => {
   beforeAll(async () => {
     await migrate(pool)
     startedAt = (await pool.query('SELECT clock_timestamp() AS now')).rows[0].now
-    await pool.query('TRUNCATE tenants, package_revisions, commercial_packages, catalog_entries CASCADE')
+    await pool.query('TRUNCATE tenants, catalog_entries CASCADE')
     await pool.query('TRUNCATE vendor_accounts CASCADE')
     fixtureDir = await mkdtemp(join(tmpdir(), 'liwan-control-test-'))
     const classification = join(fixtureDir, 'classification.json')
@@ -203,5 +203,9 @@ else describe('control-plane PostgreSQL integration', () => {
     expect(actors.filter((actor) => !/^(account:[1-9][0-9]*|operator|anonymous)$/.test(actor))).toEqual([])
     const worker = await pool.query("SELECT actor FROM audit_events WHERE action LIKE 'operation.%.failed' OR action LIKE 'operation.%.succeeded'")
     expect(worker.rows.every((r) => r.actor === `account:${s7.accountId}`)).toBe(true)
+  })
+  it('returns 404 for the removed /v1/packages routes', async () => {
+    expect((await call('GET', '/v1/packages')).status).toBe(404)
+    expect((await call('GET', `/v1/packages/${crypto.randomUUID()}`)).status).toBe(404)
   })
 })
