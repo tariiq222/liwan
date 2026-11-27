@@ -7,7 +7,9 @@ A write names the field it refuses: an unknown key, a wrong type and an out-of-r
 """
 import re
 
-from odoo import http
+from psycopg2 import IntegrityError
+
+from odoo import Command, http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
@@ -47,6 +49,8 @@ EXTENSION_KEYS = frozenset({'number', 'userId'})
 EXTENSION_PATCH_KEYS = frozenset({'userId', 'active'})
 EXTENSION_NUMBER_PATTERN = re.compile(EXTENSION_NUMBER)
 E164_EXAMPLE = 'for example +966501234567'
+UNIQUE_VIOLATION = '23505'
+DUPLICATE_EXTENSION = 'An extension with this number already exists.'
 
 
 def _refuse(field, message):
@@ -130,7 +134,7 @@ def parse_line(payload, creating):
     if 'providerPort' in payload:
         values['provider_port'] = _range(payload['providerPort'], PORT_MIN, PORT_MAX, 'providerPort')
     if 'numbers' in payload:
-        values['number_ids'] = [(6, 0, 0), *[(0, 0, {'number': number}) for number in _numbers(payload['numbers'])]]
+        values['number_ids'] = [Command.clear(), *[Command.create({'number': number}) for number in _numbers(payload['numbers'])]]
     if 'outboundFormat' in payload:
         values['outbound_format'] = _nullable(payload, 'outboundFormat', _dial_prefix) or False
     if 'callerId' in payload:
@@ -187,7 +191,9 @@ class TelephonyLinesController(http.Controller):
     @requires_feature(EVENTS_FEATURE, operation='read')
     @requires_capability('telephony.use')
     def list_extensions(self, **_):
-        extensions = request.env['liwan.telephony.extension'].search([])
+        extensions = request.env['liwan.telephony.extension'].with_context(active_test=False).search(
+            [], order='number, id',
+        )
         return {'items': dump_extensions(extensions), 'total': len(extensions)}
 
     @http.route('/api/v1/telephony/extensions', type='json2', auth='user', methods=['POST'])
@@ -200,14 +206,22 @@ class TelephonyLinesController(http.Controller):
         number = payload.get('number')
         if not isinstance(number, str) or not EXTENSION_NUMBER_PATTERN.fullmatch(number):
             _refuse('number', 'number must be 2 to 10 digits')
-        if request.env['liwan.telephony.extension'].with_context(active_test=False).search_count([('number', '=', number)]):
-            _refuse('number', 'An extension number is unique in a company.')
+        Extension = request.env['liwan.telephony.extension']
+        if Extension.with_context(active_test=False).search_count([('number', '=', number)]):
+            _refuse('number', DUPLICATE_EXTENSION)
         values = {'number': number}
         if payload.get('userId') is not None:
             values['user_id'] = _extension_user(payload['userId']).id
         # The limit is claimed under the tenant profile lock before the row exists.
         request.env['liwan.entitlement.service']._liwan_claim_extensions(1)
-        extension = request.env['liwan.telephony.extension'].create(values)
+        try:
+            with request.env.cr.savepoint():
+                extension = Extension.create(values)
+                extension.flush_recordset()
+        except IntegrityError as error:
+            if error.pgcode == UNIQUE_VIOLATION:
+                _refuse('number', DUPLICATE_EXTENSION)
+            raise
         agent = request.env['liwan.telephony.agent']
         if agent._liwan_is_configured():
             agent._liwan_request('PUT', f'/extensions/{extension.number}', {
@@ -237,18 +251,24 @@ class TelephonyLinesController(http.Controller):
             values['active'] = payload['active']
         was_active = bool(extension.active)
         next_active = values.get('active', was_active)
-        agent = request.env['liwan.telephony.agent']
-        if was_active and not next_active:
-            # Fail closed: notify Asterisk before disabling in Odoo so the two never disagree.
-            if agent._liwan_is_configured():
-                agent._liwan_request('DELETE', f'/extensions/{extension.number}')
-        elif not was_active and next_active:
+        old_user_id = extension.user_id.id or False
+        next_user_id = values.get('user_id', old_user_id)
+        if not was_active and next_active:
             request.env['liwan.entitlement.service']._liwan_claim_extensions(1)
-            if agent._liwan_is_configured():
+        if values:
+            # Write and flush in Odoo before notifying Asterisk so read-only / ORM refusals never touch Asterisk,
+            # while an agent error rolls back this request's savepoint cleanly.
+            extension.write(values)
+            extension.flush_recordset()
+        agent = request.env['liwan.telephony.agent']
+        if agent._liwan_is_configured():
+            if was_active and not next_active:
+                agent._liwan_request('DELETE', f'/extensions/{extension.number}')
+            elif not was_active and next_active:
                 agent._liwan_request('PUT', f'/extensions/{extension.number}', {
                     'database': request.env.cr.dbname,
                     'active': True,
                 })
-        if values:
-            extension.write(values)
+            elif was_active and next_active and old_user_id and next_user_id != old_user_id:
+                agent._liwan_request('DELETE', f'/registration/{extension.number}')
         return dump_extension(extension)

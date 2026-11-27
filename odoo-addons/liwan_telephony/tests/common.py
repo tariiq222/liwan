@@ -44,11 +44,11 @@ def set_feature(case, key, enabled=True):
     profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write(values)
 
 
-def envelope(event_id, linkedid='1764049999.9', **call):
+def envelope(event_id, linkedid='1764049999.9', database='test', **call):
     """The agent's event (contracts/src/telephony/event.ts), with ``call`` overridden by keyword."""
     return {
         'event_id': event_id,
-        'database': 'test',
+        'database': database,
         'occurred_at': '2026-11-25T09:00:05.000000Z',
         'source': 'ari',
         'reconciled': False,
@@ -158,6 +158,10 @@ class LiwanTelephonyEventsCase(LiwanTelephonyCase):
         super().setUp()
         set_feature(self, EVENTS_FEATURE)
         self.env['ir.config_parameter'].sudo().set_param('liwan.telephony.events_key_root', EVENTS_KEY_ROOT)
+
+    def make_envelope(self, event_id, linkedid='1764049999.9', **call):
+        """Build an event envelope targeting this test database."""
+        return envelope(event_id, linkedid=linkedid, database=self.env.cr.dbname, **call)
 
     def event_headers(self, payload, when=None, signature=None):
         """The two proof headers over the agent's exact bytes: sorted keys, no spaces, UTF-8 kept."""

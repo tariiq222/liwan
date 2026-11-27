@@ -5,6 +5,7 @@ Listening to a recording is its own capability, and every listen is written to t
 audio: it asks the company's agent for a one-minute signed URL and returns it, so the file never crosses Odoo and a
 link that leaks stops working almost at once.
 """
+import re
 import time
 
 from odoo import http
@@ -23,6 +24,8 @@ from odoo.addons.liwan_telephony.models.feature_registry import (
     RECORDING_FEATURE,
 )
 
+RECORDING_URL_PATTERN = re.compile(r'^https?://.+')
+RECORDING_LINK_MIN_SECONDS = 1
 RECORDING_LINK_SECONDS = 60
 NO_RECORDING = 'This call has no recording.'
 
@@ -56,17 +59,27 @@ class TelephonyRecordingController(http.Controller):
         call = get_visible_record('liwan.telephony.call', call_id)
         if call.recording_state != 'available':
             raise ApiError(404, 'not_found', NO_RECORDING)
-        answer = request.env['liwan.telephony.agent']._liwan_request('POST', '/recordings/link', {
-            'linkedid': call.linkedid,
-            'database': request.env.cr.dbname,
-            'expires_at': int(time.time()) + RECORDING_LINK_SECONDS,
-        })
+        answer = request.env['liwan.telephony.agent']._liwan_request(
+            'POST',
+            '/recordings/link',
+            {
+                'linkedid': call.linkedid,
+                'database': request.env.cr.dbname,
+                'expires_at': int(time.time()) + RECORDING_LINK_SECONDS,
+            },
+            not_found_message=NO_RECORDING,
+        )
         url = answer.get('url')
-        if not isinstance(url, str) or not url:
+        expires_in = answer.get('expiresInSeconds')
+        valid = (
+            isinstance(url, str) and bool(RECORDING_URL_PATTERN.fullmatch(url))
+            and type(expires_in) is int and RECORDING_LINK_MIN_SECONDS <= expires_in <= RECORDING_LINK_SECONDS
+        )
+        if not valid:
             raise ApiError(502, 'bad_gateway', AGENT_BAD_ANSWER)
         # The listen is recorded before the link is handed out, so the audit never misses a play it permitted.
         request.env['liwan.telephony.recording.access'].create({
             'call_id': call.id,
             'user_id': request.env.user.id,
         })
-        return {'url': url, 'expiresInSeconds': RECORDING_LINK_SECONDS}
+        return {'url': url, 'expiresInSeconds': expires_in}

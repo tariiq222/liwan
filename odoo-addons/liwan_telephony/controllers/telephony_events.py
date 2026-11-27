@@ -19,6 +19,8 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 
+from psycopg2 import IntegrityError
+
 from odoo import http
 from odoo.http import request
 
@@ -33,6 +35,7 @@ from odoo.addons.liwan_telephony.models.telephony_call import (
     RECORDING_READY,
     STATES,
     TIMESTAMP_FIELDS,
+    parse_iso_timestamp,
 )
 
 EVENTS_LABEL = 'liwan-telephony-events/v1'
@@ -43,6 +46,7 @@ KEY_ROOT_PARAMETER = 'liwan.telephony.events_key_root'
 # A Unix timestamp in decimal digits, and the hex HMAC-SHA256 the signature header carries: nothing else is read.
 TIMESTAMP_PATTERN = re.compile(r'^[0-9]{1,20}$')
 SIGNATURE_PATTERN = re.compile(r'^[0-9a-fA-F]{64}$')
+UNIQUE_VIOLATION = '23505'
 # The keys of ``call`` that are a string or null; any other type is a malformed event.
 TEXT_FIELDS = ('caller_number', 'connected_number', 'dialed_exten', *TIMESTAMP_FIELDS)
 KEY_NOT_CONFIGURED = 'The telephony events key is not configured.'
@@ -50,6 +54,11 @@ BAD_TIMESTAMP = 'A valid timestamp is required.'
 OUTSIDE_WINDOW = 'The request is outside the accepted clock window.'
 BAD_SIGNATURE = 'The signature does not match.'
 BAD_RECORDING = 'call.recording must be ready or absent.'
+BAD_DATABASE = 'The event database does not match this tenant.'
+
+
+class _AlreadyApplied(Exception):
+    """Sentinel raised inside a savepoint when a concurrent retry hits the event_id unique constraint."""
 
 
 def derived_key(root_hex, database, label):
@@ -69,8 +78,8 @@ def _verify(body, timestamp, signature):
     A missing, malformed or out-of-range header and a signature that does not match each answer their own fixed
     message, after the key and the timestamp are proven to be well-formed.
     """
-    root = _root()
-    if not root:
+    root = _root().strip()
+    if not SIGNATURE_PATTERN.fullmatch(root):
         raise ApiError(403, 'forbidden', KEY_NOT_CONFIGURED)
     if not (isinstance(timestamp, str) and TIMESTAMP_PATTERN.fullmatch(timestamp)):
         raise ApiError(403, 'forbidden', BAD_TIMESTAMP)
@@ -112,11 +121,22 @@ def _event(raw):
     )
     if not well_formed:
         raise ApiError(422, 'invalid', 'An event with an event_id and a call are required.')
+    database = payload.get('database')
+    if not _text(database):
+        raise ApiError(422, 'invalid', 'database must be a non-empty string.', field='database')
+    if database != request.env.cr.dbname:
+        raise ApiError(403, 'forbidden', BAD_DATABASE)
     if call.get('direction') not in dict(DIRECTIONS) or call.get('state') not in dict(STATES):
         raise ApiError(422, 'invalid', 'The event names an unknown direction or state.')
     for name in TEXT_FIELDS:
-        if call.get(name) is not None and not isinstance(call[name], str):
+        if name not in call or (call[name] is not None and not isinstance(call[name], str)):
             raise ApiError(422, 'invalid', f'call.{name} must be a string or null.', field=name)
+    for name in TIMESTAMP_FIELDS:
+        if call[name] is not None:
+            try:
+                parse_iso_timestamp(call[name])
+            except ValueError:
+                raise ApiError(422, 'invalid', f'call.{name} must be an ISO-8601 datetime or null.', field=name) from None
     # The recording flag is one literal: the agent sends it with the call's final event once the file exists.
     if 'recording' in call and call['recording'] != RECORDING_READY:
         raise ApiError(422, 'invalid', BAD_RECORDING, field='recording')
@@ -167,18 +187,29 @@ class TelephonyEventsController(http.Controller):
         if env['liwan.telephony.event'].with_company(company).search_count([('event_id', '=', event_id)]):
             return {'applied': False, 'reason': 'already applied'}
         values = Call._liwan_event_values(payload, company, direction)
-        if record:
-            if call.get('recording') == RECORDING_READY:
-                values.pop('state', None)
-            record._liwan_apply(values)
-        else:
-            record = Call.with_company(company).create({'linkedid': linkedid, **values})
-        record._liwan_link_participants()
-        env['liwan.telephony.event'].with_company(company).create({
-            'event_id': event_id,
-            'linkedid': linkedid,
-            'source': payload.get('source'),
-            'call_id': record.id,
-            'company_id': company.id,
-        })
+        try:
+            with env.cr.savepoint():
+                if record:
+                    if call.get('recording') == RECORDING_READY:
+                        values.pop('state', None)
+                    record._liwan_apply(values)
+                else:
+                    record = Call.with_company(company).create({'linkedid': linkedid, **values})
+                record._liwan_link_participants()
+                record.flush_recordset()
+                try:
+                    with env.cr.savepoint():
+                        env['liwan.telephony.event'].with_company(company).create({
+                            'event_id': event_id,
+                            'linkedid': linkedid,
+                            'source': payload.get('source'),
+                            'call_id': record.id,
+                            'company_id': company.id,
+                        })
+                except IntegrityError as error:
+                    if error.pgcode == UNIQUE_VIOLATION:
+                        raise _AlreadyApplied from None
+                    raise
+        except _AlreadyApplied:
+            return {'applied': False, 'reason': 'already applied'}
         return {'applied': True, 'callId': record.id}

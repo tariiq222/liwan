@@ -36,6 +36,7 @@ HEX_KEY_PATTERN = re.compile(r'^[0-9a-fA-F]{64}$')
 AGENT_NOT_CONFIGURED = 'The telephony package is not configured for this company.'
 AGENT_UNREACHABLE = 'The telephone system did not answer.'
 AGENT_BAD_ANSWER = 'The telephone system returned an unexpected answer.'
+AGENT_NOT_FOUND = 'The requested telephony resource was not found.'
 
 
 def _valid_hex_key(value):
@@ -83,11 +84,12 @@ class LiwanTelephonyAgent(models.AbstractModel):
         return bool(base and key)
 
     @api.model
-    def _liwan_request(self, method, path, body=None):
+    def _liwan_request(self, method, path, body=None, *, not_found_message=None):
         """Send a signed request to the agent's ``path`` and return the JSON object it answered.
 
-        503 ``unavailable`` when the deployment names no agent, the network fails or the agent answers 5xx, and
-        502 ``bad_gateway`` when the agent rejects the request with 4xx or returns anything other than a JSON object.
+        503 ``unavailable`` when the deployment names no agent, the network fails or the agent answers 5xx, 404
+        ``not_found`` when the agent answers 404, and 502 ``bad_gateway`` when the agent rejects the request with any
+        other 4xx or returns anything other than a JSON object.
         """
         base, key = self._liwan_config()
         if not base or not key:
@@ -110,6 +112,8 @@ class LiwanTelephonyAgent(models.AbstractModel):
             answer = self._liwan_send(verb, url, payload, headers)
         except urllib.error.HTTPError as error:
             _logger.warning('liwan_telephony: the agent answered %s for %s %s', error.code, verb, path)
+            if error.code == 404:
+                raise ApiError(404, 'not_found', not_found_message or AGENT_NOT_FOUND) from error
             if error.code >= 500:
                 raise ApiError(503, 'unavailable', AGENT_UNREACHABLE) from error
             raise ApiError(502, 'bad_gateway', AGENT_BAD_ANSWER) from error

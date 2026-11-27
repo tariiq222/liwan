@@ -11,9 +11,12 @@ class LiwanTelephonyRecordingAccess(models.Model):
     _name = 'liwan.telephony.recording.access'
     _description = 'Telephony recording access'
     _liwan_scope = 'company'
+    _check_company_auto = True
     _order = 'listened_at desc, id desc'
 
-    call_id = fields.Many2one('liwan.telephony.call', required=True, index=True, ondelete='restrict')
+    call_id = fields.Many2one(
+        'liwan.telephony.call', required=True, index=True, ondelete='restrict', check_company=True,
+    )
     user_id = fields.Many2one('res.users', required=True, index=True, ondelete='restrict')
     listened_at = fields.Datetime(required=True, default=fields.Datetime.now, readonly=True)
     company_id = fields.Many2one(

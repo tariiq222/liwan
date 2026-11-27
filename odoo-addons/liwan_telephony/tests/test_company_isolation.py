@@ -44,7 +44,9 @@ class TestTelephonyCompanyIsolation(CompanyIsolationCase):
         self.patch(
             agent,
             '_liwan_send',
-            lambda model, method, url, payload, headers: {'url': 'https://recordings.test/x.wav'},
+            lambda model, method, url, payload, headers: {
+                'url': 'https://recordings.test/x.wav', 'expiresInSeconds': 60,
+            },
         )
         params = self.env['ir.config_parameter'].sudo()
         params.set_param('liwan.telephony.agent_url', AGENT_URL)

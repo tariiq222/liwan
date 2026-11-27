@@ -7,6 +7,7 @@ disagree with itself. The remote party is stored in E.164 or left empty: a numbe
 never guessed with a plus in front of it.
 """
 import re
+from datetime import datetime, timezone
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -33,10 +34,23 @@ DEFAULT_PHONE_COUNTRY = 'base.sa'
 TIMESTAMP_FIELDS = ('started_at', 'answered_at', 'ended_at')
 
 
+def parse_iso_timestamp(value):
+    """Parse an ISO-8601 datetime string into UTC naive ``YYYY-MM-DD HH:MM:SS``, or raise ``ValueError``."""
+    if not isinstance(value, str) or 'T' not in value:
+        msg = 'expected an ISO-8601 datetime string'
+        raise ValueError(msg)
+    normalized = f'{value[:-1]}+00:00' if value.endswith(('Z', 'z')) else value
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed.strftime('%Y-%m-%d %H:%M:%S')
+
+
 class LiwanTelephonyCall(models.Model):
     _name = 'liwan.telephony.call'
     _description = 'Telephony call'
     _liwan_scope = 'company'
+    _check_company_auto = True
     _order = 'started_at desc, id desc'
     _rec_name = 'linkedid'
 
@@ -46,9 +60,9 @@ class LiwanTelephonyCall(models.Model):
     remote_number = fields.Char(readonly=True, index=True)
     # The extension number the last event named, until an extension of the tenant is linked.
     extension_number = fields.Char(readonly=True)
-    partner_id = fields.Many2one('res.partner', readonly=True, index=True)
+    partner_id = fields.Many2one('res.partner', readonly=True, index=True, check_company=True)
     user_id = fields.Many2one('res.users', readonly=True, index=True)
-    extension_id = fields.Many2one('liwan.telephony.extension', readonly=True, index=True)
+    extension_id = fields.Many2one('liwan.telephony.extension', readonly=True, index=True, check_company=True)
     started_at = fields.Datetime(readonly=True, index=True)
     answered_at = fields.Datetime(readonly=True)
     ended_at = fields.Datetime(readonly=True)
@@ -94,15 +108,16 @@ class LiwanTelephonyCall(models.Model):
 
         The direction is the call's, fixed by its first event: the agent labels each leg by the context the channel
         was created in, so a later leg of the same call can carry another label. An incoming call's remote party is
-        the caller and its extension the dialled one, an outgoing call's remote party is the connected number and its
-        extension the caller, and an internal call reaches an extension and has no remote party.
+        the caller and its extension the dialled one, an outgoing call's remote party is the connected number (or
+        the dialled extension when unanswered or from CEL) and its extension the caller, and an internal call
+        reaches an extension and has no remote party.
         """
         call = event['call']
         if direction == 'out':
-            return call['connected_number'], call['caller_number']
+            return call.get('connected_number') or call.get('dialed_exten'), call.get('caller_number')
         if direction == 'internal':
-            return None, call['dialed_exten']
-        return call['caller_number'], call['dialed_exten']
+            return None, call.get('dialed_exten')
+        return call.get('caller_number'), call.get('dialed_exten')
 
     @api.model
     def _liwan_event_values(self, event, company, direction):
@@ -122,8 +137,8 @@ class LiwanTelephonyCall(models.Model):
         if call.get('recording') == RECORDING_READY:
             values['recording_state'] = 'available'
         for name in TIMESTAMP_FIELDS:
-            if call[name]:
-                values[name] = call[name][:19].replace('T', ' ')
+            if call.get(name):
+                values[name] = parse_iso_timestamp(call[name])
         return values
 
     @api.model
@@ -160,12 +175,16 @@ class LiwanTelephonyCall(models.Model):
         """Bind the call, each once, to the extension the event named, to that extension's user and to the partner
         behind the call's number.
 
-        The extension is looked up in the call's company first, then in any other company the caller may work in:
-        an extension number is unique in a company, not in a tenant.
+        The extension is searched strictly inside ``call.company_id`` so a call can never link another branch's
+        extension.
         """
+        Extension = self.env['liwan.telephony.extension']
         for call in self:
             if not call.extension_id and call.extension_number:
-                extension = self.env['liwan.telephony.extension']._liwan_by_number(call.extension_number, call.company_id)
+                extension = Extension.with_company(call.company_id).search([
+                    ('number', '=', call.extension_number),
+                    ('company_id', '=', call.company_id.id),
+                ], limit=1)
                 if extension:
                     call.write({'extension_id': extension.id, 'user_id': extension.user_id.id or False})
             if not call.partner_id and call.remote_number:

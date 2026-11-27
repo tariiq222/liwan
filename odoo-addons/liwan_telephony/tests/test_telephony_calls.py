@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import io
 import urllib.error
 
+from odoo.exceptions import AccessError
 from odoo.fields import Command
 from odoo.tests import tagged
 
@@ -12,7 +14,9 @@ from .common import (
     LiwanTelephonyCase,
     set_feature,
 )
+from odoo.addons.liwan_api.tests.common import OPERATOR_CONTEXT
 from odoo.addons.liwan_telephony.controllers.telephony_calls import LOOKUP_CALLS
+from odoo.addons.liwan_telephony.controllers.telephony_recordings import NO_RECORDING
 from odoo.addons.liwan_telephony.models.agent_client import (
     AGENT_NOT_CONFIGURED,
     AGENT_UNREACHABLE,
@@ -126,6 +130,17 @@ class TestTelephonyCalls(LiwanTelephonyCase):
                              started_at=f'2026-12-01 10:0{index}:00', ended_at=f'2026-12-01 10:0{index}:30')
         history = self.api('GET', f'{LOOKUP}?number=%2B966511111111').json()['calls']
         self.assertEqual([call['linkedid'] for call in history], [f'1764060000.{index}' for index in range(5, 0, -1)])
+        # Record a rich lookup response with both a matched partner and five calls so the live fixture covers
+        # TelephonyLookupPartnerSchema alongside TelephonyCallSchema.
+        for index in range(LOOKUP_CALLS):
+            self.create_call(
+                f'1764070000.{index}', remote_number=PARTNER_NUMBER, direction='in', state='answered',
+                partner_id=self.partner.id, extension_id=self.extension.id, user_id=self.manager.id,
+                started_at=f'2026-12-02 10:0{index}:00', ended_at=f'2026-12-02 10:0{index}:30',
+            )
+        rich = self.api('GET', f'{LOOKUP}?number=0500000000').json()
+        self.assertEqual(rich['partner']['id'], self.partner.id)
+        self.assertEqual(len(rich['calls']), LOOKUP_CALLS)
         assert_refused(self, self.api('GET', LOOKUP), 422, 'invalid', 'number')
         assert_refused(self, self.api('GET', f'{LOOKUP}?number='), 422, 'invalid', 'number')
         assert_refused(self, self.api('GET', f'{LOOKUP}?number=abc'), 422, 'invalid', 'number')
@@ -187,7 +202,76 @@ class TestTelephonyCalls(LiwanTelephonyCase):
         self.assertNotIn('secret-host-internal', failed.text)
         self.patch_agent(lambda method, url, payload, headers: {'link': 'https://x'})
         assert_refused(self, self.api('GET', link), 502, 'bad_gateway')
+        for bad_reply in (
+            {'url': 'javascript:alert(1)', 'expiresInSeconds': 60},
+            {'url': 'ftp://recordings.test/a.wav', 'expiresInSeconds': 60},
+            {'url': 'https://', 'expiresInSeconds': 60},
+            {'url': '', 'expiresInSeconds': 60},
+            {'url': 'https://recordings.test/a.wav'},
+            {'url': 'https://recordings.test/a.wav', 'expiresInSeconds': 0},
+            {'url': 'https://recordings.test/a.wav', 'expiresInSeconds': 61},
+            {'url': 'https://recordings.test/a.wav', 'expiresInSeconds': True},
+            {'url': 'https://recordings.test/a.wav', 'expiresInSeconds': '60'},
+        ):
+            self.patch_agent(lambda method, url, payload, headers, reply=bad_reply: reply)
+            assert_refused(self, self.api('GET', link), 502, 'bad_gateway')
+
+        # Missing recording file on pbx-agent (HTTP 404) maps to 404 not_found with fixed message.
+        def missing_recording(method, url, payload, headers):
+            target = 'http://pbx-agent.internal/recordings/link'
+            reason = 'Not Found'
+            raise urllib.error.HTTPError(target, 404, reason, {}, io.BytesIO(b'missing file'))
+
+        self.patch_agent(missing_recording)
+        missing = self.api('GET', link)
+        assert_refused(self, missing, 404, 'not_found')
+        self.assertEqual(missing.json()['message'], NO_RECORDING)
+        self.assertNotIn('missing file', missing.text)
         self.assertFalse(self.env['liwan.telephony.recording.access'].search([('call_id', '=', self.call.id)]))
+
+        # Valid reply returns the actual expiresInSeconds from pbx-agent.
+        self.patch_agent(lambda method, url, payload, headers: {
+            'url': 'https://recordings.test/a.wav', 'expiresInSeconds': 25,
+        })
+        ok = self.api('GET', link)
+        self.assertEqual((ok.status_code, ok.json()), (200, {
+            'url': 'https://recordings.test/a.wav', 'expiresInSeconds': 25,
+        }))
+
+    def test_recording_link_works_in_read_only_modes_and_audit_is_immutable(self):
+        self.call.recording_state = 'available'
+        self.set_agent()
+        self.patch_agent(lambda method, url, payload, headers: {
+            'url': 'https://recordings.test/ro.wav', 'expiresInSeconds': 45,
+        })
+        link = f'{CALLS}/{self.call.id}/recording'
+
+        # 1. Read-only user with listen capability can still listen and record their own audit row.
+        entitlement = self.env['liwan.entitlement.service']
+        entitlement._liwan_apply_flags(self.manager, {'liwan_read_only': True})
+        res_ro_user = self.api('GET', link)
+        self.assertEqual((res_ro_user.status_code, res_ro_user.json()), (200, {
+            'url': 'https://recordings.test/ro.wav', 'expiresInSeconds': 45,
+        }))
+        entitlement._liwan_apply_flags(self.manager, {'liwan_read_only': False})
+
+        # 2. Payment-suspended tenant with read permission can still listen and record the audit row.
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
+            'status': 'suspended', 'suspension_reason': 'non_payment',
+        })
+        self.assertEqual(entitlement._liwan_effective_state(), 'payment_suspended')
+        res_suspended = self.api('GET', link)
+        self.assertEqual(res_suspended.status_code, 200, res_suspended.text)
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({'status': 'active'})
+
+        # 3. Audit rows are immutable: even a telephony manager cannot write or unlink them.
+        audits = self.env['liwan.telephony.recording.access'].search([('call_id', '=', self.call.id)])
+        self.assertEqual(len(audits), 2)
+        with self.assertRaises(AccessError):
+            audits[0].with_user(self.manager).write({'user_id': self.phone_user.id})
+        with self.assertRaises(AccessError):
+            audits[0].with_user(self.manager).unlink()
 
     def test_the_session_needs_an_extension_and_a_configured_agent(self):
         self.sign_in(self.phone_user, PHONE_USER_PASSWORD)

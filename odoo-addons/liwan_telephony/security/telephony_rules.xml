@@ -42,6 +42,11 @@
             <field name="model_id" ref="model_liwan_telephony_recording_access"/>
             <field name="domain_force">[('company_id', '=', company_id)]</field>
         </record>
+        <record id="liwan_telephony_event_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.event: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_event"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
         <!-- The machine route's account writes the call and the receipt of the company it carries; it is never a
              person's identity, so it is not a user rule but the company one above plus this explicit grant. -->
         <record id="liwan_telephony_call_events_rule" model="ir.rule">

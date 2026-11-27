@@ -9,7 +9,7 @@ access_line_manage,liwan.telephony.line.manage,model_liwan_telephony_line,group_
 access_line_number_use,liwan.telephony.line.number.employee,model_liwan_telephony_line_number,group_cap_telephony_use,1,0,0,0
 access_line_number_manage,liwan.telephony.line.number.manage,model_liwan_telephony_line_number,group_cap_telephony_manage,1,1,1,1
 access_recording_access_read,liwan.telephony.recording.access.read,model_liwan_telephony_recording_access,group_cap_telephony_recordings_listen,1,0,1,0
-access_recording_access_manage,liwan.telephony.recording.access.manage,model_liwan_telephony_recording_access,group_cap_telephony_manage,1,1,1,0
+access_recording_access_manage,liwan.telephony.recording.access.manage,model_liwan_telephony_recording_access,group_cap_telephony_manage,1,0,1,0
 access_event_manage,liwan.telephony.event.manage,model_liwan_telephony_event,group_cap_telephony_manage,1,0,1,0
 access_call_events,liwan.telephony.call.events,model_liwan_telephony_call,group_telephony_events,1,1,1,0
 access_event_events,liwan.telephony.event.events,model_liwan_telephony_event,group_telephony_events,1,0,1,0

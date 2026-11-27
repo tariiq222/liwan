@@ -31,3 +31,10 @@ class LiwanTelephonyEntitlementService(models.AbstractModel):
             self._liwan_profile()._liwan_lock()
             current = self._liwan_count_extensions()
         return self._liwan_claim(EXTENSIONS_LIMIT, current, delta)
+
+    @api.model
+    def _liwan_read_only_allowances(self):
+        # Listening to a recording writes the listener's own audit row (create-only via ACLs); a read-only user,
+        # read-only branch or payment-suspended tenant with read permission may still play recordings.
+        allowances = super()._liwan_read_only_allowances()
+        return {**allowances, 'own': allowances['own'] | {'liwan.telephony.recording.access'}}

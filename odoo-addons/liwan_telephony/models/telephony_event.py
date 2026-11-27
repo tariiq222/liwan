@@ -12,12 +12,13 @@ class LiwanTelephonyEvent(models.Model):
     _name = 'liwan.telephony.event'
     _description = 'Telephony event receipt'
     _liwan_scope = 'company'
+    _check_company_auto = True
     _order = 'received_at desc, id desc'
 
     event_id = fields.Char(required=True, index=True, readonly=True)
     linkedid = fields.Char(required=True, index=True, readonly=True)
     source = fields.Char(readonly=True)
-    call_id = fields.Many2one('liwan.telephony.call', readonly=True, ondelete='cascade')
+    call_id = fields.Many2one('liwan.telephony.call', readonly=True, ondelete='cascade', check_company=True)
     received_at = fields.Datetime(required=True, default=fields.Datetime.now, readonly=True)
     company_id = fields.Many2one(
         'res.company', required=True, default=lambda self: self.env.company, index=True,

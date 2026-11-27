@@ -25,7 +25,7 @@ class LiwanTelephonyExtension(models.Model):
         'res.company', required=True, default=lambda self: self.env.company, index=True,
     )
 
-    _number_company_unique = models.Constraint('unique(number, company_id)', 'An extension number is unique in a company.')
+    _number_unique = models.Constraint('unique(number)', 'An extension number is unique across the tenant.')
     _number_digits = models.Constraint(
         f"CHECK(number ~ '{EXTENSION_NUMBER}')", 'An extension number is 2 to 10 digits.',
     )
@@ -35,8 +35,8 @@ class LiwanTelephonyExtension(models.Model):
         """The extension with ``number`` in the tenant, or none: of ``company`` when it has one, else of any other
         company the caller belongs to.
 
-        An extension number is unique in a company only, so a tenant's branches may share one; the call's own
-        company wins. The caller's record rules and company scope decide which extensions exist for it.
+        Extension numbers are unique across the tenant database (one Asterisk/pbx-agent namespace). The caller's
+        record rules and company scope decide which companies are searched.
         """
         for company_id in lookup_order(self.env.user, company):
             found = self.with_company(company_id).search([('number', '=', number)], limit=1)

@@ -300,10 +300,43 @@ class TestTelephonyExtensionPatch(LiwanTelephonyCase):
             _liwan_sign_reverse(AGENT_KEY, headers[TIMESTAMP_HEADER], 'PUT', '/extensions/1002', payload),
         )
 
-        # Changing userId alone does not call the agent.
+        # Reassigning userId on an active extension revokes the previous user's live SIP registration.
+        reassigned = self.patch_ext(self.spare_extension.id, userId=self.manager.id)
+        self.assertEqual((reassigned.status_code, reassigned.json()['user']['id']), (200, self.manager.id))
+        self.assertEqual(len(sent), 3)
+        method, url, payload, headers = sent[2]
+        self.assertEqual((method, url, payload), ('DELETE', f'{AGENT_URL}/registration/1002', b''))
+        self.assertEqual(
+            headers[SIGNATURE_HEADER],
+            _liwan_sign_reverse(AGENT_KEY, headers[TIMESTAMP_HEADER], 'DELETE', '/registration/1002', b''),
+        )
+
+        # Clearing userId on an active extension also revokes the previous user's live SIP registration.
         cleared = self.patch_ext(self.spare_extension.id, userId=None)
         self.assertEqual((cleared.status_code, cleared.json()['user']), (200, None))
-        self.assertEqual(len(sent), 2)
+        self.assertEqual(len(sent), 4)
+        self.assertEqual(sent[3][:3], ('DELETE', f'{AGENT_URL}/registration/1002', b''))
+
+        # No-op userId=None or initial assignment from None does not call the agent.
+        noop = self.patch_ext(self.spare_extension.id, userId=None)
+        self.assertEqual(noop.status_code, 200)
+        initial = self.patch_ext(self.spare_extension.id, userId=self.phone_user.id)
+        self.assertEqual(initial.status_code, 200)
+        self.assertEqual(len(sent), 4)
+
+    def test_patch_refused_by_read_only_guard_never_calls_agent(self):
+        self.set_agent()
+        sent = []
+        self.patch_agent(lambda method, url, payload, headers: sent.append((method, url)) or {'ok': True})
+        entitlement = self.env['liwan.entitlement.service']
+        entitlement._liwan_apply_flags(self.manager, {'liwan_read_only': True})
+        try:
+            refused = self.patch_ext(self.spare_extension.id, active=False)
+            assert_refused(self, refused, 403, 'user_read_only')
+            self.assertEqual(sent, [])
+            self.assertTrue(self.spare_extension.active)
+        finally:
+            entitlement._liwan_apply_flags(self.manager, {'liwan_read_only': False})
 
     def test_disable_and_reenable_fail_closed_when_agent_unreachable(self):
         self.set_agent()

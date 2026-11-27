@@ -4,7 +4,7 @@ import json
 import urllib.error
 
 from odoo.fields import Command
-from odoo.tests import new_test_user, tagged
+from odoo.tests import mute_logger, new_test_user, tagged
 
 from .common import (
     AGENT_KEY,
@@ -140,6 +140,24 @@ class TestTelephonyExtensions(LiwanTelephonyCase):
             {'id': self.extension.id, 'number': '1001', 'user': {'id': self.manager.id, 'name': self.manager.name}, 'active': True},
             {'id': self.spare_extension.id, 'number': '1002', 'user': None, 'active': True},
         ]})
+        # Disabled extensions remain visible in Settings so managers can re-enable them.
+        self.spare_extension.active = False
+        listed_with_inactive = self.api('GET', EXTENSIONS).json()
+        self.assertEqual(listed_with_inactive, {'total': 2, 'items': [
+            {'id': self.extension.id, 'number': '1001', 'user': {'id': self.manager.id, 'name': self.manager.name}, 'active': True},
+            {'id': self.spare_extension.id, 'number': '1002', 'user': None, 'active': False},
+        ]})
+
+    def test_creating_an_extension_colliding_with_another_branch_answers_422(self):
+        branch = self.env['res.company'].create({'name': 'Collision branch', 'parent_id': self.company.id})
+        self.env['liwan.telephony.extension'].create({'number': '2055', 'company_id': branch.id})
+        self.set_agent()
+        sent = []
+        self.patch_agent(lambda method, url, payload, headers: sent.append((method, url)) or {'ok': True})
+        with mute_logger('odoo.sql_db'):
+            refused = self.create(number='2055')
+        assert_refused(self, refused, 422, 'invalid', 'number')
+        self.assertEqual(sent, [])
 
     def test_an_extension_is_created_with_or_without_a_user(self):
         with_user = self.create(number='1003', userId=self.manager.id)

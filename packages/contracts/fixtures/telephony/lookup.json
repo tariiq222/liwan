@@ -6,16 +6,22 @@
       "direction": "in",
       "durationSeconds": 30,
       "endedAt": "2026-01-01T00:00:00Z",
-      "extension": null,
-      "id": 1,
-      "linkedid": "1764060000.5",
-      "partner": null,
+      "extension": {
+        "id": 4,
+        "name": "1001"
+      },
+      "id": 2,
+      "linkedid": "1764070000.4",
+      "partner": {
+        "id": 1,
+        "name": "Alia Customer"
+      },
       "recordingState": "none",
-      "remoteNumber": "+966511111111",
+      "remoteNumber": "+966500000000",
       "startedAt": "2026-01-01T00:00:00Z",
       "state": "answered",
       "user": {
-        "id": 2,
+        "id": 3,
         "name": "Telephony Manager"
       }
     },
@@ -25,54 +31,22 @@
       "direction": "in",
       "durationSeconds": 30,
       "endedAt": "2026-01-01T00:00:00Z",
-      "extension": null,
-      "id": 3,
-      "linkedid": "1764060000.4",
-      "partner": null,
-      "recordingState": "none",
-      "remoteNumber": "+966511111111",
-      "startedAt": "2026-01-01T00:00:00Z",
-      "state": "answered",
-      "user": {
-        "id": 2,
-        "name": "Telephony Manager"
-      }
-    },
-    {
-      "answeredAt": "2026-01-01T00:00:00Z",
-      "companyId": 1,
-      "direction": "in",
-      "durationSeconds": 30,
-      "endedAt": "2026-01-01T00:00:00Z",
-      "extension": null,
-      "id": 4,
-      "linkedid": "1764060000.3",
-      "partner": null,
-      "recordingState": "none",
-      "remoteNumber": "+966511111111",
-      "startedAt": "2026-01-01T00:00:00Z",
-      "state": "answered",
-      "user": {
-        "id": 2,
-        "name": "Telephony Manager"
-      }
-    },
-    {
-      "answeredAt": "2026-01-01T00:00:00Z",
-      "companyId": 1,
-      "direction": "in",
-      "durationSeconds": 30,
-      "endedAt": "2026-01-01T00:00:00Z",
-      "extension": null,
+      "extension": {
+        "id": 4,
+        "name": "1001"
+      },
       "id": 5,
-      "linkedid": "1764060000.2",
-      "partner": null,
+      "linkedid": "1764070000.3",
+      "partner": {
+        "id": 1,
+        "name": "Alia Customer"
+      },
       "recordingState": "none",
-      "remoteNumber": "+966511111111",
+      "remoteNumber": "+966500000000",
       "startedAt": "2026-01-01T00:00:00Z",
       "state": "answered",
       "user": {
-        "id": 2,
+        "id": 3,
         "name": "Telephony Manager"
       }
     },
@@ -82,20 +56,81 @@
       "direction": "in",
       "durationSeconds": 30,
       "endedAt": "2026-01-01T00:00:00Z",
-      "extension": null,
+      "extension": {
+        "id": 4,
+        "name": "1001"
+      },
       "id": 6,
-      "linkedid": "1764060000.1",
-      "partner": null,
+      "linkedid": "1764070000.2",
+      "partner": {
+        "id": 1,
+        "name": "Alia Customer"
+      },
       "recordingState": "none",
-      "remoteNumber": "+966511111111",
+      "remoteNumber": "+966500000000",
       "startedAt": "2026-01-01T00:00:00Z",
       "state": "answered",
       "user": {
-        "id": 2,
+        "id": 3,
+        "name": "Telephony Manager"
+      }
+    },
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "in",
+      "durationSeconds": 30,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": {
+        "id": 4,
+        "name": "1001"
+      },
+      "id": 7,
+      "linkedid": "1764070000.1",
+      "partner": {
+        "id": 1,
+        "name": "Alia Customer"
+      },
+      "recordingState": "none",
+      "remoteNumber": "+966500000000",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "answered",
+      "user": {
+        "id": 3,
+        "name": "Telephony Manager"
+      }
+    },
+    {
+      "answeredAt": "2026-01-01T00:00:00Z",
+      "companyId": 1,
+      "direction": "in",
+      "durationSeconds": 30,
+      "endedAt": "2026-01-01T00:00:00Z",
+      "extension": {
+        "id": 4,
+        "name": "1001"
+      },
+      "id": 8,
+      "linkedid": "1764070000.0",
+      "partner": {
+        "id": 1,
+        "name": "Alia Customer"
+      },
+      "recordingState": "none",
+      "remoteNumber": "+966500000000",
+      "startedAt": "2026-01-01T00:00:00Z",
+      "state": "answered",
+      "user": {
+        "id": 3,
         "name": "Telephony Manager"
       }
     }
   ],
-  "number": "+966511111111",
-  "partner": null
+  "number": "+966500000000",
+  "partner": {
+    "company": null,
+    "id": 1,
+    "isCompany": true,
+    "name": "Alia Customer"
+  }
 }
