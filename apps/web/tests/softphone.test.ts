@@ -487,6 +487,134 @@ describe('useSoftphone', () => {
     await phone.stop()
   })
 
+  it('re-arms credential renewal when JsSIP auto-reconnects after a disconnect', async () => {
+    const storage = new FakeStorage()
+    const hub = new FakeBroadcastHub()
+    const jssip = createFakeJsSip()
+    let grantSeq = 0
+    const $api = vi.fn(async (_path: string, opts?: any) => {
+      if (opts?.method === 'DELETE') return { revoked: true }
+      grantSeq += 1
+      return {
+        ...SESSION_GRANT,
+        authUsername: `1001-t${grantSeq}`,
+        password: `pw-${grantSeq}`,
+        expiresInSeconds: 60,
+      }
+    })
+
+    const phone = useSoftphone({
+      $api,
+      identity: { userId: 7, companyId: 1 },
+      loadLibrary: async () => jssip.lib,
+      createChannel: name => hub.open(name),
+      storage,
+      ringtone: createFakeRingtone(),
+      tabId: 'tab-reconnect-renew',
+      registerUnload: () => () => {},
+    })
+
+    await phone.register()
+    expect($api).toHaveBeenCalledTimes(1)
+    const ua = jssip.agents[0]!
+
+    // Disconnect clears the renewal timer and moves to failed.
+    await vi.advanceTimersByTimeAsync(10_000)
+    ua.emit('disconnected')
+    expect(phone.state.phase).toBe('failed')
+    expect(phone.state.failure).toBe('connection_closed')
+
+    // JsSIP auto-reconnects 5s later (t=15s): state returns to registered and renewal re-arms for remaining 25s.
+    await vi.advanceTimersByTimeAsync(5_000)
+    ua.emit('registered')
+    expect(phone.state.phase).toBe('registered')
+    expect(phone.state.failure).toBeNull()
+
+    await vi.advanceTimersByTimeAsync(24_000)
+    await flush()
+    expect($api).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    await flush()
+    expect($api).toHaveBeenCalledTimes(2)
+    expect($api).toHaveBeenLastCalledWith('/api/v1/telephony/session', expect.objectContaining({ method: 'POST' }))
+    expect(ua.setCalls).toContainEqual(['authorization_user', '1001-t2'])
+    expect(ua.setCalls).toContainEqual(['password', 'pw-2'])
+    expect(ua.registerCalls).toBe(1)
+
+    // If a disconnect lasts past the renewal lead window, auto-reconnect schedules renewal within 1s.
+    ua.emit('disconnected')
+    await vi.advanceTimersByTimeAsync(50_000)
+    await flush()
+    expect($api).toHaveBeenCalledTimes(2)
+
+    ua.emit('registered')
+    await vi.advanceTimersByTimeAsync(1_000)
+    await flush()
+    expect($api).toHaveBeenCalledTimes(3)
+    expect(ua.setCalls).toContainEqual(['authorization_user', '1001-t3'])
+    expect(ua.setCalls).toContainEqual(['password', 'pw-3'])
+    expect(ua.registerCalls).toBe(2)
+
+    await phone.stop()
+  })
+
+  it('does not re-arm renewal if agent.start() synchronously triggers disconnected', async () => {
+    const storage = new FakeStorage()
+    const hub = new FakeBroadcastHub()
+    const agents: FakeUA[] = []
+    let grantSeq = 0
+    const lib = {
+      WebSocketInterface: class { constructor(public url: string) {} },
+      UA: class extends FakeUA {
+        constructor(config: Record<string, any>) {
+          super(config)
+          agents.push(this)
+        }
+        override start() {
+          this.started = true
+          this.registered = false
+          this.emit('disconnected')
+        }
+      },
+    }
+    const $api = vi.fn(async (_path: string, opts?: any) => {
+      if (opts?.method === 'DELETE') return { revoked: true }
+      grantSeq += 1
+      return { ...SESSION_GRANT, password: `pw-${grantSeq}`, expiresInSeconds: 60 }
+    })
+
+    const phone = useSoftphone({
+      $api,
+      identity: { userId: 7, companyId: 1 },
+      loadLibrary: async () => lib,
+      createChannel: name => hub.open(name),
+      storage,
+      ringtone: createFakeRingtone(),
+      tabId: 'tab-sync-disconnect',
+      registerUnload: () => () => {},
+    })
+
+    await phone.register()
+    expect(phone.state.phase).toBe('failed')
+    expect(phone.state.failure).toBe('connection_closed')
+    expect($api).toHaveBeenCalledTimes(1)
+
+    // Renewal timer was cleared by synchronous failUa() and not re-armed after start().
+    await vi.advanceTimersByTimeAsync(120_000)
+    await flush()
+    expect($api).toHaveBeenCalledTimes(1)
+
+    // Subsequent auto-reconnect re-arms renewal promptly.
+    agents[0]!.emit('registered')
+    await vi.advanceTimersByTimeAsync(1_000)
+    await flush()
+    expect($api).toHaveBeenCalledTimes(2)
+    expect(agents[0]!.setCalls).toContainEqual(['password', 'pw-2'])
+
+    await phone.stop()
+  })
+
   it('rejects a second incoming call with 486 while busy without disturbing the active call, and refuses concurrent call()', async () => {
     const storage = new FakeStorage()
     const hub = new FakeBroadcastHub()

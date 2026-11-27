@@ -102,6 +102,7 @@ const LEASE_TTL_MS = 10_000
 const HEARTBEAT_MS = 4_000
 const REVOKE_TIMEOUT_MS = 2_000
 const MIN_RENEWAL_MS = 15_000
+const MIN_RECONNECT_RENEWAL_MS = 1_000
 const RENEWAL_LEAD_SECONDS = 20
 
 const E164_PATTERN = /^\+[1-9]\d{6,14}$/
@@ -302,6 +303,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
   let ua: any = null
   let activeSession: any = null
   let currentGrant: TelephonySession | null = null
+  let grantExpiresAt: number | null = null
   let sipHost = ''
   let channel: BroadcastChannelLike | null = null
   let leaseKey: string | null = null
@@ -439,6 +441,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     detachAudio()
     if (renewalTimer) clearTimeout(renewalTimer)
     renewalTimer = null
+    grantExpiresAt = null
     const agent = ua
     ua = null
     activeSession = null
@@ -460,12 +463,23 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     clearCallFields('failed', code)
   }
 
-  function scheduleRenewal(expiresInSeconds: number) {
+  function armRenewal(delayMs: number) {
     if (renewalTimer) clearTimeout(renewalTimer)
-    const delayMs = Math.max((expiresInSeconds - RENEWAL_LEAD_SECONDS) * 1000, MIN_RENEWAL_MS)
     renewalTimer = setTimeout(() => {
+      renewalTimer = null
       void renewSession()
     }, delayMs)
+  }
+
+  function scheduleRenewal(expiresInSeconds: number) {
+    const delayMs = Math.max((expiresInSeconds - RENEWAL_LEAD_SECONDS) * 1000, MIN_RENEWAL_MS)
+    armRenewal(delayMs)
+  }
+
+  function scheduleRenewalFromExpiry() {
+    if (grantExpiresAt === null) return
+    const delayMs = Math.max(grantExpiresAt - now() - RENEWAL_LEAD_SECONDS * 1000, MIN_RECONNECT_RENEWAL_MS)
+    armRenewal(delayMs)
   }
 
   async function renewSession() {
@@ -477,7 +491,9 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       if (stopped || !state.isLeader || myConnectGen !== connectGeneration || myRenewGen !== renewGeneration) return
       hadGrantedSession = true
       currentGrant = nextGrant
+      grantExpiresAt = now() + nextGrant.expiresInSeconds * 1000
       sipHost = new URL(nextGrant.wsUrl).hostname
+      scheduleRenewal(nextGrant.expiresInSeconds)
       if (ua) {
         try {
           ua.set?.('authorization_user', nextGrant.authUsername)
@@ -485,7 +501,6 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
           if (typeof ua.register === 'function') ua.register()
         } catch {}
       }
-      scheduleRenewal(nextGrant.expiresInSeconds)
     } catch (error) {
       if (stopped || !state.isLeader || myConnectGen !== connectGeneration || myRenewGen !== renewGeneration) return
       if (isNotFoundError(error)) {
@@ -599,6 +614,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       if (stopped || !state.isLeader || gen !== connectGeneration) return
       hadGrantedSession = true
       currentGrant = granted
+      grantExpiresAt = now() + granted.expiresInSeconds * 1000
       sipHost = new URL(granted.wsUrl).hostname
 
       const JsSIP = await loadLibrary()
@@ -623,6 +639,9 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
           hasExtension: true,
           failure: null,
         })
+        if (!renewalTimer && currentGrant && grantExpiresAt !== null) {
+          scheduleRenewalFromExpiry()
+        }
       })
 
       agent.on('registrationFailed', () => {
@@ -664,10 +683,13 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       })
 
       ua = agent
-      agent.start()
       scheduleRenewal(granted.expiresInSeconds)
+      agent.start()
     } catch (error) {
       if (stopped || !state.isLeader || gen !== connectGeneration) return
+      if (renewalTimer) clearTimeout(renewalTimer)
+      renewalTimer = null
+      grantExpiresAt = null
       if (isNotFoundError(error)) {
         // 404 means this user has no assigned extension: stay quietly idle, never enter failed or retry.
         currentGrant = null

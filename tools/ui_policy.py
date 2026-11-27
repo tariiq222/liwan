@@ -191,7 +191,7 @@ REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescrip
 # (tools/undeclared_imports.py). Owner approval 2026-11-13 (Tariq, in chat). None is a second UI library.
 REVIEWED_DECLARED_IMPORTS = {
     '@iconify/vue', '@tanstack/query-core', '@tiptap/core', '@vue/runtime-core', 'devalue', 'esbuild', 'h3',
-    'hookable', 'jssip', 'node-mock-http', 'ofetch', 'pg', 'tailwind-variants', 'ufo', 'vue-i18n',
+    'hookable', 'node-mock-http', 'ofetch', 'pg', 'tailwind-variants', 'ufo', 'vue-i18n',
 }
 
 # Error reporting SDKs for the optional self-hosted Sentry (owner decision 2026-11-18). They are not UI libraries and render
