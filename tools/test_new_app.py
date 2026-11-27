@@ -18,7 +18,7 @@ import catalog_check  # noqa: E402
 import new_app  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
-REGISTRATION = (new_app.ARCH_LAYERS, new_app.PLATFORM_SOLUTION, new_app.CONTRACTS_INDEX)
+REGISTRATION = (new_app.ARCH_LAYERS, new_app.current_solution(REPO), new_app.CONTRACTS_INDEX)
 EXPECTED = (
     'odoo-addons/liwan_zzprobe/__init__.py',
     'odoo-addons/liwan_zzprobe/models/ai_agent.py',
@@ -162,9 +162,9 @@ class TestNewApp(unittest.TestCase):
         self.assertTrue(all(line.strip() == f'"{anchor}": 4' for line in removed), removed)
         self.assertTrue(any('"zzprobe": {' in line for line in added))
         self.assertEqual(json.loads(after[new_app.ARCH_LAYERS])['web_apps']['zzprobe'], {'components': ['zzprobe'], 'pages': ['zzprobe']})
-        removed, added = changed_lines(self.before[new_app.PLATFORM_SOLUTION], after[new_app.PLATFORM_SOLUTION])
+        removed, added = changed_lines(self.before[new_app.current_solution(REPO)], after[new_app.current_solution(REPO)])
         self.assertFalse([line for line in removed if line.strip() not in ('}', '    }', '}', '  ]')])
-        tier = json.loads(after[new_app.PLATFORM_SOLUTION])['tiers'][-1]
+        tier = json.loads(after[new_app.current_solution(REPO)])['tiers'][-1]
         self.assertEqual(tier['modules'], ['liwan_zzprobe'])
         self.assertEqual(tier['features'], ['boolean:zzprobe.enabled'])
         # The current release must state `sellable` on every non-core tier; a new application has no price, so it starts not for sale.
@@ -353,7 +353,7 @@ class TestNewApp(unittest.TestCase):
     def test_success_prints_the_catalog_warning(self):
         code, out, err = run(self.root, *ARGS)
         self.assertEqual(code, 0, err)
-        self.assertIn('platform_v4.json was edited in place', out)
+        self.assertIn('current release catalog was edited in place', out)
         self.assertIn('platform_vN.json', out)
 
     def test_existing_page_or_contracts_entry_blocks_the_id(self):

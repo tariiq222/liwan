@@ -11,7 +11,7 @@ const manifest: AppManifest = {
   routePrefixes: ['/calls'],
   rail: [{ id: 'telephony', labelKey: 'telephony.title', icon: 'i-lucide-phone', to: '/calls', order: 110 }],
   nav: [
-    { to: '/calls', labelKey: 'telephony.nav.calls', icon: 'i-lucide-phone-call', shortcut: '0', capability: 'telephony.use' },
+    { to: '/calls', labelKey: 'telephony.nav.calls', icon: 'i-lucide-phone-call', shortcut: 'b', capability: 'telephony.use' },
   ],
   contextLinks: () => [
     { id: 'telephony-calls', labelKey: 'telephony.nav.calls', icon: 'i-lucide-phone-call', to: '/calls', capability: 'telephony.use' },

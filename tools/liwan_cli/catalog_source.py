@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SOLUTIONS_DIR = ('deploy', 'catalog', 'solutions')
-KNOWN_SOURCES = ('platform.json', 'platform_v2.json', 'platform_v3.json', 'platform_v4.json')
+KNOWN_SOURCES = ('platform.json', 'platform_v2.json', 'platform_v3.json', 'platform_v4.json', 'platform_v5.json')
 _DIGEST = re.compile(r'(?:sha256:)?([0-9a-f]{64})')
 
 

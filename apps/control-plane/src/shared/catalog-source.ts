@@ -5,11 +5,11 @@ import { basename, join } from 'node:path'
 /** Known catalog source files, resolved by the sha256 of their bytes, never by
  * a version label or filename convention. */
 export const SOLUTIONS_DIR = 'deploy/catalog/solutions'
-export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json', 'platform_v3.json', 'platform_v4.json'] as const
+export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json', 'platform_v3.json', 'platform_v4.json', 'platform_v5.json'] as const
 /** The one catalog a release may be published from. The earlier files stay in the tree because already-published
  * revisions are pinned to their bytes, but they are history: they predate the `sellable` flag and would publish a
  * catalog in which nothing — or, with a fallback, everything — is for sale. Pre-release rule: no parallel old paths. */
-export const PUBLISHABLE_SOURCE = 'platform_v4.json' as const
+export const PUBLISHABLE_SOURCE = 'platform_v5.json' as const
 
 export type ResolvedCatalogSource = { name: string; path: string; bytes: Buffer; sha256: string }
 
