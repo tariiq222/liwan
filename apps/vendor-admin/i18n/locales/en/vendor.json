@@ -1211,6 +1211,12 @@
         "sales_enabled": "Sales",
         "storage_limit_mb": "Counted attachment storage (MB)",
         "tasks_enabled": "Tasks",
+        "telephony_enabled": "Telephony",
+        "telephony_extensions": "Maximum extensions",
+        "telephony_ivr": "Interactive voice response (IVR)",
+        "telephony_queues": "Call queues",
+        "telephony_recording": "Call recording",
+        "telephony_recording_storage_mb": "Recording storage (MB)",
         "users_limit": "Users"
       },
       "sarName": "Saudi riyal"
