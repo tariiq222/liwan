@@ -532,7 +532,7 @@ class BringupTest(unittest.TestCase):
 
 
 class FirewallFilesTest(unittest.TestCase):
-    def test_script_ensures_the_three_rules_of_a3_6_and_checks_before_inserting(self):
+    def test_script_ensures_the_five_rules_of_a3_6_and_checks_before_inserting(self):
         text = (HERE / 'liwan-firewall.sh').read_text(encoding='utf-8')
         found = [line.split()[1:] for line in text.splitlines() if line.startswith('ensure ')]
         self.assertEqual(FIREWALL_RULES, found)
