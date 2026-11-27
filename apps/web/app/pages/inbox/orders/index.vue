@@ -107,7 +107,7 @@ function clear() {
         @retry="query.refetch()"
       >
         <template #order-cell="{ row }">
-          <NuxtLink :to="orderTo(row.original)" class="block min-w-0 truncate font-semibold text-highlighted" :title="row.original.reference ?? t('inbox.orders.cartTitle')" :data-testid="`inbox-orders-row-${row.original.id}`">
+          <NuxtLink :to="orderTo(row.original)" class="block min-w-0 truncate font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.reference ?? t('inbox.orders.cartTitle')" :data-testid="`inbox-orders-row-${row.original.id}`">
             <bdi v-if="row.original.reference" dir="ltr">{{ row.original.reference }}</bdi><template v-else>{{ t('inbox.orders.cartTitle') }}</template>
           </NuxtLink>
         </template>
