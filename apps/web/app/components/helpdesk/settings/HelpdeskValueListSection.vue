@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
 import type { HelpdeskCategoryResource, HelpdeskResource } from '@liwan/contracts'
 import { useSaveHelpdeskResource, type HelpdeskResourceKind } from '@/composables/helpdesk/useHelpdeskResources'
+import { saveErrorMessage } from '@/utils/formFeedback'
 
 // One value list of the support settings (categories, tags, channels or types): rename inline, archive, and add a row.
 // Categories keep a parent so a tenant can build the tree its sector uses; the server refuses a cycle.
@@ -11,89 +11,150 @@ const props = defineProps<{
   canEdit: boolean
 }>()
 const { t } = useI18n()
+const hydrated = useHydrated()
 const save = useSaveHelpdeskResource(props.kind)
-const editing = ref<number | null>(null)
-const name = ref('')
-const parentId = ref<number | null>(null)
+const newName = ref('')
+const newParentId = ref<number | null>(null)
 const adding = ref(false)
+const savingId = ref<number | null>(null)
+const resetGeneration = ref(0)
 const failure = ref<string | null>(null)
 
 const isCategories = computed(() => props.kind === 'categories')
 const NO_PARENT = 'none'
-const parentItems = computed(() => [
-  { value: NO_PARENT, label: t('helpdesk.settings.values.noParent') },
-  ...(props.rows as HelpdeskCategoryResource[]).map(row => ({ value: String(row.id), label: row.name })),
-])
+const busy = computed(() => save.isPending.value || adding.value || savingId.value !== null)
+const locked = computed(() => !hydrated.value || !props.canEdit || busy.value)
 const parentOf = (row: HelpdeskResource | HelpdeskCategoryResource) =>
   (row as HelpdeskCategoryResource).parent_id ?? null
 
-function start(row?: HelpdeskResource | HelpdeskCategoryResource) {
-  failure.value = null
-  adding.value = !row
-  editing.value = row?.id ?? null
-  name.value = row?.name ?? ''
-  parentId.value = row ? parentOf(row) : null
-}
+const parentItemsFor = (excludeId?: number) => [
+  { value: NO_PARENT, label: t('helpdesk.settings.values.noParent') },
+  ...(props.rows as HelpdeskCategoryResource[])
+    .filter(row => row.id !== excludeId)
+    .map(row => ({ value: String(row.id), label: row.name })),
+]
 
-function cancel() {
-  editing.value = null
-  adding.value = false
+async function addRow() {
+  const trimmed = newName.value.trim()
+  if (locked.value || !trimmed) return
   failure.value = null
-}
-
-async function submit(row?: HelpdeskResource | HelpdeskCategoryResource) {
-  failure.value = null
+  adding.value = true
   try {
     await save.mutateAsync({
-      ...(row ? { id: row.id } : {}),
-      name: name.value.trim(),
-      ...(isCategories.value ? { parent_id: parentId.value ?? false } : {}),
+      name: trimmed,
+      ...(isCategories.value ? { parent_id: newParentId.value ?? false } : {}),
     })
-    cancel()
+    newName.value = ''
+    newParentId.value = null
   } catch (cause) {
-    failure.value = cause instanceof Error ? cause.message : t('helpdesk.settings.resources.failed')
+    failure.value = saveErrorMessage(cause, t('helpdesk.settings.resources.failed'), t('errors.saveUncertain'))
+  } finally {
+    adding.value = false
+  }
+}
+
+async function renameRow(row: HelpdeskResource | HelpdeskCategoryResource, name: string) {
+  const trimmed = name.trim()
+  if (locked.value || !trimmed || trimmed === row.name) return
+  failure.value = null
+  savingId.value = row.id
+  try {
+    await save.mutateAsync({
+      id: row.id,
+      name: trimmed,
+      ...(isCategories.value ? { parent_id: parentOf(row) ?? false } : {}),
+    })
+  } catch (cause) {
+    resetGeneration.value += 1
+    failure.value = saveErrorMessage(cause, t('helpdesk.settings.resources.failed'), t('errors.saveUncertain'))
+  } finally {
+    savingId.value = null
+  }
+}
+
+async function changeParent(row: HelpdeskResource | HelpdeskCategoryResource, value: unknown) {
+  const next = value === NO_PARENT ? null : Number(value)
+  if (locked.value || !row.active || next === parentOf(row)) return
+  failure.value = null
+  savingId.value = row.id
+  try {
+    await save.mutateAsync({ id: row.id, name: row.name, parent_id: next ?? false })
+  } catch (cause) {
+    failure.value = saveErrorMessage(cause, t('helpdesk.settings.resources.failed'), t('errors.saveUncertain'))
+  } finally {
+    savingId.value = null
   }
 }
 
 async function archive(row: HelpdeskResource | HelpdeskCategoryResource, active: boolean) {
+  if (locked.value) return
   failure.value = null
+  savingId.value = row.id
   try {
     await save.mutateAsync({ id: row.id, name: row.name, active })
   } catch (cause) {
-    failure.value = cause instanceof Error ? cause.message : t('helpdesk.settings.resources.failed')
+    failure.value = saveErrorMessage(cause, t('helpdesk.settings.resources.failed'), t('errors.saveUncertain'))
+  } finally {
+    savingId.value = null
   }
 }
+
 const title = computed(() => t(`helpdesk.settings.values.${props.kind}.title`))
-const addLabel = computed(() => t(`helpdesk.settings.values.${props.kind}.add`))
 </script>
 
 <template>
-  <SharedRecordSection variant="panel" :title="title" :data-testid="`helpdesk-settings-${props.kind}`">
-    <template #actions>
-      <UButton v-if="props.canEdit && !adding && editing === null" color="neutral" variant="outline" icon="i-lucide-plus" size="xs" :label="addLabel" :data-testid="`helpdesk-${props.kind}-add`" @click="start()" />
+  <SharedSettingsList
+    :id="`helpdesk-${props.kind}`"
+    :data-testid="`helpdesk-settings-${props.kind}`"
+    :title="title"
+    :can-edit="canEdit"
+    :message="failure ?? ''"
+    :empty="!props.rows.length"
+    :adding="adding"
+    :add-disabled="busy || !newName.trim()"
+    @add="addRow"
+  >
+    <SharedSettingsListRow
+      v-for="row in props.rows"
+      :key="`${row.id}-${resetGeneration}`"
+      :name="row.name"
+      :active="row.active"
+      :can-edit="canEdit"
+      :busy="busy"
+      :maxlength="64"
+      :data-testid="`helpdesk-${props.kind}-${row.id}`"
+      @rename="name => renameRow(row, name)"
+      @toggle="active => archive(row, active)"
+    >
+      <USelect
+        v-if="isCategories"
+        :model-value="parentOf(row) === null ? NO_PARENT : String(parentOf(row))"
+        :items="parentItemsFor(row.id)"
+        class="min-w-40"
+        :aria-label="t('helpdesk.settings.values.parent')"
+        :disabled="locked || !row.active"
+        @update:model-value="value => changeParent(row, value)"
+      />
+    </SharedSettingsListRow>
+    <template #add>
+      <UInput
+        v-model="newName"
+        class="min-w-40 flex-1"
+        :placeholder="t('app.list.newName')"
+        :aria-label="t('helpdesk.settings.resources.name')"
+        :maxlength="64"
+        :disabled="locked"
+        :data-testid="`helpdesk-${props.kind}-name`"
+      />
+      <USelect
+        v-if="isCategories"
+        :model-value="newParentId === null ? NO_PARENT : String(newParentId)"
+        :items="parentItemsFor()"
+        class="min-w-40"
+        :aria-label="t('helpdesk.settings.values.parent')"
+        :disabled="locked"
+        @update:model-value="value => { newParentId = value === NO_PARENT ? null : Number(value) }"
+      />
     </template>
-    <p v-if="failure" class="mb-2 text-sm text-error" role="alert" :data-testid="`helpdesk-${props.kind}-error`">{{ failure }}</p>
-    <ul class="flex flex-col divide-y divide-default">
-      <li v-for="row in props.rows" :key="row.id" class="flex items-center justify-between gap-2 py-1.5" :data-testid="`helpdesk-${props.kind}-${row.id}`">
-        <span class="min-w-0 truncate text-sm text-highlighted">{{ row.name }}</span>
-        <div class="flex items-center gap-2">
-          <SharedStatusBadge v-if="!row.active" tone="neutral" :label="t('helpdesk.settings.resources.archived')" size="sm" />
-          <UButton v-if="props.canEdit" color="neutral" variant="ghost" icon="i-lucide-pencil" size="xs" :aria-label="t('app.edit')" @click="start(row)" />
-          <USwitch v-if="props.canEdit" :model-value="row.active" :aria-label="t('helpdesk.settings.resources.active')" :disabled="save.isPending.value" @update:model-value="value => archive(row, value === true)" />
-        </div>
-      </li>
-    </ul>
-    <form v-if="props.canEdit && (adding || editing !== null)" class="mt-3 flex flex-wrap items-end gap-2" :data-testid="`helpdesk-${props.kind}-form`" @submit.prevent="submit(props.rows.find(row => row.id === editing))">
-      <UFormField :label="t('helpdesk.settings.resources.name')" required class="min-w-40 grow">
-        <UInput v-model="name" class="w-full" :maxlength="64" :data-testid="`helpdesk-${props.kind}-name`" />
-      </UFormField>
-      <UFormField v-if="isCategories" :label="t('helpdesk.settings.values.parent')" class="min-w-40">
-        <USelect :model-value="parentId === null ? NO_PARENT : String(parentId)" :items="parentItems" class="w-full" @update:model-value="value => { parentId = value === NO_PARENT ? null : Number(value) }" />
-      </UFormField>
-      <div class="flex gap-2">
-        <UButton color="neutral" variant="outline" :label="t('app.cancel')" :disabled="save.isPending.value" @click="cancel" />
-        <UButton type="submit" :loading="save.isPending.value" :label="t('helpdesk.settings.resources.save')" :data-testid="`helpdesk-${props.kind}-save`" />
-      </div>
-    </form>
-  </SharedRecordSection>
+  </SharedSettingsList>
 </template>

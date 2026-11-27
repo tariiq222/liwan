@@ -17,7 +17,7 @@ const meta = {
   title: 'Inbox/InboxCampaignSettingsCard',
   component: InboxCampaignSettingsCard,
   parameters: {
-    ...storyContext('apps/web/app/pages/settings/apps/inbox.vue:58', 'سياسة حملات الرسائل: من يجوز مراسلته، ورمز الدولة الافتراضي، وكلمات الإيقاف والاستئناف وردودها، والحد اليومي لكل حملة جديدة. تُحفظ من شريط الحفظ الواحد للصفحة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/inbox.vue:61', 'سياسة حملات الرسائل: من يجوز مراسلته، ورمز الدولة الافتراضي، وكلمات الإيقاف والاستئناف وردودها، والحد اليومي لكل حملة جديدة. تُحفظ من شريط الحفظ الواحد للصفحة.'),
     msw: { handlers: { api: [manage, save] } },
   },
   args: { settings, canEdit: true, reloadSettings: async () => settings },

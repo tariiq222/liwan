@@ -18,7 +18,6 @@ const SETTINGS = '/api/v1/helpdesk/settings';
 const RESOURCES = '/api/v1/helpdesk/settings/resources';
 const SLA = '/api/v1/helpdesk/sla';
 const POLICY_HEADING = 'الدعم الفني';
-const SAVED = 'حُفظت السياسة.';
 const STALE = 'the Support Desk settings changed; reload before saving';
 const VIEW_ONLY = 'عرض فقط';
 const ARCHIVED = 'مؤرشف';
@@ -109,8 +108,6 @@ test('[HD-80] the policy card saves the desk policy and a stale revision is refu
   await screen.getByTestId('helpdesk-settings-prefix').fill(prefix);
   await expect(screen.getByTestId('settings-save-bar')).toBeVisible(slow);
   await screen.getByTestId('settings-save-bar-save').tap();
-  // The card reports the save's message (register row HD-104: a success is drawn in the failure alert too).
-  await expect(screen.getByText(SAVED)).toBeVisible(slow);
   await expect(screen.getByTestId('settings-save-bar')).toHaveCount(0, slow);
 
   // The write landed with the revision the screen read, and the page reads it back.
@@ -217,14 +214,14 @@ test('[HD-83] a stage and the value lists are saved, and a category refuses a cy
   const reference = await ok(browser, 'GET', '/api/v1/helpdesk/reference');
   expect((reference.stages as Json[]).some(row => row.id === stageId)).toBe(true);
 
-  // A tag is renamed inline and the name reaches the reference the ticket form reads.
-  await screen.getByTestId('helpdesk-tags-add').tap();
+  // A tag is added in the SharedSettingsList footer and reaches the reference the ticket form reads.
   await screen.getByTestId('helpdesk-tags-name').fill(tagName);
-  await screen.getByTestId('helpdesk-tags-save').tap();
-  await expect(screen.getByText(tagName)).toBeVisible(slow);
+  await screen.getByTestId('helpdesk-settings-tags').getByRole('button', { name: 'إضافة' }).tap();
+  await expect(screen.getByTestId('helpdesk-tags-name')).toHaveValue('', slow);
   const tagged = await ok(browser, 'GET', RESOURCES);
   const tag = (tagged.tags as Json[]).find(row => row.name === tagName);
   expect([tagName, tag !== undefined]).toEqual([tagName, true]);
+  await expect(screen.getByTestId(`helpdesk-tags-${tag!.id as number}`).getByRole('textbox')).toHaveValue(tagName, slow);
 
   // Categories keep a tree: a parent cannot move under its own child.
   const parent = await ok(browser, 'POST', '/api/v1/helpdesk/settings/categories', { name: parentName });
@@ -298,8 +295,8 @@ test('[HD-102] a supervisor with the read key meets a closed policy card', {
     'helpdesk-settings-resolution', 'helpdesk-settings-auto-close']) {
     await expect(screen.getByTestId(control)).toBeDisabled(slow);
   }
-  // A manager's add buttons are not drawn for a reader either.
-  for (const control of ['helpdesk-team-add', 'helpdesk-stage-add', 'helpdesk-sla-add', 'helpdesk-tags-add']) {
+  // A manager's add buttons and value-list add form are not drawn for a reader either.
+  for (const control of ['helpdesk-team-add', 'helpdesk-stage-add', 'helpdesk-sla-add', 'helpdesk-tags-name']) {
     await expect(screen.getByTestId(control)).toHaveCount(0, slow);
   }
 });

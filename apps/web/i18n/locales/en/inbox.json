@@ -440,7 +440,6 @@
       "name": "Name",
       "saved": "Saved",
       "requiredName": "This field is required",
-      "edit": "Edit {name}",
       "remove": "Remove {name}",
       "delete": "Delete",
       "policy": {
@@ -558,6 +557,8 @@
         "title": "Departments",
         "hint": "Departments route conversations to the people who answer them.",
         "add": "Add department",
+        "editTitle": "Edit department",
+        "actionsNamed": "Actions for {name}",
         "members": "Members",
         "membersHint": "Staff who see this department's conversations and reply to them.",
         "noMembers": "No members",
@@ -568,8 +569,6 @@
       "tags": {
         "title": "Tags",
         "hint": "Staff classify conversations with these tags.",
-        "add": "Add tag",
-        "empty": "No tags yet.",
         "deleteTitle": "Delete the tag \"{name}\"?",
         "deleteDescription": "The tag is removed from every conversation."
       },
@@ -577,6 +576,8 @@
         "title": "Canned replies",
         "hint": "Staff type / and the start of a shortcut in the reply box to get the canned reply suggested.",
         "add": "Add canned reply",
+        "editTitle": "Edit canned reply",
+        "actionsNamed": "Actions for {name}",
         "shortcut": "Shortcut",
         "shortcutHint": "Without the / sign",
         "body": "Reply text",

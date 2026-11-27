@@ -26,10 +26,10 @@ const manifest: AppManifest = {
     parts: [
       { id: 'policy', labelKey: 'inbox.settings.policy.title', icon: 'i-lucide-shield-check', capability: 'inbox.settings.manage' },
       { id: 'presets', labelKey: 'inbox.settings.presets.title', icon: 'i-lucide-wand-sparkles', capability: 'inbox.settings.manage' },
-      { id: 'departments', labelKey: 'inbox.settings.departments.title', icon: 'i-lucide-network', capability: 'inbox.settings.manage' },
+      { id: 'departments', labelKey: 'inbox.settings.departments.title', icon: 'i-lucide-network', capability: 'inbox.settings.manage', within: '/settings/apps/inbox/departments', navTo: '/settings/apps/inbox?tab=basics#departments' },
       { id: 'agents', labelKey: 'inbox.settings.agents.title', icon: 'i-lucide-user-round-check', capability: 'inbox.settings.manage', anyCapabilities: ['inbox.conversations.assign'] },
       { id: 'tags', labelKey: 'inbox.settings.tags.title', icon: 'i-lucide-tags', capability: 'inbox.settings.manage' },
-      { id: 'canned-replies', labelKey: 'inbox.settings.canned.title', icon: 'i-lucide-message-square-quote', capability: 'inbox.settings.manage' },
+      { id: 'canned-replies', labelKey: 'inbox.settings.canned.title', icon: 'i-lucide-message-square-quote', capability: 'inbox.settings.manage', within: '/settings/apps/inbox/canned-replies', navTo: '/settings/apps/inbox?tab=replies#canned-replies' },
       { id: 'working-hours', labelKey: 'inbox.automation.hours.title', icon: 'i-lucide-clock', capability: 'inbox.automation.manage', to: '/settings/apps/inbox/working-hours', within: '/settings/apps/inbox/working-hours' },
       { id: 'rules', labelKey: 'inbox.automation.rules.title', icon: 'i-lucide-list-checks', capability: 'inbox.automation.manage', to: '/settings/apps/inbox/rules', within: '/settings/apps/inbox/rules' },
       { id: 'auto-messages', labelKey: 'inbox.automation.messages.title', icon: 'i-lucide-bot-message-square', capability: 'inbox.automation.manage', within: '/settings/apps/inbox/auto-messages' },
@@ -77,6 +77,7 @@ const manifest: AppManifest = {
     { pattern: /^\/inbox\/flows(?:\/|$)/, capability: 'inbox.conversations.read', feature: 'inbox.flows' },
     { pattern: /^\/inbox(?:\/|$)/, capability: 'inbox.conversations.read' },
     { pattern: /^\/settings\/apps\/inbox\/catalog(?:\/|$)/, capability: 'inbox.catalog.manage', feature: 'inbox.catalog' },
+    { pattern: /^\/settings\/apps\/inbox\/(?:departments|canned-replies)\/(?:new|[^/]+\/edit)$/, capability: 'inbox.settings.manage' },
     // A channel of either kind is created here: the page offers the kinds whose feature is on and refuses when none is,
     // and the server checks the chosen kind's feature, so the route itself needs the capability only.
     { pattern: /^\/settings\/apps\/inbox\/channels\/new$/, capability: 'inbox.channels.manage' },

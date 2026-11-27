@@ -200,3 +200,20 @@ describe('inbox agents settings part', () => {
     expect(others.some(item => [item.capability, ...(item.anyCapabilities ?? [])].includes('inbox.conversations.assign'))).toBe(false)
   })
 })
+
+describe('inbox departments and canned replies routes', () => {
+  const ROUTES = [
+    '/settings/apps/inbox/departments/new',
+    '/settings/apps/inbox/departments/4/edit',
+    '/settings/apps/inbox/canned-replies/new',
+    '/settings/apps/inbox/canned-replies/9/edit',
+  ]
+
+  it.each(ROUTES)('%s requires inbox.settings.manage only', (path) => {
+    expect(reach(path, 'inbox.settings.manage')).toBe(true)
+    expect(reach(path, 'inbox.conversations.read')).toBe(false)
+    expect(reach(path, 'inbox.channels.manage')).toBe(false)
+    expect(reach(path, 'inbox.conversations.assign')).toBe(false)
+    expect(reach(path)).toBe(false)
+  })
+})
