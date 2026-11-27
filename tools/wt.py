@@ -1,7 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Run the lane pool: add lanes, take and return them, check and list worktrees, clean up leftovers.
+"""Run the lane pool: add, lock, take and return lanes, check and list worktrees, clean up leftovers.
 
     npm run wt -- lane add <name> [--holder <who> --orchestrator <id> --task <what>] [--no-install]
+    npm run wt -- lane lock <name>
     npm run wt -- lane remove <name>
     npm run wt -- take <branch> --holder <who> --orchestrator <id> [--task <what>] [--lane <name>]
     npm run wt -- done [--lane <name>] [--park]
@@ -11,7 +12,11 @@
     npm run wt -- gc [--apply] [--branch <branch>]
 
 A lane is a permanent worktree at ``.worktrees/<name>`` (see ``tools/worktree_lanes.py``): one task is one branch and one
-lane, taken by its orchestrator for the workers. Between tasks a lane rests on a detached ``origin/main``. ``lane add`` creates a lane
+lane, taken by its orchestrator for the workers. Between tasks a lane rests on a detached ``origin/main``. Every lane is a
+locked worktree: ``gh pr merge --delete-branch`` removes a linked worktree that has the head branch checked out (gh 2.106
+runs ``git worktree remove -- <path>``) before it deletes the branches, which took pool lanes instead of returning them, and
+that removal fails on a locked worktree. ``lane add`` and ``take`` lock the lane, ``lane lock`` locks one that exists,
+``done`` leaves the lock on, and ``lane remove`` unlocks first. ``lane add`` creates a lane
 (a worktree at ``origin/main`` with its ``.env.worktree``, free ports, scratch database name and dependencies) or adopts
 an existing worktree under ``.worktrees/`` in place; adopting a worktree that is on a branch needs ``--holder``,
 ``--orchestrator`` and ``--task`` and drops its record files of the removed claim model. ``take`` gives a branch to the first resting clean lane
@@ -25,8 +30,8 @@ refuse (dirty, unmerged), prints the reason for each lane left and exits 1 when 
 
 ``status`` prints one table of every worktree (``*`` marks one outside ``.worktrees``; ``missing`` one whose folder is
 gone) with its holder, the files two occupied lanes both change, and the violations. ``check`` only reads and exits 1
-when a worktree is neither the main checkout nor a lane, a lane's checked-out branch differs from its record, an
-occupied lane has no holder or no orchestrator, or two lanes change the same addon's ``migrations/``. ``gc`` lists the leftover
+when a worktree is neither the main checkout nor a lane, a lane is not locked, a lane's checked-out branch differs from
+its record, an occupied lane has no holder or no orchestrator, or two lanes change the same addon's ``migrations/``. ``gc`` lists the leftover
 non-lane worktrees and branches that are merged into main with commits of their own, clean and held by no process,
 plus the scratch databases of those worktrees nobody is connected to; it only prints unless ``--apply`` is given,
 which needs the owner's authorization. A lane is never removed by ``gc``; ``lane remove`` deletes a resting
@@ -74,6 +79,7 @@ LANE_BASE = 'origin/main'
 LOCK_FILE = 'package-lock.json'
 REMOVED_RECORDS = ('liwan-lane.json', 'liwan-claim.json')  # record files of the removed fixed-lane and claim model
 GIT_DIR = '.git'  # the main checkout's git directory, shared by every worktree
+LANE_LOCK_REASON = 'LiwanOS lane pool; return it with npm run wt -- done instead of removing it'  # shown by git when a removal is refused
 MIGRATIONS = re.compile(r'odoo-addons/([^/]+)/migrations/')
 INSTALL = (
     ['npm', 'ci', '--ignore-scripts', '--prefer-offline'],
@@ -93,6 +99,7 @@ class LaneInfo(NamedTuple):
     name: str
     path: Path
     take: Take
+    locked: bool
 
 
 def clean_env(environ):
@@ -167,18 +174,26 @@ def env_ports(env):
     return {int(m.group(1)) for m in re.finditer(r'^(?:NUXT_PORT|ODOO_HTTP_PORT)=(\d+)$', text, re.MULTILINE)}
 
 
+class WorktreeEntry(NamedTuple):
+    path: str
+    branch: str | None  # the checked-out ref, or None on a detached HEAD
+    locked: bool
+
+
 def parse_worktrees(porcelain):
-    """``[(path, branch ref or None)]`` from ``git worktree list --porcelain``."""
+    """``[WorktreeEntry]`` from ``git worktree list --porcelain``; a ``locked`` line may or may not carry a reason."""
     entries = []
     for block in porcelain.strip().split('\n\n'):
-        path, branch = None, None
+        path, branch, locked = None, None, False
         for line in block.splitlines():
             if line.startswith('worktree '):
                 path = line[len('worktree '):]
             elif line.startswith('branch '):
                 branch = line[len('branch '):]
+            elif line == 'locked' or line.startswith('locked '):
+                locked = True
         if path:
-            entries.append((path, branch))
+            entries.append(WorktreeEntry(path, branch, locked))
     return entries
 
 
@@ -218,6 +233,21 @@ def git_dir(path):
     return Path(sh(['git', 'rev-parse', '--absolute-git-dir'], path))
 
 
+def lock_worktree(path, locked, root):
+    """Lock the worktree at ``path`` with the lane reason, unless ``locked`` (read from the worktree listing) says it is.
+
+    ``git worktree lock`` fails on a worktree that is already locked, so the state is read first.
+    """
+    if not locked:
+        sh(['git', 'worktree', 'lock', '--reason', LANE_LOCK_REASON, str(path)], root)
+
+
+def worktree_removal(path, locked):
+    """``[(label, argv)]`` steps that remove the worktree at ``path``: ``git worktree remove`` refuses a locked one, so it is unlocked first."""
+    steps = [('unlock %s' % path, ['git', 'worktree', 'unlock', str(path)])] if locked else []
+    return steps + [('worktree %s' % path, ['git', 'worktree', 'remove', str(path)])]
+
+
 class Worktree(NamedTuple):
     path: Path
     branch: str | None
@@ -234,6 +264,7 @@ class Worktree(NamedTuple):
     missing: bool = False
     own_commits: bool = True
     take: Take | None = None  # the lane record; set only for a lane
+    locked: bool = False  # the worktree is locked, so git refuses to remove it
 
     @property
     def is_lane(self):
@@ -305,7 +336,7 @@ def load_take(path):
         raise WorktreeError(str(error)) from error
 
 
-def inspect_worktree(root, path, ref, now=None, sizes=True):
+def inspect_worktree(root, path, ref, now=None, sizes=True, locked=False):
     """Everything ``status``, ``check`` and ``gc`` need to know about one registered worktree."""
     now = time.time() if now is None else now
     wt_path = Path(path)
@@ -325,12 +356,12 @@ def inspect_worktree(root, path, ref, now=None, sizes=True):
         path=wt_path, branch=ref[len('refs/heads/'):] if ref else None, is_main=is_main, canonical=canonical,
         ahead=ahead, behind=behind, merged=merged, dirty=bool(changed), age_days=max(0, int((now - commit_time) // 86400)),
         size=dir_size_kb(wt_path / 'node_modules') if sizes else None, database=env.get('NUXT_ODOO_DB'), ports=ports,
-        own_commits=own_commits, take=load_take(wt_path) if lane_name_of(root, wt_path) else None)
+        own_commits=own_commits, take=load_take(wt_path) if lane_name_of(root, wt_path) else None, locked=locked)
 
 
 def inspect_all(root, sizes=True):
     entries = parse_worktrees(sh(['git', 'worktree', 'list', '--porcelain'], root))
-    return [inspect_worktree(root, path, ref, sizes=sizes) for path, ref in entries]
+    return [inspect_worktree(root, entry.path, entry.branch, sizes=sizes, locked=entry.locked) for entry in entries]
 
 
 def lane_changes(worktrees):
@@ -356,7 +387,7 @@ def migration_addons(paths):
 
 
 def lane_violations(worktree):
-    """Problems of one lane: the checked-out branch differs from the record, or an occupied lane has no holder."""
+    """Problems of one lane: the checked-out branch differs from the record, an occupied lane has no holder, or the lane is not locked."""
     take = worktree.take
     problems = []
     if (worktree.branch or '') != (take.branch or ''):
@@ -367,6 +398,8 @@ def lane_violations(worktree):
         problems.append('occupied lane has no holder; record one with: npm run wt -- done --park, then take it again')
     if take.occupied and not (take.orchestrator or '').strip():
         problems.append('occupied lane has no orchestrator; record one with: npm run wt -- done --park, then take it again')
+    if not worktree.locked:
+        problems.append('lane is not locked, so a tool can remove it; lock it with: npm run wt -- lane lock %s' % worktree.path.name)
     return problems
 
 
@@ -448,7 +481,7 @@ def format_status(worktrees, root, changes):
         sum(not w.canonical for w in others), WORKTREES_DIR)
     missing = sum(w.missing for w in others)
     if missing:
-        summary += ', %d folder missing (git worktree prune)' % missing
+        summary += ', %d folder missing (git worktree prune; unlock a locked lane first: git worktree unlock <path>)' % missing
     lanes = [w for w in others if w.is_lane]
     summary += '; %d lanes, %d occupied' % (len(lanes), sum(w.take.occupied for w in lanes))
     return '\n'.join(lines + ['', summary, '', format_shared(changes), '', format_violations(violations(worktrees, changes), root)])
@@ -535,7 +568,7 @@ def apply_gc(root, victims, databases, stale_branches=()):
         raise WorktreeError(message)
     failures, kept = [], set()
     for w in victims:
-        done, failed = try_each([('worktree %s' % w.path, ['git', 'worktree', 'remove', str(w.path)], root)])
+        done, failed = try_each([(label, argv, root) for label, argv in worktree_removal(w.path, w.locked)])
         failures += failed
         if done:
             failures += try_each([('branch %s' % w.branch, ['git', 'branch', '-d', w.branch], root)])[1]
@@ -631,7 +664,7 @@ def write_env(root, path, entries, name):
     """The worktree's ``.env.worktree``, written with free ports when missing."""
     env = path / '.env.worktree'
     if not env.exists():
-        used = used_ports(root / WORKTREES_DIR, [p for p, _ in entries])
+        used = used_ports(root / WORKTREES_DIR, [entry.path for entry in entries])
         nuxt = pick_port(NUXT_PORTS, used, port_is_free)
         odoo = pick_port(ODOO_PORTS, used | {nuxt}, port_is_free)
         env.write_text(env_content(nuxt, odoo, database_name(name)), encoding='utf-8')
@@ -641,13 +674,13 @@ def write_env(root, path, entries, name):
 def find_lanes(root):
     """Every lane of the pool (a worktree directly under ``.worktrees/`` with a record), sorted by name."""
     lanes = []
-    for path, _ in parse_worktrees(sh(['git', 'worktree', 'list', '--porcelain'], root)):
-        name = lane_name_of(root, path)
-        if name is None or not Path(path).is_dir():
+    for entry in parse_worktrees(sh(['git', 'worktree', 'list', '--porcelain'], root)):
+        name = lane_name_of(root, entry.path)
+        if name is None or not Path(entry.path).is_dir():
             continue
-        take = load_take(Path(path))
+        take = load_take(Path(entry.path))
         if take is not None:
-            lanes.append(LaneInfo(name, Path(path), take))
+            lanes.append(LaneInfo(name, Path(entry.path), take, entry.locked))
     return sorted(lanes, key=lambda lane: lane.name)
 
 
@@ -719,6 +752,7 @@ def take_lane(root, branch, holder, orchestrator, task, lane_name, now=None):
         message = 'branch %s is already held by lane %s (%s)' % (branch, held.name, held.take.holder or 'no holder')
         raise WorktreeError(message)
     lane = pick_lane(lanes, lane_name)
+    lock_worktree(lane.path, lane.locked, root)
     sh(['git', 'fetch', 'origin', MAIN], root)
     exists = run(['git', 'rev-parse', '--verify', '--quiet', 'refs/heads/' + branch], root)[0] == 0
     sh(['git', 'switch', branch] if exists else ['git', 'switch', '--no-track', '-c', branch, LANE_BASE], lane.path)
@@ -786,12 +820,12 @@ def done_orchestrator(root, orchestrator, park):
 
 
 def add_lane(root, name, holder, orchestrator, task, install, now=None):
-    """Create the lane ``name`` at origin/main, or adopt the existing worktree of that name under ``.worktrees/``."""
+    """Create the lane ``name`` at origin/main, or adopt the existing worktree of that name under ``.worktrees/``; either way it is locked."""
     validate_name(name)
     path = root / WORKTREES_DIR / name
     entries = parse_worktrees(sh(['git', 'worktree', 'list', '--porcelain'], root))
-    registered = any(Path(p).resolve() == path.resolve() for p, _ in entries)
-    if path.exists() and not registered:
+    registered = {Path(entry.path).resolve(): entry.locked for entry in entries}
+    if path.exists() and path.resolve() not in registered:
         message = '%s exists but is not a registered worktree; move it away first' % path
         raise WorktreeError(message)
     fresh = not path.exists()
@@ -805,6 +839,7 @@ def add_lane(root, name, holder, orchestrator, task, install, now=None):
     if fresh:
         sh(['git', 'fetch', 'origin', MAIN], root)
         sh(['git', 'worktree', 'add', '--detach', str(path), LANE_BASE], root)
+    lock_worktree(path, registered.get(path.resolve(), False), root)
     git_path = git_dir(path)
     for stale in REMOVED_RECORDS:
         (git_path / stale).unlink(missing_ok=True)
@@ -846,10 +881,18 @@ def remove_lane(root, name, current):
     worktrees = inspect_all(root, sizes=False)
     databases = abandoned_databases(
         [w for w in worktrees if w.path.resolve() == lane.path.resolve()], [w for w in worktrees if w.path.resolve() != lane.path.resolve()])
-    sh(['git', 'worktree', 'remove', str(lane.path)], root)
+    for _, argv in worktree_removal(lane.path, lane.locked):
+        sh(argv, root)
     for database in databases:
         sh(['dropdb', '--if-exists', database], root)
     return 'removed lane %s%s' % (name, ' and dropped database %s' % ', '.join(databases) if databases else '')
+
+
+def lock_lane(root, name):
+    """Lock the lane ``name`` so that no tool removes it; a lane that already is locked is left as it is."""
+    lane = named_lane(find_lanes(root), name)
+    lock_worktree(lane.path, lane.locked, root)
+    return 'lane %s at %s %s' % (name, lane.path, 'is already locked' if lane.locked else 'locked')
 
 
 def build_parser():
@@ -863,6 +906,8 @@ def build_parser():
     add.add_argument('--orchestrator', default='', help='the orchestrator session, needed when the adopted worktree is on a branch')
     add.add_argument('--task', default='', help='one line: what the adopted branch is for')
     add.add_argument('--no-install', action='store_true')
+    lock = lane_sub.add_parser('lock', help='lock a lane so that no tool removes its worktree')
+    lock.add_argument('name')
     remove = lane_sub.add_parser('remove', help='remove a resting clean lane, its worktree and its scratch database')
     remove.add_argument('name')
     take = sub.add_parser('take', help='give a branch to a free lane')
@@ -903,6 +948,8 @@ def run_command(root, args):
             return done_lane(root, args.lane, Path.cwd(), args.park)
         if args.lane_command == 'remove':
             return remove_lane(root, args.name, Path.cwd())
+        if args.lane_command == 'lock':
+            return lock_lane(root, args.name)
         return add_lane(root, args.name, args.holder, args.orchestrator, args.task, not args.no_install)
 
 
