@@ -63,15 +63,19 @@ class TestTelephonyEvents(LiwanTelephonyCase):
             str(when).encode() + b'\n' + body_with(''),
             hashlib.sha256,
         ).hexdigest()
+        # The agent posts raw bytes (apps/pbx-agent/src/pbx_agent/delivery.py:34-38), so the test does too.
+        request_body = body_with(signed)
         return self.url_open(
             '/api/v1/telephony/events',
-            data=body_with(signed),
+            data=request_body,
             headers={'Content-Type': 'application/json'},
             method='POST',
         )
 
     def test_an_event_creates_the_call_once(self):
         first = self.post(envelope('e-1', linkedid='1764049999.9'))
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertTrue(first.json()['applied'])
         self.assertTrue(first.json()['applied'])
         second = self.post(envelope('e-1', linkedid='1764049999.9'))
         self.assertFalse(second.json()['applied'])
@@ -94,8 +98,14 @@ class TestTelephonyServiceUser(LiwanTelephonyCase):
         rows = self.env['ir.model.access'].search([('name', 'like', 'liwan.telephony.call.')])
         self.assertTrue(rows, 'the call ACL rows exist')
         user = self.env.ref('liwan_telephony.user_telephony_events')
-        self.assertFalse(user.active)
+        self.assertTrue(user.active)
+        self.assertFalse(user.password)
         self.assertIn('Telephony events (machine)', user.group_ids.mapped('name'))
+
+    def test_the_route_identity_is_the_events_user(self):
+        user = self.env.ref('liwan_telephony.user_telephony_events')
+        self.assertTrue(self.env['liwan.telephony.call'].with_user(user).search([], limit=1) is not None)
+        self.assertTrue(user.has_group('liwan_telephony.group_telephony_events'))
 
     def test_the_events_user_can_write_a_call(self):
         """The machine route's own account: the reason the route can act at all after the key is verified."""

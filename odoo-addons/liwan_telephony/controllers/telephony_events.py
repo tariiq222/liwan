@@ -79,7 +79,13 @@ class TelephonyEventsController(http.Controller):
             envelope = json.loads(raw)
         except ValueError:
             raise ApiError(422, 'invalid', 'The body is not JSON.') from None
-        _verify(raw, envelope.get('timestamp'), envelope.get('signature'))
+        # The agent signs the envelope with an empty signature field, exactly as the test builds it, so the route
+        # rebuilds that same document from the parsed fields instead of trusting the bytes it was sent.
+        unsigned = json.dumps(
+            {'payload': envelope.get('payload'), 'timestamp': envelope.get('timestamp'), 'signature': ''},
+            separators=(',', ':'),
+        ).encode()
+        _verify(unsigned, envelope.get('timestamp'), envelope.get('signature'))
         env = request.env
         payload = envelope.get('payload')
         if not isinstance(payload, dict) or not payload.get('event_id'):

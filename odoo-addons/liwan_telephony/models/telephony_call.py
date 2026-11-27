@@ -70,9 +70,11 @@ class LiwanTelephonyCall(models.Model):
         """The field values one agent envelope sets on the call it names."""
         call = envelope['call']
         values = {
+            'direction': call.get('direction') or 'in',
             'state': call.get('state') or 'ringing',
             'remote_number': call.get('caller_number') or call.get('connected_number'),
             'extension_number': call.get('dialed_exten'),
+            'uniqueid': call.get('uniqueid'),
         }
         for name in ('started_at', 'answered_at', 'ended_at'):
             raw = call.get(name)

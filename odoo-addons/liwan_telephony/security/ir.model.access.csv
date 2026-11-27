@@ -13,3 +13,5 @@ access_recording_access_manage,liwan.telephony.recording.access.manage,model_liw
 access_event_manage,liwan.telephony.event.manage,model_liwan_telephony_event,group_cap_telephony_manage,1,0,1,0
 access_call_events,liwan.telephony.call.events,model_liwan_telephony_call,group_telephony_events,1,1,1,0
 access_event_events,liwan.telephony.event.events,model_liwan_telephony_event,group_telephony_events,1,0,1,0
+access_users_events,liwan.res.users.events,base.model_res_users,group_telephony_events,1,0,0,0
+access_company_events,liwan.res.company.events,base.model_res_company,group_telephony_events,1,0,0,0
