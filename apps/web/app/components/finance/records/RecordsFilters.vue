@@ -29,7 +29,7 @@ const stateItems = computed(() => (['active', 'archived'] as const).map(value =>
 </script>
 
 <template>
-  <SharedFilterBar inline :active-count="activeCount" :default-open="!!filters.kind || filters.archived" :disabled="!hydrated" @clear="emit('clear')">
+  <SharedFilterBar embedded class="w-full" :active-count="activeCount" :default-open="!!filters.kind || filters.archived" :disabled="!hydrated" @clear="emit('clear')">
     <template v-if="search !== undefined" #search>
       <form @submit.prevent="emit('submit')">
         <UInput :model-value="search" class="w-full" icon="i-lucide-search" :placeholder="searchPlaceholder" :aria-label="searchPlaceholder" :disabled="!hydrated" @update:model-value="value => emit('update:search', String(value))" />

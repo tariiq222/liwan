@@ -5,13 +5,16 @@ import AccountPicker from '../AccountPicker.vue'
 import { useCreateSetupJournal, usePatchSetupJournal } from '@/composables/finance/useFinanceRecords'
 import { journalCreate, journalDraft, journalPatch, journalValid, JOURNAL_TYPES, LIQUIDITY_JOURNAL_TYPES } from './recordForms'
 
-// The inline form of the journals: a new journal, or the name, code and default account of an existing one. The type is chosen
+// The form of the journals: a new journal, or the name, code and default account of an existing one. The type is chosen
 // once: it decides the numbering, the payment methods and the accounts of the journal. A bank or cash journal names its account.
 const props = defineProps<{ journal?: FinanceJournal }>()
 const emit = defineEmits<{ done: []; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const draft = reactive(journalDraft(props.journal))
+const initial = JSON.stringify(draft)
+const submitted = ref(false)
+const dirty = computed(() => !submitted.value && JSON.stringify(draft) !== initial)
 const failure = ref<unknown>(null)
 const { mutateAsync: create, isPending: creating } = useCreateSetupJournal()
 const { mutateAsync: patch, isPending: patching } = usePatchSetupJournal()
@@ -23,6 +26,7 @@ const cashAccount = (account: FinanceAccount) => account.account_type === 'asset
 
 async function submit() {
   if (!hydrated.value || pending.value || !valid.value) return
+  failure.value = null
   try {
     if (props.journal) {
       const changes = journalPatch(props.journal, draft)
@@ -30,12 +34,15 @@ async function submit() {
     } else {
       await create(journalCreate(draft))
     }
+    submitted.value = true
+    await nextTick()
     emit('done')
   } catch (error) { failure.value = error }
 }
 </script>
 
 <template>
+  <SharedUnsavedChanges :dirty="dirty" />
   <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-journal-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
     <div class="liwan-auto-grid">
@@ -55,9 +62,11 @@ async function submit() {
         <AccountPicker id="finance-record-journal-account" v-model="draft.defaultAccountId" :allow="cashAccount" :aria-label="t('financeRecords.journals.form.defaultAccount')" />
       </UFormField>
     </div>
-    <div class="flex flex-wrap justify-end gap-2">
-      <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
-      <UButton type="submit" color="primary" :disabled="!hydrated || !valid" :loading="pending" :label="t('app.save')" data-testid="finance-record-journal-save" />
-    </div>
+    <SharedFormActions>
+      <div class="ms-auto flex items-center gap-2">
+        <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
+        <UButton type="submit" color="primary" :disabled="!hydrated || !valid" :loading="pending" :label="t(props.journal ? 'app.saveChanges' : 'app.create')" data-testid="finance-record-journal-save" />
+      </div>
+    </SharedFormActions>
   </UForm>
 </template>

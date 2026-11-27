@@ -1,6 +1,7 @@
 {
   "financeAnalytic": {
     "saveError": "Could not save",
+    "forbidden": "You do not have permission to manage analytic plans and cost centers.",
     "states": {
       "active": "Active",
       "archived": "Archived"
@@ -9,6 +10,7 @@
       "title": "Plans",
       "description": "A plan is shared by every company of the database; a sub-plan groups cost centers under another plan.",
       "new": "New plan",
+      "editTitle": "Edit analytic plan",
       "empty": "No plans yet.",
       "root": "Root plan",
       "under": "Under {name}",
@@ -26,6 +28,7 @@
       "title": "Cost centers",
       "description": "The cost centers of the current company. Archiving hides a cost center from the pickers without deleting its items.",
       "new": "New cost center",
+      "editTitle": "Edit cost center",
       "empty": "No cost centers yet.",
       "footer": "Showing {shown} of {total} cost center | Showing {shown} of {total} cost centers",
       "actionsNamed": "Actions for cost center {name}",

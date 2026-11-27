@@ -1,13 +1,18 @@
+import type { MaybeRefOrGetter } from 'vue'
+import { toValue } from 'vue'
 import type { UseQueryReturnType } from '@tanstack/vue-query'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import { RECORD_PAGE_SIZE, recordActiveFilterCount, recordFiltersFromQuery, recordParams, type RecordParams } from './recordParams'
 
 /**
  * The state every setup list shares: its filters in the URL (search, one kind, archived, page), the page of rows the query
- * returns, and the handlers of the filter bar. A section adds its own table and editor on top.
+ * returns, and the handlers of the filter bar. A section adds its own table on top.
  */
 export function useRecordList<Item>(options: {
   fallbackPath: string
+  /** True when the list renders behind a route-backed create panel. */
+  background?: MaybeRefOrGetter<boolean | undefined>
   /** The kinds the list can be filtered by, and the name of that filter in the API query (both absent: no kind filter). */
   kinds?: readonly string[]
   kindParam?: string
@@ -16,7 +21,11 @@ export function useRecordList<Item>(options: {
   list: (params: () => RecordParams) => UseQueryReturnType<{ items: Item[]; total: number }, Error>
 }) {
   const searchable = options.searchable ?? true
-  const { hydrated, filterQuery, search, update } = useRouteListFilters({ fallbackPath: () => options.fallbackPath, safeReturnTo: (_value, fallback) => fallback })
+  const { hydrated, filterQuery, search, update } = useRouteListFilters({
+    background: () => toValue(options.background),
+    fallbackPath: () => options.fallbackPath,
+    safeReturnTo: (value, fallback) => safeReturnTo(value, fallback, [options.fallbackPath]),
+  })
   const filters = computed(() => recordFiltersFromQuery(filterQuery.value, options.kinds))
   const activeCount = computed(() => recordActiveFilterCount(filters.value))
   const query = options.list(() => recordParams(filters.value, options.kindParam ?? null, searchable))

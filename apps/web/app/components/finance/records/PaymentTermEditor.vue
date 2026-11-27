@@ -4,13 +4,16 @@ import { saveErrorMessage } from '@/utils/formFeedback'
 import { useCreateSetupPaymentTerm, usePatchSetupPaymentTerm } from '@/composables/finance/useFinanceRecords'
 import { newTermLine, percentTotal, termCreate, termDraft, termPatch, termValid } from './recordForms'
 
-// The inline form of the payment terms: a name and the installments (a percent or a fixed amount, due so many days after the
+// The form of the payment terms: a name and the installments (a percent or a fixed amount, due so many days after the
 // invoice date or its month end). The percent installments must add up to 100; an edit replaces all the installments.
 const props = defineProps<{ term?: FinancePaymentTerm }>()
 const emit = defineEmits<{ done: []; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const draft = reactive(termDraft(props.term))
+const initial = JSON.stringify(draft)
+const submitted = ref(false)
+const dirty = computed(() => !submitted.value && JSON.stringify(draft) !== initial)
 const failure = ref<unknown>(null)
 const { mutateAsync: create, isPending: creating } = useCreateSetupPaymentTerm()
 const { mutateAsync: patch, isPending: patching } = usePatchSetupPaymentTerm()
@@ -24,6 +27,7 @@ function addLine() { draft.lines.push(newTermLine()) }
 function removeLine(index: number) { draft.lines.splice(index, 1) }
 async function submit() {
   if (!hydrated.value || pending.value || !valid.value) return
+  failure.value = null
   try {
     if (props.term) {
       const changes = termPatch(props.term, draft)
@@ -31,12 +35,15 @@ async function submit() {
     } else {
       await create(termCreate(draft))
     }
+    submitted.value = true
+    await nextTick()
     emit('done')
   } catch (error) { failure.value = error }
 }
 </script>
 
 <template>
+  <SharedUnsavedChanges :dirty="dirty" />
   <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-term-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
     <div class="liwan-auto-grid">
@@ -69,9 +76,11 @@ async function submit() {
         <p id="finance-record-term-total" class="text-sm" :class="total === 100 ? 'text-muted' : 'text-error'" data-testid="finance-record-term-total">{{ t('financeRecords.paymentTerms.form.total', { total }) }}</p>
       </div>
     </fieldset>
-    <div class="flex flex-wrap justify-end gap-2">
-      <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
-      <UButton type="submit" color="primary" :disabled="!hydrated || !valid" :loading="pending" :label="t('app.save')" data-testid="finance-record-term-save" />
-    </div>
+    <SharedFormActions>
+      <div class="ms-auto flex items-center gap-2">
+        <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
+        <UButton type="submit" color="primary" :disabled="!hydrated || !valid" :loading="pending" :label="t(props.term ? 'app.saveChanges' : 'app.create')" data-testid="finance-record-term-save" />
+      </div>
+    </SharedFormActions>
   </UForm>
 </template>
