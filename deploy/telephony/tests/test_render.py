@@ -321,7 +321,7 @@ class RenderedPackage(unittest.TestCase):
             self.assertEqual((0, ''), (code, error))
             self.assertTrue(stdout.splitlines()[-1].startswith('render: 17 files written to '))
 
-    def test_pbx_db_password_refuses_missing_whitespace_comments_and_quotes_without_leaking(self):
+    def test_pbx_db_password_refuses_missing_and_non_uri_safe_characters_without_leaking(self):
         lacking = {name: value for name, value in FIXED.items() if name != 'LIWAN_TELEPHONY_PBX_DB_PASSWORD'}
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory) / 'package'
@@ -329,7 +329,24 @@ class RenderedPackage(unittest.TestCase):
             self.assertEqual(1, code)
             self.assertIn('LIWAN_TELEPHONY_PBX_DB_PASSWORD', error)
             self.assertFalse(out.exists())
-        for bad in ('secret with space', 'secret;drop', 'secret#comment', "secret'quote"):
+            ok_out = Path(directory) / 'ok'
+            self.assertEqual(
+                0,
+                run('--env', write_env(directory, {**FIXED, 'LIWAN_TELEPHONY_PBX_DB_PASSWORD': 'Abc019._~-'}),
+                    '--out', ok_out)[0],
+            )
+        for bad in (
+            'secret with space',
+            'secret;drop',
+            'secret#comment',
+            "secret'quote",
+            'secret/slash',
+            'secret@at',
+            'secret%pct',
+            'secret?query',
+            'secret[0]',
+            'secret]1',
+        ):
             with self.subTest(bad=bad), tempfile.TemporaryDirectory() as directory:
                 code, _, error = run('--env', write_env(directory, {**FIXED, 'LIWAN_TELEPHONY_PBX_DB_PASSWORD': bad}),
                                      '--out', Path(directory) / 'package')

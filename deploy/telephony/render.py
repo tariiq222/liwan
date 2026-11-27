@@ -54,6 +54,7 @@ SOUND = re.compile(r'^[A-Za-z0-9_/-]+$')
 DIAL_PREFIX = re.compile(r'^[0-9+]*$')
 STUN_URL = re.compile(r'^stuns?:[^\s]+$')
 TURN_URL = re.compile(r'^turns?:[^\s]+$')
+PBX_DB_PASSWORD = re.compile(r'^[A-Za-z0-9._~-]+$')
 # Every target file, in write order: the rendered config, then Compose. Paths are relative to the render directory.
 TEMPLATES = (
     ('asterisk/pjsip.conf', 'asterisk/pjsip.conf.template'),
@@ -295,8 +296,11 @@ def validate(env: dict[str, str], toggles: dict[str, bool]) -> None:
     secret_length = len(required(env, 'LIWAN_TELEPHONY_TURN_SECRET'))
     if secret_length < 32:
         raise RenderError(f'LIWAN_TELEPHONY_TURN_SECRET must be at least 32 characters, not {secret_length}')
-    if "'" in required(env, 'LIWAN_TELEPHONY_PBX_DB_PASSWORD'):
-        msg = "LIWAN_TELEPHONY_PBX_DB_PASSWORD must not contain \"'\""
+    if not PBX_DB_PASSWORD.fullmatch(required(env, 'LIWAN_TELEPHONY_PBX_DB_PASSWORD')):
+        msg = (
+            'LIWAN_TELEPHONY_PBX_DB_PASSWORD must use only URI-safe unreserved characters '
+            '(letters, digits, ".", "_", "~", "-")'
+        )
         raise RenderError(msg)
     for name in SECRETS:
         if name in env and re.search(r'\s', env[name]):

@@ -144,7 +144,7 @@ Collect these before the first start. Anything missing below is a hard stop for 
    trunk is reachable only over a private path (then the site needs mode b with a gateway or a VPN; this package alone
    cannot reach it).
 5. **Secrets.** Generate the ARI password (`openssl rand -hex 24`), the `pbx-db` password (`LIWAN_TELEPHONY_PBX_DB_PASSWORD`,
-   no whitespace, `;`, `#` or `'`), the three test extension passwords and the TURN REST secret (at least 32 characters);
+   URI-safe unreserved characters only, e.g. `openssl rand -hex 24`), the three test extension passwords and the TURN REST secret (at least 32 characters);
    derive the events and reverse keys on the shared side from `LIWAN_TELEPHONY_KEY` and write only those two here (12.6).
    No required secret has a default; an empty one stops the render.
 6. **CEL rotation.** Install the rendered `logrotate/telephony-cel` as `/etc/logrotate.d/liwan-telephony-<company>` and
