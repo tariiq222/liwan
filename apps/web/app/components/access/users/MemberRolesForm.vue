@@ -29,8 +29,9 @@ const options = computed(() => heldRoleOptions(
   t('access.roles.disabledExistingAssignments'),
 ))
 const conflict = ref(false)
+const reloading = ref(false)
 const message = ref('')
-const busy = computed(() => !hydrated.value || update.isPending.value)
+const busy = computed(() => !hydrated.value || update.isPending.value || reloading.value || conflict.value)
 
 async function saveRoles() {
   const company = scopeCompanyId.value
@@ -57,16 +58,21 @@ async function saveRoles() {
 }
 
 async function reloadDraft() {
+  if (!hydrated.value || update.isPending.value || reloading.value) return
+  reloading.value = true
+  message.value = ''
   try {
     const list = (await props.reloadMember()) as { items?: Membership[] } | undefined
-    conflict.value = false
     // The page also remounts this form keyed by the member's new version; this reset keeps the draft honest even when
     // the version is unchanged.
     const latest = list?.items?.find(item => item.id === props.member.id) ?? props.member
     roleIds.value = latest.assignments.map(({ role }) => role.id).filter((id): id is number => id !== null)
-  } catch (cause) {
     conflict.value = false
+  } catch (cause) {
+    // Keep the stale draft locked until a reload succeeds so it cannot overwrite newer roles.
     message.value = accessErrorMessage(cause, t)
+  } finally {
+    reloading.value = false
   }
 }
 </script>
@@ -76,16 +82,16 @@ async function reloadDraft() {
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel :title="t('access.members.rolesIn', { company: props.member.company.name })">
       <div class="grid gap-3">
-        <RoleCheckboxes v-model="roleIds" :roles="options" :legend="t('access.members.rolesIn', { company: props.member.company.name })" :empty-text="t('access.members.noRoles')" :disabled="!hydrated || update.isPending.value" />
+        <RoleCheckboxes v-model="roleIds" :roles="options" :legend="t('access.members.rolesIn', { company: props.member.company.name })" :empty-text="t('access.members.noRoles')" :disabled="busy" />
         <UAlert v-if="conflict" role="alert" color="warning" variant="subtle" :title="t('access.members.conflict')">
-          <template #actions><UButton type="button" color="neutral" variant="outline" :label="t('access.members.reload')" :disabled="update.isPending.value" data-testid="member-roles-reload" @click="reloadDraft" /></template>
+          <template #actions><UButton type="button" color="neutral" variant="outline" :label="t('access.members.reload')" :loading="reloading" :disabled="!hydrated || update.isPending.value || reloading" data-testid="member-roles-reload" @click="reloadDraft" /></template>
         </UAlert>
       </div>
     </SharedFormSection>
     <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
     <SharedFormActions>
       <div class="ms-auto flex flex-wrap items-center gap-2">
-        <UButton type="button" color="neutral" variant="outline" :label="t('app.cancel')" :disabled="update.isPending.value" @click="emit('cancel')" />
+        <UButton type="button" color="neutral" variant="outline" :label="t('app.cancel')" :disabled="update.isPending.value || reloading" @click="emit('cancel')" />
         <UButton type="submit" :form="formId" color="primary" :label="t('access.members.saveRoles')" :loading="update.isPending.value" :disabled="busy" data-testid="member-save-roles" />
       </div>
     </SharedFormActions>

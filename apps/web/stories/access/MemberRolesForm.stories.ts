@@ -7,7 +7,7 @@ import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Access/MemberRolesForm', component: MemberRolesForm,
-  parameters: { layout: 'fullscreen', msw: { handlers: { api: shellHandlers } }, ...storyContext('apps/web/app/pages/settings/team/members/[memberId]/edit.vue:37') },
+  parameters: { layout: 'fullscreen', msw: { handlers: { api: shellHandlers } }, ...storyContext('apps/web/app/pages/settings/team/members/[memberId]/edit.vue:52') },
   args: { member: membershipList.items[0]!, roles: memberRoles, reloadMember: async () => {} },
   render: args => ({ components: { MemberRolesForm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><MemberRolesForm v-bind="args" /></PageContainer></main>' }),
 } satisfies Meta<typeof MemberRolesForm>

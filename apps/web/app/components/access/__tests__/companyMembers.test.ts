@@ -2,12 +2,14 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
+import { compileTemplate, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import { setupSfc, mutation } from './sfcSetup'
-import { heldRoleOptions } from '../memberRoles'
+import { heldRoleOptions, offerableRoles } from '../memberRoles'
 import { ApiError as RealApiError } from '../../../composables/useApi'
+import { queryPositiveInt } from '../../../utils/routeQuery'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message) }
@@ -124,11 +126,19 @@ describe('the members of a company', () => {
 })
 
 describe('the roles form of one member', () => {
-  it('saves the checked roles at the version the administrator saw, in the branch', async () => {
+  it('saves the checked roles at the version the administrator saw, in the branch, and marks saved before emitting done', async () => {
+    const dirtyWhenDone: boolean[] = []
     const { state, update, emit } = rolesForm({ companyId: 7 })
+    emit.mockImplementation((event: string) => {
+      if (event === 'done') dirtyWhenDone.push(state.dirty.value)
+    })
     state.roleIds.value = [4, 5]
+    expect(state.dirty.value).toBe(true)
     await state.saveRoles()
     expect(update).toHaveBeenCalledWith({ id: 21, body: { expected_version: 'v21', assignments: [{ role_id: 4, scope: { kind: 'company', id: 7 } }, { role_id: 5, scope: { kind: 'company', id: 7 } }], company_id: 7 } })
+    expect(state.saved.value).toBe(true)
+    expect(state.dirty.value).toBe(false)
+    expect(dirtyWhenDone).toEqual([false])
     expect(emit).toHaveBeenCalledWith('done')
   })
 
@@ -138,17 +148,41 @@ describe('the roles form of one member', () => {
     expect(update).toHaveBeenCalledWith({ id: 21, body: { expected_version: 'v21', assignments: [{ role_id: 4, scope: { kind: 'company', id: 1 } }] } })
   })
 
-  it('locks the draft behind a reload when another administrator changed the roles first, then resets the draft', async () => {
-    const { state, update, emit, reloadMember } = rolesForm({ update: async () => { throw new RealApiError(409, 'conflict', 'stale') } })
+  it('locks the stale draft on 409 conflict, keeps it locked if reload fails, and unlocks after a clean reload', async () => {
+    let failReload = true
+    const { state, update, emit, reloadMember } = rolesForm({
+      update: async () => { throw new RealApiError(409, 'conflict', 'stale') },
+      reload: async () => {
+        if (failReload) throw new RealApiError(500, 'server_error', 'boom')
+        return { items: [member(21, [4])] }
+      },
+    })
     state.roleIds.value = [9]
     await state.saveRoles()
     expect(update).toHaveBeenCalledTimes(1)
     expect(state.conflict.value).toBe(true)
+    expect(state.busy.value).toBe(true)
     expect(emit).not.toHaveBeenCalled()
     expect(state.roleIds.value).toEqual([9])
+    // A second save attempt while locked is refused.
+    await state.saveRoles()
+    expect(update).toHaveBeenCalledTimes(1)
+    // A failed reload keeps the stale draft locked.
     await state.reloadDraft()
     expect(reloadMember).toHaveBeenCalledTimes(1)
+    expect(state.reloading.value).toBe(false)
+    expect(state.conflict.value).toBe(true)
+    expect(state.busy.value).toBe(true)
+    expect(state.message.value).toBe('mapped:boom')
+    expect(state.roleIds.value).toEqual([9])
+    // Once reload succeeds, the draft resets and unlocks.
+    failReload = false
+    await state.reloadDraft()
+    expect(reloadMember).toHaveBeenCalledTimes(2)
+    expect(state.reloading.value).toBe(false)
     expect(state.conflict.value).toBe(false)
+    expect(state.busy.value).toBe(false)
+    expect(state.message.value).toBe('')
     expect(state.roleIds.value).toEqual([4])
   })
 
@@ -180,34 +214,115 @@ describe('the roles form of one member', () => {
 })
 
 describe('the member routes', () => {
-  const read = (path: string) => readFileSync(resolve(import.meta.dirname, path), 'utf8')
+  function mountNewMember(over: { query?: Record<string, unknown>; caps?: string[]; branches?: { id: number; name: string }[] | null; branchError?: unknown; rolesError?: unknown } = {}) {
+    const caps = over.caps ?? ['access.users.grant', 'access.roles.read']
+    const refetchBranches = vi.fn()
+    const refetchRoles = vi.fn()
+    let branchesEnabled!: Vue.Ref<boolean>
+    let rolesEnabled!: Vue.Ref<boolean>
+    const { state } = setupSfc(resolve(import.meta.dirname, '../../../pages/settings/team/members/new.vue'), {}, {
+      ApiError: RealApiError, safeReturnTo, queryPositiveInt, MemberAddForm: {}, offerableRoles,
+      useRoute: () => ({ query: over.query ?? {} }),
+      useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+      useAccess: () => ({ can: (key: string) => caps.includes(key) }),
+      useMembershipBranches: (enabled: Vue.Ref<boolean>) => {
+        branchesEnabled = enabled
+        return { data: Vue.ref(over.branches === null ? undefined : { items: over.branches ?? [{ id: 7, name: 'Jeddah' }], total: 1 }), error: Vue.ref(over.branchError ?? null), isLoading: Vue.ref(false), refetch: refetchBranches }
+      },
+      useAdminRoles: (_params: unknown, enabled: Vue.Ref<boolean>) => {
+        rolesEnabled = enabled
+        return { data: Vue.ref({ items: [{ id: 4, name: { ar: 'دور', en: 'Role' }, active: true, assignable: true, company_id: null }], total: 1 }), error: Vue.ref(over.rolesError ?? null), isLoading: Vue.ref(false), refetch: refetchRoles }
+      },
+    })
+    return { state, branchesEnabled: Vue.unref(branchesEnabled), rolesEnabled: Vue.unref(rolesEnabled), refetchBranches, refetchRoles }
+  }
 
-  it('opens the add panel only for a grant holder and a branch the list answers', () => {
-    const page = read('../../../pages/settings/team/members/new.vue')
-    expect(page).toContain("can('access.users.grant')")
-    expect(page).toContain("can('access.roles.read')")
-    expect(page).toContain('useMembershipBranches(computed(() => canGrant.value))')
-    expect(page).toContain('useAdminRoles({}, computed(() => canGrant.value && canReadRoles.value))')
-    expect(page).toContain('queryPositiveInt(route.query.company_id)')
-    expect(page).toContain("safeReturnTo(route.query.returnTo, '/settings/team/branches', ['/settings/team/branches', '/settings/team/users'])")
-    expect(page).toContain('<SharedForbiddenState')
-    expect(page).toContain('<SharedNotFoundState')
-    expect(page).toContain('offerableRoles(roles.data.value?.items ?? [], companyId)')
+  function mountEditMember(over: { memberId?: string; query?: Record<string, unknown>; caps?: string[]; items?: ReturnType<typeof member>[] | null; listError?: unknown; rolesError?: unknown } = {}) {
+    const caps = over.caps ?? ['access.users.grant', 'access.users.assign_roles', 'access.roles.read']
+    const refetchList = vi.fn(async () => ({ isError: false, data: { items: over.items ?? [member(21, [4])] } }))
+    const refetchRoles = vi.fn()
+    let listCompanyArg: (() => number | undefined) | undefined
+    let listEnabled!: Vue.Ref<boolean>
+    let rolesEnabled!: Vue.Ref<boolean>
+    const { state } = setupSfc(resolve(import.meta.dirname, '../../../pages/settings/team/members/[memberId]/edit.vue'), {}, {
+      ApiError: RealApiError, safeReturnTo, queryPositiveInt, MemberRolesForm: {},
+      useRoute: () => ({ params: { memberId: over.memberId ?? '21' }, query: over.query ?? {} }),
+      useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+      useAccess: () => ({ can: (key: string) => caps.includes(key) }),
+      useMemberships: (companyId: () => number | undefined, enabled: Vue.Ref<boolean>) => {
+        listCompanyArg = companyId
+        listEnabled = enabled
+        return { data: Vue.ref(over.items === null ? undefined : { items: over.items ?? [member(21, [4])], total: 1 }), error: Vue.ref(over.listError ?? null), isLoading: Vue.ref(false), refetch: refetchList }
+      },
+      useAdminRoles: (_params: unknown, enabled: Vue.Ref<boolean>) => {
+        rolesEnabled = enabled
+        return { data: Vue.ref({ items: [], total: 0 }), error: Vue.ref(over.rolesError ?? null), isLoading: Vue.ref(false), refetch: refetchRoles }
+      },
+    })
+    return { state, listCompany: listCompanyArg?.(), listEnabled: Vue.unref(listEnabled), rolesEnabled: Vue.unref(rolesEnabled), refetchList, refetchRoles }
+  }
+
+  it('members/new.vue gates queries on grant and valid company_id, surfaces API errors without masking as 404, and rejects unknown branches', () => {
+    const missing = mountNewMember({ query: {} })
+    expect(missing.branchesEnabled).toBe(false)
+    expect(missing.rolesEnabled).toBe(false)
+    expect(missing.state.pageError.value).toBeInstanceOf(RealApiError)
+    expect(missing.state.pageError.value.status).toBe(404)
+
+    const unauthorized = mountNewMember({ query: { company_id: '7' }, caps: ['access.roles.read'] })
+    expect(unauthorized.branchesEnabled).toBe(false)
+    expect(unauthorized.rolesEnabled).toBe(false)
+
+    const unknownBranch = mountNewMember({ query: { company_id: '99' }, branches: [{ id: 7, name: 'Jeddah' }] })
+    expect(unknownBranch.branchesEnabled).toBe(true)
+    expect(unknownBranch.rolesEnabled).toBe(false)
+    expect(unknownBranch.state.pageError.value).toBeInstanceOf(RealApiError)
+    expect(unknownBranch.state.pageError.value.status).toBe(404)
+
+    const apiErr = new RealApiError(500, 'server_error', 'branches down')
+    const failed = mountNewMember({ query: { company_id: '7' }, branches: null, branchError: apiErr })
+    expect(failed.state.pageError.value).toBe(apiErr)
+    failed.state.retry()
+    expect(failed.refetchBranches).toHaveBeenCalledTimes(1)
+
+    const valid = mountNewMember({ query: { company_id: '7' } })
+    expect(valid.branchesEnabled).toBe(true)
+    expect(valid.rolesEnabled).toBe(true)
+    expect(valid.state.companyId.value).toBe(7)
+    expect(valid.state.pageError.value).toBeNull()
   })
 
-  it('fetches the edit page only when the reader may change roles and the member id is a positive integer', () => {
-    const page = read('../../../pages/settings/team/members/[memberId]/edit.vue')
-    expect(page).toContain("can('access.users.grant') && can('access.users.assign_roles') && can('access.roles.read')")
-    expect(page).toContain('queryPositiveInt(route.params.memberId)')
-    expect(page).toContain('queryPositiveInt(route.query.company_id)')
-    expect(page).toContain('const enabled = computed(() => canEdit.value && memberId.value !== null)')
-    expect(page).toContain('useMemberships(() => companyId.value ?? undefined, enabled)')
-    expect(page).toContain('useAdminRoles({}, enabled)')
-    expect(page).toContain("safeReturnTo(route.query.returnTo, '/settings/team/users', ['/settings/team/users', '/settings/team/branches'])")
-    expect(page).toContain('<SharedPageContainer')
-    expect(page).toContain('<SharedPageHeader')
-    expect(page).toContain('<SharedForbiddenState')
-    expect(page).toContain('<SharedNotFoundState')
-    expect(page).toContain(':key="`${member.id}-${member.version}`"')
+  it('members/[memberId]/edit.vue refuses invalid company_id without falling back to working company, gates queries, and surfaces API errors', () => {
+    for (const invalid of ['abc', '0', '-3']) {
+      const bad = mountEditMember({ query: { company_id: invalid } })
+      expect(bad.state.invalidCompanyId.value).toBe(true)
+      expect(bad.listEnabled).toBe(false)
+      expect(bad.rolesEnabled).toBe(false)
+      expect(bad.state.pageError.value).toBeInstanceOf(RealApiError)
+      expect(bad.state.pageError.value.status).toBe(404)
+    }
+
+    const badMember = mountEditMember({ memberId: '0' })
+    expect(badMember.listEnabled).toBe(false)
+    expect(badMember.rolesEnabled).toBe(false)
+    expect(badMember.state.pageError.value.status).toBe(404)
+
+    const unauthorized = mountEditMember({ caps: ['access.users.grant'] })
+    expect(unauthorized.listEnabled).toBe(false)
+    expect(unauthorized.rolesEnabled).toBe(false)
+
+    const apiErr = new RealApiError(503, 'unavailable', 'retry later')
+    const failed = mountEditMember({ items: null, listError: apiErr })
+    expect(failed.state.pageError.value).toBe(apiErr)
+    failed.state.retry()
+    expect(failed.refetchList).toHaveBeenCalledTimes(1)
+
+    const workingCompany = mountEditMember({ memberId: '21', query: {} })
+    expect(workingCompany.state.invalidCompanyId.value).toBe(false)
+    expect(workingCompany.listCompany).toBeUndefined()
+    expect(workingCompany.listEnabled).toBe(true)
+    expect(workingCompany.rolesEnabled).toBe(true)
+    expect(workingCompany.state.member.value?.id).toBe(21)
+    expect(workingCompany.state.pageError.value).toBeNull()
   })
 })

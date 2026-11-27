@@ -19,18 +19,18 @@ const canCreate = computed(() => canSeeSeats.value && me.value?.read_only === fa
 // Owner decision 2026-10-29, option c: in SaaS a branch is bought, and the paid order creates it.
 const purchaseOnly = computed(() => me.value?.commercial?.mode === 'saas')
 const hydrated = useHydrated()
-const branchSeats = useBranchSeats(canSeeSeats)
+const branchSeats = useBranchSeats(computed(() => !isSubPage.value && canSeeSeats.value))
 const branchSeatRefused = computed(() => branchSeats.error.value instanceof ApiError && branchSeats.error.value.status === 403)
 
 const forbidden = computed(() => !can('access.users.assign_roles') || !can('access.roles.read'))
-const query = useBranchPolicy(computed(() => !forbidden.value))
+const query = useBranchPolicy(computed(() => !isSubPage.value && !forbidden.value))
 // The members section lists every branch below the root company, not only the ones the policy names, so the first member of a
 // new branch can be added. It stands on its own queries: the policy loading or failing does not hide it. Only the root company
 // has branches below it, so in a branch the list is empty and the section is not drawn. The roles are the ones the users pages
 // offer, and each card applies the one role rule for its branch.
 const canGrant = computed(() => can('access.users.grant'))
-const memberBranches = useMembershipBranches(canGrant)
-const memberRoles = useAdminRoles({}, computed(() => canGrant.value && can('access.roles.read')))
+const memberBranches = useMembershipBranches(computed(() => !isSubPage.value && canGrant.value))
+const memberRoles = useAdminRoles({}, computed(() => !isSubPage.value && canGrant.value && can('access.roles.read')))
 const showMembers = computed(() => canGrant.value && (!!memberBranches.error.value || !!memberBranches.data.value?.items.length))
 async function reloadPolicy() {
   const result = await query.refetch()

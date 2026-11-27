@@ -34,8 +34,8 @@ async function submitBranch() {
   <form :id="formId" class="liwan-form" novalidate @submit.prevent="submitBranch">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection panel>
-      <UFormField :label="t('access.branches.create.name')" name="branch-name" :error="attempted && !branchName.trim() ? t('errors.api.invalid') : undefined">
-        <UInput v-model="branchName" maxlength="200" class="w-full" :disabled="!hydrated || create.isPending.value" />
+      <UFormField :label="t('access.branches.create.name')" name="branch-name" required :error="attempted && !branchName.trim() ? t('errors.api.invalid') : undefined">
+        <UInput v-model="branchName" maxlength="200" class="w-full" required :disabled="!hydrated || create.isPending.value" />
       </UFormField>
     </SharedFormSection>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />

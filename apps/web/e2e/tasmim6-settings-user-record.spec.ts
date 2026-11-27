@@ -66,7 +66,7 @@ test.describe('Plan 6d: the user record', () => {
       await expect(page).toHaveURL(/\/settings\/team\/branches\/7\/edit$/)
       await page.getByRole('checkbox', { name: 'اجعله للقراءة فقط' }).check()
       await page.getByRole('button', { name: 'احفظ تغييرات المقعد' }).click()
-      await expect(page).toHaveURL(/\/settings\/team\/branches$/)
+      await expect(page).toHaveURL(/\/settings\/team\/branches(?:#branch-seats)?$/)
       await expect(seats).toContainText('للقراءة فقط')
       await expect(seats.getByRole('checkbox')).toHaveCount(0)
       expect(saves).toBe(1)

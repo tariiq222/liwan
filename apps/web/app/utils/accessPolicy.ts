@@ -138,29 +138,31 @@ export function isNavPathActive(path: string, target: string): boolean {
 }
 /** The rule of the manifest that claims `path` by prefix, or whose settings page contains it (a settings sub-page with a capability of its own). */
 function ownedRouteRule(path: string) {
-  return (manifestForPath(path) ?? settingsPartForPath(path)?.manifest)?.routeCapabilities?.find(rule => rule.pattern.test(path))
+  const normalized = normalizedPath(path)
+  return (manifestForPath(normalized) ?? settingsPartForPath(normalized)?.manifest)?.routeCapabilities?.find(rule => rule.pattern.test(normalized))
 }
 /** The explicit sub-feature of the manifest rule that owns `path`, if it declares one. */
 export function requiredFeatureForPath(path: string): string | undefined {
   return ownedRouteRule(path)?.feature
 }
 export function requiredCapabilityForPath(path: string): string | null {
-  const owned = ownedRouteRule(path)
+  const normalized = normalizedPath(path)
+  const owned = ownedRouteRule(normalized)
   if (owned) return owned.capability
   // Sub-pages of the branches and members parts: the part scope claims them, but they carry their own capability.
-  if (/^\/settings\/team\/branches\/(new|[^/]+\/edit)$/.test(path)) return 'settings.company.manage'
-  if (path === '/settings/team/members/new' || /^\/settings\/team\/members\/[^/]+\/edit$/.test(path)) return 'access.users.grant'
-  const registered = settingsPartForPath(path)
+  if (/^\/settings\/team\/branches\/(new|[^/]+\/edit)$/.test(normalized)) return 'settings.company.manage'
+  if (normalized === '/settings/team/members/new' || /^\/settings\/team\/members\/[^/]+\/edit$/.test(normalized)) return 'access.users.grant'
+  const registered = settingsPartForPath(normalized)
   if (registered) return registered.part.capability
-  if (path === '/') return INTERNAL_LIWAN_ACCESS
-  if (path === '/notifications') return NOTIFICATION_ACCESS
-  if (path === '/setup') return 'settings.company.manage'
-  if (path === '/settings/integrations/new' || path === '/settings/integrations/communications/senders/new') return 'integrations.manage'
-  if (path === '/settings/team/users/new') return 'access.users.grant'
-  if (/^\/settings\/team\/users\/[^/]+\/(access|branches)$/.test(path)) return 'access.users.assign_roles'
-  if (/^\/settings\/team\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
+  if (normalized === '/') return INTERNAL_LIWAN_ACCESS
+  if (normalized === '/notifications') return NOTIFICATION_ACCESS
+  if (normalized === '/setup') return 'settings.company.manage'
+  if (normalized === '/settings/integrations/new' || normalized === '/settings/integrations/communications/senders/new') return 'integrations.manage'
+  if (normalized === '/settings/team/users/new') return 'access.users.grant'
+  if (/^\/settings\/team\/users\/[^/]+\/(access|branches)$/.test(normalized)) return 'access.users.assign_roles'
+  if (/^\/settings\/team\/roles\/(new|[^/]+\/edit)$/.test(normalized)) return 'access.roles.manage'
   const targets = destinations()
-  return (targets.find(([target]) => target === path) ?? targets.find(([target]) => isNavPathActive(path, target)))?.[1] ?? null
+  return (targets.find(([target]) => target === normalized) ?? targets.find(([target]) => isNavPathActive(normalized, target)))?.[1] ?? null
 }
 /** The cards of a settings page when `path` is that page itself: it opens for anyone who may see one of them. */
 function settingsCardsOpeningPage(path: string): string[] | null {
@@ -181,23 +183,23 @@ export function canReachPath(identity: AccessIdentity, path: string): boolean {
   if (/^\/settings\/team\/members\/[^/]+\/edit$/.test(normalized) && !(hasCapability(identity, 'access.users.assign_roles') && hasCapability(identity, 'access.roles.read'))) return false
   // The branches page serves two rights: editing the branch access policy, and adding a branch (company administration).
   if (normalized === '/settings/team/branches') {
-    return (canReach(identity, 'access.users.assign_roles', path) && hasCapability(identity, 'access.roles.read')) || canReach(identity, 'settings.company.manage', path)
+    return (canReach(identity, 'access.users.assign_roles', normalized) && hasCapability(identity, 'access.roles.read')) || canReach(identity, 'settings.company.manage', normalized)
   }
-  const rule = ownedRouteRule(path)
-  const feature = requiredFeatureForPath(path)
+  const rule = ownedRouteRule(normalized)
+  const feature = requiredFeatureForPath(normalized)
   // A rule's keys are read as the server reads them (`liwan_api` `requires_capability`): with `match: 'any'` holding
   // one of the capability or its alternatives opens the route, and by default the capability and one alternative are
   // both required (CRM's create route needs read *and* work-or-assign).
   if (rule?.match === 'any') {
-    return [rule.capability, ...(rule.anyCapabilities ?? [])].some(key => canReach(identity, key, path, feature))
+    return [rule.capability, ...(rule.anyCapabilities ?? [])].some(key => canReach(identity, key, normalized, feature))
       && (rule.requiredCapabilities ?? []).every(key => canReach(identity, key))
   }
   if (rule?.anyCapabilities && !rule.anyCapabilities.some(key => hasCapability(identity, key))) return false
   if (rule?.requiredCapabilities && !rule.requiredCapabilities.every(key => canReach(identity, key))) return false
-  const cards = settingsCardsOpeningPage(path)
-  if (cards) return cards.some(capability => canReach(identity, capability, normalizedPath(path)))
-  const capability = requiredCapabilityForPath(path)
-  if (capability) return canReach(identity, capability, path, feature)
-  const manifest = manifestForPath(path)
-  return !manifest || hasFeature(identity, manifest.feature, pathIsWrite(path))
+  const cards = settingsCardsOpeningPage(normalized)
+  if (cards) return cards.some(capability => canReach(identity, capability, normalized))
+  const capability = requiredCapabilityForPath(normalized)
+  if (capability) return canReach(identity, capability, normalized, feature)
+  const manifest = manifestForPath(normalized)
+  return !manifest || hasFeature(identity, manifest.feature, pathIsWrite(normalized))
 }
