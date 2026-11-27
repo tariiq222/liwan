@@ -177,7 +177,8 @@ land together: it merges only those agreed branches with merge commits and goes 
    is not a reason to merge `main` into a branch: that cancels and restarts its
    CI. Bring `main` in only when GitHub reports a conflict or the branch needs a
    change that just merged. Use the normal protected PR merge; do not force-push, bypass
-   protection, relax a test or assume a green check grants permission. Quota or
+   protection, relax a test or assume a green check grants permission. The merge command must not
+   delete branches: the lane is kept for step 6, which returns it with `tools/wt.py done`. Quota or
    service exhaustion is a blocker to report, never a reason for a paid fallback.
 6. **Verify and synchronize.** Confirm the PR is merged and record its actual
    merge SHA and post-merge CI result. Fetch and compare local/remote `main`.

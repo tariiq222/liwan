@@ -94,6 +94,17 @@ A lane is any worktree under `<main checkout>/.worktrees/` that holds a take rec
 orchestrator is a short readable id such as `opencode-<slug>`. Lanes have no fixed names and no tool split.
 The number of lanes is the owner's choice and grows with `lane add`.
 
+Every lane is a locked worktree (`git worktree lock`). The lock guards the pool: `gh pr merge --delete-branch`
+(gh 2.106) removes a linked worktree that has the PR's head branch checked out before it deletes the branches, and
+on 2026-11-27 that removed `.worktrees/design-4` and `.worktrees/catalog-timeline` instead of returning them.
+`git worktree remove` refuses a locked worktree, so gh prints
+`Could not remove worktree <path>; skipping local branch delete` and the lane stays. The rule: merge without
+`--delete-branch` and return the lane with `npm run wt -- done --orchestrator <id>`. `lane add` and `take` lock
+the lane, `done` leaves it locked, `lane remove` unlocks before it removes, and `lane lock` locks a lane that
+exists. The lock stops no `take`, `done`, commit or dependency install inside the lane. It does keep
+`git worktree prune` off a lane whose folder was deleted by hand: unlock that one with `git worktree unlock <path>`
+before pruning.
+
 Lifecycle of one piece of work (owner decision 2026-11-23). The orchestrator runs from the main checkout,
 holds no lane and writes no product code:
 
@@ -106,18 +117,19 @@ holds no lane and writes no product code:
 | 5. Test | `tester` (sensitive work) | Runs in the lane with its `.env.worktree` ports and scratch database. |
 | 6. Review | `reviewer` | Reads `git -C <lane> diff origin/main...<branch>`; confirmed findings are fixed first. |
 | 7. Publish | orchestrator | Push, open the PR as a draft, and mark it ready once review is clean, the tester passed on sensitive work and the local checks passed (automatic, per integration-rules.md); CI then runs. |
-| 8. Merge | the owner's words | After current-head `ci-result` is green, merge on the owner's explicit words. |
+| 8. Merge | the owner's words | After current-head `ci-result` is green, merge on the owner's explicit words, without `--delete-branch`: the lane is returned in step 9. |
 | 9. Close | orchestrator | `npm run wt -- done --orchestrator <id>`, then report. |
 
 | Command | What it does |
 | --- | --- |
-| `npm run wt -- lane add <name> [--holder X --orchestrator Y --task Z] [--no-install]` | Creates a new lane from the fetched `origin/main` and prepares it: ports, scratch database name, `.env.worktree` and dependencies. Given an existing worktree folder under `.worktrees/`, it adopts that folder in place (`--holder`, `--orchestrator` and `--task` are then required together when it is on a branch): it records the folder's current branch with `--holder`, `--orchestrator` and `--task` and deletes the old lane and claim record files. |
-| `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id> [--task <what>] [--lane <name>]` | Takes the named lane, or the first resting clean one. Fetches `origin/main`, creates the branch from it (or switches to the local branch when it exists, which resumes a parked task), records the holder and orchestrator, reinstalls dependencies when `package-lock.json` changed since the last install, and prints the lane path. Refuses `main` and `HEAD`, an occupied or dirty lane, and reports "no free lane" with the holders and a pointer to `lane add`. |
+| `npm run wt -- lane add <name> [--holder X --orchestrator Y --task Z] [--no-install]` | Creates a new lane from the fetched `origin/main`, locks it and prepares it: ports, scratch database name, `.env.worktree` and dependencies. Given an existing worktree folder under `.worktrees/`, it adopts that folder in place and locks it (`--holder`, `--orchestrator` and `--task` are then required together when it is on a branch): it records the folder's current branch with `--holder`, `--orchestrator` and `--task` and deletes the old lane and claim record files. |
+| `npm run wt -- lane lock <name>` | Locks a lane that exists, resting or occupied, so that no tool removes its worktree (the lock paragraph above). A lane that is already locked is left as it is; this is the one command for lanes created before the lock. |
+| `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id> [--task <what>] [--lane <name>]` | Takes the named lane, or the first resting clean one, and locks it when it is not. Fetches `origin/main`, creates the branch from it (or switches to the local branch when it exists, which resumes a parked task), records the holder and orchestrator, reinstalls dependencies when `package-lock.json` changed since the last install, and prints the lane path. Refuses `main` and `HEAD`, an occupied or dirty lane, and reports "no free lane" with the holders and a pointer to `lane add`. |
 | `npm run wt -- done [--lane <name>] [--park]` | Returns one lane (the current one by default); it needs a clean tree and, without `--park`, a branch merged into `origin/main`. Use `done --lane <name> --park` to rest a lane whose record lacks an orchestrator, then `take` it again. |
 | `npm run wt -- done --orchestrator <id> [--park]` | Returns every lane of that orchestrator; each needs a clean tree. Without `--park` the branch must be merged into `origin/main`: the lane detaches to `origin/main`, the local branch is deleted and the record is emptied. With `--park` the local branches stay and the lanes rest; resume later with `take <branch>`. Scratch databases stay with the lane and are dropped only by `lane remove`. |
 | `npm run wt -- status` | Lists lanes with orchestrator, holder, branch, ahead/behind, dirty state, ports and database, then a "shared files" section with the files changed in two occupied lanes at once. It only reports. |
 | `npm run wt -- check` | Read-only; exit 1 on a violation. See the rules below. |
-| `npm run wt -- lane remove <name>` | Removes a resting, clean lane (a parked branch survives as a local branch and can be taken again). Refuses an occupied, dirty, missing or in-use lane; drops the lane's scratch database when nobody is connected. |
+| `npm run wt -- lane remove <name>` | Unlocks, then removes a resting, clean lane (a parked branch survives as a local branch and can be taken again). Refuses an occupied, dirty, missing or in-use lane; drops the lane's scratch database when nobody is connected. |
 | `npm run wt -- gc [--apply] [--branch ...]` | Cleans merged, clean, idle worktrees that are not lanes (leftovers from before the pool). It never removes a lane. |
 
 Rules:
@@ -154,6 +166,7 @@ Rules:
 
 - a worktree that is neither the main checkout nor a lane;
 - a lane whose checked-out branch differs from its record;
+- a lane that is not locked (fix: `lane lock <name>`);
 - an occupied lane with no holder (fix: `done --lane <name> --park`, then `take`);
 - an occupied lane with no orchestrator (fix: `done --lane <name> --park`, then `take`);
 - two lanes that both change the same `odoo-addons/<addon>/migrations/`.
@@ -166,7 +179,9 @@ It is a commit-time check, not a lock: Git has no hook that stops a branch switc
 lane that left its branch.
 
 Rollout: an existing worktree is adopted with `lane add` only when it rests, or after its branch has merged
-the new `main`. An older branch runs its own older copy of the hook.
+the new `main`. A lane that predates the lock is locked with `npm run wt -- lane lock <name>`: `wt check`
+lists every lane still unlocked, and `take` locks the lane it takes. An older branch runs its own older
+copy of the hook.
 
 ### Other worktrees
 

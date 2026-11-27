@@ -28,11 +28,17 @@ branch refs/heads/main
 worktree /r/main/.worktrees/pmo-a
 HEAD bbbb
 branch refs/heads/pmo-a
+locked lane pool
 
 worktree /r/detached
 HEAD cccc
 detached
+locked
 """
+
+# gh 2.106 removes a linked worktree that has the PR head branch checked out with these arguments
+# (GitClient.WorktreeRemove in git/client.go), before it deletes the local and the remote branch.
+GH_WORKTREE_REMOVE = ('worktree', 'remove', '--')
 
 
 class TestWt(unittest.TestCase):
@@ -81,9 +87,9 @@ class TestWt(unittest.TestCase):
 
     def test_parse_worktrees(self):
         self.assertEqual(parse_worktrees(PORCELAIN), [
-            ('/r/main', 'refs/heads/main'),
-            ('/r/main/.worktrees/pmo-a', 'refs/heads/pmo-a'),
-            ('/r/detached', None),
+            ('/r/main', 'refs/heads/main', False),
+            ('/r/main/.worktrees/pmo-a', 'refs/heads/pmo-a', True),
+            ('/r/detached', None, True),
         ])
 
     def test_port_is_busy_when_only_ipv6_loopback_listens(self):
@@ -221,9 +227,9 @@ class TestStatusAndGc(unittest.TestCase):
         self.assertIn('rule violations (reported only', text)
         self.assertIn('/x/y: outside .worktrees/', text)
 
-    def _gc(self, apply, sh_side_effect):
+    def _gc(self, apply, sh_side_effect, worktrees=None):
         patches = (
-            mock.patch.object(wt, 'inspect_all', return_value=[worktree()]), mock.patch.object(wt, 'busy_paths', return_value=set()),
+            mock.patch.object(wt, 'inspect_all', return_value=worktrees or [worktree()]), mock.patch.object(wt, 'busy_paths', return_value=set()),
             mock.patch.object(wt, 'scratch_databases', return_value={'liwan_scratch_pmo_a': 0, 'liwan_scratch_old': 0}),
             mock.patch.object(wt, 'sh', side_effect=sh_side_effect),
         )
@@ -255,6 +261,18 @@ class TestStatusAndGc(unittest.TestCase):
         with self.assertRaises(WorktreeError):
             self._gc(True, lambda argv, cwd: 'feature')
 
+    def test_gc_apply_unlocks_a_locked_worktree_before_removing_it(self):
+        calls = []
+
+        def fake(argv, cwd):
+            calls.append(argv)
+            return 'main'
+
+        self._gc(True, fake, [worktree(locked=True)])
+        self.assertEqual(calls[:3], [
+            ['git', 'branch', '--show-current'], ['git', 'worktree', 'unlock', '/r/.worktrees/pmo-a'],
+            ['git', 'worktree', 'remove', '/r/.worktrees/pmo-a']])
+
     def test_gc_apply_reports_failures_and_keeps_going(self):
         calls = []
 
@@ -270,6 +288,69 @@ class TestStatusAndGc(unittest.TestCase):
         self.assertIn('locked', str(caught.exception))
         self.assertNotIn(['git', 'branch', '-d', 'pmo-a'], calls)  # the worktree is still there
         self.assertNotIn(['dropdb', '--if-exists', 'liwan_scratch_pmo_a'], calls)  # its worktree survived
+
+    def test_gc_apply_on_locked_worktree_preserves_db_and_relocks_when_remove_fails(self):
+        calls = []
+
+        def fake(argv, cwd):
+            calls.append(argv)
+            if argv[:3] == ['git', 'worktree', 'remove']:
+                message = 'cannot remove'
+                raise WorktreeError(message)
+            return 'main'
+
+        with self.assertRaises(WorktreeError) as caught:
+            self._gc(True, fake, [worktree(locked=True)])
+        self.assertIn('cannot remove', str(caught.exception))
+        self.assertIn(['git', 'worktree', 'unlock', '/r/.worktrees/pmo-a'], calls)
+        self.assertIn(['git', 'worktree', 'lock', '--reason', wt.LANE_LOCK_REASON, '/r/.worktrees/pmo-a'], calls)
+        self.assertNotIn(['git', 'branch', '-d', 'pmo-a'], calls)
+        self.assertNotIn(['dropdb', '--if-exists', 'liwan_scratch_pmo_a'], calls)
+
+    def test_gc_apply_on_locked_worktree_stops_when_unlock_fails(self):
+        calls = []
+
+        def fake(argv, cwd):
+            calls.append(argv)
+            if argv[:3] == ['git', 'worktree', 'unlock']:
+                message = 'unlock refused'
+                raise WorktreeError(message)
+            return 'main'
+
+        with self.assertRaises(WorktreeError) as caught:
+            self._gc(True, fake, [worktree(locked=True)])
+        self.assertIn('unlock refused', str(caught.exception))
+        self.assertNotIn(['git', 'worktree', 'remove', '/r/.worktrees/pmo-a'], calls)
+        self.assertNotIn(['git', 'branch', '-d', 'pmo-a'], calls)
+        self.assertNotIn(['dropdb', '--if-exists', 'liwan_scratch_pmo_a'], calls)
+
+    def test_missing_locked_worktree_mentions_unlock_in_check_and_gc(self):
+        missing = wt.missing_worktree(Path('/r'), Path('/r/.worktrees/gone'), 'refs/heads/old', locked=True)
+        self.assertTrue(missing.locked)
+        self.assertIn('git worktree unlock /r/.worktrees/gone && git worktree prune', wt.non_lane_violation(missing))
+        with mock.patch.object(wt, 'inspect_all', return_value=[missing]), \
+                mock.patch.object(wt, 'busy_paths', return_value=set()), \
+                mock.patch.object(wt, 'scratch_databases', return_value={}):
+            output = wt.gc(Path('/r'), False, Path('/x'))
+        self.assertIn('git worktree unlock /r/.worktrees/gone && git worktree prune', output)
+
+    def test_remove_worktree_relocks_surviving_lane_when_remove_fails(self):
+        calls = []
+
+        def fake(argv, cwd):
+            calls.append(argv)
+            if argv[:3] == ['git', 'worktree', 'remove']:
+                message = 'remove failed'
+                raise WorktreeError(message)
+            return ''
+
+        with mock.patch.object(wt, 'sh', side_effect=fake), self.assertRaises(WorktreeError):
+            wt.remove_worktree(Path('/r/.worktrees/design-4'), True, Path('/r'))
+        self.assertEqual(calls, [
+            ['git', 'worktree', 'unlock', '/r/.worktrees/design-4'],
+            ['git', 'worktree', 'remove', '/r/.worktrees/design-4'],
+            ['git', 'worktree', 'lock', '--reason', wt.LANE_LOCK_REASON, '/r/.worktrees/design-4'],
+        ])
 
     def test_gc_reports_when_nothing_qualifies(self):
         with mock.patch.object(wt, 'inspect_all', return_value=[worktree(dirty=True)]), \
@@ -409,6 +490,14 @@ class LanePoolCase(unittest.TestCase):
         worktrees = wt.inspect_all(self.root, sizes=False)
         return wt.violations(worktrees, wt.lane_changes(worktrees))
 
+    def lock_state(self, name):
+        """The ``locked`` line of the lane's block in ``git worktree list --porcelain``, or ``None`` when it is not locked."""
+        for block in self.git('worktree', 'list', '--porcelain', cwd=self.root).split('\n\n'):
+            lines = block.splitlines()
+            if lines and Path(lines[0][len('worktree '):]).resolve() == self.lane_path(name).resolve():
+                return next((line for line in lines if line == 'locked' or line.startswith('locked ')), None)
+        return None
+
 
 class TestLanePool(LanePoolCase):
     def test_add_creates_a_detached_resting_lane_with_env_and_record(self):
@@ -417,6 +506,47 @@ class TestLanePool(LanePoolCase):
         self.assertEqual(self.git('branch', '--show-current', cwd=self.lane_path('one')), '')
         self.assertEqual(self.record('one'), resting())
         self.assertIn('liwan_scratch_one', (self.lane_path('one') / '.env.worktree').read_text(encoding='utf-8'))
+
+    def test_add_locks_a_new_lane_and_an_adopted_one_without_touching_an_existing_lock(self):
+        self.add('one')
+        self.assertEqual(self.lock_state('one'), 'locked %s' % wt.LANE_LOCK_REASON)
+        self.git('worktree', 'add', '-q', '--detach', str(self.lane_path('old')), 'main', cwd=self.root)
+        self.assertIsNone(self.lock_state('old'))
+        self.add('old')
+        self.assertEqual(self.lock_state('old'), 'locked %s' % wt.LANE_LOCK_REASON)
+        self.git('worktree', 'add', '-q', '--detach', str(self.lane_path('kept')), 'main', cwd=self.root)
+        self.git('worktree', 'lock', '--reason', 'kept by hand', str(self.lane_path('kept')), cwd=self.root)
+        self.add('kept')  # git worktree lock fails on a locked worktree, so add reads the state first
+        self.assertEqual(self.lock_state('kept'), 'locked kept by hand')
+
+    def test_take_locks_an_unlocked_lane_and_leaves_a_locked_one_alone(self):
+        self.add('one')
+        self.git('worktree', 'unlock', str(self.lane_path('one')), cwd=self.root)
+        self.assertIsNone(self.lock_state('one'))
+        self.take('tools-a')
+        self.assertEqual(self.lock_state('one'), 'locked %s' % wt.LANE_LOCK_REASON)
+        calls = []
+        real_sh = wt.sh
+
+        def recording(argv, cwd):
+            calls.append(argv)
+            return real_sh(argv, cwd)
+
+        with mock.patch.object(wt, 'sh', side_effect=recording):
+            wt.done_lane(self.root, 'one', Path.cwd(), True)
+            self.take('tools-b')  # the lane is locked, and git worktree lock fails on a locked worktree
+        self.assertEqual([argv for argv in calls if argv[1:3] == ['worktree', 'lock']], [])
+        self.assertEqual(self.record('one').branch, 'tools-b')
+        self.assertEqual(self.lock_state('one'), 'locked %s' % wt.LANE_LOCK_REASON)
+
+    def test_done_leaves_the_lane_locked(self):
+        self.add('one')
+        self.take('tools-a')
+        self.commit_in('one', 'b.txt')
+        self.merge_into_origin('one')
+        wt.done_lane(self.root, 'one', Path.cwd(), False)
+        self.assertFalse(self.record('one').occupied)
+        self.assertEqual(self.lock_state('one'), 'locked %s' % wt.LANE_LOCK_REASON)
 
     def test_add_refuses_a_bad_name_an_existing_lane_and_a_plain_folder(self):
         for bad in ('a/b', '..', '', '-x', 'a b'):
@@ -634,6 +764,34 @@ class TestLanePool(LanePoolCase):
         self.assertEqual(self.record('one').lock_hash, wt.lock_digest(self.lane_path('one')))
 
 
+class TestLaneLockGuard(LanePoolCase):
+    """The lock that stops ``gh pr merge --delete-branch`` from deleting a lane of the pool."""
+
+    def gh_worktree_remove(self, name):
+        return subprocess.run(['git', *GH_WORKTREE_REMOVE, str(self.lane_path(name))], cwd=self.root, capture_output=True, text=True)
+
+    def test_the_removal_gh_runs_fails_on_a_lane_the_tool_created_and_keeps_its_folder(self):
+        self.add('one')
+        self.take('tools-a')
+        self.commit_in('one', 'b.txt')
+        result = self.gh_worktree_remove('one')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('cannot remove a locked working tree', result.stderr)
+        self.assertIn(wt.LANE_LOCK_REASON, result.stderr)
+        self.assertTrue(self.lane_path('one').is_dir())
+        self.assertTrue((self.lane_path('one') / '.env.worktree').is_file())
+        self.assertEqual(self.git('branch', '--show-current', cwd=self.lane_path('one')), 'tools-a')
+        self.assertEqual(self.record('one').branch, 'tools-a')
+
+    def test_the_same_removal_deletes_an_unlocked_lane(self):
+        self.add('one')
+        self.git('worktree', 'unlock', str(self.lane_path('one')), cwd=self.root)
+        result = self.gh_worktree_remove('one')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.lane_path('one').exists())
+        self.assertEqual(wt.find_lanes(self.root), [])
+
+
 class TestLaneRemove(LanePoolCase):
     def remove(self, name, current=None, busy=()):
         with mock.patch.object(wt, 'busy_paths', return_value=set(busy)), \
@@ -643,10 +801,13 @@ class TestLaneRemove(LanePoolCase):
     def test_it_removes_a_resting_clean_lane_with_its_folder_registration_and_database(self):
         self.add('one')
         self.add('two')
-        dropped = []
+        git_dir = Path(self.git('rev-parse', '--absolute-git-dir', cwd=self.lane_path('one')))  # holds the lane record
+        self.assertEqual(self.lock_state('one'), 'locked %s' % wt.LANE_LOCK_REASON)
+        dropped, calls = [], []
         real_sh = wt.sh
 
         def fake_sh(argv, cwd):
+            calls.append(argv)
             if argv[0] == 'dropdb':
                 dropped.append(argv[-1])
                 return ''
@@ -655,8 +816,10 @@ class TestLaneRemove(LanePoolCase):
         with mock.patch.object(wt, 'sh', side_effect=fake_sh):
             text = self.remove('one')
         self.assertIn('removed lane one', text)
+        self.assertEqual([argv[2] for argv in calls if argv[1:3] in (['worktree', 'unlock'], ['worktree', 'remove'])], ['unlock', 'remove'])
         self.assertEqual(dropped, ['liwan_scratch_one'])
         self.assertFalse(self.lane_path('one').exists())
+        self.assertFalse(git_dir.exists())  # the record went with the worktree
         self.assertNotIn('one', self.git('worktree', 'list', cwd=self.root))
         self.assertTrue(self.lane_path('two').is_dir())
 
@@ -708,6 +871,33 @@ class TestLaneChecks(LanePoolCase):
 
     def test_a_healthy_pool_breaks_no_rule(self):
         self.assertEqual(self.violations(), [])
+
+    def test_an_unlocked_lane_fails_the_check_which_names_the_lane_and_the_fix(self):
+        self.git('worktree', 'unlock', str(self.lane_path('one')), cwd=self.root)
+        problem = 'lane is not locked, so a tool can remove it; lock it with: npm run wt -- lane lock one'
+        self.assertEqual([(w.path.name, text) for w, text in self.violations()], [('one', problem)])
+        with mock.patch.object(wt, 'repo_root', return_value=self.root), mock.patch.object(wt.sys, 'stdout') as out:
+            self.assertEqual(wt.main(['check']), 1)
+        self.assertIn('.worktrees/one: %s' % problem, ''.join(call.args[0] for call in out.write.call_args_list))
+        status = wt.format_status(wt.inspect_all(self.root, sizes=False), self.root, {})
+        self.assertIn('.worktrees/one: %s' % problem, status)  # status lists the same violation
+
+    def test_lane_lock_locks_resting_and_occupied_lanes_once_and_refuses_an_unknown_lane(self):
+        self.add('resting')
+        for name in ('one', 'two', 'resting'):
+            self.git('worktree', 'unlock', str(self.lane_path(name)), cwd=self.root)
+        self.assertEqual(len(self.violations()), 3)
+        for name in ('one', 'resting'):  # occupied by a worker, and resting
+            self.assertEqual(wt.lock_lane(self.root, name), 'lane %s at %s locked' % (name, self.lane_path(name)))
+            self.assertEqual(self.lock_state(name), 'locked %s' % wt.LANE_LOCK_REASON)
+        with mock.patch.object(wt, 'repo_root', return_value=self.root), mock.patch.object(wt.sys, 'stdout') as out:
+            self.assertEqual(wt.main(['lane', 'lock', 'two']), 0)
+            self.assertEqual(wt.main(['lane', 'lock', 'resting']), 0)  # a second lock does not fail
+        self.assertIn('lane two at %s locked' % self.lane_path('two'), ''.join(call.args[0] for call in out.write.call_args_list))
+        self.assertIn('is already locked', ''.join(call.args[0] for call in out.write.call_args_list))
+        self.assertEqual(self.violations(), [])
+        with self.assertRaisesRegex(WorktreeError, "no lane 'ghost'"):
+            wt.lock_lane(self.root, 'ghost')
 
     def test_status_lists_a_file_changed_in_two_lanes_under_shared_files(self):
         self.commit_in('one', 'docs/a.md')
