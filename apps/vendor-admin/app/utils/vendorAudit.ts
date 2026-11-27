@@ -55,6 +55,6 @@ export function auditSubjectTo(event: Pick<AuditEvent, 'subject' | 'subject_ref'
   if (kind === 'shared_job') return { path: `/operations/${id}`, query: { source: 'shared' } }
   if (kind === 'plan') return { path: `/plans/${id}` }
   if (kind === 'bundle') return { path: `/bundles/${id}` }
-  if (kind === 'catalog') return { path: `/catalog/${id}` }
+  if (kind === 'catalog') return { path: `/catalog/releases/${id}` }
   return null
 }

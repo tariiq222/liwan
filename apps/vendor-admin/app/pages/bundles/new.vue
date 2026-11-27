@@ -2,13 +2,21 @@
 import type { CatalogRelease } from '@liwan/commercial-contracts'
 import { bundleCreatePayload, commercialErrorKey, commercialReturnTo, type BundleDraft, type BundleView } from '@/utils/vendorCommercial'
 import { publishedVersions } from '@/utils/vendorCatalogVersions'
+import { catalogReturn } from '@/utils/vendorCatalog'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
 definePageMeta({ capability: 'vendor.catalog.manage' })
 const { t } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial(); const hydrated = useHydrated()
-const backTo = computed(() => commercialReturnTo(route.query.returnTo, '/bundles'))
+// An application record opens the form with its application in the query: the add-on starts on that selection.
+const appParam = computed(() => (typeof route.query.app === 'string' ? route.query.app : undefined))
+// That link returns to the application record (a catalog path), while the normal flow still returns to /bundles.
+const backTo = computed(() => (appParam.value ? catalogReturn(route.query.returnTo, 'bundles').to : commercialReturnTo(route.query.returnTo, '/bundles')))
 const { data, error, pending, refresh } = await useAsyncData('vendor:bundle-releases', () => api.releases())
 const releases = computed(() => (data.value ?? []) as CatalogRelease[])
+// A release is built from a published catalog version, so any release can price the application; one that no release offers
+// for selection cannot be added, and the page says so instead of dropping the choice silently.
+const appIgnored = computed(() => !!appParam.value
+  && !releases.value.some(release => release.applications.some(app => app.id === appParam.value && app.selectable)))
 const { data: versions, error: versionsError, pending: versionsPending, refresh: refreshVersions } = await useVendorCatalogVersions().load()
 const published = computed(() => publishedVersions(versions.value ?? []))
 const versionItems = computed(() => published.value.map(item => ({ label: item.version, value: item.version })))
@@ -53,7 +61,10 @@ async function createRelease() {
       <UAlert v-else-if="!releases.length" color="neutral" variant="subtle" :title="t('vendor.bundles.noPublishedCatalog')" :description="t('vendor.bundles.noPublishedCatalogHint')" data-testid="no-published-catalog">
         <template #actions><UButton to="/catalog" color="neutral" variant="outline" size="sm">{{ t('vendor.bundles.openCatalog') }}</UButton></template>
       </UAlert>
-      <VendorBundleForm v-else :releases="releases" :busy="busy" :error="saveError" :reset-key="resetKey" :can-price="can('vendor.pricing.manage')" @save="save" @cancel="navigateTo(backTo)" />
+      <template v-else>
+        <UAlert v-if="appIgnored" class="mb-4" color="neutral" variant="subtle" :title="t('vendor.bundles.appNotSelectable')" data-testid="bundle-app-not-selectable" />
+        <VendorBundleForm :releases="releases" :initial-app="appIgnored ? undefined : appParam" :busy="busy" :error="saveError" :reset-key="resetKey" :can-price="can('vendor.pricing.manage')" @save="save" @cancel="navigateTo(backTo)" />
+      </template>
     </SharedPageState>
   </SharedCreatePanel>
 </template>

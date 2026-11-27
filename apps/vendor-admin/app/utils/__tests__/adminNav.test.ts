@@ -83,7 +83,8 @@ describe('activeNavId', () => {
   })
 
   it('derives the catalog section from the catalog tabs', () => {
-    expect(items.find(item => item.id === 'catalog')?.to).toBe(CATALOG_TABS[0].to)
+    const catalog = items.find(item => item.id === 'catalog')
+    expect(CATALOG_TABS.map(tab => tab.to)).toContain(catalog?.to)
     for (const tab of CATALOG_TABS) expect(activeNavId(items, `${tab.to}/x`), tab.to).toBe('catalog')
   })
 

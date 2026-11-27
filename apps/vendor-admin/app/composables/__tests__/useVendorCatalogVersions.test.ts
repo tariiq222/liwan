@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useVendorCatalogVersions } from '../useVendorCatalogVersions'
 
-// The composable reaches the app through the `@/` alias, which plain Vitest does not resolve: the one helper it takes is stood in.
-vi.mock('@/utils/vendorCatalogVersions', () => ({ catalogActionPath: (id: string, action: string) => `catalog/${id}/${action}` }))
-
 const items = [{ id: 'v1', version: '1.0', status: 'published' }]
 
 function stub() {
