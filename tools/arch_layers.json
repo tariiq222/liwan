@@ -225,7 +225,8 @@
         "calls"
       ],
       "composables": [
-        "composables/useSoftphone"
+        "composables/useSoftphone",
+        "composables/telephony/*"
       ]
     }
   },

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/vue-query'
 import type { Me } from '@liwan/contracts'
 import { clearAiSessionState } from '../utils/aiDraft'
 import { clearChatDrafts } from '../utils/chatDrafts'
+import { runSessionTeardown } from '../utils/sessionTeardown'
 import { useAiConversation } from './useAiConversation'
 
 /**
@@ -16,6 +17,7 @@ export function useSignOut() {
   return async (): Promise<boolean> => {
     const navPreferenceKey = `liwan-nav:${me.value?.id ?? 'anonymous'}`
     try {
+      await runSessionTeardown()
       await $fetch('/api/auth/logout', { method: 'POST', body: {} })
       sessionStorage.removeItem(navPreferenceKey)
       clearAiSessionState()

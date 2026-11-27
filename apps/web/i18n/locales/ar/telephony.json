@@ -51,7 +51,11 @@
       "extensionUser": "المستخدم",
       "extensionUserHint": "اختياري: الموظف الذي يستعمل هذه التمثيلة.",
       "extensionNoUser": "بلا مستخدم",
-      "extensionsEmpty": "لا توجد تمثيلات بعد"
+      "extensionsEmpty": "لا توجد تمثيلات بعد",
+      "extensionActive": "مفعّلة",
+      "extensionInactive": "معطّلة",
+      "extensionDisable": "تعطيل",
+      "extensionEnable": "تفعيل"
     },
     "chip": {
       "label": "المكالمة",
@@ -61,10 +65,31 @@
       "inCall": "في مكالمة {duration}",
       "failed": "تعذّرت المكالمة",
       "failedHint": "تحقق من الاتصال ثم أعد المحاولة",
+      "retry": "إعادة المحاولة",
+      "noExtension": "لا توجد تمثيلة مخصّصة لحسابك بعد.",
       "callerCard": "بطاقة المتصل",
+      "unknownCaller": "متصل غير معروف",
+      "loadingCaller": "جارٍ البحث عن المتصل…",
+      "recentCalls": "آخر المكالمات",
+      "saveContact": "حفظ جهة اتصال",
       "answer": "رد",
       "reject": "رفض",
-      "hangUp": "إنهاء"
+      "hangUp": "إنهاء",
+      "mute": "كتم",
+      "unmute": "إلغاء الكتم",
+      "hold": "تعليق",
+      "resume": "استئناف",
+      "transfer": "تحويل",
+      "transferPlaceholder": "رقم أو تمثيلة للتحويل",
+      "transferSend": "تحويل المكالمة",
+      "transferring": "جارٍ التحويل…",
+      "transferFailed": "تعذّر تحويل المكالمة",
+      "keypad": "لوحة الأرقام",
+      "dialpadTitle": "إجراء مكالمة",
+      "dialPlaceholder": "رقم الهاتف أو التمثيلة",
+      "dialCall": "اتصال",
+      "backspace": "حذف آخر رقم",
+      "invalidNumber": "أدخل رقم تمثيلة أو رقم هاتف دولي صالح."
     }
   }
 }

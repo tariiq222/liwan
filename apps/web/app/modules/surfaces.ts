@@ -1,9 +1,14 @@
 import { activeManifests, bellSources } from './manifests'
-import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCommand, AppCoreCount, AppRecordLink, AppRecordPicker, AppSearchProvider } from './types'
+import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCallChipSurface, AppCommand, AppCoreCount, AppRecordLink, AppRecordPicker, AppSearchProvider } from './types'
 
 /** The assistant's sheet surface, declared by the one application that provides it. */
 export function assistantSurface(): AppAssistantSurface | undefined {
   return activeManifests().find(manifest => manifest.assistant)?.assistant
+}
+
+/** The header call chip surface, declared by the one application that provides it. */
+export function callChipSurface(): AppCallChipSurface | undefined {
+  return activeManifests().find(manifest => manifest.callChip)?.callChip
 }
 
 /** Attention providers of every application, in rail order. */

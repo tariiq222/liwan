@@ -19,6 +19,10 @@ const manifest: AppManifest = {
   ],
   landing: [{ path: '/calls', capability: 'telephony.use' }],
   routeCapabilities: [{ pattern: /^\/calls(?:\/|$)/, capability: 'telephony.use' }],
+  callChip: {
+    capability: 'telephony.use',
+    load: () => import('../../composables/telephony/createCallChip'),
+  },
   settings: {
     id: 'telephony',
     labelKey: 'telephony.title',

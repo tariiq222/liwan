@@ -7,6 +7,7 @@ import ShellNoticeBar from '@/components/shell/ShellNoticeBar.vue'
 import SlideOverHost from '@/components/shell/SlideOverHost.vue'
 import { appScopeFor } from '@/utils/appScope'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
+import { useCallChipHost } from '@/composables/useCallChipHost'
 import { useShellModel } from '@/composables/useShellModel'
 import { useShellNotice } from '@/composables/useShellNotice'
 import { usePageHeaderTitle } from '@liwan/ui/app/composables/usePageHeader'
@@ -16,6 +17,7 @@ const route = useRoute()
 const { t, te } = useI18n()
 const hydrated = useHydrated()
 const { rail, activeModule } = useShellModel()
+useCallChipHost()
 // The one subscription notice (payment suspended, seat read-only, overdue, trial, cancellation, lock): the selection is `useShellNotice`.
 const { notice, dismiss } = useShellNotice()
 // The phone drawer opens from the tab bar's last tab and holds the sidebar content.

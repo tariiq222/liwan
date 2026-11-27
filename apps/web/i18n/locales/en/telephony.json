@@ -51,7 +51,11 @@
       "extensionUser": "User",
       "extensionUserHint": "Optional: the employee who uses this extension.",
       "extensionNoUser": "No user",
-      "extensionsEmpty": "No extensions yet"
+      "extensionsEmpty": "No extensions yet",
+      "extensionActive": "Active",
+      "extensionInactive": "Inactive",
+      "extensionDisable": "Disable",
+      "extensionEnable": "Enable"
     },
     "chip": {
       "label": "Call",
@@ -61,10 +65,31 @@
       "inCall": "In a call {duration}",
       "failed": "The call failed",
       "failedHint": "Check the connection and try again",
+      "retry": "Retry",
+      "noExtension": "No extension is assigned to your account yet.",
       "callerCard": "Caller card",
+      "unknownCaller": "Unknown caller",
+      "loadingCaller": "Looking up caller…",
+      "recentCalls": "Recent calls",
+      "saveContact": "Save contact",
       "answer": "Answer",
       "reject": "Reject",
-      "hangUp": "Hang up"
+      "hangUp": "Hang up",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "hold": "Hold",
+      "resume": "Resume",
+      "transfer": "Transfer",
+      "transferPlaceholder": "Number or extension",
+      "transferSend": "Transfer call",
+      "transferring": "Transferring…",
+      "transferFailed": "Could not transfer the call",
+      "keypad": "Keypad",
+      "dialpadTitle": "Place a call",
+      "dialPlaceholder": "Phone number or extension",
+      "dialCall": "Call",
+      "backspace": "Delete last digit",
+      "invalidNumber": "Enter a valid extension or international phone number."
     }
   }
 }

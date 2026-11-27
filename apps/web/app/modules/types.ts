@@ -1,5 +1,6 @@
-import type { Component } from 'vue'
+import type { Component, Ref } from 'vue'
 import type { ZodType } from 'zod'
+import type { CallChipSeam } from '@liwan/ui/app/composables/useCallChip'
 
 /**
  * Application manifest: the one place an application declares its web surface.
@@ -164,6 +165,37 @@ export interface AppAssistantSurface {
   /** The full page the sheet's "open full page" link goes to. */
   to: string
   load: () => Promise<{ default: Component }>
+}
+
+/**
+ * Runtime context captured synchronously by the shell's call-chip host and handed to the lazily loaded telephony
+ * factory, so the factory never calls Nuxt/Vue setup-only composables after an async `import()`.
+ */
+export interface AppCallChipHostContext {
+  $api: <T>(
+    path: string,
+    opts?: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T>; signal?: AbortSignal },
+  ) => Promise<T>
+  t: (key: string, params?: Record<string, unknown>) => string
+  me: Ref<{ id: number; tz?: string; company: { id: number }; capabilities?: readonly string[] } | null>
+  can: (capability: string) => boolean
+  currentPath: () => string
+}
+
+/** Live handle returned by the application's call-chip factory so the shell can provide its seam and tear it down. */
+export interface AppCallChipHandle {
+  seam: CallChipSeam
+  stop: () => Promise<void>
+}
+
+/**
+ * The header call chip surface: declared by the telephony application and hosted lazily by the default layout so
+ * the shell imports no application code (R3).
+ */
+export interface AppCallChipSurface {
+  /** Capability (with its application feature) required to mount the call chip and softphone. */
+  capability: string
+  load: () => Promise<{ createCallChip: (context: AppCallChipHostContext) => AppCallChipHandle }>
 }
 /** One thing an application says needs the user's attention; `to` opens the record. */
 export interface AppAttentionRow {
@@ -395,6 +427,8 @@ export interface AppManifest {
   coreCount?: AppCoreCount
   /** The assistant's header button and sheet; only the assistant application declares it. */
   assistant?: AppAssistantSurface
+  /** The header call chip surface; only the telephony application declares it. */
+  callChip?: AppCallChipSurface
   /** What needs the user's attention, for the assistant surfaces and the home suggestions. */
   attention?: AppAttentionProvider[]
   /** A flat sidebar menu in place of the generic one built from `contextLinks`. */

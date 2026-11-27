@@ -1,5 +1,6 @@
 import { MeCompanyInputSchema, MeSchema, type Me } from '@liwan/contracts'
 import { companySwitching } from '../utils/companySwitch'
+import { hasSessionTeardown, runSessionTeardown } from '../utils/sessionTeardown'
 
 /**
  * Moves the session to another company of the tenant, one switch at a time (a second call while one runs does nothing).
@@ -24,6 +25,7 @@ export function useSwitchCompany() {
     try {
       await navigateTo('/')
       if (router.currentRoute.value.path !== '/') return
+      if (hasSessionTeardown()) await runSessionTeardown()
       await $api('/api/v1/me/company', { method: 'POST', body: MeCompanyInputSchema.parse({ company_id: companyId }), schema: MeSchema, statesCompany: false })
       await refreshNuxtData(['me', 'branding'])
       if (loadedMe.value?.company.id !== companyId) throw new Error(t('errors.generic'))

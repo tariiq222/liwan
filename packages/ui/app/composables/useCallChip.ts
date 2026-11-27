@@ -1,5 +1,5 @@
-import type { InjectionKey, Ref } from 'vue'
-import { inject, provide } from 'vue'
+import type { ComputedRef, InjectionKey, MaybeRef, Ref } from 'vue'
+import { computed, inject, provide, unref } from 'vue'
 
 /**
  * The seam between the shell and the application's softphone (design D3).
@@ -10,45 +10,96 @@ import { inject, provide } from 'vue'
  */
 export type CallChipPhase = 'idle' | 'connecting' | 'registered' | 'ringing' | 'calling' | 'in-call' | 'failed'
 
+export interface CallChipRecentCall {
+  id: number
+  direction: string
+  state: string
+  time: string | null
+  duration: string | null
+}
+
+export interface CallChipCallerCard {
+  partnerName: string | null
+  companyName: string | null
+  number: string | null
+  recentCalls: CallChipRecentCall[]
+  saveContactTo: string | null
+}
+
 export interface CallChipState {
   phase: CallChipPhase
   remote: string | null
+  registeredAs: string | null
   since: number | null
   failure: string | null
+  hasExtension: boolean
+  isLeader: boolean
+  muted: boolean
+  held: boolean
+  transferring: boolean
+  transferError: string | null
+  callerCard: CallChipCallerCard | null
+  callerCardLoading: boolean
 }
 
 export interface CallChipActions {
   answer: () => void
-  hangUp: () => void
   reject: () => void
+  hangUp: () => void
+  call: (number: string) => string | null | void
+  toggleMute: () => void
+  toggleHold: () => void
+  transfer: (target: string) => string | null | void
+  sendDtmf: (digit: string) => void
+  retry: () => void
 }
 
 export interface CallChipLabels {
-  idle: string
   label: string
-  callerCard: string
-  answer: string
-  reject: string
-  hangUp: string
-  failedHint: string
-  failed: string
+  idle: string
   ringing: (number: string) => string
   calling: (number: string) => string
   inCall: (duration: string) => string
+  failed: string
+  failedHint: string
+  retry: string
+  noExtension: string
+  callerCard: string
+  unknownCaller: string
+  loadingCaller: string
+  recentCalls: string
+  saveContact: string
+  answer: string
+  reject: string
+  hangUp: string
+  mute: string
+  unmute: string
+  hold: string
+  resume: string
+  transfer: string
+  transferPlaceholder: string
+  transferSend: string
+  transferring: string
+  keypad: string
+  dialpadTitle: string
+  dialPlaceholder: string
+  dialCall: string
+  backspace: string
 }
 
 export interface CallChipSeam {
   state: Ref<CallChipState>
   actions: CallChipActions
-  labels: CallChipLabels
+  labels: MaybeRef<CallChipLabels>
 }
 
-export const CALL_CHIP: InjectionKey<CallChipSeam> = Symbol('liwan-call-chip')
+export const CALL_CHIP: InjectionKey<MaybeRef<CallChipSeam | null>> = Symbol('liwan-call-chip')
 
-export function provideCallChip(seam: CallChipSeam) {
+export function provideCallChip(seam: MaybeRef<CallChipSeam | null>) {
   provide(CALL_CHIP, seam)
 }
 
-export function useCallChip(): CallChipSeam | null {
-  return inject(CALL_CHIP, null)
+export function useCallChip(): ComputedRef<CallChipSeam | null> {
+  const provided = inject(CALL_CHIP, null)
+  return computed(() => unref(provided))
 }

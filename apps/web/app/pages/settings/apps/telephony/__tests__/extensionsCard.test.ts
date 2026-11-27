@@ -136,6 +136,18 @@ function loadCard($api: ReturnType<typeof vi.fn>, canEdit: boolean) {
       return () => Vue.h('select', { 'data-value': props.modelValue ?? '', disabled: props.disabled, onPick: (value: number | null) => emit('update:modelValue', value) })
     },
   })
+  const button = Vue.defineComponent({
+    props: ['disabled', 'loading'],
+    setup(props, { slots, attrs }) {
+      return () => Vue.h('button', { ...attrs, disabled: props.disabled }, slots.default?.())
+    },
+  })
+  const alert = Vue.defineComponent({
+    props: ['description', 'title'],
+    setup(props, { attrs }) {
+      return () => Vue.h('div', { ...attrs, role: 'alert' }, props.description || props.title || '')
+    },
+  })
   const app = renderer.createApp({ render: () => Vue.h(exports.default!, { id: 'extensions', canEdit }) })
   // A failed setup would otherwise render nothing and fail far from its cause.
   const errors: unknown[] = []
@@ -145,6 +157,8 @@ function loadCard($api: ReturnType<typeof vi.fn>, canEdit: boolean) {
   app.component('UFormField', formField)
   app.component('UInput', input)
   app.component('SharedPersonPicker', picker)
+  app.component('UButton', button)
+  app.component('UAlert', alert)
   const root = node(); app.mount(root)
   return { app, root, errors, setQueryData: query.setQueryData }
 }
@@ -155,16 +169,22 @@ const settle = async (screen: { errors: unknown[] }) => {
   expect(screen.errors).toEqual([])
 }
 
-/** The server the card talks to: the list, and a create that answers the extension it was asked for. */
+/** The server the card talks to: the list, create, and active-flag PATCH. */
 function server(list: { items: ExtensionWire[]; total: number }) {
-  const $api = vi.fn(async (_path: string, options: { method?: string; body?: { number: string; userId: number | null } }) => {
+  const $api = vi.fn(async (path: string, options: { method?: string; body?: { number?: string; userId?: number | null; active?: boolean } }) => {
+    if (options.method === 'PATCH') {
+      const id = Number(path.split('/').pop())
+      const found = list.items.find(item => item.id === id)!
+      return { ...found, active: Boolean(options.body?.active) } satisfies ExtensionWire
+    }
     if (options.method !== 'POST') return list
-    const userId = options.body!.userId
-    return { id: list.total + 1, number: options.body!.number, user: userId ? { id: userId, name: 'سارة' } : null, active: true } satisfies ExtensionWire
+    const userId = options.body!.userId ?? null
+    return { id: list.total + 1, number: options.body!.number!, user: userId ? { id: userId, name: 'سارة' } : null, active: true } satisfies ExtensionWire
   })
   return $api
 }
 const posts = ($api: ReturnType<typeof vi.fn>) => $api.mock.calls.filter(call => call[1]?.method === 'POST')
+const patches = ($api: ReturnType<typeof vi.fn>) => $api.mock.calls.filter(call => call[1]?.method === 'PATCH')
 const field = (root: HostNode, id: string) => byTestId(root, id)!
 const type = (root: HostNode, value: string) => { field(root, 'telephony-extension-number').props.onInput({ value }) }
 const pick = (root: HostNode, userId: number) => { field(root, 'telephony-extension-user').props.onPick(userId) }
@@ -298,5 +318,36 @@ describe('the telephony extensions card', () => {
     expect(byTestId(screen.root, 'error')).toBeTruthy()
     expect(byTestId(screen.root, 'telephony-extension-number')).toBeUndefined()
     screen.app.unmount()
+  })
+
+  it('toggles an extension active flag via PATCH and updates the list in place', async () => {
+    const $api = server(LIST([ahmed, { ...nobody, active: false }]))
+    const screen = loadCard($api, true)
+    await settle(screen)
+    field(screen.root, 'telephony-extension-toggle-1').props.onClick()
+    await settle(screen)
+    expect(patches($api)).toEqual([['/api/v1/telephony/extensions/1', { method: 'PATCH', body: { active: false }, schema: TelephonyExtensionSchema }]])
+    expect(text(field(screen.root, 'telephony-extension-toggle-1'))).toContain('telephony.settings.extensionEnable')
+    field(screen.root, 'telephony-extension-toggle-2').props.onClick()
+    await settle(screen)
+    expect(patches($api)[1]).toEqual(['/api/v1/telephony/extensions/2', { method: 'PATCH', body: { active: true }, schema: TelephonyExtensionSchema }])
+    expect(text(field(screen.root, 'telephony-extension-toggle-2'))).toContain('telephony.settings.extensionDisable')
+    screen.app.unmount()
+  })
+
+  it('hides toggle buttons for viewers and shows an alert when PATCH refuses', async () => {
+    const viewer = loadCard(server(LIST([ahmed])), false)
+    await settle(viewer)
+    expect(byTestId(viewer.root, 'telephony-extension-toggle-1')).toBeUndefined()
+    viewer.app.unmount()
+
+    const $api = server(LIST([{ ...ahmed, active: false }]))
+    const editor = loadCard($api, true)
+    await settle(editor)
+    $api.mockRejectedValueOnce(new ApiError(422, 'invalid', LIMIT))
+    field(editor.root, 'telephony-extension-toggle-1').props.onClick()
+    await settle(editor)
+    expect(text(field(editor.root, 'telephony-extension-toggle-error'))).toBe(LIMIT)
+    editor.app.unmount()
   })
 })

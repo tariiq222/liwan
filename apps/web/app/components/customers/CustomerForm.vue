@@ -14,7 +14,7 @@ import CustomerConflictStep from './CustomerConflictStep.vue'
 
 // The create and edit form of a customer. The tenant's party kinds decide whether the person/company choice is offered;
 // the custom fields come from the settings definition (a new customer) or from the customer itself (an edit).
-const props = defineProps<{ customer?: Customer | null; settings: CustomerSettings; backTo: RouteLocationRaw }>()
+const props = defineProps<{ customer?: Customer | null; settings: CustomerSettings; backTo: RouteLocationRaw; initialPhone?: string }>()
 const emit = defineEmits<{ saved: [customer: Customer]; open: [id: number] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -49,7 +49,7 @@ watch(() => props.customer, (customer, previous) => {
   if (initialised && !shouldResetCustomerDraft(previous, customer, dirty.value)) return
   initialised = true
   name.value = customer?.name ?? ''
-  phone.value = customer?.phone ?? ''
+  phone.value = customer ? (customer.phone ?? '') : (props.initialPhone ?? '')
   email.value = customer?.email ?? ''
   parentId.value = customer?.parent?.id ?? null
   isCompany.value = customer ? customer.is_company : kind.value.isCompany
