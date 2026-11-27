@@ -1552,7 +1552,7 @@ REGISTRY: list[Item] = [
     Item('disk', check_disk, 'free disk space (A3.5)'),
     Item('memory', size_check(0, MEMORY_KEY, MIN_MEMORY_MIB, 'memory'), 'the host is too small (A3.5)'),
     Item('swap', size_check(1, SWAP_KEY, MIN_SWAP_MIB, 'swap'), 'add the swap file of A3.5 and list it in /etc/fstab'),
-    Item('firewall-rules', check_firewall_rules, 'add the three firewall rules of A3.6 as root', apply_firewall_rules),
+    Item('firewall-rules', check_firewall_rules, 'add the five firewall rules of A3.6 as root', apply_firewall_rules),
     Item('firewall-unit', check_firewall_unit, f'install and enable {FIREWALL_UNIT} (A3.6)', apply_firewall_unit),
     Item('release-proof-openssl', check_proof_openssl,
          'install OpenSSL 3: it must generate an Ed25519 key and sign and verify with it (A4.7a)'),
