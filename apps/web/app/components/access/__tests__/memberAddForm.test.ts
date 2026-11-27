@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
@@ -7,7 +8,7 @@ import { setupSfc, mutation } from './sfcSetup'
 
 function form(add: (...args: any[]) => Promise<unknown>) {
   const { state, emit } = setupSfc(resolve(import.meta.dirname, '../users/MemberAddForm.vue'), { companyId: 7, roles: [] }, {
-    ApiError: RealApiError, RoleCheckboxes: {}, membershipErrorMessage, useAddMembership: () => mutation(add),
+    ApiError: RealApiError, RoleCheckboxes: {}, membershipErrorMessage, useAddMembership: () => mutation(add), useId: () => 'member-add-form',
   })
   return { state, emit }
 }
@@ -24,13 +25,28 @@ describe('adding a member to a branch', () => {
     expect(state.login.value).toBe('')
   })
 
-  it('needs an email and at least one role', async () => {
+  it('needs an email and at least one role, and says so only after the first attempt', async () => {
     const add = vi.fn()
     const { state } = form(add)
     await state.submit()
+    expect(add).not.toHaveBeenCalled()
+    expect(state.attempted.value).toBe(true)
+    expect(state.loginError.value).toBe('access.members.loginRequired')
+    expect(state.rolesMissing.value).toBe(true)
     state.login.value = 'noura@example.com'
     await state.submit()
     expect(add).not.toHaveBeenCalled()
+    expect(state.loginError.value).toBeUndefined()
+    expect(state.rolesMissing.value).toBe(true)
+    state.roleIds.value = [4]
+    expect(state.rolesMissing.value).toBe(false)
+  })
+
+  it('marks the invalid email after the attempt, not while it is still being typed', () => {
+    const { state } = form(vi.fn())
+    state.login.value = 'not-an-email'
+    expect(state.loginError.value).toBeUndefined()
+    return state.submit().then(() => expect(state.loginError.value).toBe('access.users.loginInvalid'))
   })
 
   it('shows one message for every email that cannot be added, and the mapped text for other refusals', async () => {
@@ -51,11 +67,19 @@ describe('adding a member to a branch', () => {
     const refused = new RealApiError(403, 'self_grant_restricted', 'raw', 'assignments', { roles: ['payroll'], permissions: ['payroll.manage'] })
     const { state } = setupSfc(resolve(import.meta.dirname, '../users/MemberAddForm.vue'), { companyId: 7, roles: [] }, {
       ApiError: RealApiError, RoleCheckboxes: {}, membershipErrorMessage, useAddMembership: () => mutation(async () => { throw refused }),
-      useI18n: () => ({ t, locale: Vue.ref('en') }),
+      useI18n: () => ({ t, locale: Vue.ref('en') }), useId: () => 'member-add-form',
     })
     state.login.value = 'me@example.com'
     state.roleIds.value = [4]
     await state.submit()
     expect(state.error.value).toBe('policy text')
+  })
+
+  it('keeps the add panel form wiring the panel footer expects', () => {
+    const source = readFileSync(resolve(import.meta.dirname, '../users/MemberAddForm.vue'), 'utf8')
+    expect(source).toContain('<form :id="formId"')
+    expect(source).toContain('<SharedFormActions>')
+    expect(source).toContain('<SharedUnsavedChanges :dirty="dirty" />')
+    expect(source).toContain('data-testid="member-add-form"')
   })
 })
