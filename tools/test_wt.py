@@ -289,6 +289,69 @@ class TestStatusAndGc(unittest.TestCase):
         self.assertNotIn(['git', 'branch', '-d', 'pmo-a'], calls)  # the worktree is still there
         self.assertNotIn(['dropdb', '--if-exists', 'liwan_scratch_pmo_a'], calls)  # its worktree survived
 
+    def test_gc_apply_on_locked_worktree_preserves_db_and_relocks_when_remove_fails(self):
+        calls = []
+
+        def fake(argv, cwd):
+            calls.append(argv)
+            if argv[:3] == ['git', 'worktree', 'remove']:
+                message = 'cannot remove'
+                raise WorktreeError(message)
+            return 'main'
+
+        with self.assertRaises(WorktreeError) as caught:
+            self._gc(True, fake, [worktree(locked=True)])
+        self.assertIn('cannot remove', str(caught.exception))
+        self.assertIn(['git', 'worktree', 'unlock', '/r/.worktrees/pmo-a'], calls)
+        self.assertIn(['git', 'worktree', 'lock', '--reason', wt.LANE_LOCK_REASON, '/r/.worktrees/pmo-a'], calls)
+        self.assertNotIn(['git', 'branch', '-d', 'pmo-a'], calls)
+        self.assertNotIn(['dropdb', '--if-exists', 'liwan_scratch_pmo_a'], calls)
+
+    def test_gc_apply_on_locked_worktree_stops_when_unlock_fails(self):
+        calls = []
+
+        def fake(argv, cwd):
+            calls.append(argv)
+            if argv[:3] == ['git', 'worktree', 'unlock']:
+                message = 'unlock refused'
+                raise WorktreeError(message)
+            return 'main'
+
+        with self.assertRaises(WorktreeError) as caught:
+            self._gc(True, fake, [worktree(locked=True)])
+        self.assertIn('unlock refused', str(caught.exception))
+        self.assertNotIn(['git', 'worktree', 'remove', '/r/.worktrees/pmo-a'], calls)
+        self.assertNotIn(['git', 'branch', '-d', 'pmo-a'], calls)
+        self.assertNotIn(['dropdb', '--if-exists', 'liwan_scratch_pmo_a'], calls)
+
+    def test_missing_locked_worktree_mentions_unlock_in_check_and_gc(self):
+        missing = wt.missing_worktree(Path('/r'), Path('/r/.worktrees/gone'), 'refs/heads/old', locked=True)
+        self.assertTrue(missing.locked)
+        self.assertIn('git worktree unlock /r/.worktrees/gone && git worktree prune', wt.non_lane_violation(missing))
+        with mock.patch.object(wt, 'inspect_all', return_value=[missing]), \
+                mock.patch.object(wt, 'busy_paths', return_value=set()), \
+                mock.patch.object(wt, 'scratch_databases', return_value={}):
+            output = wt.gc(Path('/r'), False, Path('/x'))
+        self.assertIn('git worktree unlock /r/.worktrees/gone && git worktree prune', output)
+
+    def test_remove_worktree_relocks_surviving_lane_when_remove_fails(self):
+        calls = []
+
+        def fake(argv, cwd):
+            calls.append(argv)
+            if argv[:3] == ['git', 'worktree', 'remove']:
+                message = 'remove failed'
+                raise WorktreeError(message)
+            return ''
+
+        with mock.patch.object(wt, 'sh', side_effect=fake), self.assertRaises(WorktreeError):
+            wt.remove_worktree(Path('/r/.worktrees/design-4'), True, Path('/r'))
+        self.assertEqual(calls, [
+            ['git', 'worktree', 'unlock', '/r/.worktrees/design-4'],
+            ['git', 'worktree', 'remove', '/r/.worktrees/design-4'],
+            ['git', 'worktree', 'lock', '--reason', wt.LANE_LOCK_REASON, '/r/.worktrees/design-4'],
+        ])
+
     def test_gc_reports_when_nothing_qualifies(self):
         with mock.patch.object(wt, 'inspect_all', return_value=[worktree(dirty=True)]), \
                 mock.patch.object(wt, 'busy_paths', return_value=set()):

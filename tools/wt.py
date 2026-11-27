@@ -50,6 +50,7 @@ import socket
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 from typing import NamedTuple
 
@@ -242,10 +243,17 @@ def lock_worktree(path, locked, root):
         sh(['git', 'worktree', 'lock', '--reason', LANE_LOCK_REASON, str(path)], root)
 
 
-def worktree_removal(path, locked):
-    """``[(label, argv)]`` steps that remove the worktree at ``path``: ``git worktree remove`` refuses a locked one, so it is unlocked first."""
-    steps = [('unlock %s' % path, ['git', 'worktree', 'unlock', str(path)])] if locked else []
-    return steps + [('worktree %s' % path, ['git', 'worktree', 'remove', str(path)])]
+def remove_worktree(path, locked, root):
+    """Remove the worktree at ``path``, unlocking first when ``locked``; re-lock if removal fails so a surviving worktree stays protected."""
+    if locked:
+        sh(['git', 'worktree', 'unlock', str(path)], root)
+    try:
+        sh(['git', 'worktree', 'remove', str(path)], root)
+    except WorktreeError:
+        if locked:
+            with suppress(WorktreeError):
+                lock_worktree(path, False, root)
+        raise
 
 
 class Worktree(NamedTuple):
@@ -320,13 +328,13 @@ def changed_paths(path):
     return paths
 
 
-def missing_worktree(root, path, ref):
+def missing_worktree(root, path, ref, locked=False):
     """A registered worktree whose folder is gone; a lane-folder one keeps the scratch database its name gives."""
     canonical = (root / WORKTREES_DIR) in path.parents
     return Worktree(
         path=path, branch=ref[len('refs/heads/'):] if ref else None, is_main=False, canonical=canonical, ahead=0, behind=0,
         merged=False, dirty=False, age_days=0, size=None, database=database_name(path.name) if canonical else None,
-        ports=[], missing=True)
+        ports=[], missing=True, locked=locked)
 
 
 def load_take(path):
@@ -341,7 +349,7 @@ def inspect_worktree(root, path, ref, now=None, sizes=True, locked=False):
     now = time.time() if now is None else now
     wt_path = Path(path)
     if not wt_path.is_dir():
-        return missing_worktree(root, wt_path, ref)
+        return missing_worktree(root, wt_path, ref, locked=locked)
     head = sh(['git', 'rev-parse', 'HEAD'], wt_path)
     behind, ahead = map(int, sh(['git', 'rev-list', '--left-right', '--count', '%s...%s' % (MAIN, head)], root).split())
     merged = run(['git', 'merge-base', '--is-ancestor', head, MAIN], root)[0] == 0
@@ -405,6 +413,8 @@ def lane_violations(worktree):
 
 def non_lane_violation(worktree):
     if worktree.missing:
+        if worktree.locked:
+            return 'folder is missing (git worktree unlock %s && git worktree prune)' % worktree.path
         return 'folder is missing (git worktree prune)'
     if not worktree.canonical:
         return 'outside %s/ and not a lane; remove it with: git worktree remove' % WORKTREES_DIR
@@ -568,12 +578,13 @@ def apply_gc(root, victims, databases, stale_branches=()):
         raise WorktreeError(message)
     failures, kept = [], set()
     for w in victims:
-        done, failed = try_each([(label, argv, root) for label, argv in worktree_removal(w.path, w.locked)])
-        failures += failed
-        if done:
-            failures += try_each([('branch %s' % w.branch, ['git', 'branch', '-d', w.branch], root)])[1]
-        else:
+        try:
+            remove_worktree(w.path, w.locked, root)
+        except WorktreeError as exc:
+            failures.append('worktree %s: %s' % (w.path, exc))
             kept.add(w.database)
+            continue
+        failures += try_each([('branch %s' % w.branch, ['git', 'branch', '-d', w.branch], root)])[1]
     for name in stale_branches:
         failures += try_each([('branch %s' % name, ['git', 'branch', '-d', name], root)])[1]
     for name in sorted(set(databases) - kept):
@@ -601,7 +612,11 @@ def gc(root, apply, current, branch=None):
     databases = abandoned_databases([w for w in scope if w.missing] + victims, survivors)
     lines = ['%s worktree %s (branch %s)' % ('removing' if apply else 'would remove', w.path, w.branch) for w in victims]
     lines += ['%s database %s' % ('dropping' if apply else 'would drop', name) for name in databases]
-    lines += ['skipped: folder missing for %s (run git worktree prune)' % w.path for w in scope if w.missing]
+    lines += [
+        'skipped: folder missing for %s (run %sgit worktree prune)' % (
+            w.path, 'git worktree unlock %s && ' % w.path if w.locked else '')
+        for w in scope if w.missing
+    ]
     stale_branches = []
     if branch:
         kept = [w for w in scope if not w.missing and w not in victims]
@@ -881,8 +896,7 @@ def remove_lane(root, name, current):
     worktrees = inspect_all(root, sizes=False)
     databases = abandoned_databases(
         [w for w in worktrees if w.path.resolve() == lane.path.resolve()], [w for w in worktrees if w.path.resolve() != lane.path.resolve()])
-    for _, argv in worktree_removal(lane.path, lane.locked):
-        sh(argv, root)
+    remove_worktree(lane.path, lane.locked, root)
     for database in databases:
         sh(['dropdb', '--if-exists', database], root)
     return 'removed lane %s%s' % (name, ' and dropped database %s' % ', '.join(databases) if databases else '')
