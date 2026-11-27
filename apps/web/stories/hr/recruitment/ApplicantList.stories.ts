@@ -47,7 +47,7 @@ const meta = {
   component: ListPage,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/recruitment.vue:231', 'قائمة المتقدمين: نطاق الحالة، ومرشحات الوظيفة والمرحلة من الرابط، وجدول `SharedDataTable bare` داخل بطاقة القائمة.'),
+    ...storyContext('apps/web/app/pages/hr/recruitment.vue:157', 'قائمة المتقدمين: نطاق الحالة، ومرشحات الوظيفة والمرحلة من الرابط، وجدول `SharedDataTable bare` داخل بطاقة القائمة.'),
   },
   args: { title: 'التوظيف', createTo: '/hr/recruitment/new', createLabel: 'متقدم جديد', createTestId: 'hr-recruitment-new' },
   render: args => ({
