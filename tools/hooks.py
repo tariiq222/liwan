@@ -14,6 +14,10 @@ checkout predates it. The checks read the working tree, not the index, so
 unstaged edits can change what they see. ``git commit --no-verify`` still
 bypasses them; the binding gates are ``npm test`` and the merge policies.
 
+``commit-msg`` also refuses a staged silent revert of a recent ``origin/main`` commit
+(``git_policy.check_staged_silent_reverts``), the ``git reset --soft origin/main`` shape that once
+dropped a merged PR, unless the message says ``Revert "..."`` or carries a ``Reverts: <sha>`` trailer.
+
 ``pre-commit`` first runs the lane guard (``commit_refusal`` of ``tools/worktree_lanes.py``) in every checkout. It refuses a
 commit on ``main``, in a lane that rests or has another branch checked out than the one it holds, and in a linked worktree
 that is not a lane. The main checkout on any other branch is not refused. It fails fast, before the checks below.
@@ -24,7 +28,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from git_policy import check_subject
+from git_policy import check_staged_silent_reverts, check_subject
 from worktree_lanes import LaneError, commit_refusal, read_take
 
 # Customer-facing UI sources that ui_policy and no_external_refs scan.
@@ -127,11 +131,18 @@ def pre_commit():
 
 
 def commit_msg(path):
-    problem = check_message(Path(path).read_text(encoding='utf-8'))
+    text = Path(path).read_text(encoding='utf-8')
+    problems = []
+    problem = check_message(text)
     if problem:
+        problems.append(problem)
+    try:
+        problems.extend(check_staged_silent_reverts(text, cwd=REPO))
+    except RuntimeError as error:
+        problems.append(str(error))
+    for problem in problems:
         sys.stderr.write('commit-msg: %s\n' % problem)
-        return 1
-    return 0
+    return 1 if problems else 0
 
 
 def install():
