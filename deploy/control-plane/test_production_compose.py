@@ -160,7 +160,11 @@ class ProductionCompose(unittest.TestCase):
         ports = overlay['services']['control-db']['ports']
         self.assertEqual(len(ports), 1)
         self.assertTrue(ports[0].startswith('127.0.0.1:'), ports[0])
-        self.assertNotIn('internal', overlay['networks']['control_db_host'] or {})
+        net = overlay['networks']['control_db_host'] or {}
+        self.assertNotIn('internal', net)
+        opts = net.get('driver_opts') or {}
+        self.assertEqual(opts.get('com.docker.network.bridge.name'), 'liwan-cpdbhost')
+        self.assertEqual(opts.get('com.docker.network.bridge.enable_ip_masquerade'), 'false')
 
     def test_the_console_cannot_reach_the_database_or_the_web_tier_network(self):
         self.assertEqual(set(self.services['vendor-console']['networks']), {'control_api_admin', 'admin_edge'})
