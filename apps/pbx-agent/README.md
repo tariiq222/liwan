@@ -2,7 +2,8 @@
 
 The per-company telephony agent of LiwanOS (design: `docs/superpowers/specs/2026-10-28-liwan-telephony-design.md`).
 One instance runs inside each company's telephony package. It is the only party that talks to Asterisk over ARI, the
-only party that writes recordings, and the only sender of call events to Odoo.
+only writer of Asterisk's PJSIP realtime tables in `pbx-db`, the only party that writes recordings, and the only sender
+of call events to Odoo.
 
 It holds no Odoo code, imports nothing from Odoo and never opens an Odoo database. The whole contract with Odoo is
 two things: the signed `POST` to the events route (4.5) and the signed recording link (4.4). The agent does not
@@ -114,16 +115,20 @@ endpoint. Each `POST /registration` therefore generates a unique 8-hex-character
 - Live sessions are persisted in the `sessions` table of `PBX_QUEUE_PATH` SQLite DB.
 - Under a per-extension lock, rotating keeps at most the immediately preceding live `auth_id` with
   `overlap_until = min(prev.expires_at, now + PBX_SESSION_OVERLAP_SECONDS)` and drops any older auths.
-- ARI writes happen in order: `PUT auth/{new_auth_id}` → `PUT aor/{ext}` → `PUT endpoint/{ext}` (with
-  `auth=<comma-joined active auth ids>` and the full Asterisk 22 WebRTC attributes). If `aor` or `endpoint` fails, the
-  agent performs a best-effort rollback (`DELETE aor/{ext}` when it was written for a brand-new extension, and
-  `DELETE auth/{new_auth_id}`), leaves SQLite untouched, and answers `502` with no password.
-- A background reaper loop (`workers.sessions`) removes expired/past-overlap `auth` objects and updates `endpoint/{ext}`;
-  when an extension has zero live sessions remaining, it deletes `endpoint/{ext}`, `aor/{ext}`, and all expired `auth`s
-  from ARI so expired passwords are immediately rejected.
+- PJSIP realtime rows are written directly to `pbx-db` (`PBX_DB_URL`) inside **one atomic PostgreSQL transaction**:
+  upserting `ps_auths` (`<ext>_<slot>`), `ps_aors` (`<ext>`), and `ps_endpoints` (`<ext>`, with
+  `auth=<comma-joined active auth ids>` and the Asterisk 22 WebRTC attributes) and deleting any stale auth rows.
+  Asterisk 22's `res_config_pgsql.so` reads `ps_auths`, `ps_aors`, and `ps_endpoints` live from `pbx-db`, whereas
+  Asterisk 22's ARI dynamic config `INSERT INTO ps_endpoints` omits identifier quotes around `100rel` and fails in
+  PostgreSQL. Making `pbx-agent` the sole transactional writer avoids that bug and eliminates partial-write rollbacks:
+  if the transaction fails, PostgreSQL rolls back cleanly, SQLite is untouched, and `/registration` answers `502` with
+  no password.
+- A background reaper loop (`workers.sessions`) atomically updates `ps_endpoints.auth` and deletes expired/past-overlap
+  `ps_auths` rows; when an extension has zero live sessions remaining, it deletes `ps_endpoints`, `ps_aors`, known
+  `ps_auths`, and any orphan `<ext>_%` auth rows in one transaction so expired passwords are immediately rejected.
 - `DELETE /registration/{ext}`, `DELETE /extensions/{ext}`, and `PUT /extensions/{ext}` with `active: false` revoke
-  all active sessions and delete `endpoint/{ext}`, `aor/{ext}`, and all stored `auth`s idempotently (HTTP 404 from ARI
-  is treated as success).
+  all active sessions and delete `ps_endpoints`, `ps_aors`, known `ps_auths`, and any orphan `<ext>_%` auth rows
+  atomically and idempotently.
 - When `PBX_TURN_URL` is configured, each session mints ephemeral coturn `use-auth-secret` REST credentials:
   `expiry = int(now) + max(PBX_SESSION_SECONDS * 2, 300)`, `username = "<expiry>:<ext>"`,
   `credential = base64(HMAC-SHA1(PBX_TURN_SECRET, username))`.
@@ -148,6 +153,7 @@ names the variable and never its value.
 | `PBX_ARI_URL` | yes | ARI base URL, for example `http://ari:8088/ari`; no credentials in the URL |
 | `PBX_ARI_USERNAME` | yes | ARI user; never logged |
 | `PBX_ARI_PASSWORD` | yes | ARI password; never logged |
+| `PBX_DB_URL` | yes | PostgreSQL DSN for `pbx-db` (`postgresql://` or `postgres://`, no whitespace); never logged or included in errors/`repr()` |
 | `PBX_DATABASE` | yes | the company database name, carried in every event |
 | `PBX_EVENTS_KEY` | with `PBX_REVERSE_KEY` | the derived events key, 64 hex characters |
 | `PBX_REVERSE_KEY` | with `PBX_EVENTS_KEY` | the derived reverse-direction key, 64 hex characters |
@@ -230,15 +236,14 @@ package must run with `TZ=UTC`.
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install --require-hashes -r requirements.txt
+.venv/bin/pip install --require-hashes -r requirements-dev.txt
 .venv/bin/pip install --no-deps --no-build-isolation -e .
 
 mkdir -p /tmp/pbx-agent/recordings
 
-# The lock's hashes are for Linux (the image); on macOS install it without --require-hashes or work in the container.
-
 PBX_ARI_URL=http://127.0.0.1:8088/ari \
 PBX_ARI_USERNAME=liwan PBX_ARI_PASSWORD=… \
+PBX_DB_URL=postgresql://pbx:…@127.0.0.1:5432/telephony_pbx \
 PBX_DATABASE=liwan_acme \
 PBX_EVENTS_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))') \
 PBX_REVERSE_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))') \
@@ -262,10 +267,14 @@ Asterisk writes and this container only reads today; retention deletion, which w
 implemented yet. The recordings mount is the only volume that holds call audio, and Odoo never writes, lists or
 deletes anything there.
 
-The lock is for Linux and Python 3.12 (the image). Regenerate it from this folder after a dependency change:
+Both `requirements.txt` (runtime image) and `requirements-dev.txt` (CI and local development, including `httpx` for
+`TestClient` and `ruff`) are universal hashed locks targeting Python 3.12 (covering both Linux `python:3.12-slim` and
+macOS wheels). Regenerate them from this folder after an approved dependency change:
 
 ```sh
-uv pip compile --python-platform linux --python-version 3.12 --generate-hashes --no-header --quiet pyproject.toml -o requirements.txt
+C="uv pip compile --universal --python-version 3.12 --generate-hashes --no-header --quiet"
+$C pyproject.toml -o requirements.txt
+$C pyproject.toml --extra dev -o requirements-dev.txt
 ```
 
 ## Tests
@@ -289,15 +298,15 @@ Verified by the tests above, offline: configuration fail-closed behaviour, signa
 queue and retry semantics, per-request timestamps, transport failures, CEL parsing and re-enqueue, the ARI event
 URL, health payload and worker liveness.
 
-The ARI client keeps only what the agent uses: the event stream, reachability, one endpoint's state and the endpoint
-write behind the session route. The write is verified against a recorded transport only, never a real Asterisk.
+The ARI client keeps only what the agent uses: the event stream, reachability, and one endpoint's state. PJSIP realtime
+writes go directly to `pbx-db` through `pbx_db.py`, verified offline against a fake transactional connection.
 
 Not verified, and open until the phase-1 gate in the design (section 13): a real Asterisk. That includes which ARI
 events the package's dialplan actually produces (the spec allows falling back to AMI for the missing ones), that the
 event URL with `app=pbx-agent` is accepted, that the package writes comma-quoted CEL rows, the ARI health probe,
-that a real Asterisk takes the endpoint write, that a MixMonitor file is closed by the time its channel's end event
-reaches the agent (the recording-ready event is sent on that ordering), streaming a real MixMonitor file, and the Odoo
-side of both contracts, which belongs to `liwan_telephony` in phase 2.
+that a MixMonitor file is closed by the time its channel's end event reaches the agent (the recording-ready event is
+sent on that ordering), streaming a real MixMonitor file, and the Odoo side of both contracts, which belongs to
+`liwan_telephony` in phase 2.
 
 ## Decisions (where the spec is silent)
 
@@ -315,10 +324,12 @@ side of both contracts, which belongs to `liwan_telephony` in phase 2.
    left to Odoo, which knows both numbers.
 5. **`PBX_PUBLIC_HOST` exists.** The recording token is bound to the company host (4.4), so verification needs the
    expected host from configuration.
-6. **Per-session auth slots with atomic rollback.** `upsert_endpoint` writes `auth/<ext>_<slot>`, `aor/<ext>` and
-   `endpoint/<ext>` in that order with the full Asterisk 22 WebRTC attributes; if `aor` or `endpoint` fails, the new
-   `auth` (and `aor/<ext>` when written for a brand-new extension) is rolled back with a best-effort `DELETE`, SQLite
-   is left untouched, and `/registration` answers `502` with no password.
+6. **Per-session auth slots with direct atomic `pbx-db` writes.** Asterisk 22's `res_config_pgsql.so` reads
+   `ps_auths`, `ps_aors`, and `ps_endpoints` live from `pbx-db`, whereas its ARI dynamic config push
+   (`INSERT INTO ps_endpoints`) omits identifier quotes around `100rel` and fails in PostgreSQL. `pbx-agent` is
+   therefore the sole transactional writer of those three tables via `PostgresPbxStore`: every session issue, overlap
+   narrowing, and revocation commits in one PostgreSQL transaction; on failure SQLite is untouched and `/registration`
+   answers `502` with no password.
 7. **The token is a base64url JSON payload plus a hex signature.** The expiry is minted by Odoo (one minute) and only
    checked here.
 8. **Health always answers 200.** The report carries `ok` or `degraded`, so the container healthcheck tests the

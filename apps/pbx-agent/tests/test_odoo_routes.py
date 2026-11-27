@@ -18,7 +18,7 @@ from pathlib import Path
 from unittest import mock
 from urllib.parse import quote
 
-from fakes import AriRequest, FakeAri
+from fakes import AriRequest, FakeAri, FakePbxStore
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -38,8 +38,6 @@ KEY = bytes.fromhex("cd" * 32)
 OTHER = bytes.fromhex("ef" * 32)
 TURN_SECRET = "t" * 32
 NOW = 1700000000
-AOR_101 = "/asterisk/config/dynamic/res_pjsip/aor/101"
-ENDPOINT_101 = "/asterisk/config/dynamic/res_pjsip/endpoint/101"
 
 
 def make_settings(tmp: Path) -> Settings:
@@ -49,6 +47,7 @@ def make_settings(tmp: Path) -> Settings:
         ari_url="http://ari.test:8088/ari",
         ari_username="liwan",
         ari_password="secret",
+        pbx_db_url="postgresql://pbx:secret@pbx-db:5432/telephony_pbx",
         database="liwan_acme",
         events_key=bytes.fromhex("ab" * 32),
         reverse_key=KEY,
@@ -96,11 +95,6 @@ def signed_request(
     return client.request(method, path, content=raw_body, headers=headers)
 
 
-def attributes(request) -> dict[str, str]:
-    """The realtime object the route wrote, as ``attribute: value``."""
-    return {field["attribute"]: field["value"] for field in request.body["fields"]}
-
-
 class RoutesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -112,9 +106,11 @@ class RoutesTest(unittest.TestCase):
         self.now = float(NOW)
         self.settings = make_settings(self.root)
         self.ari = FakeAri()
+        self.store = FakePbxStore()
         stack = contextlib.ExitStack()
         self.addCleanup(stack.close)
-        self.client = stack.enter_context(TestClient(create_app(self.settings, AriClient(self.ari), clock=lambda: self.now)))
+        app = create_app(self.settings, AriClient(self.ari), pbx_store=self.store, clock=lambda: self.now)
+        self.client = stack.enter_context(TestClient(app))
 
     def test_unauthenticated_and_legacy_x_liwan_key_requests_are_refused(self) -> None:
         payload = {"extension": "101", "database": "liwan_acme"}
@@ -124,6 +120,7 @@ class RoutesTest(unittest.TestCase):
         # Legacy X-Liwan-Key -> 401 (no parallel legacy path)
         legacy = self.client.post("/registration", json=payload, headers={"X-Liwan-Key": KEY.hex()})
         self.assertEqual(legacy.status_code, 401)
+        self.assertEqual(self.store.calls, [])
         self.assertEqual(self.ari.requests, [])
 
     def test_bad_signature_wrong_key_and_stale_or_future_timestamp_return_401(self) -> None:
@@ -152,7 +149,7 @@ class RoutesTest(unittest.TestCase):
         # Signed for wrong path -> 401
         wrong_path_headers = reverse_headers(KEY, method="POST", path="/extensions/101", body=raw, database="liwan_acme", timestamp=NOW)
         self.assertEqual(self.client.post("/registration", content=raw, headers=wrong_path_headers).status_code, 401)
-        self.assertEqual(self.ari.requests, [])
+        self.assertEqual(self.store.calls, [])
 
     def test_valid_signature_with_wrong_database_returns_403(self) -> None:
         # Wrong header database
@@ -176,7 +173,7 @@ class RoutesTest(unittest.TestCase):
         # Bodyless DELETE with wrong header database
         ans_del = signed_request(self.client, "DELETE", "/registration/101", database="liwan_other")
         self.assertEqual(ans_del.status_code, 403)
-        self.assertEqual(self.ari.requests, [])
+        self.assertEqual(self.store.calls, [])
 
     def test_extension_validation_enforced_everywhere(self) -> None:
         for bad_ext in ("1", "12345678901", "10-01", "abc", "١٠١"):
@@ -197,7 +194,7 @@ class RoutesTest(unittest.TestCase):
                 signed_request(self.client, "DELETE", f"/extensions/{encoded}").status_code,
                 422,
             )
-        self.assertEqual(self.ari.requests, [])
+        self.assertEqual(self.store.calls, [])
 
     def test_registration_rotates_with_overlap_and_returns_turn_rest_credentials(self) -> None:
         first = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"})
@@ -232,87 +229,81 @@ class RoutesTest(unittest.TestCase):
         self.assertNotEqual(body1["auth_username"], body2["auth_username"])
         id1 = body1["auth_username"].replace("-", "_")
         id2 = body2["auth_username"].replace("-", "_")
-        endpoint_req = [r for r in self.ari.requests if r.path == ENDPOINT_101][-1]
-        self.assertEqual(attributes(endpoint_req)["auth"], f"{id2},{id1}")
-        self.assertEqual(attributes(endpoint_req)["from_domain"], "acme.example.test")
-        self.assertEqual(attributes(endpoint_req)["callerid"], "Extension 101 <101>")
+        self.assertEqual(self.store.endpoints["101"]["auth"], f"{id2},{id1}")
+        self.assertEqual(self.store.endpoints["101"]["from_domain"], "acme.example.test")
+        self.assertEqual(self.store.endpoints["101"]["callerid"], "Extension 101 <101>")
+        # No ARI dynamic config writes were sent.
+        self.assertEqual(self.ari.requests, [])
 
-    def test_registration_ari_failure_rolls_back_and_returns_502_without_password(self) -> None:
-        failing_ari = FakeAri({("PUT", AOR_101): (500, None)})
-        with TestClient(create_app(self.settings, AriClient(failing_ari), clock=lambda: self.now)) as failing_client:
+    def test_pbx_db_failure_returns_502_without_password(self) -> None:
+        failing_store = FakePbxStore(fail_on={"upsert_extension_session", "delete_extension"})
+        app = create_app(self.settings, AriClient(self.ari), pbx_store=failing_store, clock=lambda: self.now)
+        with TestClient(app) as failing_client:
             answer = signed_request(failing_client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"})
-        self.assertEqual(answer.status_code, 502)
-        self.assertNotIn("password", answer.text)
-        self.assertEqual([r.method for r in failing_ari.requests], ["PUT", "PUT", "DELETE"])
-        self.assertEqual(failing_ari.requests[0].path, failing_ari.requests[2].path)
+            self.assertEqual(answer.status_code, 502)
+            self.assertNotIn("password", answer.text)
+            self.assertEqual(signed_request(failing_client, "DELETE", "/registration/101").status_code, 502)
+            self.assertEqual(
+                signed_request(failing_client, "PUT", "/extensions/101", payload={"database": "liwan_acme", "active": False}).status_code,
+                502,
+            )
+            self.assertEqual(signed_request(failing_client, "DELETE", "/extensions/101").status_code, 502)
+        self.assertEqual(failing_store.auths, {})
+        self.assertEqual(failing_store.endpoints, {})
 
     def test_delete_registration_revokes_all_sessions_and_is_idempotent(self) -> None:
         reg1 = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"}).json()
         reg2 = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"}).json()
         id1 = reg1["auth_username"].replace("-", "_")
         id2 = reg2["auth_username"].replace("-", "_")
-        self.ari.requests.clear()
+        self.store.calls.clear()
 
         revoked = signed_request(self.client, "DELETE", "/registration/101")
         self.assertEqual(revoked.status_code, 200, revoked.text)
         self.assertEqual(revoked.json(), {"revoked": True, "extension": "101"})
         self.assertEqual(
-            [(r.method, r.path) for r in self.ari.requests],
-            [
-                ("DELETE", ENDPOINT_101),
-                ("DELETE", AOR_101),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{id2}"),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{id1}"),
-            ],
+            self.store.calls,
+            [("delete_extension", {"extension": "101", "auth_ids": [id2, id1]})],
         )
+        self.assertEqual(self.store.endpoints, {})
+        self.assertEqual(self.store.aors, {})
+        self.assertEqual(self.store.auths, {})
 
-        # Idempotent when ARI reports 404.
-        self.ari.answers[("DELETE", ENDPOINT_101)] = (404, None)
-        self.ari.answers[("DELETE", AOR_101)] = (404, None)
+        # Idempotent when repeated on an already-deleted extension.
+        self.store.calls.clear()
         again = signed_request(self.client, "DELETE", "/registration/101")
         self.assertEqual(again.status_code, 200)
         self.assertEqual(again.json(), {"revoked": True, "extension": "101"})
+        self.assertEqual(self.store.calls, [("delete_extension", {"extension": "101", "auth_ids": []})])
 
     def test_put_and_delete_extensions_lifecycle(self) -> None:
-        # PUT active=true validates without writing any open password to ARI.
+        # PUT active=true validates without writing any open password to pbx-db.
         enabled = signed_request(self.client, "PUT", "/extensions/101", payload={"database": "liwan_acme", "active": True})
         self.assertEqual(enabled.status_code, 200, enabled.text)
         self.assertEqual(enabled.json(), {"extension": "101", "active": True})
-        self.assertEqual(self.ari.requests, [])
+        self.assertEqual(self.store.calls, [])
 
-        # Issue a session, then PUT active=false disables and deletes PJSIP objects.
+        # Issue a session, then PUT active=false disables and deletes PJSIP rows.
         reg = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"}).json()
         auth_id = reg["auth_username"].replace("-", "_")
-        self.ari.requests.clear()
+        self.store.calls.clear()
 
         disabled = signed_request(self.client, "PUT", "/extensions/101", payload={"database": "liwan_acme", "active": False})
         self.assertEqual(disabled.status_code, 200, disabled.text)
         self.assertEqual(disabled.json(), {"extension": "101", "active": False})
-        self.assertEqual(
-            [(r.method, r.path) for r in self.ari.requests],
-            [
-                ("DELETE", ENDPOINT_101),
-                ("DELETE", AOR_101),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{auth_id}"),
-            ],
-        )
+        self.assertEqual(self.store.calls, [("delete_extension", {"extension": "101", "auth_ids": [auth_id]})])
+        self.assertEqual(self.store.endpoints, {})
 
         # DELETE /extensions/101 disables and returns {"disabled": true, "extension": "101"}.
         reg2 = signed_request(self.client, "POST", "/registration", payload={"extension": "101", "database": "liwan_acme"}).json()
         auth_id2 = reg2["auth_username"].replace("-", "_")
-        self.ari.requests.clear()
+        self.store.calls.clear()
 
         deleted = signed_request(self.client, "DELETE", "/extensions/101")
         self.assertEqual(deleted.status_code, 200, deleted.text)
         self.assertEqual(deleted.json(), {"disabled": True, "extension": "101"})
-        self.assertEqual(
-            [(r.method, r.path) for r in self.ari.requests],
-            [
-                ("DELETE", ENDPOINT_101),
-                ("DELETE", AOR_101),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{auth_id2}"),
-            ],
-        )
+        self.assertEqual(self.store.calls, [("delete_extension", {"extension": "101", "auth_ids": [auth_id2]})])
+        self.assertEqual(self.store.endpoints, {})
 
     def test_recordings_link_clock_tolerance_and_expiry_capping(self) -> None:
         (self.settings.recordings_dir / "1764049999.1.wav").write_bytes(b"RIFFdemo")
@@ -371,7 +362,7 @@ class RoutesTest(unittest.TestCase):
 
     def test_health_probes_ari_and_reports_session_reaper_worker(self) -> None:
         booted = FakeAri({("GET", "/asterisk/info"): (200, {"status": "fully booted"})})
-        with TestClient(create_app(self.settings, AriClient(booted), clock=lambda: self.now)) as client:
+        with TestClient(create_app(self.settings, AriClient(booted), pbx_store=FakePbxStore(), clock=lambda: self.now)) as client:
             report = client.get("/health").json()
         self.assertEqual(report["ari"], {"reachable": True, "connected": False})
         self.assertEqual(report["status"], "degraded")
@@ -379,7 +370,7 @@ class RoutesTest(unittest.TestCase):
         self.assertIn(EVENT_TIMESTAMP_HEADER, reverse_headers(KEY, method="GET", path="/x", body=b"", database="liwan_acme", timestamp=NOW))
         self.assertEqual(booted.requests, [AriRequest("GET", "/asterisk/info", None, None)])
         silent = FakeAri()
-        with TestClient(create_app(self.settings, AriClient(silent))) as client:
+        with TestClient(create_app(self.settings, AriClient(silent), pbx_store=FakePbxStore())) as client:
             self.assertFalse(client.get("/health").json()["ari"]["reachable"])
         self.assertEqual(silent.requests, [AriRequest("GET", "/asterisk/info", None, None)])
 

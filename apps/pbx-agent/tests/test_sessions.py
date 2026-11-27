@@ -9,11 +9,11 @@ import threading
 import unittest
 from pathlib import Path
 
-from fakes import FakeAri
+from fakes import FakePbxStore
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from pbx_agent.ari import AriClient, AriError  # noqa: E402
+from pbx_agent.pbx_db import PbxStoreError  # noqa: E402
 from pbx_agent.sessions import SessionManager  # noqa: E402
 from pbx_agent.settings import Settings  # noqa: E402
 
@@ -35,6 +35,7 @@ def make_settings(
         ari_url="http://ari.test:8088/ari",
         ari_username="liwan",
         ari_password="secret",
+        pbx_db_url="postgresql://pbx:secret@pbx-db:5432/telephony_pbx",
         database="liwan_acme",
         events_key=bytes.fromhex("ab" * 32),
         reverse_key=bytes.fromhex("cd" * 32),
@@ -60,19 +61,15 @@ def make_settings(
     )
 
 
-def attrs(request) -> dict[str, str]:
-    return {field["attribute"]: field["value"] for field in request.body["fields"]}
-
-
 class SessionManagerTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
-    def test_issue_writes_unique_slot_and_mints_turn_rest_credentials(self) -> None:
-        ari = FakeAri()
-        manager = SessionManager(make_settings(self.root), AriClient(ari))
+    def test_issue_writes_unique_slot_to_pbx_db_and_mints_turn_rest_credentials(self) -> None:
+        store = FakePbxStore()
+        manager = SessionManager(make_settings(self.root), store)
         self.addCleanup(manager.close)
 
         issued = manager.issue("101", now=1700000000.0)
@@ -83,18 +80,18 @@ class SessionManagerTest(unittest.TestCase):
 
         slot = issued.auth_username.split("-")[1]
         auth_id = f"101_{slot}"
+        self.assertEqual([op for op, _ in store.calls], ["upsert_extension_session"])
         self.assertEqual(
-            [(r.method, r.path) for r in ari.requests],
-            [
-                ("PUT", f"/asterisk/config/dynamic/res_pjsip/auth/{auth_id}"),
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
-            ],
+            store.auths[auth_id],
+            {"auth_type": "userpass", "username": issued.auth_username, "password": issued.password},
         )
-        self.assertEqual(attrs(ari.requests[0])["username"], issued.auth_username)
-        self.assertEqual(attrs(ari.requests[0])["password"], issued.password)
-        self.assertEqual(attrs(ari.requests[2])["auth"], auth_id)
-        self.assertEqual(attrs(ari.requests[2])["from_domain"], "acme.example.test")
+        self.assertEqual(
+            store.aors["101"],
+            {"max_contacts": 1, "remove_existing": "yes", "default_expiration": 120, "maximum_expiration": 120},
+        )
+        self.assertEqual(store.endpoints["101"]["auth"], auth_id)
+        self.assertEqual(store.endpoints["101"]["from_domain"], "acme.example.test")
+        self.assertEqual(store.endpoints["101"]["callerid"], "Extension 101 <101>")
 
         # ICE servers: STUN + TURN REST HMAC-SHA1
         self.assertEqual(len(issued.ice_servers), 2)
@@ -108,8 +105,8 @@ class SessionManagerTest(unittest.TestCase):
         self.assertEqual(turn["credential"], expected_cred)
 
     def test_rotation_keeps_immediately_preceding_live_auth_for_overlap_and_drops_older(self) -> None:
-        ari = FakeAri()
-        manager = SessionManager(make_settings(self.root, session_seconds=120, session_overlap_seconds=30), AriClient(ari))
+        store = FakePbxStore()
+        manager = SessionManager(make_settings(self.root, session_seconds=120, session_overlap_seconds=30), store)
         self.addCleanup(manager.close)
 
         first = manager.issue("101", now=1000.0)
@@ -118,32 +115,27 @@ class SessionManagerTest(unittest.TestCase):
         # Second issue at t=1050: first_id expires_at shrinks from 1120 to min(1120, 1050 + 30) = 1080.
         second = manager.issue("101", now=1050.0)
         second_id = second.auth_username.replace("-", "_")
-        endpoint_req = [r for r in ari.requests if r.path.endswith("/endpoint/101")][-1]
-        self.assertEqual(attrs(endpoint_req)["auth"], f"{second_id},{first_id}")
+        self.assertEqual(store.endpoints["101"]["auth"], f"{second_id},{first_id}")
         rows = {r["auth_id"]: r["expires_at"] for r in manager.active_sessions("101")}
         self.assertEqual(rows, {second_id: 1170.0, first_id: 1080.0})
 
-        # Third issue at t=1060: keeps second_id (min(1170, 1090)=1090), drops first_id immediately.
-        ari.requests.clear()
+        # Third issue at t=1060: keeps second_id (min(1170, 1090)=1090), drops first_id atomically.
+        store.calls.clear()
         third = manager.issue("101", now=1060.0)
         third_id = third.auth_username.replace("-", "_")
-        self.assertEqual(
-            [(r.method, r.path) for r in ari.requests],
-            [
-                ("PUT", f"/asterisk/config/dynamic/res_pjsip/auth/{third_id}"),
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{first_id}"),
-            ],
-        )
-        endpoint_req = [r for r in ari.requests if r.path.endswith("/endpoint/101")][-1]
-        self.assertEqual(attrs(endpoint_req)["auth"], f"{third_id},{second_id}")
+        self.assertEqual(len(store.calls), 1)
+        op, payload = store.calls[0]
+        self.assertEqual(op, "upsert_extension_session")
+        self.assertEqual(payload["auth_ids"], [third_id, second_id])
+        self.assertEqual(payload["drop_auth_ids"], [first_id])
+        self.assertNotIn(first_id, store.auths)
+        self.assertEqual(store.endpoints["101"]["auth"], f"{third_id},{second_id}")
         rows = {r["auth_id"]: r["expires_at"] for r in manager.active_sessions("101")}
         self.assertEqual(rows, {third_id: 1180.0, second_id: 1090.0})
 
     def test_rotation_never_extends_previous_auth_past_its_original_expiry(self) -> None:
-        ari = FakeAri()
-        manager = SessionManager(make_settings(self.root, session_seconds=120, session_overlap_seconds=30), AriClient(ari))
+        store = FakePbxStore()
+        manager = SessionManager(make_settings(self.root, session_seconds=120, session_overlap_seconds=30), store)
         self.addCleanup(manager.close)
 
         first = manager.issue("101", now=1000.0)  # expires at 1120
@@ -155,104 +147,55 @@ class SessionManagerTest(unittest.TestCase):
         self.assertEqual(rows, {second_id: 1230.0, first_id: 1120.0})
 
     def test_zero_overlap_drops_previous_auth_immediately(self) -> None:
-        ari = FakeAri()
-        manager = SessionManager(make_settings(self.root, session_seconds=60, session_overlap_seconds=0), AriClient(ari))
+        store = FakePbxStore()
+        manager = SessionManager(make_settings(self.root, session_seconds=60, session_overlap_seconds=0), store)
         self.addCleanup(manager.close)
 
         first = manager.issue("101", now=1000.0)
         first_id = first.auth_username.replace("-", "_")
-        ari.requests.clear()
+        store.calls.clear()
 
         second = manager.issue("101", now=1010.0)
         second_id = second.auth_username.replace("-", "_")
-        endpoint_req = [r for r in ari.requests if r.path.endswith("/endpoint/101")][-1]
-        self.assertEqual(attrs(endpoint_req)["auth"], second_id)
-        self.assertIn(("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{first_id}"), [(r.method, r.path) for r in ari.requests])
+        self.assertEqual(store.endpoints["101"]["auth"], second_id)
+        self.assertNotIn(first_id, store.auths)
         self.assertEqual([r["auth_id"] for r in manager.active_sessions("101")], [second_id])
 
-    def test_ari_failure_rolls_back_new_auth_and_preserves_sqlite_state(self) -> None:
-        ari = FakeAri()
-        manager = SessionManager(make_settings(self.root), AriClient(ari))
+    def test_db_failure_leaves_sqlite_and_existing_pbx_rows_untouched(self) -> None:
+        store = FakePbxStore()
+        manager = SessionManager(make_settings(self.root), store)
         self.addCleanup(manager.close)
 
         first = manager.issue("101", now=1000.0)
         first_id = first.auth_username.replace("-", "_")
 
-        ari.requests.clear()
-        ari.answers[("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101")] = (500, None)
-        with self.assertRaises(AriError):
+        store.calls.clear()
+        store.fail_on.add("upsert_extension_session")
+        with self.assertRaises(PbxStoreError):
             manager.issue("101", now=1020.0)
 
-        # Rollback deleted the failed new auth, and SQLite still holds only the untouched first session.
-        self.assertEqual(len(ari.requests), 4)
-        new_auth_path = ari.requests[0].path
-        self.assertEqual(ari.requests[3].method, "DELETE")
-        self.assertEqual(ari.requests[3].path, new_auth_path)
+        self.assertEqual(list(store.auths), [first_id])
+        self.assertEqual(store.endpoints["101"]["auth"], first_id)
         self.assertEqual(
             [(r["auth_id"], r["expires_at"]) for r in manager.active_sessions("101")],
             [(first_id, 1120.0)],
         )
 
-    def test_zero_overlap_rotation_endpoint_failure_preserves_live_aor_and_deletes_new_auth(self) -> None:
-        ari = FakeAri()
-        manager = SessionManager(
-            make_settings(self.root, session_seconds=60, session_overlap_seconds=0),
-            AriClient(ari),
-        )
+    def test_new_extension_db_failure_leaves_sqlite_empty(self) -> None:
+        store = FakePbxStore(fail_on={"upsert_extension_session"})
+        manager = SessionManager(make_settings(self.root), store)
         self.addCleanup(manager.close)
 
-        first = manager.issue("101", now=1000.0)
-        first_id = first.auth_username.replace("-", "_")
-
-        ari.requests.clear()
-        ari.answers[("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101")] = (503, None)
-        with self.assertRaises(AriError):
-            manager.issue("101", now=1010.0)
-
-        new_auth_path = ari.requests[0].path
-        self.assertNotEqual(new_auth_path, f"/asterisk/config/dynamic/res_pjsip/auth/{first_id}")
-        self.assertEqual(
-            [(r.method, r.path) for r in ari.requests],
-            [
-                ("PUT", new_auth_path),
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
-                ("DELETE", new_auth_path),
-            ],
-        )
-        self.assertNotIn(
-            ("DELETE", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-            [(r.method, r.path) for r in ari.requests],
-        )
-        self.assertEqual(
-            [(r["auth_id"], r["expires_at"]) for r in manager.active_sessions("101")],
-            [(first_id, 1060.0)],
-        )
-
-    def test_new_extension_endpoint_failure_rolls_back_aor_and_new_auth(self) -> None:
-        ari = FakeAri({("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"): (503, None)})
-        manager = SessionManager(make_settings(self.root), AriClient(ari))
-        self.addCleanup(manager.close)
-
-        with self.assertRaises(AriError):
+        with self.assertRaises(PbxStoreError):
             manager.issue("101", now=1000.0)
 
-        new_auth_path = ari.requests[0].path
-        self.assertEqual(
-            [(r.method, r.path) for r in ari.requests],
-            [
-                ("PUT", new_auth_path),
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
-                ("DELETE", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-                ("DELETE", new_auth_path),
-            ],
-        )
+        self.assertEqual(store.auths, {})
+        self.assertEqual(store.endpoints, {})
         self.assertEqual(manager.active_sessions("101"), [])
 
-    def test_reaper_updates_endpoint_on_overlap_expiry_and_deletes_endpoint_on_last_expiry(self) -> None:
-        ari = FakeAri()
-        manager = SessionManager(make_settings(self.root, session_seconds=120, session_overlap_seconds=30), AriClient(ari))
+    def test_reaper_updates_endpoint_on_overlap_expiry_and_deletes_extension_on_last_expiry(self) -> None:
+        store = FakePbxStore()
+        manager = SessionManager(make_settings(self.root, session_seconds=120, session_overlap_seconds=30), store)
         self.addCleanup(manager.close)
 
         first = manager.issue("101", now=1000.0)
@@ -261,80 +204,81 @@ class SessionManagerTest(unittest.TestCase):
         second_id = second.auth_username.replace("-", "_")
 
         # Before overlap expires: reaper does nothing.
-        ari.requests.clear()
+        store.calls.clear()
         self.assertEqual(manager.reap(now=1079.0), 0)
-        self.assertEqual(ari.requests, [])
+        self.assertEqual(store.calls, [])
 
-        # At t=1080: first_id expires while second_id is live -> update endpoint to second_id only, then DELETE auth/first_id.
+        # At t=1080: first_id expires while second_id is live -> atomic update_endpoint_auths.
         self.assertEqual(manager.reap(now=1080.0), 1)
         self.assertEqual(
-            [(r.method, r.path) for r in ari.requests],
-            [
-                ("PUT", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{first_id}"),
-            ],
+            store.calls,
+            [("update_endpoint_auths", {"extension": "101", "auth_ids": [second_id], "drop_auth_ids": [first_id]})],
         )
-        self.assertEqual(attrs(ari.requests[0])["auth"], second_id)
+        self.assertEqual(store.endpoints["101"]["auth"], second_id)
+        self.assertNotIn(first_id, store.auths)
         self.assertEqual([r["auth_id"] for r in manager.active_sessions("101")], [second_id])
 
-        # At t=1170: second_id expires, zero live sessions left -> DELETE endpoint, aor, and auth.
-        ari.requests.clear()
+        # At t=1170: second_id expires, zero live sessions left -> atomic delete_extension.
+        store.calls.clear()
         self.assertEqual(manager.reap(now=1170.0), 1)
-        self.assertEqual(
-            [(r.method, r.path) for r in ari.requests],
-            [
-                ("DELETE", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
-                ("DELETE", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{second_id}"),
-            ],
-        )
+        self.assertEqual(store.calls, [("delete_extension", {"extension": "101", "auth_ids": [second_id]})])
+        self.assertNotIn("101", store.endpoints)
+        self.assertNotIn("101", store.aors)
+        self.assertEqual(store.auths, {})
         self.assertEqual(manager.active_sessions("101"), [])
 
-    def test_revoke_deletes_endpoint_aor_and_all_auths_and_is_idempotent(self) -> None:
-        ari = FakeAri()
-        manager = SessionManager(make_settings(self.root), AriClient(ari))
+    def test_reaper_defers_sqlite_cleanup_when_pbx_db_write_fails(self) -> None:
+        store = FakePbxStore()
+        manager = SessionManager(make_settings(self.root, session_seconds=60, session_overlap_seconds=0), store)
+        self.addCleanup(manager.close)
+
+        first = manager.issue("101", now=1000.0)
+        first_id = first.auth_username.replace("-", "_")
+
+        store.fail_on.add("delete_extension")
+        self.assertEqual(manager.reap(now=1060.0), 0)
+        self.assertEqual([r["auth_id"] for r in manager.active_sessions("101")], [first_id])
+
+        store.fail_on.clear()
+        self.assertEqual(manager.reap(now=1060.0), 1)
+        self.assertEqual(manager.active_sessions("101"), [])
+
+    def test_revoke_deletes_extension_and_orphans_and_is_idempotent(self) -> None:
+        store = FakePbxStore()
+        manager = SessionManager(make_settings(self.root), store)
         self.addCleanup(manager.close)
 
         first = manager.issue("101", now=1000.0)
         second = manager.issue("101", now=1020.0)
         first_id = first.auth_username.replace("-", "_")
         second_id = second.auth_username.replace("-", "_")
+        store.auths["101_orphan99"] = {"auth_type": "userpass", "username": "101-orphan99", "password": "old"}
 
-        ari.requests.clear()
+        store.calls.clear()
         manager.revoke("101")
         self.assertEqual(
-            [(r.method, r.path) for r in ari.requests],
-            [
-                ("DELETE", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
-                ("DELETE", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{second_id}"),
-                ("DELETE", f"/asterisk/config/dynamic/res_pjsip/auth/{first_id}"),
-            ],
+            store.calls,
+            [("delete_extension", {"extension": "101", "auth_ids": [second_id, first_id]})],
         )
+        self.assertEqual(store.endpoints, {})
+        self.assertEqual(store.aors, {})
+        self.assertEqual(store.auths, {})
         self.assertEqual(manager.active_sessions("101"), [])
 
-        # Repeating revoke when ARI returns 404 succeeds idempotently.
-        ari.requests.clear()
-        ari.answers[("DELETE", "/asterisk/config/dynamic/res_pjsip/endpoint/101")] = (404, None)
-        ari.answers[("DELETE", "/asterisk/config/dynamic/res_pjsip/aor/101")] = (404, None)
+        # Repeating revoke when no SQLite rows exist still runs delete_extension idempotently.
+        store.calls.clear()
         manager.revoke("101")
-        self.assertEqual(
-            [(r.method, r.path) for r in ari.requests],
-            [
-                ("DELETE", "/asterisk/config/dynamic/res_pjsip/endpoint/101"),
-                ("DELETE", "/asterisk/config/dynamic/res_pjsip/aor/101"),
-            ],
-        )
+        self.assertEqual(store.calls, [("delete_extension", {"extension": "101", "auth_ids": []})])
 
     def test_sessions_persist_across_restart_and_concurrent_issues_serialize(self) -> None:
         cfg = make_settings(self.root)
-        ari = FakeAri()
-        m1 = SessionManager(cfg, AriClient(ari))
+        store = FakePbxStore()
+        m1 = SessionManager(cfg, store)
         first = m1.issue("101", now=1000.0)
         first_id = first.auth_username.replace("-", "_")
         m1.close()
 
-        m2 = SessionManager(cfg, AriClient(ari))
+        m2 = SessionManager(cfg, store)
         self.addCleanup(m2.close)
         self.assertEqual([r["auth_id"] for r in m2.active_sessions("101")], [first_id])
 

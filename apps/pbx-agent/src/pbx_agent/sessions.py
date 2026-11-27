@@ -1,4 +1,4 @@
-"""WebRTC SIP session lifecycle: password rotation with overlap, atomic ARI writes, revocation, and expiry reaping.
+"""WebRTC SIP session lifecycle: password rotation with overlap, atomic pbx-db writes, revocation, and expiry reaping.
 
 Asterisk 22 matches PJSIP digest authentication by ``(realm, username)`` and stops at the first matching ``auth``
 object listed on the endpoint. Each session therefore allocates its own ``slot = secrets.token_hex(4)`` with
@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from pbx_agent.ari import AriClient, AriError, endpoint_fields
+from pbx_agent.pbx_db import PbxStore, PbxStoreError
 from pbx_agent.signing import turn_rest_credentials
 
 if TYPE_CHECKING:
@@ -80,17 +80,17 @@ def ice_servers_for_session(
 
 
 class SessionManager:
-    """Tracks active WebRTC SIP sessions in SQLite and keeps Asterisk's dynamic PJSIP objects synchronized."""
+    """Tracks active WebRTC SIP sessions in SQLite and writes Asterisk's PJSIP realtime rows to pbx-db."""
 
     def __init__(
         self,
         settings: Settings,
-        ari: AriClient,
+        store: PbxStore,
         *,
         clock: Callable[[], float] = time.time,
     ) -> None:
         self._settings = settings
-        self._ari = ari
+        self._store = store
         self._clock = clock
         self._db_lock = threading.Lock()
         self._locks_guard = threading.Lock()
@@ -151,17 +151,17 @@ class SessionManager:
                 stale_ids.extend(str(row["auth_id"]) for row in expired)
 
             active_auth_ids = [auth_id] + [kept_id for kept_id, _ in kept]
-            self._ari.upsert_endpoint(
-                extension,
+            self._store.upsert_extension_session(
+                extension=extension,
                 auth_id=auth_id,
                 auth_username=auth_username,
                 password=password,
                 auth_ids=active_auth_ids,
+                session_seconds=self._settings.session_seconds,
                 transport=self._settings.pjsip_transport,
                 context=self._settings.pjsip_context,
                 from_domain=self._settings.public_host,
-                session_seconds=self._settings.session_seconds,
-                is_new=not live,
+                drop_auth_ids=stale_ids,
             )
 
             expires_at = moment + self._settings.session_seconds
@@ -177,19 +177,7 @@ class SessionManager:
                         (overlap_until, kept_id),
                     )
                 for stale_id in stale_ids:
-                    self._connection.execute(
-                        "UPDATE sessions SET expires_at = MIN(expires_at, ?) WHERE auth_id = ?",
-                        (moment, stale_id),
-                    )
-
-            for stale_id in stale_ids:
-                try:
-                    self._ari.delete_object("auth", stale_id)
-                except AriError as exc:
-                    log.warning("ARI stale auth delete for %s deferred to reaper: %s", stale_id, type(exc).__name__)
-                else:
-                    with self._db_lock, self._connection:
-                        self._connection.execute("DELETE FROM sessions WHERE auth_id = ?", (stale_id,))
+                    self._connection.execute("DELETE FROM sessions WHERE auth_id = ?", (stale_id,))
 
             ice_servers = ice_servers_for_session(
                 extension=extension,
@@ -209,16 +197,14 @@ class SessionManager:
             )
 
     def revoke(self, extension: str) -> None:
-        """Delete the extension's endpoint, aor, and all stored auth objects from ARI and SQLite."""
+        """Delete the extension's endpoint, aor, and all auth rows from pbx-db and SQLite."""
         with self._lock_for(extension):
             rows = self._load_extension_rows(extension)
-            self._ari.delete_object("endpoint", extension)
-            self._ari.delete_object("aor", extension)
-            for row in rows:
-                auth_id = str(row["auth_id"])
-                self._ari.delete_object("auth", auth_id)
+            auth_ids = [str(row["auth_id"]) for row in rows]
+            self._store.delete_extension(extension=extension, auth_ids=auth_ids)
+            if auth_ids:
                 with self._db_lock, self._connection:
-                    self._connection.execute("DELETE FROM sessions WHERE auth_id = ?", (auth_id,))
+                    self._connection.execute("DELETE FROM sessions WHERE extension = ?", (extension,))
 
     def reap(self, *, now: float | None = None) -> int:
         """Delete expired or past-overlap auths; when an extension has zero live sessions left, delete endpoint and aor too."""
@@ -240,31 +226,24 @@ class SessionManager:
                 expired = [row for row in rows if float(row["expires_at"]) <= moment]
                 if not expired:
                     continue
+                expired_ids = [str(row["auth_id"]) for row in expired]
                 try:
                     if live:
-                        self._ari.put_object(
-                            "endpoint",
-                            extension,
-                            endpoint_fields(
-                                extension,
-                                auth_ids=[str(row["auth_id"]) for row in live],
-                                transport=self._settings.pjsip_transport,
-                                context=self._settings.pjsip_context,
-                                from_domain=self._settings.public_host,
-                            ),
+                        self._store.update_endpoint_auths(
+                            extension=extension,
+                            auth_ids=[str(row["auth_id"]) for row in live],
+                            drop_auth_ids=expired_ids,
                         )
                     else:
-                        self._ari.delete_object("endpoint", extension)
-                        self._ari.delete_object("aor", extension)
-
-                    for row in expired:
-                        auth_id = str(row["auth_id"])
-                        self._ari.delete_object("auth", auth_id)
-                        with self._db_lock, self._connection:
-                            self._connection.execute("DELETE FROM sessions WHERE auth_id = ?", (auth_id,))
-                        cleaned += 1
-                except AriError as exc:
+                        self._store.delete_extension(extension=extension, auth_ids=expired_ids)
+                except PbxStoreError as exc:
                     log.warning("session reap for %s deferred: %s", extension, type(exc).__name__)
+                    continue
+
+                with self._db_lock, self._connection:
+                    for auth_id in expired_ids:
+                        self._connection.execute("DELETE FROM sessions WHERE auth_id = ?", (auth_id,))
+                cleaned += len(expired_ids)
         return cleaned
 
     def active_sessions(self, extension: str) -> list[dict]:

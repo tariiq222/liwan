@@ -41,6 +41,7 @@ class Settings:
     ari_url: str
     ari_username: str
     ari_password: str
+    pbx_db_url: str
     database: str
     events_key: bytes
     reverse_key: bytes
@@ -98,6 +99,7 @@ class Settings:
         ari_url = _url(environ, "PBX_ARI_URL")
         ari_username = _required(environ, "PBX_ARI_USERNAME")
         ari_password = _required(environ, "PBX_ARI_PASSWORD")
+        pbx_db_url = _postgres_url(environ, "PBX_DB_URL")
         database = _required(environ, "PBX_DATABASE")
         if not DATABASE_NAME.fullmatch(database):
             msg = "PBX_DATABASE must be a database name: a letter, then lowercase letters, digits or underscore"
@@ -133,6 +135,7 @@ class Settings:
             ari_url=ari_url,
             ari_username=ari_username,
             ari_password=ari_password,
+            pbx_db_url=pbx_db_url,
             database=database,
             events_key=events_key,
             reverse_key=reverse_key,
@@ -247,6 +250,30 @@ def _websocket_url(environ: Mapping[str, str], name: str, default: str) -> str:
         msg = f"{name} must be a ws:// or wss:// URL with a host and path, and no credentials, query or fragment"
         raise SettingsError(name, msg)
     return value
+
+
+def _postgres_url(environ: Mapping[str, str], name: str) -> str:
+    """PostgreSQL DSN for pbx-db: ``postgresql://`` or ``postgres://`` with host, database name and no whitespace."""
+    raw = environ.get(name, "")
+    if not raw or not raw.strip():
+        msg = f"{name} is required"
+        raise SettingsError(name, msg)
+    msg = f"{name} must be a postgresql:// or postgres:// URL with a host, database name and no whitespace"
+    if any(ch.isspace() for ch in raw):
+        raise SettingsError(name, msg)
+    try:
+        parts = urlsplit(raw)
+        _ = parts.port
+    except ValueError:
+        raise SettingsError(name, msg) from None
+    if (
+        parts.scheme not in ("postgresql", "postgres")
+        or not parts.hostname
+        or not parts.path.strip("/")
+        or parts.fragment
+    ):
+        raise SettingsError(name, msg)
+    return raw
 
 
 def _url(environ: Mapping[str, str], name: str) -> str:

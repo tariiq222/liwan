@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, ValidationError
 
-from pbx_agent.ari import AriError
+from pbx_agent.pbx_db import PbxStoreError
 from pbx_agent.recordings import recording_path
 from pbx_agent.signing import (
     DATABASE_HEADER,
@@ -153,7 +153,7 @@ def register_odoo_routes(
         extension = _require_extension(body.extension)
         try:
             issued = await run_in_threadpool(sessions.issue, extension, now=now)
-        except AriError as error:
+        except PbxStoreError as error:
             # The browser gets no password when the endpoint could not be written: a registration that cannot work
             # must not look like one that can.
             raise HTTPException(status_code=502) from error
@@ -173,7 +173,7 @@ def register_odoo_routes(
         ext = _require_extension(extension)
         try:
             await run_in_threadpool(sessions.revoke, ext)
-        except AriError as error:
+        except PbxStoreError as error:
             raise HTTPException(status_code=502) from error
         return {"revoked": True, "extension": ext}
 
@@ -186,7 +186,7 @@ def register_odoo_routes(
         if not body.active:
             try:
                 await run_in_threadpool(sessions.revoke, ext)
-            except AriError as error:
+            except PbxStoreError as error:
                 raise HTTPException(status_code=502) from error
             return {"extension": ext, "active": False}
         return {"extension": ext, "active": True}
@@ -198,7 +198,7 @@ def register_odoo_routes(
         ext = _require_extension(extension)
         try:
             await run_in_threadpool(sessions.revoke, ext)
-        except AriError as error:
+        except PbxStoreError as error:
             raise HTTPException(status_code=502) from error
         return {"disabled": True, "extension": ext}
 

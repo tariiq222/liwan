@@ -31,6 +31,7 @@ from pbx_agent.delivery import WORKER_STALE_SECONDS, Delivery
 from pbx_agent.health import Liveness, snapshot
 from pbx_agent.ingest import AriIngest
 from pbx_agent.odoo_routes import register_odoo_routes
+from pbx_agent.pbx_db import PbxStore, PostgresPbxStore
 from pbx_agent.queue import EventQueue
 from pbx_agent.reconcile import Reconciler
 from pbx_agent.recordings import recording_path
@@ -55,16 +56,18 @@ def create_app(
     settings: Settings,
     ari_client: AriClient | None = None,
     *,
+    pbx_store: PbxStore | None = None,
     clock: Callable[[], float] = time.time,
 ) -> FastAPI:
     """The HTTP surface.
 
-    ``ari_client`` replaces the Asterisk client, so a test can drive the routes and the health probe without an
-    Asterisk to talk to; without one the agent builds its own from the settings.
+    ``ari_client`` and ``pbx_store`` replace the Asterisk ARI client and PostgreSQL PJSIP store so tests can drive
+    the routes and health probe without Asterisk or PostgreSQL; when omitted, the agent builds both from settings.
     """
     queue = EventQueue(settings.queue_path)
     ari = ari_client if ari_client is not None else AriClient(AriTransport(settings.ari_url, settings.ari_username, settings.ari_password))
-    sessions = SessionManager(settings, ari, clock=clock)
+    store = pbx_store if pbx_store is not None else PostgresPbxStore(settings.pbx_db_url)
+    sessions = SessionManager(settings, store, clock=clock)
     state = ConnectionState()
     ingest = AriIngest(
         queue,

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable
 
 log = logging.getLogger(__name__)
 
@@ -32,35 +32,6 @@ EVENTS_APPLICATION = "pbx-agent"
 
 class AriError(RuntimeError):
     """A failed ARI call. The message names the method, the path and the status or the exception class, never the api key."""
-
-
-def endpoint_fields(
-    extension: str,
-    *,
-    auth_ids: Sequence[str],
-    transport: str,
-    context: str,
-    from_domain: str,
-) -> dict[str, str]:
-    """Full Asterisk 22 WebRTC PJSIP endpoint attributes for one browser extension."""
-    return {
-        "aors": extension,
-        "auth": ",".join(auth_ids),
-        "transport": transport,
-        "context": context,
-        "from_domain": from_domain,
-        "disallow": "all",
-        "allow": "opus,ulaw,alaw",
-        "webrtc": "yes",
-        "direct_media": "no",
-        "rtp_symmetric": "yes",
-        "force_rport": "yes",
-        "rewrite_contact": "yes",
-        "dtmf_mode": "rfc4733",
-        "device_state_busy_at": "1",
-        "allow_transfer": "yes",
-        "callerid": f"Extension {extension} <{extension}>",
-    }
 
 
 class AriTransport:
@@ -99,7 +70,7 @@ class AriTransport:
 
 
 class AriClient:
-    """The ARI surface the agent uses: the health probe, endpoint state, and dynamic PJSIP object writes/deletes."""
+    """The ARI surface the agent uses: the health probe and one endpoint's state."""
 
     def __init__(self, request: Callable[[str, str, dict | None, dict | None], tuple[int, object]]) -> None:
         self._request = request
@@ -122,84 +93,6 @@ class AriClient:
             return None
         state = payload.get("state")
         return state if isinstance(state, str) else None
-
-    def put_object(self, object_type: str, object_id: str, fields: dict[str, str]) -> None:
-        """Write one ``res_pjsip`` dynamic realtime object through ARI."""
-        body = {"fields": [{"attribute": key, "value": value} for key, value in fields.items()]}
-        path = f"/asterisk/config/dynamic/res_pjsip/{object_type}/{quote(object_id, safe='')}"
-        status, _payload = self._request("PUT", path, None, body)
-        if status not in (200, 201, 204):
-            msg = f"ARI PUT {path} answered {status}"
-            raise AriError(msg)
-
-    def delete_object(self, object_type: str, object_id: str) -> None:
-        """Delete one ``res_pjsip`` dynamic realtime object through ARI; HTTP 404 is idempotent success."""
-        path = f"/asterisk/config/dynamic/res_pjsip/{object_type}/{quote(object_id, safe='')}"
-        status, _payload = self._request("DELETE", path, None, None)
-        if status not in (200, 204, 404):
-            msg = f"ARI DELETE {path} answered {status}"
-            raise AriError(msg)
-
-    def upsert_endpoint(
-        self,
-        extension: str,
-        *,
-        auth_id: str,
-        auth_username: str,
-        password: str,
-        auth_ids: Sequence[str],
-        transport: str,
-        context: str,
-        from_domain: str,
-        session_seconds: int,
-        is_new: bool = False,
-    ) -> None:
-        """Atomically write ``auth/{auth_id}``, ``aor/{extension}`` and ``endpoint/{extension}`` in order.
-
-        If writing ``aor`` or ``endpoint`` fails, performs a best-effort rollback before re-raising
-        ``AriError``: deletes ``aor/{extension}`` only when ``is_new`` is true and ``aor`` was written
-        by this call, and always deletes ``auth/{auth_id}``.
-        """
-        self.put_object(
-            "auth",
-            auth_id,
-            {"auth_type": "userpass", "username": auth_username, "password": password},
-        )
-        aor_written = False
-        try:
-            self.put_object(
-                "aor",
-                extension,
-                {
-                    "max_contacts": "1",
-                    "remove_existing": "yes",
-                    "default_expiration": str(session_seconds),
-                    "maximum_expiration": str(session_seconds),
-                },
-            )
-            aor_written = True
-            self.put_object(
-                "endpoint",
-                extension,
-                endpoint_fields(
-                    extension,
-                    auth_ids=auth_ids,
-                    transport=transport,
-                    context=context,
-                    from_domain=from_domain,
-                ),
-            )
-        except AriError:
-            if aor_written and is_new:
-                try:
-                    self.delete_object("aor", extension)
-                except AriError:
-                    log.warning("ARI rollback DELETE aor/%s failed", extension)
-            try:
-                self.delete_object("auth", auth_id)
-            except AriError:
-                log.warning("ARI rollback DELETE auth/%s failed", auth_id)
-            raise
 
 
 def events_url(base_url: str, username: str, password: str) -> str:

@@ -22,15 +22,6 @@ from pbx_agent.ari import (  # noqa: E402
     events_url,
 )
 
-AUTH_PATH = "/asterisk/config/dynamic/res_pjsip/auth/101_a1b2c3d4"
-AOR_PATH = "/asterisk/config/dynamic/res_pjsip/aor/101"
-ENDPOINT_PATH = "/asterisk/config/dynamic/res_pjsip/endpoint/101"
-
-
-def fields(**values: str) -> dict:
-    """The realtime body the write of these fields is expected to put on the wire, in this order."""
-    return {"fields": [{"attribute": key, "value": value} for key, value in values.items()]}
-
 
 class EventsUrlTest(unittest.TestCase):
     def test_http_becomes_a_websocket_with_the_application_and_every_event(self) -> None:
@@ -72,186 +63,6 @@ class AriClientTest(unittest.TestCase):
         missing, _fake = self.client({})
         self.assertIsNone(missing.endpoint_state("trunk_main"))
 
-    def test_an_endpoint_write_puts_full_asterisk_22_attributes_in_order(self) -> None:
-        client, fake = self.client()
-        client.upsert_endpoint(
-            "101",
-            auth_id="101_a1b2c3d4",
-            auth_username="101-a1b2c3d4",
-            password="s3cret",
-            auth_ids=["101_a1b2c3d4", "101_00001111"],
-            transport="transport-ws",
-            context="from-extension",
-            from_domain="acme.example.test",
-            session_seconds=120,
-        )
-        self.assertEqual(
-            fake.requests,
-            [
-                AriRequest(
-                    "PUT",
-                    AUTH_PATH,
-                    None,
-                    fields(auth_type="userpass", username="101-a1b2c3d4", password="s3cret"),
-                ),
-                AriRequest(
-                    "PUT",
-                    AOR_PATH,
-                    None,
-                    fields(
-                        max_contacts="1",
-                        remove_existing="yes",
-                        default_expiration="120",
-                        maximum_expiration="120",
-                    ),
-                ),
-                AriRequest(
-                    "PUT",
-                    ENDPOINT_PATH,
-                    None,
-                    fields(
-                        aors="101",
-                        auth="101_a1b2c3d4,101_00001111",
-                        transport="transport-ws",
-                        context="from-extension",
-                        from_domain="acme.example.test",
-                        disallow="all",
-                        allow="opus,ulaw,alaw",
-                        webrtc="yes",
-                        direct_media="no",
-                        rtp_symmetric="yes",
-                        force_rport="yes",
-                        rewrite_contact="yes",
-                        dtmf_mode="rfc4733",
-                        device_state_busy_at="1",
-                        allow_transfer="yes",
-                        callerid="Extension 101 <101>",
-                    ),
-                ),
-            ],
-        )
-
-    def test_a_failed_aor_write_rolls_back_the_new_auth_and_raises(self) -> None:
-        client, fake = self.client({("PUT", AOR_PATH): (500, None)})
-        with self.assertRaises(AriError) as caught:
-            client.upsert_endpoint(
-                "101",
-                auth_id="101_a1b2c3d4",
-                auth_username="101-a1b2c3d4",
-                password="s3cret",
-                auth_ids=["101_a1b2c3d4"],
-                transport="transport-ws",
-                context="from-extension",
-                from_domain="acme.example.test",
-                session_seconds=120,
-                is_new=True,
-            )
-        self.assertEqual(str(caught.exception), f"ARI PUT {AOR_PATH} answered 500")
-        self.assertNotIn("s3cret", str(caught.exception))
-        self.assertEqual(
-            [(request.method, request.path) for request in fake.requests],
-            [("PUT", AUTH_PATH), ("PUT", AOR_PATH), ("DELETE", AUTH_PATH)],
-        )
-
-    def test_a_failed_endpoint_write_on_new_extension_rolls_back_aor_and_auth_even_if_rollback_fails(self) -> None:
-        client, fake = self.client(
-            {("PUT", ENDPOINT_PATH): (503, None), ("DELETE", AOR_PATH): (500, None), ("DELETE", AUTH_PATH): (500, None)}
-        )
-        with self.assertRaises(AriError) as caught:
-            client.upsert_endpoint(
-                "101",
-                auth_id="101_a1b2c3d4",
-                auth_username="101-a1b2c3d4",
-                password="s3cret",
-                auth_ids=["101_a1b2c3d4"],
-                transport="transport-ws",
-                context="from-extension",
-                from_domain="acme.example.test",
-                session_seconds=120,
-                is_new=True,
-            )
-        self.assertEqual(str(caught.exception), f"ARI PUT {ENDPOINT_PATH} answered 503")
-        self.assertEqual(
-            [(request.method, request.path) for request in fake.requests],
-            [("PUT", AUTH_PATH), ("PUT", AOR_PATH), ("PUT", ENDPOINT_PATH), ("DELETE", AOR_PATH), ("DELETE", AUTH_PATH)],
-        )
-
-    def test_a_failed_endpoint_write_on_rotation_preserves_existing_aor_and_deletes_only_new_auth(self) -> None:
-        client, fake = self.client({("PUT", ENDPOINT_PATH): (503, None)})
-        with self.assertRaises(AriError) as caught:
-            client.upsert_endpoint(
-                "101",
-                auth_id="101_a1b2c3d4",
-                auth_username="101-a1b2c3d4",
-                password="s3cret",
-                auth_ids=["101_a1b2c3d4", "101_00001111"],
-                transport="transport-ws",
-                context="from-extension",
-                from_domain="acme.example.test",
-                session_seconds=120,
-                is_new=False,
-            )
-        self.assertEqual(str(caught.exception), f"ARI PUT {ENDPOINT_PATH} answered 503")
-        self.assertEqual(
-            [(request.method, request.path) for request in fake.requests],
-            [("PUT", AUTH_PATH), ("PUT", AOR_PATH), ("PUT", ENDPOINT_PATH), ("DELETE", AUTH_PATH)],
-        )
-
-    def test_a_failed_endpoint_write_with_single_auth_and_is_new_false_preserves_existing_aor(self) -> None:
-        client, fake = self.client({("PUT", ENDPOINT_PATH): (503, None)})
-        with self.assertRaises(AriError) as caught:
-            client.upsert_endpoint(
-                "101",
-                auth_id="101_a1b2c3d4",
-                auth_username="101-a1b2c3d4",
-                password="s3cret",
-                auth_ids=["101_a1b2c3d4"],
-                transport="transport-ws",
-                context="from-extension",
-                from_domain="acme.example.test",
-                session_seconds=120,
-            )
-        self.assertEqual(str(caught.exception), f"ARI PUT {ENDPOINT_PATH} answered 503")
-        self.assertEqual(
-            [(request.method, request.path) for request in fake.requests],
-            [("PUT", AUTH_PATH), ("PUT", AOR_PATH), ("PUT", ENDPOINT_PATH), ("DELETE", AUTH_PATH)],
-        )
-
-    def test_delete_object_treats_404_as_idempotent_success_and_raises_on_5xx(self) -> None:
-        client, fake = self.client(
-            {
-                ("DELETE", ENDPOINT_PATH): (404, None),
-                ("DELETE", AOR_PATH): (204, None),
-                ("DELETE", AUTH_PATH): (500, None),
-            }
-        )
-        client.delete_object("endpoint", "101")
-        client.delete_object("aor", "101")
-        with self.assertRaises(AriError) as caught:
-            client.delete_object("auth", "101_a1b2c3d4")
-        self.assertEqual(str(caught.exception), f"ARI DELETE {AUTH_PATH} answered 500")
-        self.assertEqual(
-            [(request.method, request.path) for request in fake.requests],
-            [("DELETE", ENDPOINT_PATH), ("DELETE", AOR_PATH), ("DELETE", AUTH_PATH)],
-        )
-
-    def test_a_refused_connection_during_a_write_raises_without_the_key(self) -> None:
-        refused = mock.patch.object(urllib.request, "urlopen", side_effect=ConnectionRefusedError("no ari"))
-        with refused, self.assertRaises(AriError) as caught:
-            AriClient(AriTransport("http://ari:8088/ari", "liwan", "secret")).upsert_endpoint(
-                "101",
-                auth_id="101_a1b2c3d4",
-                auth_username="101-a1b2c3d4",
-                password="s3cret",
-                auth_ids=["101_a1b2c3d4"],
-                transport="t",
-                context="c",
-                from_domain="acme.example.test",
-                session_seconds=120,
-            )
-        self.assertEqual(str(caught.exception), f"ARI PUT {AUTH_PATH} failed: ConnectionRefusedError")
-        self.assertNotIn("secret", str(caught.exception))
-
 
 class AriTransportTest(unittest.TestCase):
     def transport(self) -> AriTransport:
@@ -289,9 +100,9 @@ class AriTransportTest(unittest.TestCase):
         return opened.call_args.args[0], opened.call_args.kwargs["timeout"]
 
     def test_a_json_body_is_put_as_json_with_the_key_only_in_the_query(self) -> None:
-        request, timeout = self.opened("PUT", AUTH_PATH, None, {"fields": [{"attribute": "a", "value": "b c"}]})
+        request, timeout = self.opened("PUT", "/channels/1.1", None, {"fields": [{"attribute": "a", "value": "b c"}]})
         self.assertEqual(request.get_method(), "PUT")
-        self.assertEqual(request.full_url, f"http://ari:8088/ari{AUTH_PATH}?api_key=liwan%3Asecret")
+        self.assertEqual(request.full_url, "http://ari:8088/ari/channels/1.1?api_key=liwan%3Asecret")
         self.assertEqual(request.data, b'{"fields": [{"attribute": "a", "value": "b c"}]}')
         self.assertEqual(request.get_header("Content-type"), "application/json")
         self.assertEqual(timeout, 1)

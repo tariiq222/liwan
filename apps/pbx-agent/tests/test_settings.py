@@ -25,6 +25,7 @@ class SettingsTest(unittest.TestCase):
             "PBX_ARI_URL": "http://ari:8088/ari",
             "PBX_ARI_USERNAME": "liwan",
             "PBX_ARI_PASSWORD": "not-a-real-password",
+            "PBX_DB_URL": "postgresql://pbx:not-a-real-db-password@pbx-db:5432/telephony_pbx",
             "PBX_DATABASE": "liwan_acme",
             "PBX_EVENTS_KEY": EVENTS_KEY,
             "PBX_REVERSE_KEY": REVERSE_KEY,
@@ -38,6 +39,7 @@ class SettingsTest(unittest.TestCase):
     def test_reads_a_complete_environment(self) -> None:
         settings = Settings.from_env(self.environ)
         self.assertEqual(settings.database, "liwan_acme")
+        self.assertEqual(settings.pbx_db_url, "postgresql://pbx:not-a-real-db-password@pbx-db:5432/telephony_pbx")
         self.assertEqual(settings.events_key, bytes.fromhex(EVENTS_KEY))
         self.assertEqual(settings.reverse_key, bytes.fromhex(REVERSE_KEY))
         self.assertEqual(settings.ari_url, "http://ari:8088/ari")
@@ -78,6 +80,8 @@ class SettingsTest(unittest.TestCase):
         settings = Settings.from_env(self.environ)
         shown = repr(settings)
         self.assertNotIn("not-a-real-password", shown)
+        self.assertNotIn("not-a-real-db-password", shown)
+        self.assertNotIn("pbx-db", shown)
         self.assertNotIn(settings.events_key.hex(), shown)
         self.assertNotIn(settings.reverse_key.hex(), shown)
         self.assertNotIn(TURN_SECRET, shown)
@@ -232,6 +236,43 @@ class SettingsTest(unittest.TestCase):
             with self.assertRaises(SettingsError) as caught:
                 Settings.from_env(env)
             self.assertEqual(caught.exception.variable, var)
+
+    def test_pbx_db_url_is_required_validated_and_never_leaked(self) -> None:
+        # Accepts postgres:// scheme and query parameters such as sslmode.
+        env_short = dict(self.environ, PBX_DB_URL="postgres://pbx:pw@pbx-db/telephony_pbx?sslmode=disable")
+        self.assertEqual(
+            Settings.from_env(env_short).pbx_db_url,
+            "postgres://pbx:pw@pbx-db/telephony_pbx?sslmode=disable",
+        )
+
+        # Missing or blank -> SettingsError naming PBX_DB_URL.
+        for missing_val in (None, "", "   "):
+            env = dict(self.environ)
+            if missing_val is None:
+                del env["PBX_DB_URL"]
+            else:
+                env["PBX_DB_URL"] = missing_val
+            with self.assertRaises(SettingsError) as caught:
+                Settings.from_env(env)
+            self.assertEqual(caught.exception.variable, "PBX_DB_URL")
+
+        # Malformed URLs (wrong scheme, whitespace, missing host/db, bad port, fragment) never leak password.
+        secret = "leak-check-db-pass"
+        for bad in (
+            f"http://pbx:{secret}@pbx-db:5432/telephony_pbx",
+            f"sqlite:///{secret}.db",
+            f"postgresql://pbx:{secret}@pbx-db:5432/telephony pbx",
+            f" postgresql://pbx:{secret}@pbx-db:5432/telephony_pbx",
+            f"postgresql://pbx:{secret}@pbx-db:5432/",
+            f"postgresql://pbx:{secret}@/telephony_pbx",
+            f"postgresql://pbx:{secret}@pbx-db:notaport/telephony_pbx",
+            f"postgresql://pbx:{secret}@pbx-db:5432/telephony_pbx#frag",
+        ):
+            env = dict(self.environ, PBX_DB_URL=bad)
+            with self.assertRaises(SettingsError) as caught:
+                Settings.from_env(env)
+            self.assertEqual(caught.exception.variable, "PBX_DB_URL")
+            self.assertNotIn(secret, str(caught.exception))
 
 
 if __name__ == "__main__":
