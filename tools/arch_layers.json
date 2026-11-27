@@ -222,7 +222,11 @@
         "telephony"
       ],
       "pages": [
-        "telephony"
+        "calls"
+      ],
+      "composables": [
+        "composables/useSoftphone",
+        "composables/useTelephonySettings"
       ]
     }
   },
