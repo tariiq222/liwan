@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query'
 import type { TableColumn } from '@nuxt/ui'
 import type { TelephonyCall } from '@liwan/contracts'
 import { TelephonyCallListSchema } from '@liwan/contracts'
@@ -92,28 +93,28 @@ function duration(seconds: number | null) {
         :empty-text="t('telephony.calls.empty')"
         @retry="calls.refetch()"
       >
-        <SharedDataTable :rows="items" :columns="columns" bare>
+        <SharedDataTable :rows="items" :columns="columns" row-key="id" bare>
           <template #startedAt-cell="{ row }">
-            <span dir="ltr">{{ row.startedAt ? row.startedAt.replace('T', ' ').slice(0, 16) : '—' }}</span>
+            <span dir="ltr">{{ row.original.startedAt ? row.original.startedAt.replace('T', ' ').slice(0, 16) : '—' }}</span>
           </template>
           <template #direction-cell="{ row }">
-            {{ t(`telephony.direction.${row.direction}`) }}
+            {{ t(`telephony.direction.${row.original.direction}`) }}
           </template>
           <template #remoteNumber-cell="{ row }">
             <NuxtLink
-              v-if="row.id"
-              :to="`/calls/${row.id}`"
+              v-if="row.original.id"
+              :to="`/calls/${row.original.id}`"
               class="text-primary hover:underline"
               dir="ltr"
             >
-              {{ row.remoteNumber || row.extension || '—' }}
+              {{ row.original.remoteNumber || row.original.extension || '—' }}
             </NuxtLink>
           </template>
           <template #state-cell="{ row }">
-            {{ t(`telephony.state.${row.state}`) }}
+            {{ t(`telephony.state.${row.original.state}`) }}
           </template>
           <template #durationSeconds-cell="{ row }">
-            <span dir="ltr">{{ duration(row.durationSeconds) }}</span>
+            <span dir="ltr">{{ duration(row.original.durationSeconds) }}</span>
           </template>
         </SharedDataTable>
       </SharedPageState>
