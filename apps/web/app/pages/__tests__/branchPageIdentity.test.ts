@@ -3,8 +3,6 @@ import * as Vue from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_STUBS, loadShared } from '@liwan/ui/test/helpers/renderShared'
 import { createHostNode, hostRenderer, type HostNode } from '@liwan/ui/test/helpers/hostRenderer'
-import { MAX_SEAT_PRIORITY } from '@liwan/contracts'
-import { accessErrorMessage } from '../../utils/accessErrors'
 
 const mounted: Vue.App[] = []
 afterEach(() => mounted.splice(0).forEach(app => app.unmount()))
@@ -26,7 +24,7 @@ function mountPage(delegation: boolean) {
   })
   const box = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('div', Object.values(slots).flatMap(slot => slot?.() ?? [])) })
   const component = loadShared(resolve(import.meta.dirname, delegation ? '../settings/team/users/[userId]/branches.vue' : '../settings/team/branches.vue'), {
-    globals: { useMe: () => ({ me }), useRoute: () => ({ params: { userId: '9' } }), useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true) },
+    globals: { useMe: () => ({ me }), useRoute: () => ({ params: { userId: '9' }, path: '/settings/team/branches', query: {}, hash: '' }), useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true) },
     modules: {
       '@/components/access/branches/BranchPolicyCard.vue': { __esModule: true, default: card },
       '@/components/access/branches/BranchMembersCard.vue': { __esModule: true, default: Vue.defineComponent({ render: () => null }) },
@@ -35,20 +33,16 @@ function mountPage(delegation: boolean) {
       '@/composables/useApi': { ApiError: class extends Error {} },
       '@/composables/useAdminRoles': { useAdminRoles: () => ({ data: Vue.ref(undefined) }) },
       '@/composables/useMemberships': { useMembershipBranches: () => ({ data: Vue.ref(undefined), error: Vue.ref(null), isLoading: Vue.ref(false), refetch: vi.fn() }) },
-      '@/composables/useCreateBranch': { useCreateBranch: () => ({ isPending: { value: false }, mutateAsync: async () => ({}) }) },
       '@/composables/useBranchAccess': {
         useBranchPolicy: () => query,
         useUserBranchAccess: () => query,
         useBranchSeats: () => ({ ...query, data: Vue.ref(null) }),
-        useSetBranchSeat: () => ({ isPending: Vue.ref(false), mutateAsync: vi.fn() }),
       },
-      '@liwan/contracts': { MAX_SEAT_PRIORITY },
-      '@/utils/accessErrors': { accessErrorMessage },
     },
   })
   const root = createHostNode()
   const app = hostRenderer.createApp(component)
-  for (const [name, value] of Object.entries({ ...DEFAULT_STUBS, SharedSettingsPage: box, SharedPageHeader: box, SharedPageState: box, SharedRecordSection: box, UButton: box })) app.component(name, value)
+  for (const [name, value] of Object.entries({ ...DEFAULT_STUBS, SharedSettingsPage: box, SharedPageHeader: box, SharedPageState: box, SharedRecordSection: box, UButton: box, NuxtPage: Vue.defineComponent({ render: () => null }) })) app.component(name, value)
   app.mount(root); mounted.push(app)
   return { me, data, root, created }
 }

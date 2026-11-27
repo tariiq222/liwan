@@ -19,6 +19,32 @@ describe('branch delegation settings', () => {
     expect(canReachPath({ capabilities: ['settings.company.read'] }, '/settings/team/branches')).toBe(false)
   })
 
+  it('requires company administration on the branch create and seat edit routes, with or without a trailing slash', () => {
+    for (const path of ['/settings/team/branches/new', '/settings/team/branches/new/', '/settings/team/branches/7/edit', '/settings/team/branches/7/edit/']) {
+      expect(requiredCapabilityForPath(path)).toBe('settings.company.manage')
+      expect(canReachPath({ capabilities: ['access.users.read'] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['access.users.assign_roles', 'access.roles.read'] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['settings.company.manage'] }, path)).toBe(true)
+    }
+  })
+
+  it('requires the grant on the members create route, and the delegation keys on its edit route, with or without a trailing slash', () => {
+    for (const path of ['/settings/team/members/new', '/settings/team/members/new/']) {
+      expect(requiredCapabilityForPath(path)).toBe('access.users.grant')
+      expect(canReachPath({ capabilities: [] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['access.users.read'] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['access.users.grant'] }, path)).toBe(true)
+    }
+    for (const path of ['/settings/team/members/9/edit', '/settings/team/members/9/edit/']) {
+      expect(requiredCapabilityForPath(path)).toBe('access.users.grant')
+      expect(canReachPath({ capabilities: [] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['access.users.grant'] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['access.users.grant', 'access.users.assign_roles'] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['access.users.assign_roles', 'access.roles.read'] }, path)).toBe(false)
+      expect(canReachPath({ capabilities: ['access.users.grant', 'access.users.assign_roles', 'access.roles.read'] }, path)).toBe(true)
+    }
+  })
+
   it('lists the branches entry for either right in the team settings', () => {
     const entry = (capabilities: string[]) => visibleSettingsPages({ capabilities }).find(({ page }) => page.id === 'team')?.parts.map(part => part.id) ?? []
     expect(entry(['settings.company.manage'])).toContain('branches')

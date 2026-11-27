@@ -4,8 +4,6 @@ import * as Vue from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_STUBS, loadShared } from '@liwan/ui/test/helpers/renderShared'
 import { createHostNode, hostRenderer, type HostNode } from '@liwan/ui/test/helpers/hostRenderer'
-import { MAX_SEAT_PRIORITY } from '@liwan/contracts'
-import { accessErrorMessage } from '../../utils/accessErrors'
 
 const mounted: Vue.App[] = []
 afterEach(() => mounted.splice(0).forEach(app => app.unmount()))
@@ -31,27 +29,24 @@ function mountPage(options: { caps?: string[]; policyData?: unknown; policyError
   const component = loadShared(resolve(import.meta.dirname, '../settings/team/branches.vue'), {
     globals: {
       useMe: () => ({ me: Vue.ref({ id: 7, company: { id: 1 }, read_only: false }) }), useAccess: () => ({ can: (key: string) => caps.includes(key) }), useHydrated: () => Vue.ref(true),
+      useRoute: () => ({ path: '/settings/team/branches', query: {}, hash: '' }),
     },
     modules: {
       '@/components/access/branches/BranchPolicyCard.vue': { __esModule: true, default: stub },
       '@/components/access/branches/BranchPresetCard.vue': { __esModule: true, default: stub },
       '@/components/access/branches/BranchMembersCard.vue': { __esModule: true, default: card },
       '@/composables/useApi': { ApiError: class extends Error {} },
-      '@/composables/useCreateBranch': { useCreateBranch: () => ({ isPending: { value: false }, mutateAsync: async () => ({}) }) },
       '@/composables/useAdminRoles': { useAdminRoles: (_params: unknown, enabled: Vue.Ref<boolean>) => { rolesEnabled(enabled); return { data: Vue.ref({ items: roles, total: 1 }) } } },
       '@/composables/useMemberships': { useMembershipBranches: (enabled: Vue.Ref<boolean>) => { branchesEnabled(enabled); return branchQuery } },
       '@/composables/useBranchAccess': {
         useBranchPolicy: () => policyQuery,
         useBranchSeats: () => ({ data: Vue.ref(null), error: Vue.ref(null), isLoading: Vue.ref(false), refetch: vi.fn() }),
-        useSetBranchSeat: () => ({ isPending: Vue.ref(false), mutateAsync: vi.fn() }),
       },
-      '@liwan/contracts': { MAX_SEAT_PRIORITY },
-      '@/utils/accessErrors': { accessErrorMessage },
     },
   })
   const root = createHostNode()
   const app = hostRenderer.createApp(component)
-  for (const [name, value] of Object.entries({ ...DEFAULT_STUBS, SharedSettingsPage: box, SharedPageHeader: box, SharedPageState: box, SharedRecordSection: box, UButton: box })) app.component(name, value)
+  for (const [name, value] of Object.entries({ ...DEFAULT_STUBS, SharedSettingsPage: box, SharedPageHeader: box, SharedPageState: box, SharedRecordSection: box, UButton: box, NuxtPage: stub })) app.component(name, value)
   app.mount(root); mounted.push(app)
   return { root, cards, branchQuery, branchesEnabled, rolesEnabled }
 }
@@ -93,8 +88,12 @@ describe('the cards of the section', () => {
   const read = (path: string) => readFileSync(resolve(import.meta.dirname, '../../..', path), 'utf8')
   it('apply the one role rule for their branch and name it in the list and the add form', () => {
     const card = read('app/components/access/branches/BranchMembersCard.vue')
-    expect(card).toContain('offerableRoles(props.roles, props.branch.id)')
-    expect(card.match(/:company-id="props\.branch\.id"/g)?.length).toBe(2)
+    // The card adds a member on the members create panel's own route, which offers the one role rule for the branch.
+    expect(card).toContain('data-testid="branch-member-add"')
+    expect(card).toContain("path: '/settings/team/members/new'")
+    const addPage = read('app/pages/settings/team/members/new.vue')
+    expect(addPage).toContain('offerableRoles(roles.data.value?.items ?? [], companyId)')
+    expect(addPage).toContain('MemberAddForm')
   })
   it('keep the member list out of the way of someone who may not grant', () => {
     expect(read('app/components/access/users/CompanyMembers.vue')).toContain('v-if="canGrant"')

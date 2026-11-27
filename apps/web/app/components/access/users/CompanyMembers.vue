@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import type { Membership } from '@liwan/contracts'
-import { ApiError } from '@/composables/useApi'
-import { useMemberships, useRemoveMembership, useUpdateMembershipRoles } from '@/composables/useMemberships'
+import { useMemberships, useRemoveMembership } from '@/composables/useMemberships'
 import { accessErrorMessage } from '@/utils/accessErrors'
-import RoleCheckboxes from '@/components/access/users/RoleCheckboxes.vue'
-import { heldRoleOptions, type RoleCandidate } from '@/components/access/memberRoles'
+import type { RoleCandidate } from '@/components/access/memberRoles'
 
 // The members of a company whose account belongs to another company, with the roles they hold here. `companyId` names a
-// branch below the working company (the root company managing it); without it the list is the working company's.
+// branch below the working company (the root company managing it); without it the list is the working company's. Roles
+// are changed on the member's own edit page (Decision 2026-11-27); removing keeps its inline confirm.
 const props = defineProps<{ roles: RoleCandidate[]; companyId?: number }>()
 const { t, locale } = useI18n()
 const { can } = useAccess()
-const { me } = useMe()
 const hydrated = useHydrated()
 const canGrant = computed(() => can('access.users.grant'))
 const canAssign = computed(() => can('access.users.assign_roles'))
@@ -19,62 +17,28 @@ const canAssign = computed(() => can('access.users.assign_roles'))
 const canChangeRoles = computed(() => canAssign.value && can('access.roles.read'))
 // A member who holds roles here is removed only by someone who may also take those roles away.
 const canRemove = (member: Membership) => canGrant.value && (canAssign.value || member.assignments.length === 0)
-const targetCompanyId = computed(() => props.companyId ?? me.value?.company.id)
 const list = useMemberships(() => props.companyId, canGrant)
-const update = useUpdateMembershipRoles()
 const remove = useRemoveMembership()
 const items = computed(() => list.data.value?.items ?? [])
-const editing = ref<{ id: number; roleIds: number[] } | null>(null)
 const removing = ref<Membership | null>(null)
 const message = ref('')
-const busy = computed(() => update.isPending.value || remove.isPending.value)
-const optionsFor = (member: Membership) => heldRoleOptions(
-  props.roles,
-  targetCompanyId.value,
-  member.assignments.flatMap(({ role }) => role.id === null ? [] : [{ id: role.id, name: role.name }]),
-  editing.value?.roleIds ?? [],
-  t('access.roles.disabledExistingAssignments'),
-)
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
-const roleIdsOf = (member: Membership) => member.assignments.map(assignment => assignment.role.id).filter((id): id is number => id !== null)
+// The member edit page edits the same list this card drew the member from; the query keeps the branch's context.
+const changeRolesTo = (member: Membership) => ({
+  path: `/settings/team/members/${member.id}/edit`,
+  query: {
+    ...(props.companyId ? { company_id: String(props.companyId) } : {}),
+    returnTo: props.companyId ? '/settings/team/branches#branch-members' : '/settings/team/users#members',
+  },
+})
 
-function startEdit(member: Membership) {
-  message.value = ''
-  removing.value = null
-  editing.value = { id: member.id, roleIds: roleIdsOf(member) }
-}
 function startRemove(member: Membership) {
   message.value = ''
-  editing.value = null
   removing.value = member
-}
-async function saveRoles(member: Membership) {
-  const draft = editing.value
-  const company = targetCompanyId.value
-  if (!draft || draft.id !== member.id || !company || !hydrated.value || busy.value) return
-  message.value = ''
-  try {
-    await update.mutateAsync({
-      id: member.id,
-      body: {
-        expected_version: member.version,
-        assignments: draft.roleIds.map(role_id => ({ role_id, scope: { kind: 'company' as const, id: company } })),
-        ...(props.companyId ? { company_id: props.companyId } : {}),
-      },
-    })
-    editing.value = null
-  } catch (cause) {
-    if (cause instanceof ApiError && cause.status === 409 && cause.code === 'conflict') {
-      // Someone else changed this member's roles: show the latest ones and let the administrator decide again.
-      editing.value = null
-      message.value = t('access.members.conflict')
-      await list.refetch()
-    } else message.value = accessErrorMessage(cause, t)
-  }
 }
 async function confirmRemove() {
   const member = removing.value
-  if (!member || !canRemove(member) || !hydrated.value || busy.value) return
+  if (!member || !canRemove(member) || !hydrated.value || remove.isPending.value) return
   message.value = ''
   try {
     await remove.mutateAsync({ id: member.id, companyId: props.companyId })
@@ -102,20 +66,11 @@ async function confirmRemove() {
               </ul>
               <span v-else class="text-sm text-muted">{{ t('access.members.noRolesHere') }}</span>
             </div>
-            <div v-if="editing?.id !== member.id && removing?.id !== member.id" class="flex flex-wrap gap-2">
-              <UButton v-if="canChangeRoles" size="sm" color="neutral" variant="outline" :label="t('access.members.changeRoles')" :disabled="!hydrated || busy" data-testid="member-change-roles" @click="startEdit(member)" />
-              <UButton v-if="canRemove(member)" size="sm" color="neutral" variant="outline" :label="t('access.members.remove')" :disabled="!hydrated || busy" data-testid="member-remove" @click="startRemove(member)" />
+            <div v-if="removing?.id !== member.id" class="flex flex-wrap gap-2">
+              <UButton v-if="canChangeRoles" size="sm" color="neutral" variant="outline" :label="t('access.members.changeRoles')" :to="changeRolesTo(member)" data-testid="member-change-roles" />
+              <UButton v-if="canRemove(member)" size="sm" color="neutral" variant="outline" :label="t('access.members.remove')" :disabled="!hydrated || remove.isPending.value" data-testid="member-remove" @click="startRemove(member)" />
             </div>
           </div>
-          <form v-if="editing?.id === member.id" class="mt-3 grid gap-3" @submit.prevent="saveRoles(member)">
-            <RoleCheckboxes v-model="editing.roleIds" :roles="optionsFor(member)" :legend="t('access.members.rolesIn', { company: member.company.name })" :empty-text="t('access.members.noRoles')" :disabled="!hydrated || busy" />
-            <SharedFormActions>
-              <div class="ms-auto flex flex-wrap items-center gap-2">
-                <UButton type="button" color="neutral" variant="outline" :label="t('app.cancel')" :disabled="busy" @click="editing = null" />
-                <UButton type="submit" color="primary" :label="t('access.members.saveRoles')" :loading="update.isPending.value" :disabled="!hydrated || busy" data-testid="member-save-roles" />
-              </div>
-            </SharedFormActions>
-          </form>
           <SharedInlineConfirm
             v-if="removing?.id === member.id"
             class="mt-3"

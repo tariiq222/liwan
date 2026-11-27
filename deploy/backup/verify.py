@@ -202,17 +202,24 @@ def restore_verified(
     *,
     artifact: Path,
     target_db: str,
-    target_filestore: Path | str,
+    target_filestore: Path | str | None = None,
+    target_bucket: bucket.BucketSource | None = None,
     tools: RestoreTools,
     pg: PostgresConnection,
 ) -> dict[str, object]:
     """Restore the artifact into a new scratch database and return the verification record.
 
-    The digest check runs before any command, the database name before anything is created,
-    and each step stops the run before the next: a failed create leaves no isolation or
-    ``pg_restore`` behind, and a ``pg_restore`` cut short leaves no half-written database.
+    Exactly one of ``target_filestore`` (a new local directory ending in ``target_db``) or
+    ``target_bucket`` (a :class:`deploy.backup.bucket.BucketSource`, e.g. an OCI tenant bucket)
+    must be given. The digest check runs before any command, the database name before anything
+    is created, and each step stops the run before the next: a failed create leaves no isolation
+    or ``pg_restore`` behind, and a ``pg_restore`` cut short leaves no half-written database.
     """
     db = validate_target_db(target_db)
+    require(
+        (target_filestore is None) != (target_bucket is None),
+        'restore requires exactly one of target_filestore or target_bucket',
+    )
     backup_path = Path(artifact)
     dump = backup_path / DATABASE_MEMBER
     objects = backup_path / OBJECTS_DIRECTORY
@@ -222,11 +229,13 @@ def restore_verified(
         f'the artifact must be an absolute directory holding {DATABASE_MEMBER}, '
         f'{CONTENTS_MEMBER}, {OBJECTS_DIRECTORY}/ and {MANIFEST_NAME}',
     )
-    destination = Path(target_filestore)
-    require(
-        destination.is_absolute() and not destination.exists() and destination.name == db,
-        'target filestore must be a new absolute path ending in the target database name',
-    )
+    destination: Path | None = None
+    if target_filestore is not None:
+        destination = Path(target_filestore)
+        require(
+            destination.is_absolute() and not destination.exists() and destination.name == db,
+            'target filestore must be a new absolute path ending in the target database name',
+        )
     pg_restore = validate_existing_file(tools.pg_restore, what='pg_restore')
     psql = validate_existing_file(tools.psql, what='psql')
     # The restored database stays open to the role the restore connects as once PUBLIC is closed.
@@ -260,8 +269,14 @@ def restore_verified(
     # a later check can never read a partially applied schema as a verified restore.
     run([str(pg_restore), *conn, '--no-owner', '--no-acl', '--exit-on-error',
          '--single-transaction', '-d', db, str(dump)])
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(str(objects), str(destination))
+    verified_bucket_keys: set[str] | None = None
+    if target_bucket is not None:
+        bucket.populate(backup_path, target_bucket, str(source_manifest['contents_sha256']))
+        verified_bucket_keys = set(bucket.parse_index((backup_path / CONTENTS_MEMBER).read_bytes()))
+    else:
+        assert destination is not None
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(str(objects), str(destination))
 
     def query(sql: str) -> str:
         return run([str(psql), *conn, '-d', db, '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql])
@@ -271,7 +286,11 @@ def restore_verified(
     missing_modules = sorted(set(expected) - set(installed_names))
     stuck = int(query(SQL_STUCK).strip() or 0)
     referenced = [line for line in query(SQL_ATTACHMENTS).splitlines() if line]
-    missing = [name for name in referenced if not (destination / name).is_file()]
+    if verified_bucket_keys is not None:
+        missing = [name for name in referenced if name not in verified_bucket_keys]
+    else:
+        assert destination is not None
+        missing = [name for name in referenced if not (destination / name).is_file()]
     result = {
         'restore_verified': (
             bool(expected) and not missing_modules and stuck == 0 and not missing

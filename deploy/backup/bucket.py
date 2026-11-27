@@ -121,6 +121,46 @@ class DirectoryBucket:
         return self._root.joinpath(*object_key_parts(key))
 
 
+class S3BucketSource:
+    """An S3-compatible (OCI Object Storage) tenant bucket behind :class:`BucketSource`.
+
+    Credentials stay inside :class:`deploy.s3_client.S3Store`; only object keys, sizes and
+    bytes cross this boundary. Empty (0-byte) objects use single-shot ``PUT`` with
+    ``If-None-Match: *`` because multipart upload refuses empty streams, while non-empty
+    objects stream through bounded multipart upload with the same non-overwrite precondition.
+    """
+
+    def __init__(self, store: s3_client.S3Store) -> None:
+        self._store = store
+
+    @classmethod
+    def from_credentials(
+        cls,
+        credentials: s3_client.Credentials,
+        *,
+        transport: object | None = None,
+    ) -> S3BucketSource:
+        return cls(s3_client.S3Store(credentials, transport=transport))
+
+    def list(self, prefix: str) -> list[ObjectMeta]:
+        return require_objects([
+            ObjectMeta(key=key, size=size) for key, size in self._store.list_objects(prefix)
+        ])
+
+    def get_file(self, key: str, target: Path) -> None:
+        object_key_parts(key)
+        expected_size = self._store.head(key)
+        self._store.get_file(key, target, expected_size=expected_size)
+
+    def put_file(self, key: str, source: Path) -> None:
+        object_key_parts(key)
+        require(source.is_file() and not source.is_symlink(), f'source object must be a regular file: {key}')
+        if source.stat().st_size == 0:
+            self._store.put(key, b'')
+            return
+        self._store.put_file(key, source)
+
+
 def require_object_key(key: str) -> str:
     """A relative, index-safe object path, sharing :func:`deploy.s3_client.relative_key_parts`.
 
