@@ -85,9 +85,11 @@ describe('activeNavId', () => {
   })
 
   it('keeps the catalog tabs and their records under the catalog', () => {
-    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/c-1']) expect(activeNavId(items, path), path).toBe('catalog')
+    for (const path of ['/plans', '/plans/p-1/edit', '/addons', '/addons/new', '/catalog', '/catalog/c-1']) expect(activeNavId(items, path), path).toBe('catalog')
     expect(items.map(item => item.id)).not.toContain('plans')
+    expect(items.map(item => item.id)).not.toContain('addons')
     expect(items.map(item => item.id)).not.toContain('bundles')
+    expect(activeNavId(items, '/bundles')).toBeNull()
     expect(activeNavId(items, '/catalogx')).toBeNull()
   })
 
@@ -99,7 +101,7 @@ describe('activeNavId', () => {
 
   it('does not match a path that only shares a prefix', () => {
     expect(activeNavId(items, '/plansx')).toBeNull()
-    expect(activeNavId(items, '/bundlesx')).toBeNull()
+    expect(activeNavId(items, '/addonsx')).toBeNull()
   })
 
   it('treats the root as the overview and ignores query and trailing slash', () => {

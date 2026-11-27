@@ -123,7 +123,7 @@ const heroTone = computed(() => (version.value?.status === 'published' ? 'succes
       <p v-if="legacyDraft(version.status)" class="text-sm text-muted" data-testid="catalog-legacy-draft">{{ t('vendor.catalog.legacyDraft') }}</p>
       <VendorCatalogReleaseAction v-if="needsRelease" :version="version.version" @done="refreshReleases" />
       <UAlert v-if="version.status === 'published'" color="success" variant="subtle" :title="t('vendor.catalog.publishedTitle')" data-testid="catalog-next-step">
-        <template #description><NuxtLink to="/bundles/new" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.toBundles') }}</NuxtLink></template>
+        <template #description><NuxtLink to="/addons/new" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.toBundles') }}</NuxtLink></template>
       </UAlert>
       <details><summary class="cursor-pointer text-sm text-muted">{{ t('vendor.pricing.technical') }}</summary>
         <dl class="mt-3 space-y-2 text-sm"><div><dt>{{ t('vendor.catalog.baseModules') }}</dt><dd class="flex flex-wrap gap-2"><UBadge v-for="module in baseModules" :key="module" color="neutral" variant="outline">{{ catalogLabel('module', module, t) }}</UBadge></dd></div><div><dt>{{ t('vendor.pricing.revisionId') }}</dt><dd dir="ltr">{{ version.id }}</dd></div></dl>

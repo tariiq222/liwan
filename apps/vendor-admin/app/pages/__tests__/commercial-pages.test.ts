@@ -12,31 +12,31 @@ const flat = (o: unknown, prefix = ''): string[] => (o && typeof o === 'object' 
 
 describe('vendor commercial pages: structure and gating', () => {
   it('uses the route-backed parent pattern for /new like catalog', () => {
-    expect(page('bundles.vue')).toContain("=== '/bundles/new'"); expect(page('plans.vue')).toContain("=== '/plans/new'")
-    expect(page('bundles/new.vue')).toContain('SharedCreatePanel'); expect(page('plans/new.vue')).toContain('SharedCreatePanel')
+    expect(page('addons.vue')).toContain("=== '/addons/new'"); expect(page('plans.vue')).toContain("=== '/plans/new'")
+    expect(page('addons/new.vue')).toContain('SharedCreatePanel'); expect(page('plans/new.vue')).toContain('SharedCreatePanel')
   })
   it('gates reads on vendor.read and writes on catalog (plans also pricing)', () => {
-    expect(page('bundles/index.vue')).toContain("capability: 'vendor.read'"); expect(page('plans/[id].vue')).toContain("capability: 'vendor.read'")
-    expect(page('bundles/new.vue')).toContain("capability: 'vendor.catalog.manage'"); expect(page('bundles/[id]/edit.vue')).toContain("capability: 'vendor.catalog.manage'")
+    expect(page('addons/index.vue')).toContain("capability: 'vendor.read'"); expect(page('plans/[id].vue')).toContain("capability: 'vendor.read'")
+    expect(page('addons/new.vue')).toContain("capability: 'vendor.catalog.manage'"); expect(page('addons/[id]/edit.vue')).toContain("capability: 'vendor.catalog.manage'")
     expect(page('plans/new.vue')).toMatch(/can\('vendor\.catalog\.manage'\) && can\('vendor\.pricing\.manage'\)/)
     expect(page('plans/[id]/edit.vue')).toMatch(/can\('vendor\.catalog\.manage'\) && can\('vendor\.pricing\.manage'\)/)
     expect(page('plans/index.vue')).toMatch(/can\('vendor\.catalog\.manage'\) && can\('vendor\.pricing\.manage'\)/)
   })
   it('keeps filters in the URL and preserves them on return', () => {
-    const list = page('bundles/index.vue')
-    expect(list).toContain('route.query'); expect(list).toContain('returnTo'); expect(list).toMatch(/router\.replace\(\{ path: '\/bundles'/)
-    expect(page('bundles/[id].vue')).toContain("catalogReturn(route.query.returnTo, 'bundles')")
+    const list = page('addons/index.vue')
+    expect(list).toContain('route.query'); expect(list).toContain('returnTo'); expect(list).toMatch(/router\.replace\(\{ path: '\/addons'/)
+    expect(page('addons/[id].vue')).toContain("catalogReturn(route.query.returnTo, 'addons')")
   })
   it('edit is a page with reason and draft protection; forms guard unsaved changes', () => {
-    expect(page('bundles/[id]/edit.vue')).toContain('require-reason'); expect(page('plans/[id]/edit.vue')).toContain('require-reason')
+    expect(page('addons/[id]/edit.vue')).toContain('require-reason'); expect(page('plans/[id]/edit.vue')).toContain('require-reason')
     expect(comp('BundleForm.vue')).toContain('SharedUnsavedChanges'); expect(comp('PlanForm.vue')).toContain('SharedUnsavedChanges'); expect(comp('LifecyclePanel.vue')).toContain('SharedUnsavedChanges')
   })
   it('create release flow asks for a reason when no release exists', () => {
-    const p = page('bundles/new.vue')
+    const p = page('addons/new.vue')
     expect(p).toContain('releases.length'); expect(p).toContain('createRelease'); expect(p).toMatch(/relReason\.value\.trim\(\)\.length < 3/)
   })
   it('create release guide explains the missing release in two steps and replaces the bundle form until one exists', () => {
-    const p = page('bundles/new.vue')
+    const p = page('addons/new.vue')
     expect(p.indexOf('v-else-if="!releases.length && published.length"')).toBeGreaterThan(p.indexOf("v-if=\"!can('vendor.catalog.manage')\""))
     expect(p.indexOf('<VendorBundleForm')).toBeGreaterThan(p.indexOf('v-else-if="!releases.length && published.length"'))
     for (const key of ['title', 'why', 'steps', 'step1', 'step2']) expect(p).toContain(`vendor.bundles.guide.${key}`)
@@ -47,13 +47,13 @@ describe('vendor commercial pages: structure and gating', () => {
     }
   })
   it('create release picks a published catalog version from a select and shows no form when none is published', () => {
-    const p = page('bundles/new.vue')
+    const p = page('addons/new.vue')
     expect(p).toContain('<USelect v-model="relVersion"'); expect(p).not.toContain('<UInput v-model="relVersion"')
     expect(p).toContain('publishedVersions(versions.value'); expect(p).toContain('list.length === 1')
     expect(p).toContain('data-testid="no-published-catalog"'); expect(p).toContain('to="/catalog"')
   })
   it('bundle detail lists every plan version using it, with its version and state, and says when plans could not load', () => {
-    const p = page('bundles/[id].vue')
+    const p = page('addons/[id].vue')
     expect(p).toContain('plansUsingBundle(page => api.listPlans(page), view.id)'); expect(p).not.toContain('limit: 200')
     const section = p.slice(p.indexOf('data-testid="bundle-plans"'), p.indexOf('<VendorLifecyclePanel'))
     expect(section).toContain('v-if="!data.usedBy"'); expect(section).toContain('vendor.bundles.usedByUnavailable')
@@ -65,28 +65,28 @@ describe('vendor commercial pages: structure and gating', () => {
     for (const source of [page('customers/new.vue'), comp('TenantOperationsPanel.vue')]) { expect(source).toMatch(/useVendorCatalogVersions\(\)\.load\(/); expect(source).not.toContain("request<{ items: Catalog") ; expect(source).not.toMatch(/request<[^>]*>\('catalog'\)/) }
   })
   it('plan and bundle pages fail whole, with the shared retry, when a bundle, release or version cannot load', () => {
-    for (const f of ['plans/[id].vue', 'bundles/[id].vue', 'plans/[id]/edit.vue']) expect(page(f), f).not.toMatch(/\.catch\(/)
-    for (const f of ['plans/[id].vue', 'bundles/[id].vue']) expect(page(f), f).toContain(':error="error" @retry="refresh"')
+    for (const f of ['plans/[id].vue', 'addons/[id].vue', 'plans/[id]/edit.vue']) expect(page(f), f).not.toMatch(/\.catch\(/)
+    for (const f of ['plans/[id].vue', 'addons/[id].vue']) expect(page(f), f).toContain(':error="error" @retry="refresh"')
     expect(page('plans/[id]/edit.vue')).toContain(':error="error"'); expect(page('plans/[id]/edit.vue')).toContain('@retry="refresh"')
   })
   it('bundle detail states the status and the customer count once, and all prices through the fact', () => {
-    const p = page('bundles/[id].vue')
+    const p = page('addons/[id].vue')
     expect(p.match(/lifecycleBadge\(view\)\.tone/g)).toHaveLength(1)
     expect(p.match(/vendor\.pricing\.customers'/g)).toHaveLength(1); expect(p).not.toContain('view.customer_count')
     expect(p).toContain('priceFact(v.prices'); expect(p).not.toContain('v.prices[0]')
   })
   it('plan and bundle pages return to the catalog tab they were opened from', () => {
-    for (const f of ['plans/[id].vue', 'bundles/[id].vue']) expect(page(f)).toContain(':back-label="t(back.labelKey)"')
-    for (const f of ['plans/[id]/edit.vue', 'bundles/[id]/edit.vue']) expect(page(f)).toContain('catalogReturn(route.query.returnTo')
+    for (const f of ['plans/[id].vue', 'addons/[id].vue']) expect(page(f)).toContain(':back-label="t(back.labelKey)"')
+    for (const f of ['plans/[id]/edit.vue', 'addons/[id]/edit.vue']) expect(page(f)).toContain('catalogReturn(route.query.returnTo')
   })
   it('detail shows technical digests only under a details section and recomputes quote via server only', () => {
-    expect(page('bundles/[id].vue')).toMatch(/<details[\s\S]*content_digest/); expect(page('bundles/[id].vue').indexOf('content_digest')).toBeGreaterThan(page('bundles/[id].vue').indexOf('<details'))
+    expect(page('addons/[id].vue')).toMatch(/<details[\s\S]*content_digest/); expect(page('addons/[id].vue').indexOf('content_digest')).toBeGreaterThan(page('addons/[id].vue').indexOf('<details'))
     const plan = page('plans/[id].vue')
     expect(plan).toContain('api.quote(quoteRequestBody'); expect(plan).toMatch(/setTimeout\(\(\) => void recompute\(\), 350\)/); expect(plan).toContain('mine === seq')
     expect(plan).not.toMatch(/due_now\.minor\s*[+*]/)
   })
   it('uses only logical, themed classes', () => {
-    for (const f of ['bundles/index.vue', 'bundles/[id].vue', 'plans/index.vue', 'plans/[id].vue']) expect(page(f)).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d|text-(left|right)\b/)
+    for (const f of ['addons/index.vue', 'addons/[id].vue', 'plans/index.vue', 'plans/[id].vue']) expect(page(f)).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d|text-(left|right)\b/)
     for (const f of ['BundleForm.vue', 'PlanForm.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue']) expect(comp(f)).not.toMatch(/\b(ml|mr|pl|pr)-\d|text-(left|right)\b|#[0-9a-f]{3,6}\b/i)
     expect(read('../../packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue')).not.toMatch(/\b(ml|mr|pl|pr)-\d|text-(left|right)\b|#[0-9a-f]{3,6}\b/i)
   })
@@ -135,7 +135,7 @@ describe('locale parity for vendor.bundles/plans/pricing', () => {
   })
   it('storage is labelled as counted attachments and priced per gigabyte above the minimum', () => { expect(json('ar').pricing.keys.storage_limit_mb).toContain('المرفقات'); expect(json('ar').pricing.fields.storagePrice).toContain('غيغابايت') })
   it('every t() key used by the new pages exists', () => {
-    const files = ['bundles/index.vue', 'bundles/new.vue', 'bundles/[id].vue', 'bundles/[id]/edit.vue', 'plans/index.vue', 'plans/new.vue', 'plans/[id].vue', 'plans/[id]/edit.vue'].map(page)
+    const files = ['addons/index.vue', 'addons/new.vue', 'addons/[id].vue', 'addons/[id]/edit.vue', 'plans/index.vue', 'plans/new.vue', 'plans/[id].vue', 'plans/[id]/edit.vue'].map(page)
       .concat(['BundleForm.vue', 'PlanForm.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue', 'PriceListEditor.vue', 'CapacityLimitsEditor.vue', 'LimitControl.vue'].map(comp)).concat(read('../../packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue'))
     const have = new Set(flat({ vendor: json('en'), commercial: commercial('en') }))
     const missing: string[] = []

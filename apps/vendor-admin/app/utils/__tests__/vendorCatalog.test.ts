@@ -7,7 +7,7 @@ describe('catalogTabOf', () => {
     expect(catalogTabOf('/plans')?.key).toBe('plans')
     expect(catalogTabOf('/plans/new')?.key).toBe('plans')
     expect(catalogTabOf('/plans/p-1/edit/')?.key).toBe('plans')
-    expect(catalogTabOf('/bundles/b-1')?.key).toBe('bundles')
+    expect(catalogTabOf('/addons/b-1')?.key).toBe('addons')
     expect(catalogTabOf('/catalog/c-1')?.key).toBe('catalog')
     expect(catalogTabOf('/catalog?status=draft')?.key).toBe('catalog')
   })
@@ -15,24 +15,25 @@ describe('catalogTabOf', () => {
   it('ignores paths outside the catalog and mere prefixes', () => {
     expect(catalogTabOf('/customers')).toBeNull()
     expect(catalogTabOf('/plansx')).toBeNull()
+    expect(catalogTabOf('/bundles')).toBeNull()
     expect(catalogTabOf('/')).toBeNull()
   })
 
   it('offers the tabs in the order a customer meets them', () => {
-    expect(CATALOG_TABS.map(tab => tab.key)).toEqual(['plans', 'bundles', 'catalog'])
+    expect(CATALOG_TABS.map(tab => tab.key)).toEqual(['plans', 'addons', 'catalog'])
   })
 })
 
 describe('catalogReturn', () => {
   it('keeps a return to any catalog tab and names that tab', () => {
-    expect(catalogReturn('/bundles/b-1?x=1', 'plans')).toEqual({ to: '/bundles/b-1?x=1', labelKey: 'vendor.catalog.addons' })
-    expect(catalogReturn('/plans?status=draft', 'bundles')).toEqual({ to: '/plans?status=draft', labelKey: 'vendor.plans.title' })
-    expect(catalogReturn('/catalog/c-1', 'bundles')).toEqual({ to: '/catalog/c-1', labelKey: 'vendor.catalog.applications' })
+    expect(catalogReturn('/addons/b-1?x=1', 'plans')).toEqual({ to: '/addons/b-1?x=1', labelKey: 'vendor.catalog.addons' })
+    expect(catalogReturn('/plans?status=draft', 'addons')).toEqual({ to: '/plans?status=draft', labelKey: 'vendor.plans.title' })
+    expect(catalogReturn('/catalog/c-1', 'addons')).toEqual({ to: '/catalog/c-1', labelKey: 'vendor.catalog.applications' })
   })
 
   it('falls back to the own list for anything else', () => {
-    for (const value of [undefined, '', '//evil.com', 'https://evil.com/plans', '/customers', '/plansx', '/plans\\evil']) {
-      expect(catalogReturn(value, 'bundles')).toEqual({ to: '/bundles', labelKey: 'vendor.catalog.addons' })
+    for (const value of [undefined, '', '//evil.com', 'https://evil.com/plans', '/customers', '/bundles', '/plansx', '/plans\\evil']) {
+      expect(catalogReturn(value, 'addons')).toEqual({ to: '/addons', labelKey: 'vendor.catalog.addons' })
     }
   })
 })

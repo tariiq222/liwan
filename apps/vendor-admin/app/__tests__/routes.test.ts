@@ -21,8 +21,8 @@ const PUBLIC_PAGES = ['enroll.vue', 'login.vue']
 // Every other page needs vendor.read unless it is listed here.
 const STRICTER: Record<string, string> = {
   'audit.vue': 'vendor.audit.read',
-  'bundles/[id]/edit.vue': 'vendor.catalog.manage',
-  'bundles/new.vue': 'vendor.catalog.manage',
+  'addons/[id]/edit.vue': 'vendor.catalog.manage',
+  'addons/new.vue': 'vendor.catalog.manage',
   'customers/[id]/change.vue': 'vendor.subscriptions.manage',
   'customers/new.vue': 'vendor.tenants.manage',
   'customers/[id]/terms/new.vue': 'vendor.pricing.manage',
@@ -48,6 +48,11 @@ describe('vendor admin routes', () => {
 
   it('has no page path literal under the old /vendor prefix', () => {
     const offenders = allFiles.filter(file => /['"`]\/vendor[/'"`?]/.test(readFileSync(file, 'utf8')))
+    expect(offenders).toEqual([])
+  })
+
+  it('has no browser route literal under the old /bundles prefix', () => {
+    const offenders = allFiles.filter(file => /['"`]\/bundles[/'"`?#]/.test(readFileSync(file, 'utf8')))
     expect(offenders).toEqual([])
   })
 

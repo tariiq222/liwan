@@ -83,13 +83,22 @@ export const DEFAULT_STORAGE_STEP_MB = 10240
 export const DEFAULT_STORAGE_THRESHOLD_MB = 102400
 export const DEFAULT_STORAGE_LARGE_STEP_MB = 102400
 export const emptyLimit = (): LimitDraft => ({ mode: '', value: '' })
+/** A positive whole number above MAX_LIMIT. It is refused apart from a malformed value, so a form can name the maximum. */
+export class LimitAboveMax extends Error {
+  constructor() {
+    super('limit_above_max')
+    this.name = 'LimitAboveMax'
+  }
+}
 export function limitFromDraft(draft: LimitDraft | undefined): number | null {
   if (!draft) throw new Error('invalid_limit')
   if (draft.mode === 'unlimited') return null
   if (draft.mode === 'none') return 0
   const text = normalizeDigits(draft.value.trim())
-  if (draft.mode !== 'number' || !/^\d+$/.test(text) || !Number.isSafeInteger(Number(text)) || Number(text) < 1) throw new Error('invalid_limit')
-  return Number(text)
+  const n = Number(text)
+  if (draft.mode !== 'number' || !/^\d+$/.test(text) || n < 1) throw new Error('invalid_limit')
+  if (n > MAX_LIMIT) throw new LimitAboveMax()
+  return n
 }
 export function limitToDraft(value: number | null | undefined): LimitDraft {
   if (value === undefined) return emptyLimit()
@@ -357,7 +366,7 @@ export function fieldIssue(failure: CommercialFailure | null, field: string): st
 }
 
 // ---- Routing ----
-export function commercialReturnTo(value: unknown, root: '/bundles' | '/plans'): string {
+export function commercialReturnTo(value: unknown, root: '/addons' | '/plans'): string {
   const safe = safeReturnTo(value, root, [root])
   return new URL(safe, 'http://liwan.local').pathname.replace(/\/$/, '') === root ? safe : root
 }

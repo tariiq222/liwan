@@ -11,7 +11,7 @@ const PAGES = [
   '/overview', '/customers', '/customers/cust-alpha', '/customers/cust-alpha/change', '/customers/cust-alpha/terms/new',
   ...['subscription', 'invoices', 'workspace', 'operations', 'history'].map(tab => `/customers/cust-alpha?tab=${tab}`), '/customers/new', '/operations', '/operations/op-1',
   '/plans', '/plans/new', `/plans/${PLAN}`, `/plans/${PLAN}/edit`,
-  '/bundles', '/bundles/new', `/bundles/${BUNDLE}`, `/bundles/${BUNDLE}/edit`,
+  '/addons', '/addons/new', `/addons/${BUNDLE}`, `/addons/${BUNDLE}/edit`,
   '/catalog', '/catalog/apps/pmo', '/catalog/releases', `/catalog/releases/${CATALOG_VERSION}`, '/invoices', '/invoices/inv-1', '/ai-billing-settings', '/audit',
 ]
 // Entries that only redirect: the destination is what renders.

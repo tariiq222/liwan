@@ -9,8 +9,8 @@ definePageMeta({ capability: 'vendor.catalog.manage' })
 const { t } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial(); const hydrated = useHydrated()
 // An application record opens the form with its application in the query: the add-on starts on that selection.
 const appParam = computed(() => (typeof route.query.app === 'string' ? route.query.app : undefined))
-// That link returns to the application record (a catalog path), while the normal flow still returns to /bundles.
-const backTo = computed(() => (appParam.value ? catalogReturn(route.query.returnTo, 'bundles').to : commercialReturnTo(route.query.returnTo, '/bundles')))
+// That link returns to the application record (a catalog path), while the normal flow still returns to /addons.
+const backTo = computed(() => (appParam.value ? catalogReturn(route.query.returnTo, 'addons').to : commercialReturnTo(route.query.returnTo, '/addons')))
 const { data, error, pending, refresh } = await useAsyncData('vendor:bundle-releases', () => api.releases())
 const releases = computed(() => (data.value ?? []) as CatalogRelease[])
 // A release is built from a published catalog version, so any release can price the application; one that no release offers
@@ -30,7 +30,7 @@ async function save(draft: BundleDraft, release: CatalogRelease | undefined) {
   try {
     const item = await api.create<BundleView>('bundle', bundleCreatePayload(draft, release))
     resetKey.value++; await nextTick(); await refreshNuxtData()
-    await navigateTo({ path: `/bundles/${item.id}`, query: { returnTo: backTo.value } })
+    await navigateTo({ path: `/addons/${item.id}`, query: { returnTo: backTo.value } })
   } catch (cause) { saveError.value = cause } finally { busy.value = false }
 }
 async function createRelease() {
