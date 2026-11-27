@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { commercialErrorKey, commercialFailure, fieldIssue, limitFromDraft, parseCount, parseVendorMoneyInput } from '@/utils/vendorCommercial'
+import { commercialErrorKey, commercialFailure, fieldIssue, LimitAboveMax, limitFromDraft, MAX_LIMIT, parseCount, parseVendorMoneyInput } from '@/utils/vendorCommercial'
 import { emptyTermsDraft, hasTermsOverride, type TermsDraft } from '@/utils/vendorSubscriptions'
 const props = withDefaults(defineProps<{ busy?: boolean; previewing?: boolean; error?: unknown; resetKey?: number; canSave?: boolean; canPreview?: boolean }>(), { busy: false, previewing: false, resetKey: 0, canSave: true, canPreview: true })
 const emit = defineEmits<{ preview: [draft: TermsDraft]; save: [draft: TermsDraft]; cancel: [] }>()
@@ -14,7 +14,11 @@ const serverIssue = (field: string) => { const code = fieldIssue(failure.value, 
 const dis = computed(() => !hydrated.value || props.busy)
 const unitItems = computed(() => [{ label: t('commercial.pricing.cadence.month', { count: 1 }), value: 'month' }, { label: t('commercial.pricing.cadence.year', { count: 1 }), value: 'year' }])
 const limitItems = computed(() => [{ label: t('vendor.pricing.limit.unlimited'), value: 'unlimited' }, { label: t('vendor.pricing.limit.none'), value: 'none' }, { label: t('vendor.pricing.limit.number'), value: 'number' }])
-const limitError = (l: TermsDraft['extraBranchesLimit']) => { if (!l.mode) return undefined; try { limitFromDraft(l); return undefined } catch { return t('vendor.pricing.limit.invalid') } }
+const limitError = (l: TermsDraft['extraBranchesLimit']) => {
+  if (!l.mode) return undefined
+  try { limitFromDraft(l); return undefined }
+  catch (cause) { return cause instanceof LimitAboveMax ? t('vendor.pricing.limit.aboveMax', { max: MAX_LIMIT }) : t('vendor.pricing.limit.invalid') }
+}
 const errors = computed(() => {
   const e: Record<string, string> = {}
   const bad = t('vendor.customers.terms.invalidValue')
