@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChangeCategory } from '@liwan/contracts'
-import { ApiError } from '@/composables/useApi'
 import { useChangeCategories, useCreateChangeCategory, useUpdateChangeCategory } from '@/composables/useProjectChanges'
+import { saveErrorMessage } from '@/utils/formFeedback'
 
 // The company's change request categories: added, renamed and archived one row at a time (each change saves
 // on its own, like the default stages). An archived category stays on the requests that carry it.
@@ -28,7 +28,7 @@ async function run(work: () => Promise<unknown>, done: string) {
     return true
   }
   catch (cause) {
-    error.value = cause instanceof ApiError ? cause.message : t('errors.generic')
+    error.value = saveErrorMessage(cause, t('errors.generic'), t('errors.saveUncertain'))
     return false
   }
 }
@@ -46,7 +46,7 @@ async function rename(category: ChangeCategory, name: string) {
 }
 function toggle(category: ChangeCategory, active: boolean) {
   if (locked.value) return
-  void run(() => update.mutateAsync({ id: category.id, body: { active } }), category.active ? 'settings.projects.changeCategories.archived' : 'settings.projects.changeCategories.restored')
+  void run(() => update.mutateAsync({ id: category.id, body: { active } }), active ? 'settings.projects.changeCategories.restored' : 'settings.projects.changeCategories.archived')
 }
 </script>
 
@@ -58,7 +58,8 @@ function toggle(category: ChangeCategory, active: boolean) {
     :description="t('settings.projects.changeCategories.hint')"
     :can-edit="canEdit"
     :message="error"
-    :error="categories.error.value"
+    :loading="categories.isLoading.value"
+    :error="categories.data.value ? null : categories.error.value"
     :empty="!items.length"
     :adding="create.isPending.value"
     :add-disabled="busy || !newName.trim()"

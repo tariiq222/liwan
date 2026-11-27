@@ -197,7 +197,7 @@
 - [x] `settings/apps/crm`: توحيد تباعد بطاقات التبويبات الأربعة (`basics`, `workflow`, `sales`, `privacy`) إلى `gap-(--liwan-gap-card)`.
 - [x] `DESIGN.md`: توضيح التمييز بين `SharedSettingsPage` (أقسام الإعدادات) و`SharedListPage` (قوائم الإعدادات الكاملة)، وتثبيت قرار المالك (2026-11-27) لتوحيد التحرير في الإعدادات.
 - [x] **المرحلة 2 (متابعة لاحقة):** مراجعة وتوحيد إعدادات `helpdesk` و`inbox` مع حفظ سياق القنوات وإجراءاتها وفق قرار R2 — مدموجة في `#925` (`web-settings-phase2`، كومِت `23ba4d2df`): `helpdesk` (`HelpdeskPolicyCard` على `SharedSettingsCard`، و`HelpdeskValueListSection` على `SharedSettingsList`، ومسارات `/new` و`/[id]/edit` لـ`teams` و`stages` و`sla`)، و`inbox` (`InboxTagsSection` على `SharedSettingsList`، ومسارات `/new` و`/[id]/edit` لـ`departments` و`canned-replies`، مع حفظ القنوات والكتالوج والأتمتة وفق قرار R2).
-- [~] **المرحلة 3 (متابعة لاحقة):** نقل محررات السجلات المضمّنة في `settings/team/**` وإعدادات `pmo` إلى `/new` و`/<id>/edit` وفق قرار 2026-11-27 — قيد التنفيذ في `web-settings-phase3-pmo` و`web-settings-phase3-team`.
+- [~] **المرحلة 3 (متابعة لاحقة):** توحيد إعدادات `pmo` و`system` و`team` وفق قرار 2026-11-27 — قيد التنفيذ في ثلاث لينات: `web-settings-phase3-pmo` (فئات طلبات التغيير في `pmo` على `SharedSettingsList`)، و`web-settings-phase3-system` (حجوزات الصيانة في إعدادات النظام)، و`web-settings-phase3-team` (محررات السجلات متعددة الحقول في `settings/team/**` على `/new` و`/<id>/edit`).
 
 ## خارج النطاق (بقرار)
 
