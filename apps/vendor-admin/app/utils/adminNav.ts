@@ -1,8 +1,8 @@
 import type { ShellRailGroups, ShellRailItem } from '@liwan/ui/app/types/shell'
 import { CATALOG_TABS } from './vendorCatalog'
 
-/** `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, and the catalog's tabs and records sit under the catalog). */
-interface AdminNavEntry { id: string, icon: string, capability: string, alsoUnder?: readonly string[] }
+/** `to`: the section's own route when it is not `/<id>`; `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, and the catalog's tabs and records sit under the catalog). */
+interface AdminNavEntry { id: string, icon: string, capability: string, to?: string, alsoUnder?: readonly string[] }
 
 // Display order. The control plane enforces every capability; hiding an entry here is presentation only.
 const ENTRIES: readonly AdminNavEntry[] = [
@@ -14,6 +14,7 @@ const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'billing-settings', icon: 'i-lucide-settings-2', capability: 'vendor.billing.manage' },
   { id: 'ai-billing-settings', icon: 'i-lucide-sparkles', capability: 'vendor.billing.manage' },
   { id: 'operations', icon: 'i-lucide-wrench', capability: 'vendor.read' },
+  { id: 'releases', icon: 'i-lucide-layers', capability: 'vendor.read', to: '/catalog/releases' },
   { id: 'audit', icon: 'i-lucide-history', capability: 'vendor.audit.read' },
   { id: 'ai-provider', icon: 'i-lucide-bot', capability: 'vendor.ai.manage' },
   { id: 'team', icon: 'i-lucide-user-cog', capability: 'vendor.accounts.manage' },
@@ -25,7 +26,7 @@ const EXTRA_PREFIXES: Record<string, readonly string[] | undefined> = Object.fro
 export function adminNav(capabilities: readonly string[]): ShellRailItem[] {
   return ENTRIES
     .filter(entry => capabilities.includes(entry.capability))
-    .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: `/${entry.id}` }))
+    .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: entry.to ?? `/${entry.id}` }))
 }
 
 /**
@@ -34,12 +35,15 @@ export function adminNav(capabilities: readonly string[]): ShellRailItem[] {
  * other section's `alsoUnder` is consulted: `/billing-settings` is listed under
  * `invoices` as a sibling billing destination, and the first pass keeps the highlight
  * on the `billing-settings` item instead of letting the earlier `invoices` entry win.
+ * The longest own path wins, so a standalone view nested in another section (`/catalog/releases`)
+ * keeps its own item instead of being read as its parent (`/catalog`).
  */
 export function activeNavId(items: readonly ShellRailItem[], path: string): string | null {
   const target = path.split(/[?#]/, 1)[0]!.replace(/\/+$/, '') || '/'
   if (target === '/') return items.find(item => item.id === 'overview')?.id ?? null
   const within = (prefix: string) => target === prefix || target.startsWith(`${prefix}/`)
-  return items.find(item => within(item.to))?.id
+  const own = items.filter(item => within(item.to)).sort((a, b) => b.to.length - a.to.length)[0]
+  return own?.id
     ?? items.find(item => EXTRA_PREFIXES[item.id]?.some(within))?.id
     ?? null
 }

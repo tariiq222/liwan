@@ -50,6 +50,23 @@ test('the releases timeline lists every import with its changes and opens the ve
   await expect(mobileRows(page)).toHaveCount(3); await expect(page.locator('table')).toBeHidden(); expect(await fitsWidth(page)).toBe(true)
 })
 
+test('the releases table fits its card at 1440px, so the last change chip is never clipped', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await open(page, '/catalog/releases')
+  const scroller = page.locator('.liwan-table-frame [data-slot="root"]')
+  await expect(scroller).toBeVisible()
+  // The table's own scroller, not the page: a positive overflow is the clipped inline-end edge the compact columns remove.
+  await expect.poll(() => scroller.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1)
+  const chips = page.getByTestId('catalog-diff-chips').first()
+  await expect(chips).toBeVisible()
+  const clipped = await chips.evaluate((el) => {
+    const frame = el.closest('.liwan-table-frame')!.getBoundingClientRect()
+    const chip = el.getBoundingClientRect()
+    return chip.right > frame.right + 1 || chip.left < frame.left - 1
+  })
+  expect(clipped).toBe(false)
+})
+
 test('a version record is read-only: its applications and changes, with no approve or publish form', async ({ page }) => {
   await open(page, `/catalog/releases/${PUBLISHED}`); await expectNoSecondH1(page)
   await expect(page.locator('[data-template="record"]')).toHaveCount(1)

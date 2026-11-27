@@ -24,42 +24,39 @@ const span = (value: Elapsed | null) => (value ? t(`vendor.catalog.timeline.span
 const duration = (version: CatalogVersion) => span(version.published_at ? elapsedSince(version.created_at, new Date(version.published_at)) : now.value ? elapsedSince(version.created_at, now.value) : null)
 const age = (version: CatalogVersion) => span(version.published_at && now.value ? elapsedSince(version.published_at, now.value) : null)
 const actor = (name: string | null | undefined, labelKey: string) => (name ? t(labelKey, { name }) : null)
+// Six columns fit the console's content column at 1440px: the importer reads under the version (its date is the import date),
+// the three narrow facts stay on one line, and the changes column takes the rest and wraps its chips instead of clipping them.
 const columns = computed<TableColumn<CatalogVersion>[]>(() => [
-  { id: 'version', header: t('vendor.catalog.version'), meta: { class: { th: 'min-w-32', td: 'min-w-32' } } },
-  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
-  { id: 'imported', header: t('vendor.catalog.timeline.importer'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
-  { id: 'published', header: t('vendor.catalog.timeline.published'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
-  { id: 'duration', header: t('vendor.catalog.timeline.duration'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
-  { id: 'age', header: t('vendor.catalog.timeline.age'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
-  { id: 'changes', header: t('vendor.catalog.timeline.changes'), meta: { class: { th: 'min-w-56', td: 'min-w-56' } } },
+  { id: 'version', header: t('vendor.catalog.version'), meta: { class: { th: 'min-w-44', td: 'min-w-44 whitespace-normal' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+  { id: 'published', header: t('vendor.catalog.timeline.published'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-normal' } } },
+  { id: 'duration', header: t('vendor.catalog.timeline.duration'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-normal' } } },
+  { id: 'age', header: t('vendor.catalog.timeline.age'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-normal' } } },
+  { id: 'changes', header: t('vendor.catalog.timeline.changes'), meta: { class: { th: 'min-w-0', td: 'min-w-0 whitespace-normal' } } },
 ])
 </script>
 <template>
   <SharedListPage :title="t('vendor.catalog.releases')">
-    <template #filters><VendorCatalogTabs class="mb-3" /></template>
     <VendorCatalogGlossary class="mb-4" />
     <SharedDataTable :rows="items" :columns="columns" row-key="id" :row-to="path" :loading="pending" :error="error" :empty-text="t('vendor.catalog.empty')" :caption="t('vendor.catalog.releases')" @retry="refresh">
       <template #version-cell="{ row: { original: version } }">
-        <span class="flex flex-col">
+        <span class="flex min-w-0 flex-col">
           <NuxtLink :to="path(version)" data-testid="catalog-row" class="font-medium tabular-nums hover:underline"><bdi dir="ltr">{{ version.version }}</bdi></NuxtLink>
           <span class="mt-0.5 text-sm text-muted">{{ formatBusinessDate(version.created_at) }}</span>
+          <span v-if="actor(version.imported_by, 'vendor.catalog.timeline.importedBy')" class="mt-0.5 text-sm text-muted">{{ actor(version.imported_by, 'vendor.catalog.timeline.importedBy') }}</span>
         </span>
       </template>
       <template #status-cell="{ row: { original: version } }"><SharedStatusBadge :tone="lifecycleBadge(version).tone" :label="t(lifecycleBadge(version).labelKey)" /></template>
-      <template #imported-cell="{ row: { original: version } }">
-        <span v-if="actor(version.imported_by, 'vendor.catalog.timeline.importedBy')">{{ actor(version.imported_by, 'vendor.catalog.timeline.importedBy') }}</span>
-        <span v-else class="text-muted">—</span>
-      </template>
       <template #published-cell="{ row: { original: version } }">
         <template v-if="version.published_at">
-          <span>{{ formatBusinessDate(version.published_at) }}</span>
+          <span class="whitespace-nowrap">{{ formatBusinessDate(version.published_at) }}</span>
           <span v-if="actor(version.published_by, 'vendor.catalog.timeline.publishedBy')" class="block text-sm text-muted">{{ actor(version.published_by, 'vendor.catalog.timeline.publishedBy') }}</span>
         </template>
         <span v-else-if="legacyDraft(version.status)" class="text-sm text-muted" data-testid="catalog-legacy-draft">{{ t('vendor.catalog.legacyDraft') }}</span>
       </template>
       <template #duration-cell="{ row: { original: version } }"><span class="tabular-nums">{{ duration(version) }}</span></template>
       <template #age-cell="{ row: { original: version } }"><span class="tabular-nums" :class="{ 'text-muted': !version.published_at }">{{ age(version) }}</span></template>
-      <template #changes-cell="{ row: { original: version } }"><VendorCatalogDiffChips :diff="diffOf(version)" /></template>
+      <template #changes-cell="{ row: { original: version } }"><VendorCatalogDiffChips :diff="diffOf(version)" class="min-w-0" /></template>
       <template #mobile-row="{ row: version }">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <h2 class="text-lg font-semibold"><NuxtLink :to="path(version)" data-testid="catalog-row" dir="ltr">{{ version.version }}</NuxtLink></h2>
