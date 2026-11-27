@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { client, money, monthly, setup, url } from '../__tests__/commercial-helpers.js'
@@ -15,6 +15,7 @@ const freshSlug = () => `w${randomUUID().replaceAll('-', '').slice(0, 14)}`
 
 describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
   const pool = new Pool({ connectionString: url })
+  let releaseId: string
   let planId: string
   let revisionId: string
   let testNumber = 0
@@ -23,7 +24,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const api = client(pool)
     const release = await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Signup regression' })
     expect(release.status).toBe(201)
-    const releaseId = release.body.id
+    releaseId = release.body.id
     const bundles = []
     for (const [id, price] of [['crm', 9900], ['inbox', 25000]] as const) {
       const bundle = await api('POST', '/bundles', {
@@ -90,9 +91,13 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const f = fixture()
     f.input.app_ids = apps
     const offer = await f.service.offer()
-    expect(offer).toMatchObject({ offer_revision: revisionId, trial_days: 14, apps: [
-      { id: 'crm', monthly_minor: 9900 }, { id: 'inbox', monthly_minor: 25000 },
-    ] })
+    expect(offer).toMatchObject({
+      offer_revision: revisionId, trial_days: 14, currency: 'SAR', currency_exponent: 2,
+      base_monthly_minor: 0, tax: { kind: 'none' }, included_apps: [],
+      apps: [
+        { id: 'crm', monthly_minor: 9900 }, { id: 'inbox', monthly_minor: 25000 },
+      ],
+    })
     const signupId = await f.reachEmail()
     await f.service.complete(signupId)
     const { rows: [result] } = await pool.query(`SELECT r.snapshot->'entitlement'->'features' AS features
@@ -607,6 +612,248 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
       expect(ready.handoff_url).toMatch(/^https:\/\/acme\.example\.test\/invite\/accept#token=/)
       await pool.query('UPDATE admin_invitations SET consumed_at=now() WHERE tenant_id=$1', [tenantId])
       await expect(service.status(id, handoff_secret)).resolves.toEqual({ state: 'ready' })
+    })
+  })
+
+  describe('dynamic public signup offers', () => {
+    const api = client(pool)
+    const VAT_POLICY_ID = '6f1c3d8e-0000-4000-8000-000000000001'
+    const NONE_POLICY_ID = '6f1c3d8e-0000-4000-8000-000000000002'
+
+    async function publishBundle(opts: {
+      appId: string; featureKey: string; priceMinor: number; domainLimits?: Record<string, number | null>
+      audience?: { kind: 'public' } | { kind: 'customer'; customer_id: string }; targetReleaseId?: string
+    }) {
+      const created = await api('POST', '/bundles', {
+        name: `Bundle ${opts.appId} ${randomUUID().slice(0, 6)}`, description: opts.appId,
+        audience: opts.audience ?? { kind: 'public' }, catalog_release_id: opts.targetReleaseId ?? releaseId,
+        selections: [{ app_id: opts.appId, feature_keys: [opts.featureKey] }],
+        domain_limits: opts.domainLimits ?? {},
+        prices: [{ cadence: monthly, amount: money(opts.priceMinor) }],
+        reason: 'Dynamic signup test',
+      })
+      expect(created.status, JSON.stringify(created.body)).toBe(201)
+      const validated = await api('POST', `/bundles/${created.body.id}/validate`, { edit_revision: 1, reason: 'Dynamic signup test' })
+      expect(validated.status, JSON.stringify(validated.body)).toBe(200)
+      const published = await api('POST', `/bundles/${created.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Dynamic signup test' })
+      expect(published.status, JSON.stringify(published.body)).toBe(200)
+      return published.body as { id: string; edit_revision: number }
+    }
+
+    async function publishPlan(opts: {
+      name?: string; baseMinor?: number; includedIds?: string[]; optionalIds?: string[]
+      policyId?: string; trialDays?: number; audience?: { kind: 'public' } | { kind: 'customer'; customer_id: string }
+    }) {
+      const draft = await api('POST', '/plans', {
+        name: opts.name ?? `Dynamic Plan ${randomUUID().slice(0, 8)}`,
+        audience: opts.audience ?? { kind: 'public' }, term_months: 12, currency: 'SAR',
+        prices: [{ cadence: monthly, amount: money(opts.baseMinor ?? 0) }], platform_limits: {},
+        included_bundle_revision_ids: opts.includedIds ?? [], optional_bundle_revision_ids: opts.optionalIds ?? [],
+        included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 1,
+        included_users: 3, included_storage_mb: 20480,
+        storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
+        user_prices: [{ cadence: monthly, amount: money(2900) }],
+        storage_prices: [{ cadence: monthly, amount: money(100) }],
+        policy_revision_id: opts.policyId ?? NONE_POLICY_ID, trial_days: opts.trialDays ?? 14, grace_days: 0,
+        auto_suspend: true, auto_renew_allowed: false,
+      })
+      expect(draft.status, JSON.stringify(draft.body)).toBe(201)
+      const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Dynamic signup test' })
+      expect(validated.status, JSON.stringify(validated.body)).toBe(200)
+      const published = await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Dynamic signup test' })
+      expect(published.status, JSON.stringify(published.body)).toBe(200)
+      return published.body as { id: string; plan_id: string; edit_revision: number }
+    }
+
+    function planFixture(targetPlanId: string, targetRevisionId: string, appIds: SignupApp[]) {
+      const n = ++testNumber
+      const ip = `198.51.101.${(n % 200) + 1}`
+      let sms = '', email = ''
+      const service = new SignupService(pool, {
+        planId: targetPlanId, legal, humanCheck, secret: 'a'.repeat(32), dailyLimit: 100,
+        sms: async (_m, code) => { sms = code }, email: async (_e, code) => { email = code },
+      })
+      const input = {
+        company_name: 'Dynamic Co', admin_name: 'Admin',
+        email: `dyn-${randomUUID()}@${randomUUID()}.test`,
+        mobile: `+966559${String(n).padStart(6, '0')}`,
+        slug: freshSlug(), ...accepted, offer_revision: targetRevisionId, app_ids: appIds,
+      }
+      const completeAll = async () => {
+        const { signup_id } = await service.start(input, ip)
+        await service.verify(signup_id, 'sms', sms)
+        await service.verify(signup_id, 'email', email)
+        await service.complete(signup_id)
+        const { rows: [result] } = await pool.query(`SELECT r.snapshot->'entitlement'->'features' AS features
+          FROM customers c JOIN subscriptions s ON s.customer_id=c.id
+          JOIN subscription_revisions r ON r.id=s.target_revision_id WHERE c.admin_login=$1`, [input.email])
+        return result.features as Record<string, boolean | number | null>
+      }
+      return { service, input, ip, completeAll, sms: () => sms, email: () => email }
+    }
+
+    it('supports 5 sellable apps including projects (pmo.enabled) and people (hr.enabled) with app limits', async () => {
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', priceMinor: 9900 })
+      const inbox = await publishBundle({ appId: 'inbox', featureKey: 'inbox.enabled', priceMinor: 25000 })
+      const projects = await publishBundle({ appId: 'projects', featureKey: 'pmo.enabled', priceMinor: 14900, domainLimits: { 'projects.max_projects': 25 } })
+      const people = await publishBundle({ appId: 'people', featureKey: 'hr.enabled', priceMinor: 19900 })
+      const finance = await publishBundle({ appId: 'finance', featureKey: 'finance.enabled', priceMinor: 29900 })
+      const plan = await publishPlan({ optionalIds: [projects.id, people.id, crm.id, inbox.id, finance.id] })
+
+      const f = planFixture(plan.plan_id, plan.id, ['projects', 'people'])
+      const offer = await f.service.offer()
+      expect(offer.apps.map(a => a.id)).toEqual(['projects', 'people', 'crm', 'inbox', 'finance'])
+      expect(offer.apps[0]).toMatchObject({ id: 'projects', monthly_minor: 14900, limits: { 'projects.max_projects': 25 } })
+      expect(offer.apps[1]).toMatchObject({ id: 'people', monthly_minor: 19900, limits: {} })
+
+      const features = await f.completeAll()
+      expect(features['pmo.enabled']).toBe(true)
+      expect(features['hr.enabled']).toBe(true)
+      expect(features['projects.max_projects']).toBe(25)
+      expect(features['crm.enabled']).toBe(false)
+      expect(features['inbox.enabled']).toBe(false)
+      expect(features['finance.enabled']).toBe(false)
+    })
+
+    it('supports a non-zero base price with an included bundle, allowing empty app_ids and optional add-ons', async () => {
+      const projects = await publishBundle({ appId: 'projects', featureKey: 'pmo.enabled', priceMinor: 0, domainLimits: { 'projects.max_projects': 10 } })
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', priceMinor: 9900 })
+      const people = await publishBundle({ appId: 'people', featureKey: 'hr.enabled', priceMinor: 19900 })
+      const plan = await publishPlan({ name: 'Business Pack', baseMinor: 29900, includedIds: [projects.id], optionalIds: [crm.id, people.id] })
+
+      const fEmpty = planFixture(plan.plan_id, plan.id, [])
+      const offer = await fEmpty.service.offer()
+      expect(offer).toMatchObject({
+        plan_name: 'Business Pack', base_monthly_minor: 29900,
+        included_apps: [{ id: 'projects', limits: { 'projects.max_projects': 10 } }],
+        apps: [{ id: 'crm', monthly_minor: 9900 }, { id: 'people', monthly_minor: 19900 }],
+      })
+
+      const featuresEmpty = await fEmpty.completeAll()
+      expect(featuresEmpty['pmo.enabled']).toBe(true)
+      expect(featuresEmpty['projects.max_projects']).toBe(10)
+      expect(featuresEmpty['crm.enabled']).toBe(false)
+
+      const fWithAddon = planFixture(plan.plan_id, plan.id, ['crm'])
+      const featuresWithAddon = await fWithAddon.completeAll()
+      expect(featuresWithAddon['pmo.enabled']).toBe(true)
+      expect(featuresWithAddon['crm.enabled']).toBe(true)
+      expect(featuresWithAddon['hr.enabled']).toBe(false)
+    })
+
+    it('exposes vat_exclusive (1500 bps) and custom trial_days (30) on signup offer', async () => {
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', priceMinor: 9900 })
+      const plan = await publishPlan({ policyId: VAT_POLICY_ID, trialDays: 30, optionalIds: [crm.id] })
+
+      const f = planFixture(plan.plan_id, plan.id, ['crm'])
+      const offer = await f.service.offer()
+      expect(offer).toMatchObject({ trial_days: 30, tax: { kind: 'vat_exclusive', rate_bps: 1500 } })
+      const features = await f.completeAll()
+      expect(features['crm.enabled']).toBe(true)
+    })
+
+    it('fails closed with 503 on signup when trial_days is 0', async () => {
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', priceMinor: 9900 })
+      const plan = await publishPlan({ trialDays: 0, optionalIds: [crm.id] })
+
+      const f = planFixture(plan.plan_id, plan.id, ['crm'])
+      await expect(f.service.offer()).rejects.toMatchObject({ code: 'unavailable', status: 503 })
+    })
+
+    it('skips withdrawn optional bundles (refusing stale selections) and fails closed 503 if an included bundle is withdrawn', async () => {
+      const projects = await publishBundle({ appId: 'projects', featureKey: 'pmo.enabled', priceMinor: 0 })
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', priceMinor: 9900 })
+      const inbox = await publishBundle({ appId: 'inbox', featureKey: 'inbox.enabled', priceMinor: 25000 })
+      const plan = await publishPlan({ includedIds: [projects.id], optionalIds: [crm.id, inbox.id] })
+
+      // Start an in-flight signup for inbox before withdrawing inbox.
+      const inFlight = planFixture(plan.plan_id, plan.id, ['inbox'])
+      const { signup_id } = await inFlight.service.start(inFlight.input, inFlight.ip)
+      await inFlight.service.verify(signup_id, 'sms', inFlight.sms())
+      await inFlight.service.verify(signup_id, 'email', inFlight.email())
+
+      const withdrawnOpt = await api('POST', `/bundles/${inbox.id}/withdraw`, { edit_revision: inbox.edit_revision, reason: 'Retire inbox' })
+      expect(withdrawnOpt.status).toBe(200)
+
+      const offerAfterOpt = await inFlight.service.offer()
+      expect(offerAfterOpt.included_apps.map(a => a.id)).toEqual(['projects'])
+      expect(offerAfterOpt.apps.map(a => a.id)).toEqual(['crm'])
+
+      // Completing the in-flight signup whose chosen optional bundle was withdrawn fails with 409 offer_changed.
+      await expect(inFlight.service.complete(signup_id)).rejects.toMatchObject({ code: 'offer_changed', status: 409 })
+
+      // New signup asking for withdrawn optional app is refused 422 before spending any delivery.
+      await pool.query('TRUNCATE public_signup_deliveries')
+      const badStart = planFixture(plan.plan_id, plan.id, ['inbox'])
+      await expect(badStart.service.start(badStart.input, badStart.ip)).rejects.toMatchObject({ code: 'invalid', status: 422 })
+      expect((await pool.query('SELECT count(*)::int AS n FROM public_signup_deliveries')).rows[0].n).toBe(0)
+
+      // Withdraw included bundle -> entire offer fails closed 503.
+      const withdrawnInc = await api('POST', `/bundles/${projects.id}/withdraw`, { edit_revision: projects.edit_revision, reason: 'Retire included' })
+      expect(withdrawnInc.status).toBe(200)
+      await expect(inFlight.service.offer()).rejects.toMatchObject({ code: 'unavailable', status: 503 })
+    })
+
+    it('refuses private-audience plans and non-sellable catalog apps with 503', async () => {
+      const privateCustomerId = randomUUID()
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', priceMinor: 9900 })
+      const privatePlan = await publishPlan({ audience: { kind: 'customer', customer_id: privateCustomerId }, optionalIds: [crm.id] })
+      const fPrivate = planFixture(privatePlan.plan_id, privatePlan.id, ['crm'])
+      await expect(fPrivate.service.offer()).rejects.toMatchObject({ code: 'unavailable', status: 503 })
+
+      // Non-sellable app defense-in-depth: release where appointments has sellable: false.
+      const nonSellableVersion = `nonsellable-${randomUUID()}`
+      const nonSellableSolution = {
+        schema_version: 3, descriptor_grammar: 'limit:key | limit:key:<int> | boolean:key',
+        id: 'nonsellable_fixture', name: 'Non-sellable fixture', industry: 'none',
+        base_modules: ['liwan_core', 'liwan_platform', 'liwan_api'],
+        tiers: [
+          { id: 'core', name: 'Core', modules: [], features: ['limit:users.limit', 'limit:storage.limit_mb', 'limit:branches.extra_limit:0', 'boolean:tasks.enabled'] },
+          { id: 'appointments', name: 'Appointments', sellable: false, modules: ['liwan_appointments'], features: ['boolean:appointments.enabled'] },
+        ],
+      }
+      await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)",
+        [randomUUID(), nonSellableVersion, nonSellableSolution, createHash('sha256').update(JSON.stringify(nonSellableSolution)).digest('hex')])
+      const nsRelease = await api('POST', '/catalog/releases', { catalog_version: nonSellableVersion, reason: 'Non-sellable test' })
+      expect(nsRelease.status).toBe(201)
+
+      const nsBundleParent = randomUUID(), nsBundleRev = randomUUID()
+      await pool.query('INSERT INTO commercial_bundles(id) VALUES($1)', [nsBundleParent])
+      await pool.query(`INSERT INTO bundle_revisions(id,bundle_id,version,name,description,audience,audience_customer_id,status,available,catalog_release_id,selections,domain_limits,prices,content_digest,validated_digest,published_at)
+        VALUES($1,$2,1,'NS','NS','{"kind":"public"}'::jsonb,NULL,'published',true,$3,'[{"app_id":"appointments","feature_keys":["appointments.enabled"]}]'::jsonb,'{}'::jsonb,$4,$5,$5,now())`,
+        [nsBundleRev, nsBundleParent, nsRelease.body.id, JSON.stringify([{ cadence: monthly, amount: money(5000) }]), 'a'.repeat(64)])
+
+      const nsPlanParent = randomUUID(), nsPlanRev = randomUUID()
+      await pool.query('INSERT INTO commercial_plans(id) VALUES($1)', [nsPlanParent])
+      await pool.query(`INSERT INTO plan_revisions(id,plan_id,version,name,audience,audience_customer_id,status,available,term_months,currency,prices,platform_limits,included_bundle_revision_ids,optional_bundle_revision_ids,included_extra_branches,extra_branch_prices,extra_branches_limit,included_users,included_storage_mb,storage_step_mb,storage_step_threshold_mb,storage_large_step_mb,user_prices,storage_prices,policy_revision_id,trial_days,grace_days,auto_suspend,auto_renew_allowed,content_digest,validated_digest,published_at)
+        VALUES($1,$2,1,'NS Plan','{"kind":"public"}'::jsonb,NULL,'published',true,12,'SAR',$3,'{}'::jsonb,'[]'::jsonb,$4,0,'[]'::jsonb,0,3,20480,10240,102400,102400,$5,$5,$6,14,0,true,false,$7,$7,now())`,
+        [nsPlanRev, nsPlanParent, JSON.stringify([{ cadence: monthly, amount: money(0) }]), JSON.stringify([nsBundleRev]),
+          JSON.stringify([{ cadence: monthly, amount: money(100) }]), NONE_POLICY_ID, 'b'.repeat(64)])
+
+      const fNonSellable = planFixture(nsPlanParent, nsPlanRev, ['appointments'])
+      await expect(fNonSellable.service.offer()).rejects.toMatchObject({ code: 'unavailable', status: 503 })
+    })
+
+    it('rejects invalid app_ids with 422 before spending any delivery', async () => {
+      const projects = await publishBundle({ appId: 'projects', featureKey: 'pmo.enabled', priceMinor: 0 })
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', priceMinor: 9900 })
+      const freePlan = await publishPlan({ baseMinor: 0, includedIds: [], optionalIds: [crm.id] })
+      const includedPlan = await publishPlan({ baseMinor: 0, includedIds: [projects.id], optionalIds: [crm.id] })
+
+      // 1. Free base + no included apps + optional apps available -> empty app_ids rejected 422.
+      const f1 = planFixture(freePlan.plan_id, freePlan.id, [])
+      await expect(f1.service.start(f1.input, f1.ip)).rejects.toMatchObject({ code: 'invalid', status: 422 })
+      // 2. Arbitrary unoffered app id -> rejected 422.
+      const f2 = planFixture(freePlan.plan_id, freePlan.id, ['finance'])
+      await expect(f2.service.start(f2.input, f2.ip)).rejects.toMatchObject({ code: 'invalid', status: 422 })
+      // 3. Included app id passed in optional app_ids -> rejected 422.
+      const f3 = planFixture(includedPlan.plan_id, includedPlan.id, ['projects'])
+      await expect(f3.service.start(f3.input, f3.ip)).rejects.toMatchObject({ code: 'invalid', status: 422 })
+
+      expect((await pool.query('SELECT count(*)::int AS n FROM public_signup_deliveries')).rows[0].n).toBe(0)
+      expect(f1.sms()).toBe('')
+      expect(f2.sms()).toBe('')
+      expect(f3.sms()).toBe('')
     })
   })
 })

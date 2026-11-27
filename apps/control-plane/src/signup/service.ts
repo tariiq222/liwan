@@ -1,4 +1,4 @@
-import { signupAppsSchema, signupStartSchema, workspaceSlugSchema, normalizeWorkspaceSlug, type SignupApp, type SignupChannel, type SignupStatus } from '@liwan/commercial-contracts'
+import { signupAppsSchema, signupStartSchema, workspaceSlugSchema, normalizeWorkspaceSlug, type SignupApp, type SignupChannel, type SignupOffer, type SignupStatus } from '@liwan/commercial-contracts'
 import { createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
@@ -49,6 +49,13 @@ const STATUS_LIMIT = { max: 30, windowMs: 60_000 }
 
 function refuse(code: string, status: number): never { throw new CommercialHttpError(code, status) }
 const codeValue = () => String(randomInt(1_000_000)).padStart(6, '0')
+
+function validateSelectedApps(offer: SignupOffer, appIds: readonly SignupApp[]): boolean {
+  const optionalIds = new Set(offer.apps.map(app => app.id))
+  if (appIds.some(id => !optionalIds.has(id))) return false
+  if (offer.base_monthly_minor === 0 && offer.included_apps.length === 0 && offer.apps.length > 0 && appIds.length === 0) return false
+  return true
+}
 
 export class SignupService {
   private hits = new Map<string, number[]>()
@@ -143,7 +150,8 @@ export class SignupService {
     const codes = { sms: codeValue(), email: codeValue() }
     const now = this.now()
     await transaction(this.pool, async client => {
-      await this.selectedOffer(client, offer_revision)
+      const current = await this.selectedOffer(client, offer_revision)
+      if (!validateSelectedApps(current.offer, app_ids)) refuse('invalid', 422)
       await this.lockDeliveries(client)
       await this.reserveDelivery(client, 'sms', mobile, ip, now)
       await this.reserveDelivery(client, 'email', email, ip, now)
@@ -229,8 +237,10 @@ export class SignupService {
   private async startWorkspace(client: PoolClient, row: Challenge, now: Date) {
     const selection = signupAppsSchema.safeParse(row.app_ids)
     if (!selection.success) refuse('offer_changed', 409)
-    const { offer, bundles } = await this.selectedOffer(client, row.offer_revision)
-    const chosen = bundles.filter(bundle => selection.data.some(app => app === bundle.selections[0]?.app_id))
+    const { offer, optionalBundles } = await this.selectedOffer(client, row.offer_revision)
+    if (!validateSelectedApps(offer, selection.data)) refuse('offer_changed', 409)
+    const chosenOptional = optionalBundles.filter(bundle => selection.data.includes(bundle.selections[0]!.app_id))
+    if (chosenOptional.length !== selection.data.length) refuse('offer_changed', 409)
     const customerId = randomUUID()
     const domain = companyDomain(row.email) ?? refuse('invalid', 422)
     await client.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)',
@@ -247,7 +257,7 @@ export class SignupService {
     await startTrialOn(client, {
       customer_id: customerId, now, waitForFirstLogin: true,
       principal: { kind: 'customer', actor_id: `public-signup:${row.id}`, customer_id: customerId, tenant_id: null, capabilities: [] },
-      request: { kind: 'new', plan_revision_id: offer.offer_revision, bundle_revision_ids: chosen.map(bundle => bundle.id),
+      request: { kind: 'new', plan_revision_id: offer.offer_revision, bundle_revision_ids: chosenOptional.map(bundle => bundle.id),
         cadence: signupCadence, requested_users: offer.included_users,
         requested_storage_mb: offer.included_storage_mb, requested_extra_branches: 0 },
     })

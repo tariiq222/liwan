@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
-import { publicPricingSchema } from '@liwan/commercial-contracts'
+import { publicPricingSchema, type Price } from '@liwan/commercial-contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { client, money, monthly, setup, url } from '../__tests__/commercial-helpers.js'
 import type { MailAdapter } from '../commercial/mail-adapter.js'
@@ -15,14 +15,17 @@ const valid = { name: 'Sara', email: 'sara@acme.com.sa', company: 'Acme', mobile
 
 describe.skipIf(!url)('public site routes on scratch PostgreSQL', () => {
   const pool = new Pool({ connectionString: url })
+  let releaseId: string
   let planId: string
   let revisionId: string
+  let bundleIds: string[] = []
   beforeAll(async () => {
     const { version } = await setup(pool)
     // Other suites on the same scratch database edit the vendor's billing settings; this one states its own.
     await pool.query("UPDATE billing_settings SET refund_window_days=14, onboarding_fee_minor=49900, onboarding_currency='SAR', onboarding_exponent=2 WHERE singleton")
     const api = client(pool)
     const release = await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Public site' })
+    releaseId = release.body.id
     const bundles: string[] = []
     for (const [id, price] of [['crm', 9900], ['inbox', 25000]] as const) {
       const bundle = await api('POST', '/bundles', { name: id, description: id, audience: { kind: 'public' }, catalog_release_id: release.body.id,
@@ -32,9 +35,10 @@ describe.skipIf(!url)('public site routes on scratch PostgreSQL', () => {
       await api('POST', `/bundles/${bundle.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Public site' })
       bundles.push(bundle.body.id)
     }
+    bundleIds = bundles
     const draft = await api('POST', '/plans', {
       name: `Public ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-      prices: [{ cadence: monthly, amount: money(0) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: bundles,
+      prices: [{ cadence: monthly, amount: money(0) }, { cadence: yearly, amount: money(0) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: bundles,
       included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 1, included_users: 3, included_storage_mb: 20480,
       storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
       user_prices: [{ cadence: monthly, amount: money(2900) }, { cadence: yearly, amount: money(29000) }],
@@ -63,20 +67,150 @@ describe.skipIf(!url)('public site routes on scratch PostgreSQL', () => {
   const rows = async () => (await pool.query('SELECT * FROM public_contact_requests')).rows
 
   describe('pricing', () => {
-    it('serves the published offer in the shape the site reads, with no internal field', async () => {
+    const api = client(pool)
+    const VAT_POLICY_ID = '6f1c3d8e-0000-4000-8000-000000000001'
+    const NONE_POLICY_ID = '6f1c3d8e-0000-4000-8000-000000000002'
+
+    async function publishBundle(opts: { appId: string; featureKey: string; monthlyMinor: number; yearlyMinor?: number }) {
+      const prices: Price[] = [{ cadence: monthly, amount: money(opts.monthlyMinor) }]
+      if (opts.yearlyMinor !== undefined) prices.push({ cadence: yearly, amount: money(opts.yearlyMinor) })
+      const bundle = await api('POST', '/bundles', {
+        name: `Pub ${opts.appId} ${randomUUID().slice(0, 6)}`, description: opts.appId, audience: { kind: 'public' },
+        catalog_release_id: releaseId, selections: [{ app_id: opts.appId, feature_keys: [opts.featureKey] }],
+        domain_limits: {}, prices, reason: 'Public pricing test',
+      })
+      expect(bundle.status, JSON.stringify(bundle.body)).toBe(201)
+      const validated = await api('POST', `/bundles/${bundle.body.id}/validate`, { edit_revision: 1, reason: 'Public pricing test' })
+      expect(validated.status).toBe(200)
+      const published = await api('POST', `/bundles/${bundle.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Public pricing test' })
+      expect(published.status).toBe(200)
+      return published.body as { id: string; edit_revision: number }
+    }
+
+    async function publishPlan(opts: {
+      baseMonthlyMinor?: number; baseYearlyMinor?: number; includedIds?: string[]; optionalIds?: string[]
+      policyId?: string; trialDays?: number; includeYearlyUser?: boolean
+      audience?: { kind: 'public' } | { kind: 'customer'; customer_id: string }
+    }) {
+      const prices: Price[] = [{ cadence: monthly, amount: money(opts.baseMonthlyMinor ?? 0) }]
+      if (opts.baseYearlyMinor !== undefined) prices.push({ cadence: yearly, amount: money(opts.baseYearlyMinor) })
+      const userPrices: Price[] = [{ cadence: monthly, amount: money(2900) }]
+      if (opts.includeYearlyUser ?? opts.baseYearlyMinor !== undefined) userPrices.push({ cadence: yearly, amount: money(29000) })
+      const storagePrices: Price[] = [{ cadence: monthly, amount: money(100) }]
+      if (opts.baseYearlyMinor !== undefined) storagePrices.push({ cadence: yearly, amount: money(1000) })
+      const draft = await api('POST', '/plans', {
+        name: `Pricing ${randomUUID().slice(0, 8)}`, audience: opts.audience ?? { kind: 'public' }, term_months: 12, currency: 'SAR',
+        prices, platform_limits: {}, included_bundle_revision_ids: opts.includedIds ?? [], optional_bundle_revision_ids: opts.optionalIds ?? [],
+        included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 1, included_users: 3, included_storage_mb: 20480,
+        storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
+        user_prices: userPrices, storage_prices: storagePrices,
+        policy_revision_id: opts.policyId ?? NONE_POLICY_ID, trial_days: opts.trialDays ?? 14, grace_days: 0, auto_suspend: true, auto_renew_allowed: false,
+      })
+      expect(draft.status, JSON.stringify(draft.body)).toBe(201)
+      const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Public pricing test' })
+      expect(validated.status, JSON.stringify(validated.body)).toBe(200)
+      const published = await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Public pricing test' })
+      expect(published.status).toBe(200)
+      return published.body as { id: string; plan_id: string; edit_revision: number }
+    }
+
+    it('serves the published offer in the shape the site reads, with derived base apps and no internal field', async () => {
       const answer = await post(handler(), PUBLIC_PRICING_PATH, pricingRequest())
       expect(answer.status).toBe(200)
       expect(publicPricingSchema.parse(answer.data)).toMatchObject({
-        schema_version: 1, currency: 'SAR', tax: 'none',
-        free: { users: 3, storage_gb: 20, branches: 1 },
+        schema_version: 1, currency: 'SAR', tax: 'none', trial_days: 14,
+        base: { monthly: 0, annual: 0 },
+        free: { users: 3, storage_gb: 20, branches: 1, apps: ['tasks', 'chat', 'meetings', 'ai', 'documents', 'operations'] },
         apps: [{ key: 'crm', monthly: 99, annual: 990 }, { key: 'inbox', monthly: 250, annual: 2500 }],
         extra_user: { monthly: 29, annual: 290, max_users: 100 },
         extra_storage: { per_gb_monthly: 1, block_gb: 10, block_monthly: 10, step_gb: 10, step_gb_after: 100, step_gb_large: 100 },
         onboarding: { one_time: 499 }, refund_days: 14,
       })
-      expect(JSON.stringify(answer.data)).not.toContain(planId)
-      expect(JSON.stringify(answer.data)).not.toContain(revisionId)
+      const serialized = JSON.stringify(answer.data)
+      expect(serialized).not.toContain(planId)
+      expect(serialized).not.toContain(revisionId)
+      expect(serialized).not.toContain(releaseId)
+      expect(serialized).not.toContain(NONE_POLICY_ID)
+      for (const bid of bundleIds) expect(serialized).not.toContain(bid)
     })
+
+    it('supports dynamic apps (projects, people, crm), included bundle in free.apps, non-zero base, vat_exclusive and custom trial_days', async () => {
+      const projects = await publishBundle({ appId: 'projects', featureKey: 'pmo.enabled', monthlyMinor: 0, yearlyMinor: 0 })
+      const people = await publishBundle({ appId: 'people', featureKey: 'hr.enabled', monthlyMinor: 19900, yearlyMinor: 199000 })
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', monthlyMinor: 9900, yearlyMinor: 99000 })
+      const plan = await publishPlan({
+        baseMonthlyMinor: 29900, baseYearlyMinor: 299000,
+        includedIds: [projects.id], optionalIds: [people.id, crm.id],
+        policyId: VAT_POLICY_ID, trialDays: 30,
+      })
+      const answer = await post(handler({ planId: plan.plan_id }), PUBLIC_PRICING_PATH, pricingRequest())
+      expect(answer.status).toBe(200)
+      const parsed = publicPricingSchema.parse(answer.data)
+      expect(parsed).toMatchObject({
+        currency: 'SAR', tax: 'vat_exclusive', tax_rate_bps: 1500, trial_days: 30,
+        base: { monthly: 299, annual: 2990 },
+        free: { apps: ['tasks', 'chat', 'meetings', 'ai', 'documents', 'operations', 'projects'] },
+        apps: [
+          { key: 'people', monthly: 199, annual: 1990 },
+          { key: 'crm', monthly: 99, annual: 990 },
+        ],
+      })
+      const serialized = JSON.stringify(answer.data)
+      for (const secretId of [plan.plan_id, plan.id, projects.id, people.id, crm.id, releaseId, VAT_POLICY_ID]) {
+        expect(serialized).not.toContain(secretId)
+      }
+    })
+
+    it('serves trial_days: 0 and monthly-only plans with null annual prices', async () => {
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', monthlyMinor: 9900 })
+      const people = await publishBundle({ appId: 'people', featureKey: 'hr.enabled', monthlyMinor: 14900 })
+      const plan = await publishPlan({ baseMonthlyMinor: 4900, optionalIds: [crm.id, people.id], trialDays: 0 })
+
+      const answer = await post(handler({ planId: plan.plan_id }), PUBLIC_PRICING_PATH, pricingRequest())
+      expect(answer.status).toBe(200)
+      expect(publicPricingSchema.parse(answer.data)).toMatchObject({
+        trial_days: 0,
+        base: { monthly: 49, annual: null },
+        apps: [
+          { key: 'crm', monthly: 99, annual: null },
+          { key: 'people', monthly: 149, annual: null },
+        ],
+        extra_user: { monthly: 29, annual: null, max_users: 100 },
+      })
+    })
+
+    it('skips withdrawn optional bundles and fails closed 503 for withdrawn included bundle or private plan', async () => {
+      const projects = await publishBundle({ appId: 'projects', featureKey: 'pmo.enabled', monthlyMinor: 0 })
+      const crm = await publishBundle({ appId: 'crm', featureKey: 'crm.enabled', monthlyMinor: 9900 })
+      const inbox = await publishBundle({ appId: 'inbox', featureKey: 'inbox.enabled', monthlyMinor: 25000 })
+      const plan = await publishPlan({ includedIds: [projects.id], optionalIds: [crm.id, inbox.id] })
+
+      expect((await api('POST', `/bundles/${inbox.id}/withdraw`, { edit_revision: inbox.edit_revision, reason: 'Retire optional' })).status).toBe(200)
+      const afterOpt = await post(handler({ planId: plan.plan_id }), PUBLIC_PRICING_PATH, pricingRequest())
+      expect(afterOpt.status).toBe(200)
+      expect(publicPricingSchema.parse(afterOpt.data).apps.map(a => a.key)).toEqual(['crm'])
+
+      expect((await api('POST', `/bundles/${projects.id}/withdraw`, { edit_revision: projects.edit_revision, reason: 'Retire included' })).status).toBe(200)
+      expect((await post(handler({ planId: plan.plan_id }), PUBLIC_PRICING_PATH, pricingRequest())).status).toBe(503)
+
+      const privatePlan = await publishPlan({ audience: { kind: 'customer', customer_id: randomUUID() }, optionalIds: [crm.id] })
+      expect((await post(handler({ planId: privatePlan.plan_id }), PUBLIC_PRICING_PATH, pricingRequest())).status).toBe(503)
+
+      // Inconsistent annual cadence: plan advertises annual base, but optional bundle has only monthly -> 503.
+      const monthlyOnlyBundle = await publishBundle({ appId: 'finance', featureKey: 'finance.enabled', monthlyMinor: 19900 })
+      const badPlanParent = randomUUID(), badPlanRev = randomUUID()
+      await pool.query('INSERT INTO commercial_plans(id) VALUES($1)', [badPlanParent])
+      await pool.query(`INSERT INTO plan_revisions(id,plan_id,version,name,audience,audience_customer_id,status,available,term_months,currency,prices,platform_limits,included_bundle_revision_ids,optional_bundle_revision_ids,included_extra_branches,extra_branch_prices,extra_branches_limit,included_users,included_storage_mb,storage_step_mb,storage_step_threshold_mb,storage_large_step_mb,user_prices,storage_prices,policy_revision_id,trial_days,grace_days,auto_suspend,auto_renew_allowed,content_digest,validated_digest,published_at)
+        VALUES($1,$2,1,'Bad Annual','{"kind":"public"}'::jsonb,NULL,'published',true,12,'SAR',$3,'{}'::jsonb,'[]'::jsonb,$4,0,'[]'::jsonb,0,3,20480,10240,102400,102400,$5,$6,$7,14,0,true,false,$8,$8,now())`,
+        [badPlanRev, badPlanParent,
+          JSON.stringify([{ cadence: monthly, amount: money(0) }, { cadence: yearly, amount: money(0) }]),
+          JSON.stringify([monthlyOnlyBundle.id]),
+          JSON.stringify([{ cadence: monthly, amount: money(2900) }, { cadence: yearly, amount: money(29000) }]),
+          JSON.stringify([{ cadence: monthly, amount: money(100) }, { cadence: yearly, amount: money(1000) }]),
+          NONE_POLICY_ID, 'c'.repeat(64)])
+      expect((await post(handler({ planId: badPlanParent }), PUBLIC_PRICING_PATH, pricingRequest())).status).toBe(503)
+    })
+
     it('is unavailable without a configured plan, or when the plan is not the sign-up offer', async () => {
       expect((await post(handler({ planId: undefined }), PUBLIC_PRICING_PATH, pricingRequest())).status).toBe(503)
       expect((await post(handler({ planId: randomUUID() }), PUBLIC_PRICING_PATH, pricingRequest())).status).toBe(503)

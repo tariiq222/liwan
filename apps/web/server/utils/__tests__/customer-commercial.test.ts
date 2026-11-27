@@ -450,12 +450,26 @@ describe('signup relay', () => {
     return raw
   }
   it('relays a validated public offer and refuses a malformed one', async () => {
-    const offer = { offer_revision: '00000000-0000-4000-8000-000000000001', trial_days: 14, currency: 'SAR',
-      included_users: 3, included_storage_mb: 20480, included_extra_branches: 1,
-      apps: [{ id: 'crm', monthly_minor: 9900, limits: {} }, { id: 'inbox', monthly_minor: 25000, limits: {} }] }
+    const offer = {
+      offer_revision: '00000000-0000-4000-8000-000000000001',
+      plan_name: 'Starter',
+      trial_days: 14,
+      currency: 'SAR',
+      currency_exponent: 2,
+      base_monthly_minor: 0,
+      tax: { kind: 'vat_exclusive' as const, rate_bps: 1500 as const },
+      included_users: 3,
+      included_storage_mb: 20480,
+      included_extra_branches: 1,
+      included_apps: [],
+      apps: [
+        { id: 'crm', name_ar: 'إدارة العملاء', name_en: 'CRM', monthly_minor: 9900, limits: {} },
+        { id: 'inbox', name_ar: 'رسائل العملاء', name_en: 'Inbox', monthly_minor: 25000, limits: {} },
+      ],
+    }
     signup({ status: 200, _data: offer }, 'offer')
     await expect(forwardSignupRequest({} as never)).resolves.toEqual(offer)
-    signup({ status: 200, _data: { ...offer, currency: 'USD' } }, 'offer')
+    signup({ status: 200, _data: { ...offer, currency: 'us' } }, 'offer')
     await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 503 })
   })
   it('passes a refused free-mail address through as its own code and status', async () => {

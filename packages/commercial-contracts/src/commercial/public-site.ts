@@ -1,14 +1,17 @@
 import { z } from 'zod'
 
 const amount = z.number().nonnegative()
-const prices = { monthly: amount, annual: amount }
+const prices = { monthly: amount, annual: amount.nullable() }
 
 /** What the marketing site reads: `GET /api/commercial/public/pricing`. Amounts are whole currency units without tax; the
  * vendor edits them in the console and this shape never carries an id, a cost or a revision. */
 export const publicPricingSchema = z.strictObject({
   schema_version: z.literal(1),
-  currency: z.literal('SAR'),
-  tax: z.literal('none'),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  tax: z.enum(['none', 'vat_exclusive']),
+  tax_rate_bps: z.number().int().positive().max(100_000).optional(),
+  trial_days: z.number().int().nonnegative().max(3650),
+  base: z.strictObject({ ...prices }),
   free: z.strictObject({ users: z.number().int().nonnegative(), storage_gb: amount, branches: z.number().int().nonnegative(), apps: z.array(z.string()) }),
   apps: z.array(z.strictObject({ key: z.string(), name_ar: z.string(), name_en: z.string(), ...prices })),
   extra_user: z.strictObject({ ...prices, max_users: z.number().int().positive() }),
@@ -18,7 +21,10 @@ export const publicPricingSchema = z.strictObject({
   }),
   onboarding: z.strictObject({ one_time: amount }),
   refund_days: z.number().int().nonnegative(),
-})
+}).refine(
+  v => (v.tax === 'none' && v.tax_rate_bps === undefined) || (v.tax === 'vat_exclusive' && v.tax_rate_bps !== undefined),
+  { message: 'tax_rate_bps is required iff tax is vat_exclusive', path: ['tax_rate_bps'] },
+)
 export type PublicPricing = z.infer<typeof publicPricingSchema>
 
 /** Empty text from a form is "not given". */

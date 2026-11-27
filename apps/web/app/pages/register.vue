@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SignupApp, SignupOffer } from '@/utils/subscription'
+import { signupOfferTotals, type SignupApp, type SignupIncludedApp, type SignupOffer, type SignupOptionalApp } from '@/utils/subscription'
 import type { FormError } from '@nuxt/ui'
 import { ForgotPasswordInputSchema } from '@liwan/contracts'
 import { errorCode, errorSeconds, normalizeCode } from '@/components/auth/loginFlow'
@@ -15,7 +15,7 @@ type Channel = 'sms' | 'email'
 type SlugState = 'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'
 type Preparing = 'preparing' | 'delayed' | 'failed' | 'ready'
 
-const { t, locale, setLocale } = useI18n()
+const { t, te, locale, setLocale } = useI18n()
 const otherLanguage = computed(() => locale.value === 'ar' ? { code: 'en', label: 'English' } as const : { code: 'ar', label: 'العربية' } as const)
 const hydrated = useHydrated()
 const step = ref<Step>('details')
@@ -26,13 +26,31 @@ type SignupConfig = { legal_base_url: string; terms_version: string; human_check
 const legal = ref<SignupConfig>()
 const offer = ref<SignupOffer>()
 const offerLoading = ref(false)
-const selectedApps = ref<SignupApp[]>(['crm', 'inbox'])
-const monthlyMinor = computed(() => offer.value?.apps.reduce(
-  (total, app) => total + (selectedApps.value.includes(app.id) ? app.monthly_minor : 0), 0,
-) ?? 0)
-const money = computed(() => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'SAR' }))
+const selectedApps = ref<SignupApp[]>([])
+const offerTotals = computed(() => offer.value
+  ? signupOfferTotals(offer.value, selectedApps.value)
+  : { subtotalMinor: 0, taxMinor: 0, totalMinor: 0, requiresAppSelection: false })
+const canSubmitApps = computed(() => !offerTotals.value.requiresAppSelection || selectedApps.value.length > 0)
+const currencyExponent = computed(() => offer.value?.currency_exponent ?? 2)
+const minorDivisor = computed(() => 10 ** currencyExponent.value)
+const money = computed(() => new Intl.NumberFormat(locale.value, {
+  style: 'currency',
+  currency: offer.value?.currency ?? 'SAR',
+  minimumFractionDigits: currencyExponent.value,
+  maximumFractionDigits: currencyExponent.value,
+}))
+const formatMoney = (minor: number) => money.value.format(minor / minorDivisor.value)
 const quantity = computed(() => new Intl.NumberFormat(locale.value))
-const inboxLimits = ['inbox.channels', 'inbox.messages_out', 'inbox.campaign_recipients'] as const
+const vatRate = computed(() => offer.value?.tax.kind === 'vat_exclusive' ? quantity.value.format(offer.value.tax.rate_bps / 100) : undefined)
+const appName = (app: Pick<SignupIncludedApp | SignupOptionalApp, 'name_ar' | 'name_en'>) =>
+  locale.value === 'en' ? app.name_en : app.name_ar
+function appLimitEntries(limits: Record<string, number | null>): Array<{ key: string; label: string }> {
+  return Object.entries(limits).flatMap(([key, value]) => {
+    const i18nKey = `signup.offer.limits.${key.replaceAll('.', '_')}`
+    if (!te(i18nKey)) return []
+    return [{ key, label: t(i18nKey, { count: value == null ? t('signup.offer.unlimited') : quantity.value.format(value) }) }]
+  })
+}
 
 function chooseApp(id: SignupApp, selected: boolean | 'indeterminate') {
   selectedApps.value = selected === true
@@ -168,11 +186,16 @@ function spendHumanToken() {
   humanToken.value = undefined
   widget.value?.reset()
 }
-async function loadOffer() {
+async function loadOffer(preserveSelection = false) {
   offerLoading.value = true
   offer.value = undefined
   try {
-    offer.value = await request<SignupOffer>('offer', {})
+    const loaded = await request<SignupOffer>('offer', {})
+    offer.value = loaded
+    const valid = new Set(loaded.apps.map(app => app.id))
+    selectedApps.value = preserveSelection
+      ? selectedApps.value.filter(id => valid.has(id))
+      : loaded.apps.map(app => app.id)
   } catch {
     errorKey.value = errors.unavailable
   } finally {
@@ -275,7 +298,7 @@ async function run(action: string, execute: () => Promise<void>) {
     if (code === 'signup_expired') editDetails()
     if (code === 'offer_changed') {
       editDetails()
-      await loadOffer()
+      await loadOffer(true)
       if (offer.value) errorKey.value = errors.offer_changed
       return
     }
@@ -311,7 +334,7 @@ async function submitDetails() {
   const version = legal.value?.terms_version
   const token = humanToken.value
   const revision = offer.value?.offer_revision
-  if (!revision || !selectedApps.value.length || !version || !details.accept_terms || !token || slugState.value === 'checking' || slugState.value === 'unavailable') return
+  if (!revision || !canSubmitApps.value || !version || !details.accept_terms || !token || slugState.value === 'checking' || slugState.value === 'unavailable') return
   try {
     await run('start', async () => {
       const answer = await request<{ signup_id: string }>('start', {
@@ -405,7 +428,7 @@ const headingKey = computed(() => step.value === 'preparing' ? `signup.headings.
         <h1 ref="heading" tabindex="-1" class="font-display text-lg font-semibold text-highlighted">
           {{ t(headingKey) }}
         </h1>
-        <p v-if="step === 'details'" class="text-sm text-muted">{{ t('signup.trial') }}</p>
+        <p v-if="step === 'details' && offer" class="text-sm text-muted">{{ t('signup.trial', { days: quantity.format(offer.trial_days) }) }}</p>
       </div>
     </template>
 
@@ -415,15 +438,28 @@ const headingKey = computed(() => step.value === 'preparing' ? `signup.headings.
       <UForm v-if="step === 'details'" :state="details" :validate="validateDetails" novalidate class="liwan-form" @submit="submitDetails">
         <fieldset v-if="offer" class="grid gap-3">
           <legend class="mb-2 font-semibold text-highlighted">{{ t('signup.offer.title') }}</legend>
-          <div v-for="app in offer.apps" :key="app.id" class="rounded-inner border border-default p-3">
-            <UCheckbox :model-value="selectedApps.includes(app.id)" :disabled="!hydrated || !!pending"
-              :label="t(`signup.offer.apps.${app.id}.name`)" @update:model-value="chooseApp(app.id, $event)" />
-            <p class="mt-1 text-sm text-muted">{{ t(`signup.offer.apps.${app.id}.description`) }}</p>
-            <p class="mt-1 text-sm">{{ t('signup.offer.month', { price: money.format(app.monthly_minor / 100) }) }}</p>
-            <ul v-if="app.id === 'inbox'" class="mt-1 text-sm text-muted">
-              <li v-for="(key, index) in inboxLimits" :key="key" v-show="Object.hasOwn(app.limits, key)">
-                {{ t(`signup.offer.inboxLimits.${index}`, { count: app.limits[key] == null ? t('signup.offer.unlimited') : quantity.format(app.limits[key]!) }) }}
-              </li>
+          <div v-if="offer.included_apps.length" class="grid gap-2">
+            <p class="text-sm font-medium text-highlighted">{{ t('signup.offer.includedApps') }}</p>
+            <div v-for="app in offer.included_apps" :key="app.id" class="rounded-inner border border-default p-3" :data-testid="`included-app-${app.id}`">
+              <p class="font-medium text-highlighted">{{ appName(app) }}</p>
+              <p v-if="te(`signup.offer.apps.${app.id}.description`)" class="mt-1 text-sm text-muted">{{ t(`signup.offer.apps.${app.id}.description`) }}</p>
+              <ul v-if="appLimitEntries(app.limits).length" class="mt-1 text-sm text-muted">
+                <li v-for="entry in appLimitEntries(app.limits)" :key="entry.key">{{ entry.label }}</li>
+              </ul>
+            </div>
+          </div>
+          <p v-if="offer.base_monthly_minor > 0" class="text-sm" data-testid="offer-base-price">
+            {{ t('signup.offer.basePrice', { price: formatMoney(offer.base_monthly_minor) }) }}
+          </p>
+          <div v-for="app in offer.apps" :key="app.id" class="rounded-inner border border-default p-3" :data-testid="`optional-app-${app.id}`">
+            <UCheckbox
+              :model-value="selectedApps.includes(app.id)" :disabled="!hydrated || !!pending"
+              :label="appName(app)" @update:model-value="chooseApp(app.id, $event)"
+            />
+            <p v-if="te(`signup.offer.apps.${app.id}.description`)" class="mt-1 text-sm text-muted">{{ t(`signup.offer.apps.${app.id}.description`) }}</p>
+            <p class="mt-1 text-sm">{{ t('signup.offer.month', { price: formatMoney(app.monthly_minor) }) }}</p>
+            <ul v-if="appLimitEntries(app.limits).length" class="mt-1 text-sm text-muted">
+              <li v-for="entry in appLimitEntries(app.limits)" :key="entry.key">{{ entry.label }}</li>
             </ul>
           </div>
           <p class="text-sm text-muted">{{ t('signup.offer.base', {
@@ -432,8 +468,11 @@ const headingKey = computed(() => step.value === 'preparing' ? `signup.headings.
           }) }}</p>
           <p class="text-sm text-muted">{{ t('signup.offer.after') }}</p>
           <p role="status" class="font-semibold text-highlighted">{{ t('signup.offer.total', {
-            today: money.format(0), monthly: money.format(monthlyMinor / 100),
+            today: formatMoney(0), monthly: formatMoney(offerTotals.totalMinor),
           }) }}</p>
+          <p v-if="offer.tax.kind === 'vat_exclusive'" class="text-xs text-muted" data-testid="offer-vat-note">
+            {{ t('signup.offer.vatNote', { rate: vatRate, tax: formatMoney(offerTotals.taxMinor) }) }}
+          </p>
         </fieldset>
         <p v-else-if="offerLoading" role="status" class="text-sm text-muted">{{ t('signup.offer.loading') }}</p>
         <UButton v-if="!offerLoading && (!offer || !legal)" type="button" variant="outline" :label="t('signup.offer.retry')" @click="loadRegistration" />
@@ -471,7 +510,7 @@ const headingKey = computed(() => step.value === 'preparing' ? `signup.headings.
         />
         <UButton
           type="submit" size="lg" class="w-full justify-center"
-          :disabled="!hydrated || !!pending || !offer || !selectedApps.length || slugState === 'checking' || slugState === 'unavailable' || slugState === 'invalid' || (!(signupId && verified.sms && verified.email) && !checkReady)"
+          :disabled="!hydrated || !!pending || !offer || !canSubmitApps || slugState === 'checking' || slugState === 'unavailable' || slugState === 'invalid' || (!(signupId && verified.sms && verified.email) && !checkReady)"
           :loading="pending === 'start' || pending === 'complete'" :label="t('signup.offer.begin')"
         />
       </UForm>

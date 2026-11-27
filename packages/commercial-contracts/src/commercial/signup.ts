@@ -1,23 +1,43 @@
 import { z } from 'zod'
 import { normalizeWorkspaceSlug, workspaceSlugSchema } from '../workspace-slug.js'
+import { pricingPolicySchema } from './schemas.js'
 
-export const signupAppSchema = z.enum(['crm', 'inbox'])
-export const signupAppsSchema = z.array(signupAppSchema).min(1).max(2)
+export const signupAppSchema = z.string().regex(/^[a-z][a-z0-9_]*$/).max(64)
+export const signupAppsSchema = z.array(signupAppSchema).max(64)
   .refine(apps => new Set(apps).size === apps.length)
+export const signupLimitsSchema = z.record(z.string(), z.number().int().nonnegative().nullable())
+export const signupIncludedAppSchema = z.strictObject({
+  id: signupAppSchema,
+  name_ar: z.string().min(1),
+  name_en: z.string().min(1),
+  limits: signupLimitsSchema,
+})
+export const signupOptionalAppSchema = z.strictObject({
+  id: signupAppSchema,
+  name_ar: z.string().min(1),
+  name_en: z.string().min(1),
+  monthly_minor: z.number().int().nonnegative(),
+  limits: signupLimitsSchema,
+})
 export const signupOfferSchema = z.strictObject({
   offer_revision: z.uuid(),
-  trial_days: z.literal(14),
-  currency: z.literal('SAR'),
+  plan_name: z.string().min(1),
+  trial_days: z.number().int().min(1).max(3650),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  currency_exponent: z.number().int().min(0).max(4),
+  base_monthly_minor: z.number().int().nonnegative(),
+  tax: pricingPolicySchema.shape.tax,
   included_users: z.number().int().nonnegative(),
   included_storage_mb: z.number().int().nonnegative(),
   included_extra_branches: z.number().int().nonnegative(),
-  apps: z.array(z.strictObject({
-    id: signupAppSchema,
-    monthly_minor: z.number().int().positive(),
-    limits: z.record(z.string(), z.number().int().nonnegative().nullable()),
-  })).length(2),
+  included_apps: z.array(signupIncludedAppSchema),
+  apps: z.array(signupOptionalAppSchema),
 })
 export type SignupApp = z.infer<typeof signupAppSchema>
+export type SignupApps = z.infer<typeof signupAppsSchema>
+export type SignupLimits = z.infer<typeof signupLimitsSchema>
+export type SignupIncludedApp = z.infer<typeof signupIncludedAppSchema>
+export type SignupOptionalApp = z.infer<typeof signupOptionalAppSchema>
 export type SignupOffer = z.infer<typeof signupOfferSchema>
 
 // The self-service signup wire (`/v1/customer/signup/*`): the form, the two codes, the workspace slug, and the wait for

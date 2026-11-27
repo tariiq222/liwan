@@ -1,5 +1,16 @@
-import { daysBetween, MAX_USERS, riyadhDate, type Money, type Order, type Quote, type SubscriptionDisplayState, type SubscriptionState, type SubscriptionView, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
-export type { SignupApp, SignupOffer } from '@liwan/commercial-contracts'
+import { daysBetween, MAX_USERS, riyadhDate, vat, type Money, type Order, type Quote, type SignupApp, type SignupIncludedApp, type SignupOffer, type SignupOptionalApp, type SubscriptionDisplayState, type SubscriptionState, type SubscriptionView, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
+export type { SignupApp, SignupIncludedApp, SignupOffer, SignupOptionalApp }
+
+/** Post-trial monthly totals and app-selection requirement for a dynamic signup offer. */
+export function signupOfferTotals(offer: SignupOffer, selectedApps: readonly SignupApp[]) {
+  const selected = new Set(selectedApps)
+  const appsMinor = offer.apps.reduce((sum, app) => sum + (selected.has(app.id) ? app.monthly_minor : 0), 0)
+  const subtotalMinor = offer.base_monthly_minor + appsMinor
+  const taxMinor = offer.tax.kind === 'vat_exclusive' ? vat(subtotalMinor, offer.tax.rate_bps) : 0
+  const totalMinor = subtotalMinor + taxMinor
+  const requiresAppSelection = offer.apps.length > 0 && offer.included_apps.length === 0 && offer.base_monthly_minor === 0
+  return { subtotalMinor, taxMinor, totalMinor, requiresAppSelection }
+}
 
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { statusBadgeEntry, type StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
