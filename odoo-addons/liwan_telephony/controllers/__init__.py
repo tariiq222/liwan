@@ -2,7 +2,7 @@
 from . import (
     telephony_calls,
     telephony_events,
+    telephony_lines,
     telephony_recordings,
     telephony_session,
-    telephony_settings,
 )

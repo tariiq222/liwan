@@ -3,14 +3,35 @@
 
 Two technical modes (design section 5):
 
-* mode ``a``: Liwan's Asterisk connects to the provider. ``auth_method`` says how: an allowlisted address (``ip``)
+* mode ``a``: Liwan's Asterisk connects to the provider, and ``auth_method`` says how: an allowlisted address (``ip``)
   or a username and password (``credentials``).
-* mode ``b``: a device at the company site (an FXO or GSM gateway, later an existing PBX) registers to Liwan.
+* mode ``b``: a device at the company site (an FXO or GSM gateway) registers to Liwan.
 
-The password never lives in this table. It travels once to ``pbx-agent``, which keeps it in the Asterisk realtime
-database of the company's package, and Odoo keeps only the fact that one exists.
+The company's numbers on the line are rows of ``liwan.telephony.line.number``. No provider password is stored here.
 """
+import re
+
 from odoo import api, fields, models
+
+KINDS = (
+    ('sip_trunk', 'SIP trunk from a provider'),
+    ('analog_gateway', 'Analog line through a gateway'),
+    ('mobile_gateway', 'Mobile SIM through a gateway'),
+)
+MODES = (('a', 'Liwan connects to the provider'), ('b', 'The device registers to Liwan'))
+AUTH_METHODS = (('ip', 'Provider allowlists our address'), ('credentials', 'Username and password'))
+NAME_MAX_LENGTH = 120
+HOST_MAX_LENGTH = 253
+# A provider host is a lower or mixed case host name or an IPv4 address: letters, digits, dots and inner hyphens.
+PROVIDER_HOST = re.compile(r'^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$')
+PORT_MIN, PORT_MAX = 1, 65535
+DEFAULT_PROVIDER_PORT = 5060
+CONCURRENT_MIN, CONCURRENT_MAX = 1, 1000
+DEFAULT_MAX_CONCURRENT = 1
+# The digits the provider wants before every dialled number; none means it wants the number as dialled.
+DIAL_PREFIX_MAX_DIGITS = 10
+# E.164: a plus, a country code that does not start with zero, and at most fifteen digits in all.
+E164 = re.compile(r'^\+[1-9][0-9]{6,14}$')
 
 
 class LiwanTelephonyLine(models.Model):
@@ -21,40 +42,15 @@ class LiwanTelephonyLine(models.Model):
     _rec_name = 'name'
 
     name = fields.Char(required=True)
-    kind = fields.Selection(
-        [
-            ('sip_trunk', 'SIP trunk from a provider'),
-            ('analog_gateway', 'Analog line through a gateway'),
-            ('mobile_gateway', 'Mobile SIM through a gateway'),
-            ('existing_pbx', 'Existing PBX at the company'),
-        ],
-        required=True, default='sip_trunk',
-    )
-    mode = fields.Selection(
-        [('a', 'Liwan connects to the provider'), ('b', 'The device registers to Liwan')],
-        compute='_compute_mode', store=True,
-    )
-    auth_method = fields.Selection(
-        [('ip', 'Provider allowlists our address'), ('credentials', 'Username and password')],
-        default='credentials',
-    )
+    kind = fields.Selection(KINDS, required=True, default='sip_trunk')
+    mode = fields.Selection(MODES, compute='_compute_mode', store=True)
+    auth_method = fields.Selection(AUTH_METHODS, default='credentials', required=True)
     provider_host = fields.Char()
-    provider_port = fields.Integer(default=5060)
-    numbers = fields.Char(help='The company numbers on this line, comma separated, in E.164.')
-    outbound_format = fields.Char(help='How the provider wants the dialled number, for example 9665 or 05.')
+    provider_port = fields.Integer(default=DEFAULT_PROVIDER_PORT, required=True)
+    number_ids = fields.One2many('liwan.telephony.line.number', 'line_id')
+    outbound_format = fields.Char(help='The digits the provider wants before every dialled number, for example 9665.')
     caller_id = fields.Char(help='The number shown to the called party.')
-    max_concurrent = fields.Integer(default=1)
-    state = fields.Selection(
-        [
-            ('unknown', 'Not tested'),
-            ('connected', 'Connected'),
-            ('not_registered', 'Not registered'),
-            ('failed', 'Failed'),
-        ],
-        default='unknown', readonly=True,
-    )
-    state_detail = fields.Char(readonly=True, help='The provider reply when the last test failed.')
-    has_password = fields.Boolean(readonly=True, help='A password was delivered to the PBX. It is never read back.')
+    max_concurrent = fields.Integer(default=DEFAULT_MAX_CONCURRENT, required=True)
     active = fields.Boolean(default=True)
     company_id = fields.Many2one(
         'res.company', required=True, default=lambda self: self.env.company, index=True,
@@ -63,12 +59,20 @@ class LiwanTelephonyLine(models.Model):
     @api.depends('kind')
     def _compute_mode(self):
         for line in self:
-            line.mode = 'a' if line.kind in ('sip_trunk',) else 'b'
+            line.mode = 'a' if line.kind == 'sip_trunk' else 'b'
 
-    @api.constrains('kind')
-    def _check_kind_is_selectable(self):
-        """An existing PBX is decided later (D7): the option shows disabled, and the server refuses it too."""
-        for line in self:
-            if line.kind == 'existing_pbx':
-                message = 'Connecting an existing PBX is not available yet.'
-                raise models.ValidationError(message)
+
+class LiwanTelephonyLineNumber(models.Model):
+    _name = 'liwan.telephony.line.number'
+    _description = 'Telephony line number'
+    _liwan_scope = 'company'
+    _order = 'line_id, number'
+
+    line_id = fields.Many2one('liwan.telephony.line', required=True, ondelete='cascade', index=True)
+    number = fields.Char(required=True)
+    company_id = fields.Many2one('res.company', related='line_id.company_id', store=True, index=True)
+
+    _number_unique = models.Constraint('unique(line_id, number)', 'A line lists each of its numbers once.')
+    _number_e164 = models.Constraint(
+        "CHECK(number ~ '^\\+[1-9][0-9]{6,14}$')", 'A line number is in E.164.',
+    )

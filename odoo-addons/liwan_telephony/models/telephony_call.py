@@ -3,10 +3,34 @@
 
 Asterisk is the source of truth for the call's state; this model stores what it reported. A repeated ``event_id``
 changes nothing (design 4.5), and the duration is computed from the timestamps rather than stored, so the row cannot
-disagree with itself.
+disagree with itself. The remote party is stored in E.164 or left empty: a number the phone library cannot read is
+never guessed with a plus in front of it.
 """
+import re
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError
+
+from .res_company import lookup_order
+from odoo.addons.phone_validation.tools.phone_validation import phone_format
+
+DIRECTIONS = (('in', 'Incoming'), ('out', 'Outgoing'), ('internal', 'Internal'))
+STATES = (
+    ('ringing', 'Ringing'), ('answered', 'Answered'), ('missed', 'Missed'),
+    ('rejected', 'Rejected'), ('failed', 'Failed'), ('ended', 'Ended'),
+)
+RECORDING_STATES = (
+    ('none', 'None'), ('pending', 'Pending'), ('available', 'Available'), ('expired', 'Expired'),
+)
+# How far a call has moved. A late event never returns a finished call to ringing.
+STATE_PROGRESS = {'ringing': 0, 'answered': 1, 'ended': 2, 'missed': 2, 'rejected': 2, 'failed': 2}
+# The one value of ``call.recording`` the agent sends: the recording file exists once the call's legs ended.
+RECORDING_READY = 'ready'
+# E.164: a plus, a country code that does not start with zero, and at most fifteen digits in all.
+E164 = re.compile(r'^\+[1-9][0-9]{6,14}$')
+# The country a number without a country prefix is read in, when the call's company names none.
+DEFAULT_PHONE_COUNTRY = 'base.sa'
+TIMESTAMP_FIELDS = ('started_at', 'answered_at', 'ended_at')
 
 
 class LiwanTelephonyCall(models.Model):
@@ -17,43 +41,24 @@ class LiwanTelephonyCall(models.Model):
     _rec_name = 'linkedid'
 
     linkedid = fields.Char(required=True, index=True, readonly=True)
-    uniqueid = fields.Char(index=True, readonly=True)
-    direction = fields.Selection(
-        [('in', 'Incoming'), ('out', 'Outgoing'), ('internal', 'Internal')],
-        required=True, readonly=True,
-    )
-    state = fields.Selection(
-        [
-            ('ringing', 'Ringing'),
-            ('answered', 'Answered'),
-            ('missed', 'Missed'),
-            ('rejected', 'Rejected'),
-            ('failed', 'Failed'),
-            ('ended', 'Ended'),
-        ],
-        required=True, default='ringing', readonly=True,
-    )
-    remote_number = fields.Char(readonly=True)
+    direction = fields.Selection(DIRECTIONS, required=True, readonly=True)
+    state = fields.Selection(STATES, required=True, default='ringing', readonly=True)
+    remote_number = fields.Char(readonly=True, index=True)
+    # The extension number the last event named, until an extension of the tenant is linked.
     extension_number = fields.Char(readonly=True)
-    queue = fields.Char(readonly=True)
     partner_id = fields.Many2one('res.partner', readonly=True, index=True)
     user_id = fields.Many2one('res.users', readonly=True, index=True)
     extension_id = fields.Many2one('liwan.telephony.extension', readonly=True, index=True)
     started_at = fields.Datetime(readonly=True, index=True)
     answered_at = fields.Datetime(readonly=True)
     ended_at = fields.Datetime(readonly=True)
-    recording_state = fields.Selection(
-        [('none', 'None'), ('pending', 'Pending'), ('available', 'Available'), ('expired', 'Expired')],
-        default='none', required=True, readonly=True,
-    )
+    recording_state = fields.Selection(RECORDING_STATES, default='none', required=True, readonly=True)
     duration_seconds = fields.Integer(compute='_compute_duration_seconds')
     company_id = fields.Many2one(
         'res.company', required=True, default=lambda self: self.env.company, index=True,
     )
 
-    _sql_constraints = [
-        ('linkedid_company_unique', 'unique(linkedid, company_id)', 'A call has one row per linkedid.'),
-    ]
+    _linkedid_company_unique = models.Constraint('unique(linkedid, company_id)', 'A call has one row per linkedid.')
 
     @api.depends('started_at', 'ended_at')
     def _compute_duration_seconds(self):
@@ -65,65 +70,113 @@ class LiwanTelephonyCall(models.Model):
             call.duration_seconds = max(int(delta.total_seconds()), 0)
 
     @api.model
-    def _liwan_from_event(self, envelope):
-        """The field values one agent envelope sets on the call it names.
+    def _liwan_e164(self, number, company):
+        """``number`` in E.164 as the phone library reads it in the country of ``company`` (Saudi Arabia when the
+        company names none), or None for a number it refuses.
 
-        One call has several channels, and the agent sends one event per channel; the first one that carries a value
-        wins for the call-wide fields, so a later internal leg cannot turn an inbound call into an outgoing one or
-        erase the number. State only moves forward: a late event never returns a finished call to ringing.
+        None is also what a deployment without the phone library gets: its tool hands the text back as it came,
+        which is not E.164, so nothing is stored rather than a plus put in front of raw digits.
         """
-        call = envelope['call']
-        values = {}
-        direction = call.get('direction')
-        if direction in ('in', 'out', 'internal'):
-            values['direction'] = direction
-        if call.get('state') in dict(self._fields['state'].selection):
-            values['state'] = call['state']
-        number = call.get('caller_number') or call.get('connected_number')
+        if not isinstance(number, str) or not number.strip():
+            return None
+        country = company.country_id or self.env.ref(DEFAULT_PHONE_COUNTRY)
+        try:
+            formatted = phone_format(
+                number.strip(), country.code, country.phone_code, force_format='E164', raise_exception=True,
+            )
+        except UserError:
+            return None
+        return formatted if E164.fullmatch(formatted) else None
+
+    @api.model
+    def _liwan_parties(self, event, direction):
+        """``(remote party, extension number)`` the event's leg names for a call of ``direction``.
+
+        The direction is the call's, fixed by its first event: the agent labels each leg by the context the channel
+        was created in, so a later leg of the same call can carry another label. An incoming call's remote party is
+        the caller and its extension the dialled one, an outgoing call's remote party is the connected number and its
+        extension the caller, and an internal call reaches an extension and has no remote party.
+        """
+        call = event['call']
+        if direction == 'out':
+            return call['connected_number'], call['caller_number']
+        if direction == 'internal':
+            return None, call['dialed_exten']
+        return call['caller_number'], call['dialed_exten']
+
+    @api.model
+    def _liwan_event_values(self, event, company, direction):
+        """The field values one agent event sets on the call of ``direction`` it names, in ``company``.
+
+        Only what the event carries is returned, so the first event that carries a value sets it and a later one
+        never erases it. The state is written as it came: ``_liwan_apply`` keeps a call from moving backwards.
+        """
+        call = event['call']
+        values = {'direction': direction, 'state': call['state']}
+        remote, extension = self._liwan_parties(event, direction)
+        number = self._liwan_e164(remote, company)
         if number:
             values['remote_number'] = number
-        if call.get('dialed_exten'):
-            values['extension_number'] = call['dialed_exten']
-        if call.get('uniqueid'):
-            values['uniqueid'] = call['uniqueid']
-        for name in ('started_at', 'answered_at', 'ended_at'):
-            raw = call.get(name)
-            if raw:
-                values[name] = raw[:19].replace('T', ' ')
+        if extension:
+            values['extension_number'] = extension
+        if call.get('recording') == RECORDING_READY:
+            values['recording_state'] = 'available'
+        for name in TIMESTAMP_FIELDS:
+            if call[name]:
+                values[name] = call[name][:19].replace('T', ' ')
         return values
 
+    @api.model
+    def _liwan_by_linkedid(self, linkedid, company=None):
+        """The call Asterisk keys ``linkedid`` in the tenant, or none: of ``company`` when it has one, else of any
+        other company the caller belongs to. One call has one row, whatever branch's extension made it."""
+        for company_id in lookup_order(self.env.user, company):
+            found = self.with_company(company_id).search([('linkedid', '=', linkedid)], limit=1)
+            if found:
+                return found
+        return self.browse()
+
     def _liwan_apply(self, values):
-        """Write an event onto this call without letting it move backwards or erase what is known."""
-        forward = {'ringing': 0, 'answered': 1, 'ended': 2, 'missed': 2, 'rejected': 2, 'failed': 2}
-        current = forward.get(self.state, 0)
-        incoming = forward.get(values.get('state'), 0)
-        if incoming < current:
-            values.pop('state', None)
-        for name in ('remote_number', 'extension_number', 'uniqueid', 'started_at'):
-            if not values.get(name) and self[name]:
-                values.pop(name, None)
-        for name in ('direction', 'company_id'):
+        """Write an event onto this call without letting it move backwards or forget what it knows.
+
+        The direction and the company were decided by the first event, the start and the remote number by the first
+        event that carried them, and the extension number stays once an extension is linked.
+        """
+        if 'state' in values and (
+            STATE_PROGRESS[self.state] >= 2
+            or STATE_PROGRESS[values['state']] < STATE_PROGRESS[self.state]
+        ):
+            del values['state']
+        for name in ('direction', 'remote_number', 'started_at'):
             if self[name]:
                 values.pop(name, None)
+        if self.extension_id:
+            values.pop('extension_number', None)
         if values:
             self.write(values)
         return self
 
     def _liwan_link_participants(self):
-        """Bind the call to the extension and the employee it reached, once, from the number the agent named."""
+        """Bind the call, each once, to the extension the event named, to that extension's user and to the partner
+        behind the call's number.
+
+        The extension is looked up in the call's company first, then in any other company the caller may work in:
+        an extension number is unique in a company, not in a tenant.
+        """
         for call in self:
-            if call.extension_id and call.user_id:
-                continue
-            extension = self.env['liwan.telephony.extension'].search(
-                [('number', '=', call.extension_number or '')], limit=1,
-            )
-            if extension:
-                call.write({'extension_id': extension.id, 'user_id': extension.user_id.id or False})
+            if not call.extension_id and call.extension_number:
+                extension = self.env['liwan.telephony.extension']._liwan_by_number(call.extension_number, call.company_id)
+                if extension:
+                    call.write({'extension_id': extension.id, 'user_id': extension.user_id.id or False})
+            if not call.partner_id and call.remote_number:
+                partner = self._liwan_partner(call.remote_number, call.company_id)
+                if partner:
+                    call.write({'partner_id': partner.id})
         return self
 
-    def _liwan_extension_user(self):
-        """The extension and the user a call belongs to, from the number the agent named."""
-        number = self.extension_number or self.remote_number
-        if not number:
-            return self.env['liwan.telephony.extension']
-        return self.env['liwan.telephony.extension'].search([('number', '=', number)], limit=1)
+    @api.model
+    def _liwan_partner(self, number, company):
+        """The partner of ``company``, or a shared one, whose sanitized phone is the E.164 ``number``, or none."""
+        return self.env['res.partner'].search(
+            [('phone_sanitized', '=', number), ('company_id', 'in', [False, company.id])], limit=1, order='id',
+        )

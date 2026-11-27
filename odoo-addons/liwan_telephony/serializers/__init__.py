@@ -3,5 +3,4 @@ from . import (
     telephony_call,
     telephony_extension,
     telephony_line,
-    telephony_settings,
 )

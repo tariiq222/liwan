@@ -8,11 +8,15 @@ does.
 The contract is the agent's, not a wrapper of ours: the body is the event itself, serialised with sorted keys and
 non-ASCII characters kept, and the timestamp and signature travel in the two ``X-Liwan-Telephony-*`` headers. The
 signature covers ``b"<timestamp>\\n<body>"`` over the exact bytes received, so nothing is re-serialised here.
+
+A call is stored under the company of the extension the event names, the root company being only the fallback for a
+call that names none (decision 0.6). The events identity works in that company through ``with_company``: nothing here
+is elevated.
 """
 import hashlib
 import hmac
 import json
-import logging
+import re
 from datetime import datetime, timedelta, timezone
 
 from odoo import http
@@ -23,13 +27,29 @@ from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     requires_feature,
 )
-
-_logger = logging.getLogger(__name__)
+from odoo.addons.liwan_telephony.models.feature_registry import EVENTS_FEATURE
+from odoo.addons.liwan_telephony.models.telephony_call import (
+    DIRECTIONS,
+    RECORDING_READY,
+    STATES,
+    TIMESTAMP_FIELDS,
+)
 
 EVENTS_LABEL = 'liwan-telephony-events/v1'
 CLOCK_WINDOW_SECONDS = 300
 TIMESTAMP_HEADER = 'X-Liwan-Telephony-Timestamp'
 SIGNATURE_HEADER = 'X-Liwan-Telephony-Signature'
+KEY_ROOT_PARAMETER = 'liwan.telephony.events_key_root'
+# A Unix timestamp in decimal digits, and the hex HMAC-SHA256 the signature header carries: nothing else is read.
+TIMESTAMP_PATTERN = re.compile(r'^[0-9]{1,20}$')
+SIGNATURE_PATTERN = re.compile(r'^[0-9a-fA-F]{64}$')
+# The keys of ``call`` that are a string or null; any other type is a malformed event.
+TEXT_FIELDS = ('caller_number', 'connected_number', 'dialed_exten', *TIMESTAMP_FIELDS)
+KEY_NOT_CONFIGURED = 'The telephony events key is not configured.'
+BAD_TIMESTAMP = 'A valid timestamp is required.'
+OUTSIDE_WINDOW = 'The request is outside the accepted clock window.'
+BAD_SIGNATURE = 'The signature does not match.'
+BAD_RECORDING = 'call.recording must be ready or absent.'
 
 
 def derived_key(root_hex, database, label):
@@ -38,28 +58,78 @@ def derived_key(root_hex, database, label):
 
 
 def _root():
-    return request.env['ir.config_parameter'].sudo().get_param('liwan.telephony.events_key_root') or ''
+    # System parameters are readable by base.group_system only and the route runs as the machine identity: the one
+    # elevated read before the caller is verified.
+    return request.env['ir.config_parameter'].sudo().get_param(KEY_ROOT_PARAMETER) or ''
 
 
 def _verify(body, timestamp, signature):
-    """The signature of ``b"<timestamp>\\n<body>"`` with this database's derived key, inside the clock window."""
+    """Refuse with 403, and no traceback, whatever is wrong with the caller's proof.
+
+    A missing, malformed or out-of-range header and a signature that does not match each answer their own fixed
+    message, after the key and the timestamp are proven to be well-formed.
+    """
     root = _root()
     if not root:
-        raise ApiError(403, 'forbidden', 'The telephony events key is not configured.')
+        raise ApiError(403, 'forbidden', KEY_NOT_CONFIGURED)
+    if not (isinstance(timestamp, str) and TIMESTAMP_PATTERN.fullmatch(timestamp)):
+        raise ApiError(403, 'forbidden', BAD_TIMESTAMP)
     try:
         sent = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
-    except (TypeError, ValueError):
-        raise ApiError(403, 'forbidden', 'A valid timestamp is required.') from None
+    except (OverflowError, OSError, ValueError):
+        raise ApiError(403, 'forbidden', BAD_TIMESTAMP) from None
     if abs(datetime.now(timezone.utc) - sent) > timedelta(seconds=CLOCK_WINDOW_SECONDS):
-        raise ApiError(403, 'forbidden', 'The request is outside the accepted clock window.')
+        raise ApiError(403, 'forbidden', OUTSIDE_WINDOW)
+    if not (isinstance(signature, str) and SIGNATURE_PATTERN.fullmatch(signature)):
+        raise ApiError(403, 'forbidden', BAD_SIGNATURE)
     key = derived_key(root, request.env.cr.dbname, EVENTS_LABEL)
     expected = hmac.new(
-        bytes.fromhex(key),
-        str(timestamp).encode() + b'\n' + body,
-        hashlib.sha256,
+        bytes.fromhex(key), timestamp.encode('ascii') + b'\n' + body, hashlib.sha256,
     ).hexdigest()
-    if not hmac.compare_digest(expected, str(signature)):
-        raise ApiError(403, 'forbidden', 'The signature does not match.')
+    if not hmac.compare_digest(expected, signature.lower()):
+        raise ApiError(403, 'forbidden', BAD_SIGNATURE)
+
+
+def _text(value):
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _event(raw):
+    """The agent's envelope, or 422 ``invalid`` when the body is not one.
+
+    An event carries an ``event_id`` and a ``call`` with a ``linkedid``, a known direction and state, and a string or
+    null for every party, time and the recording flag.
+    """
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        raise ApiError(422, 'invalid', 'The body is not JSON.') from None
+    call = payload.get('call') if isinstance(payload, dict) else None
+    well_formed = (
+        isinstance(payload, dict) and _text(payload.get('event_id'))
+        and isinstance(call, dict) and _text(call.get('linkedid'))
+        and (payload.get('source') is None or isinstance(payload['source'], str))
+    )
+    if not well_formed:
+        raise ApiError(422, 'invalid', 'An event with an event_id and a call are required.')
+    if call.get('direction') not in dict(DIRECTIONS) or call.get('state') not in dict(STATES):
+        raise ApiError(422, 'invalid', 'The event names an unknown direction or state.')
+    for name in TEXT_FIELDS:
+        if call.get(name) is not None and not isinstance(call[name], str):
+            raise ApiError(422, 'invalid', f'call.{name} must be a string or null.', field=name)
+    # The recording flag is one literal: the agent sends it with the call's final event once the file exists.
+    if 'recording' in call and call['recording'] != RECORDING_READY:
+        raise ApiError(422, 'invalid', BAD_RECORDING, field='recording')
+    return payload
+
+
+def _event_company(extension_number):
+    """The company a new call belongs to: that of the extension the event names, else the tenant's root company."""
+    if extension_number:
+        extension = request.env['liwan.telephony.extension']._liwan_by_number(extension_number)
+        if extension:
+            return extension.company_id
+    return request.env.company.root_id
 
 
 class TelephonyEventsController(http.Controller):
@@ -73,38 +143,42 @@ class TelephonyEventsController(http.Controller):
         csrf=False,
     )
     @api_handler
-    @requires_feature('telephony.enabled', operation='write')
+    @requires_feature(EVENTS_FEATURE, operation='write')
     def receive_event(self, **_):
-        """Apply one event, once. The body is the agent's envelope (contracts/src/telephony/event.ts)."""
+        """Apply one event, once. The body is the agent's envelope (contracts/src/telephony/event.ts).
+
+        The parties follow the call's direction, which its first event fixes. The call is found, or created under the
+        extension's company, and the receipt is written in the same transaction, so a retry that finds the receipt
+        changes nothing. An event that carries ``call.recording == 'ready'`` is applied like any other and then
+        marks the recording available; it creates the call when the call is not known yet.
+        """
         raw = request.httprequest.get_data() or b'{}'
         headers = request.httprequest.headers
         _verify(raw, headers.get(TIMESTAMP_HEADER), headers.get(SIGNATURE_HEADER))
-        try:
-            payload = json.loads(raw)
-        except ValueError:
-            raise ApiError(422, 'invalid', 'The body is not JSON.') from None
-        if not isinstance(payload, dict) or not payload.get('event_id'):
-            raise ApiError(422, 'invalid', 'An event with an event_id is required.')
-        call = payload.get('call') or {}
-        linkedid = call.get('linkedid')
-        if not linkedid:
-            raise ApiError(422, 'invalid', 'The event names no call.')
+        payload = _event(raw)
+        event_id, call = payload['event_id'], payload['call']
+        linkedid = call['linkedid']
         env = request.env
-        Event = env['liwan.telephony.event']
-        if Event.search_count([('event_id', '=', payload['event_id'])]):
-            return {'applied': False, 'reason': 'already applied'}
         Call = env['liwan.telephony.call']
-        record = Call.search([('linkedid', '=', linkedid)], limit=1)
-        values = Call._liwan_from_event(payload)
+        record = Call._liwan_by_linkedid(linkedid)
+        direction = record.direction if record else call['direction']
+        company = record.company_id if record else _event_company(Call._liwan_parties(payload, direction)[1])
+        # The receipt lives in the call's company, so the replay check reads it there.
+        if env['liwan.telephony.event'].with_company(company).search_count([('event_id', '=', event_id)]):
+            return {'applied': False, 'reason': 'already applied'}
+        values = Call._liwan_event_values(payload, company, direction)
         if record:
+            if call.get('recording') == RECORDING_READY:
+                values.pop('state', None)
             record._liwan_apply(values)
         else:
-            record = Call.create({'linkedid': linkedid, **values})
+            record = Call.with_company(company).create({'linkedid': linkedid, **values})
         record._liwan_link_participants()
-        Event.create({
-            'event_id': payload['event_id'],
+        env['liwan.telephony.event'].with_company(company).create({
+            'event_id': event_id,
             'linkedid': linkedid,
             'source': payload.get('source'),
             'call_id': record.id,
+            'company_id': company.id,
         })
         return {'applied': True, 'callId': record.id}

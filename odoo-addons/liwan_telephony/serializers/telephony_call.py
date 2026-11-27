@@ -20,30 +20,24 @@ def _dt(value):
     return f'{text}Z'
 
 
-def _e164(number):
-    """The stored number with its leading plus, which is what the contract asks for and what lookup compares."""
-    if not number:
-        return None
-    digits = ''.join(char for char in str(number) if char.isdigit() or char == '+')
-    return digits if digits.startswith('+') else f'+{digits}'
-
-
 def dump_call(call):
-    """The one wire shape of a call (packages/contracts/src/telephony/call.ts)."""
+    """The one wire shape of a call (packages/contracts/src/telephony/call.ts).
+
+    The remote number is sent as stored: E.164, or null when none could be normalized. The detail adds ``canListen``.
+    """
     return {
         'id': call.id,
         'linkedid': call.linkedid,
         'direction': call.direction,
         'state': call.state,
-        'remoteNumber': _e164(call.remote_number),
-        'extension': _ref(call.extension_id) if call.extension_id else None,
-        'queue': call.queue,
+        'remoteNumber': call.remote_number or None,
         'partner': _ref(call.partner_id),
         'user': _ref(call.user_id),
+        'extension': _ref(call.extension_id) if call.extension_id else None,
         'startedAt': _dt(call.started_at),
         'answeredAt': _dt(call.answered_at),
         'endedAt': _dt(call.ended_at),
-        'durationSeconds': call.duration_seconds or None,
+        'durationSeconds': call.duration_seconds if call.started_at and call.ended_at else None,
         'recordingState': call.recording_state,
         'companyId': call.company_id.id,
     }

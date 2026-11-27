@@ -400,10 +400,10 @@
       "kind": "public_entry",
       "reason": "liwan_telephony events route: `request.env['ir.config_parameter'].sudo().get_param('liwan.telephony.events_key_root')`; system parameters are readable only by base.group_system and the route runs as the machine identity (auth='telephony_events', no user session), so the derived key cannot be read any other way before the caller is verified."
     },
-    "odoo-addons/liwan_telephony/controllers/telephony_session.py": {
+    "odoo-addons/liwan_telephony/models/agent_client.py": {
       "count": 1,
-      "kind": "public_entry",
-      "reason": "liwan_telephony session route: `request.env['ir.config_parameter'].sudo()` to read the agent URL and the reverse-direction key of this deployment; system parameters are readable only by base.group_system and no capability grants them, so the user route cannot discover the company's agent without elevating the read."
+      "kind": "required",
+      "reason": "liwan_telephony agent client: `self.env['ir.config_parameter'].sudo()` in `LiwanTelephonyAgent._liwan_ask` reads `liwan.telephony.agent_url` and `liwan.telephony.reverse_key`; `base/security/ir.model.access.csv` `access_ir_config_parameter_system` restricts `ir.config_parameter` read to `base.group_system` only, while authenticated telephony routes (`telephony.use`, `telephony.recordings.listen`) hold no system group and no capability grants system parameters."
     }
   }
 }

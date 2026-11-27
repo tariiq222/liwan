@@ -23,6 +23,4 @@ class LiwanTelephonyEvent(models.Model):
         'res.company', required=True, default=lambda self: self.env.company, index=True,
     )
 
-    _sql_constraints = [
-        ('event_unique', 'unique(event_id, company_id)', 'An event is applied once.'),
-    ]
+    _event_unique = models.Constraint('unique(event_id, company_id)', 'An event is applied once.')

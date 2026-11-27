@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The call log, the lookup by number and the recording link (design 4.3, 4.4, 8).
+"""The call log and the lookup by number (design 4.3, 8).
 
 Every route needs the feature, the capability and the current company, and a user with only ``telephony.use`` sees
 their own calls because the record rule says so, not because this controller filters.
@@ -10,69 +10,101 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    get_visible_record,
     parse_page,
+    parse_positive_int,
+    requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_telephony.controllers.telephony_recordings import can_listen
+from odoo.addons.liwan_telephony.models.feature_registry import EVENTS_FEATURE
+from odoo.addons.liwan_telephony.models.telephony_call import DIRECTIONS, STATES
 from odoo.addons.liwan_telephony.serializers.telephony_call import dump_call, dump_calls
 
+# The lookup card shows this many of the number's latest calls.
+LOOKUP_CALLS = 5
 
-def _require(capability):
-    service = request.env['liwan.access.service']
-    if not service._liwan_has_capability(request.env.user, capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
+
+def _arg(name):
+    """A query argument as a non-blank string, or None when it is absent or blank."""
+    raw = request.httprequest.args.get(name)
+    return raw.strip() if isinstance(raw, str) and raw.strip() else None
+
+
+def _selection_arg(name, selection):
+    """A query argument that must name one of ``selection``, or None: anything else is 422 ``invalid``."""
+    value = _arg(name)
+    if value is not None and value not in dict(selection):
+        raise ApiError(422, 'invalid', f'{name} must be one of {", ".join(dict(selection))}', field=name)
+    return value
+
+
+def list_filters():
+    """``direction``, ``state`` and ``user_id`` from the query string (a json2 route receives only the body and the
+    path in its arguments), as a domain; an unknown value is refused, never silently ignored."""
+    filters = {
+        'direction': _selection_arg('direction', DIRECTIONS),
+        'state': _selection_arg('state', STATES),
+        'user_id': parse_positive_int(_arg('user_id'), 'user_id') if _arg('user_id') else None,
+    }
+    return [(name, '=', value) for name, value in filters.items() if value]
 
 
 class TelephonyCallsController(http.Controller):
 
     @http.route('/api/v1/telephony/calls', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('telephony.enabled', operation='read')
-    def list_calls(self, direction=None, state=None, user_id=None, **kwargs):
-        _require('telephony.use')
-        limit, offset = parse_page(request.httprequest.args)
-        domain = []
-        if direction:
-            domain.append(('direction', '=', direction))
-        if state:
-            domain.append(('state', '=', state))
-        if user_id:
-            domain.append(('user_id', '=', int(user_id)))
+    @requires_feature(EVENTS_FEATURE, operation='read')
+    @requires_capability('telephony.use')
+    def list_calls(self, **_):
+        """The call log of the caller's visibility, newest first."""
+        args = request.httprequest.args
+        domain = list_filters()
+        limit, offset = parse_page(args)
         Call = request.env['liwan.telephony.call']
         calls = Call.search(domain, limit=limit, offset=offset)
         return {'items': dump_calls(calls), 'total': Call.search_count(domain)}
 
     @http.route('/api/v1/telephony/calls/<int:call_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('telephony.enabled', operation='read')
+    @requires_feature(EVENTS_FEATURE, operation='read')
+    @requires_capability('telephony.use')
     def get_call(self, call_id, **_):
-        _require('telephony.use')
-        call = request.env['liwan.telephony.call'].browse(call_id).exists()
-        if not call:
-            raise ApiError(404, 'not_found', 'The call does not exist.')
-        dump = dump_call(call)
-        dump['canListen'] = request.env['liwan.access.service']._liwan_has_capability(
-            request.env.user,
-            'telephony.recordings.listen',
-        )
-        return dump
+        """One call, with whether this user may listen to its recording.
+
+        A call the own-calls rule hides from the caller answers exactly like a missing one.
+        """
+        call = get_visible_record('liwan.telephony.call', call_id)
+        return {**dump_call(call), 'canListen': can_listen()}
 
     @http.route('/api/v1/telephony/lookup', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature('telephony.enabled', operation='read')
+    @requires_feature(EVENTS_FEATURE, operation='read')
+    @requires_capability('telephony.use')
     def lookup(self, **_):
-        """The caller card: the partner this number belongs to and the last calls with it."""
-        _require('telephony.use')
-        number = request.httprequest.args.get('number')
+        """The caller card: the partner the number belongs to and the latest calls with it, newest first.
+
+        The number is read in the current company's country (Saudi Arabia when it names none), the way calls store
+        it; a number that cannot be normalized matches nothing and is refused.
+        """
+        number = _arg('number')
         if not number:
-            raise ApiError(422, 'invalid', 'A number is required.')
-        partner = request.env['res.partner'].search([('phone', '=', number)], limit=1)
-        calls = request.env['liwan.telephony.call'].search(
-            [('remote_number', '=', number)], limit=5, order='started_at desc',
-        )
+            raise ApiError(422, 'invalid', 'A number is required.', field='number')
+        env = request.env
+        Call = env['liwan.telephony.call']
+        normalized = Call._liwan_e164(number, env.company)
+        if not normalized:
+            raise ApiError(422, 'invalid', 'The number is not a valid phone number.', field='number')
+        partner = Call._liwan_partner(normalized, env.company)
+        calls = Call.search([('remote_number', '=', normalized)], limit=LOOKUP_CALLS)
         return {
+            'number': normalized,
             'partner': {
-                'id': partner.id, 'name': partner.display_name, 'company': partner.company_name,
+                'id': partner.id,
+                'name': partner.display_name,
+                'isCompany': partner.is_company,
+                'company': {'id': partner.company_id.id, 'name': partner.company_id.display_name}
+                if partner.company_id else None,
             } if partner else None,
-            'lastCalls': dump_calls(calls),
-            'number': number,
+            'calls': dump_calls(calls),
         }

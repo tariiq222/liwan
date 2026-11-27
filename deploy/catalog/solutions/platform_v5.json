@@ -183,8 +183,7 @@
         "boolean:telephony.recording",
         "boolean:telephony.queues",
         "boolean:telephony.ivr",
-        "limit:telephony.extensions",
-        "limit:telephony.recording_storage_mb"
+        "limit:telephony.extensions"
       ]
     }
   ]

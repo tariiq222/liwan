@@ -8,7 +8,8 @@
     'license': 'LGPL-3',
     # liwan_api: shared api_handler/ApiError + LiwanApiCase. An application depends on liwan_api and no other
     # application (spec R3); it owns its capabilities, groups, role and record rules (spec R2).
-    'depends': ['liwan_api'],
+    # phone_validation: the one phone normaliser; calls and line numbers are stored in E.164 with it.
+    'depends': ['liwan_api', 'phone_validation'],
     'data': [
         'security/telephony_capability_groups.xml',
         'security/ir.model.access.csv',

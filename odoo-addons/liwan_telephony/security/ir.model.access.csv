@@ -6,8 +6,8 @@ access_extension_use,liwan.telephony.extension.employee,model_liwan_telephony_ex
 access_extension_manage,liwan.telephony.extension.manage,model_liwan_telephony_extension,group_cap_telephony_manage,1,1,1,1
 access_line_use,liwan.telephony.line.employee,model_liwan_telephony_line,group_cap_telephony_use,1,0,0,0
 access_line_manage,liwan.telephony.line.manage,model_liwan_telephony_line,group_cap_telephony_manage,1,1,1,1
-access_settings_use,liwan.telephony.settings.employee,model_liwan_telephony_settings,group_cap_telephony_use,1,0,0,0
-access_settings_manage,liwan.telephony.settings.manage,model_liwan_telephony_settings,group_cap_telephony_manage,1,1,1,1
+access_line_number_use,liwan.telephony.line.number.employee,model_liwan_telephony_line_number,group_cap_telephony_use,1,0,0,0
+access_line_number_manage,liwan.telephony.line.number.manage,model_liwan_telephony_line_number,group_cap_telephony_manage,1,1,1,1
 access_recording_access_read,liwan.telephony.recording.access.read,model_liwan_telephony_recording_access,group_cap_telephony_recordings_listen,1,0,1,0
 access_recording_access_manage,liwan.telephony.recording.access.manage,model_liwan_telephony_recording_access,group_cap_telephony_manage,1,1,1,0
 access_event_manage,liwan.telephony.event.manage,model_liwan_telephony_event,group_cap_telephony_manage,1,0,1,0
@@ -15,6 +15,6 @@ access_call_events,liwan.telephony.call.events,model_liwan_telephony_call,group_
 access_event_events,liwan.telephony.event.events,model_liwan_telephony_event,group_telephony_events,1,0,1,0
 access_users_events,liwan.res.users.events,base.model_res_users,group_telephony_events,1,0,0,0
 access_company_events,liwan.res.company.events,base.model_res_company,group_telephony_events,1,0,0,0
-access_settings_events,liwan.telephony.settings.events,model_liwan_telephony_settings,group_telephony_events,1,0,0,0
 access_extension_events,liwan.telephony.extension.events,model_liwan_telephony_extension,group_telephony_events,1,0,0,0
 access_partner_events,liwan.res.partner.events,base.model_res_partner,group_telephony_events,1,0,0,0
+access_country_events,liwan.res.country.events,base.model_res_country,group_telephony_events,1,0,0,0

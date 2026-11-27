@@ -5,10 +5,7 @@ Listening to a recording is its own capability, and every listen is written to t
 audio: it asks the company's agent for a one-minute signed URL and returns it, so the file never crosses Odoo and a
 link that leaks stops working almost at once.
 """
-import json
 import time
-import urllib.error
-import urllib.request
 
 from odoo import http
 from odoo.http import request
@@ -16,11 +13,27 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    get_visible_record,
+    requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_telephony.controllers.telephony_session import _agent_base
+from odoo.addons.liwan_telephony.models.agent_client import AGENT_BAD_ANSWER
+from odoo.addons.liwan_telephony.models.feature_registry import (
+    EVENTS_FEATURE,
+    RECORDING_FEATURE,
+)
 
-AGENT_TIMEOUT_SECONDS = 5
+RECORDING_LINK_SECONDS = 60
+NO_RECORDING = 'This call has no recording.'
+
+
+def can_listen():
+    """Whether the user may listen: the listening capability and the recording feature being readable, both."""
+    env = request.env
+    return (
+        env['liwan.access.service']._liwan_has_capability(env.user, 'telephony.recordings.listen')
+        and env['liwan.entitlement.service']._liwan_feature_read(RECORDING_FEATURE)
+    )
 
 
 class TelephonyRecordingController(http.Controller):
@@ -33,42 +46,27 @@ class TelephonyRecordingController(http.Controller):
         readonly=False,
     )
     @api_handler
-    @requires_feature('telephony.enabled', operation='read')
-    @requires_feature('telephony.recording', operation='read')
+    @requires_feature(EVENTS_FEATURE, RECORDING_FEATURE, operation='read')
+    @requires_capability('telephony.recordings.listen')
     def recording_link(self, call_id, **_):
-        service = request.env['liwan.access.service']
-        if not service._liwan_has_capability(request.env.user, 'telephony.recordings.listen'):
-            raise ApiError(403, 'forbidden', 'telephony.recordings.listen capability is required')
-        call = request.env['liwan.telephony.call'].browse(call_id).exists()
-        if not call:
-            raise ApiError(404, 'not_found', 'The call does not exist.')
+        """A one-minute signed link to the recording of a call whose recording is ready.
+
+        A call outside the caller's visibility, and one whose recording is not ready, answer the same not-found.
+        """
+        call = get_visible_record('liwan.telephony.call', call_id)
         if call.recording_state != 'available':
-            raise ApiError(404, 'not_found', 'This call has no recording.')
-        base, key = _agent_base()
-        if not base or not key:
-            raise ApiError(503, 'unavailable', 'The telephony package is not configured for this company.')
-        payload = json.dumps({
+            raise ApiError(404, 'not_found', NO_RECORDING)
+        answer = request.env['liwan.telephony.agent']._liwan_ask('/recordings/link', {
             'linkedid': call.linkedid,
             'database': request.env.cr.dbname,
-            'expires_at': int(time.time()) + 60,
-        }).encode()
-        link_request = urllib.request.Request(
-            f'{base.rstrip("/")}/recordings/link',
-            data=payload,
-            headers={'Content-Type': 'application/json', 'X-Liwan-Key': key},
-            method='POST',
-        )
-        try:
-            with urllib.request.urlopen(link_request, timeout=AGENT_TIMEOUT_SECONDS) as response:  # noqa: S310 - fixed base
-                answer = json.loads(response.read() or b'{}')
-        except (urllib.error.URLError, TimeoutError, ValueError) as error:
-            raise ApiError(503, 'unavailable', f'The telephone system did not answer: {error}') from error
+            'expires_at': int(time.time()) + RECORDING_LINK_SECONDS,
+        })
         url = answer.get('url')
-        if not url:
-            raise ApiError(404, 'not_found', 'The recording is not on the telephone system.')
+        if not isinstance(url, str) or not url:
+            raise ApiError(502, 'bad_gateway', AGENT_BAD_ANSWER)
         # The listen is recorded before the link is handed out, so the audit never misses a play it permitted.
         request.env['liwan.telephony.recording.access'].create({
             'call_id': call.id,
             'user_id': request.env.user.id,
         })
-        return {'url': url, 'expiresInSeconds': 60}
+        return {'url': url, 'expiresInSeconds': RECORDING_LINK_SECONDS}

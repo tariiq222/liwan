@@ -43,5 +43,17 @@
             <field name="group_xmlid">liwan_telephony.group_cap_telephony_manage</field>
             <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
         </record>
+        <!-- The machine capability of the events identity alone (design 4.5): no role carries it and it cannot be
+             picked in one. It lets the company fence admit that identity in every company it belongs to. -->
+        <record id="permission_telephony_events_apply" model="liwan.access.permission">
+            <field name="key">telephony.events.apply</field>
+            <field name="domain">telephony</field>
+            <field name="resource">events</field><field name="action">apply</field>
+            <field name="name_ar">تطبيق أحداث الهاتف</field><field name="name_en">Apply telephony events</field>
+            <field name="description_ar">حساب تقني يخزّن مكالمات كل شركة من أحداث نظام الهاتف</field>
+            <field name="description_en">The technical account that stores the calls of every company from the phone system's events</field>
+            <field name="group_xmlid">liwan_telephony.group_telephony_events</field>
+            <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
+        </record>
     </data>
 </odoo>

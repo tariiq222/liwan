@@ -27,14 +27,14 @@
             <field name="model_id" ref="model_liwan_telephony_line"/>
             <field name="domain_force">[('company_id', '=', company_id)]</field>
         </record>
+        <record id="liwan_telephony_line_number_company_rule" model="ir.rule">
+            <field name="name">liwan.telephony.line.number: multi-company</field>
+            <field name="model_id" ref="model_liwan_telephony_line_number"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
         <record id="liwan_telephony_extension_company_rule" model="ir.rule">
             <field name="name">liwan.telephony.extension: multi-company</field>
             <field name="model_id" ref="model_liwan_telephony_extension"/>
-            <field name="domain_force">[('company_id', '=', company_id)]</field>
-        </record>
-        <record id="liwan_telephony_settings_company_rule" model="ir.rule">
-            <field name="name">liwan.telephony.settings: multi-company</field>
-            <field name="model_id" ref="model_liwan_telephony_settings"/>
             <field name="domain_force">[('company_id', '=', company_id)]</field>
         </record>
         <record id="liwan_telephony_recording_access_company_rule" model="ir.rule">

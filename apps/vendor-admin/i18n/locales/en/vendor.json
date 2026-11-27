@@ -1216,7 +1216,6 @@
         "telephony_ivr": "Interactive voice response (IVR)",
         "telephony_queues": "Call queues",
         "telephony_recording": "Call recording",
-        "telephony_recording_storage_mb": "Recording storage (MB)",
         "users_limit": "Users"
       },
       "sarName": "Saudi riyal"
