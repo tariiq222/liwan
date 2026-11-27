@@ -15,6 +15,7 @@ const { t } = useI18n()
 const { $api } = useApi()
 const route = useRoute()
 const { me } = useMe()
+const hydrated = useHydrated()
 const sourcePaths = useRecordListPaths(['/calls'])
 const id = computed(() => Number(route.params.id))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
@@ -39,22 +40,35 @@ const tags = computed(() => data.value
 const player = ref<string | null>(null)
 const busy = ref(false)
 const failed = ref<string | null>(null)
+let listenGeneration = 0
+
+watch(id, () => {
+  listenGeneration += 1
+  player.value = null
+  failed.value = null
+  busy.value = false
+})
 
 async function listen() {
+  if (busy.value) return
+  const targetId = id.value
+  const gen = ++listenGeneration
   busy.value = true
   failed.value = null
   try {
-    const link = await $api(`/api/v1/telephony/calls/${id.value}/recording`, {
+    const link = await $api(`/api/v1/telephony/calls/${targetId}/recording`, {
       method: 'GET',
       schema: TelephonyRecordingLinkSchema,
     })
+    if (gen !== listenGeneration || id.value !== targetId) return
     player.value = link.url
   }
   catch (error) {
+    if (gen !== listenGeneration || id.value !== targetId) return
     failed.value = error instanceof Error ? error.message : t('telephony.calls.noRecording')
   }
   finally {
-    busy.value = false
+    if (gen === listenGeneration) busy.value = false
   }
 }
 </script>
@@ -92,7 +106,7 @@ async function listen() {
         {{ t('telephony.calls.noRecording') }}
       </p>
       <div v-else class="grid gap-(--liwan-gap-card)">
-        <UButton v-if="!player" :loading="busy" icon="i-lucide-play" @click="listen">
+        <UButton v-if="!player" :disabled="!hydrated || busy" :loading="busy" icon="i-lucide-play" @click="listen">
           {{ t('telephony.calls.listen') }}
         </UButton>
         <audio v-if="player" :src="player" controls class="w-full" />

@@ -89,7 +89,15 @@
       "dialPlaceholder": "Phone number or extension",
       "dialCall": "Call",
       "backspace": "Delete last digit",
-      "invalidNumber": "Enter a valid extension or international phone number."
+      "invalidNumber": "Enter a valid extension or international phone number.",
+      "phoneNotReady": "The phone is not ready to place a call yet.",
+      "failure": {
+        "connectionClosed": "The phone connection closed.",
+        "registrationFailed": "Could not register the phone.",
+        "renewalFailed": "Could not renew the phone session.",
+        "startFailed": "Could not start the phone.",
+        "callFailed": "The call could not be completed."
+      }
     }
   }
 }

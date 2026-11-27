@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../useApi'
 import { useSwitchCompany } from '../useSwitchCompany'
 import { companySwitching } from '../../utils/companySwitch'
+import { registerSessionTeardown } from '../../utils/sessionTeardown'
 
 function setup(post: () => Promise<unknown>, meAfterRefresh: number | null = 2, blocked = false) {
   const calls: string[] = []
@@ -66,5 +67,33 @@ describe('useSwitchCompany', () => {
     await expect(switchCompany(2)).rejects.toThrow('errors.generic')
     expect(calls).toEqual(['go:/', 'post', 'refresh:me,branding'])
     expect(companySwitching.value).toBe(false)
+  })
+
+  it('runs session teardown before posting the switch and restores torn-down surfaces if the switch fails', async () => {
+    const events: string[] = []
+    const unregister = registerSessionTeardown({
+      teardown: () => { events.push('teardown') },
+      restore: () => { events.push('restore') },
+    })
+    try {
+      // Blocked by unsaved-changes guard -> neither teardown nor restore runs.
+      const blocked = setup(async () => ({}), 2, true)
+      await blocked.switchCompany(2)
+      expect(events).toEqual([])
+
+      // Refused by server -> teardown ran before POST, then restore runs in catch.
+      const refusal = new ApiError(404, 'not_found', 'غير موجود')
+      const failed = setup(async () => { events.push('post'); throw refusal })
+      await expect(failed.switchCompany(2)).rejects.toBe(refusal)
+      expect(events).toEqual(['teardown', 'post', 'restore'])
+
+      // Successful switch -> teardown runs before POST and restore does not run.
+      events.length = 0
+      const ok = setup(async () => { events.push('post'); return {} })
+      await ok.switchCompany(2)
+      expect(events).toEqual(['teardown', 'post'])
+    } finally {
+      unregister()
+    }
   })
 })

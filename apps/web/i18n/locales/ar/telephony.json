@@ -89,7 +89,15 @@
       "dialPlaceholder": "رقم الهاتف أو التمثيلة",
       "dialCall": "اتصال",
       "backspace": "حذف آخر رقم",
-      "invalidNumber": "أدخل رقم تمثيلة أو رقم هاتف دولي صالح."
+      "invalidNumber": "أدخل رقم تمثيلة أو رقم هاتف دولي صالح.",
+      "phoneNotReady": "الهاتف غير جاهز بعد لإجراء المكالمة.",
+      "failure": {
+        "connectionClosed": "انقطع الاتصال بخدمة الهاتف.",
+        "registrationFailed": "تعذّر تسجيل الهاتف على الشبكة.",
+        "renewalFailed": "تعذّر تجديد جلسة الهاتف.",
+        "startFailed": "تعذّر تشغيل الهاتف.",
+        "callFailed": "تعذّر إتمام المكالمة."
+      }
     }
   }
 }

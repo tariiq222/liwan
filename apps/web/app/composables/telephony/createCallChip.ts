@@ -8,9 +8,19 @@ import type {
 } from '@liwan/ui/app/composables/useCallChip'
 import { callDuration, callTime } from '../../components/telephony/callPresentation'
 import type { AppCallChipHandle, AppCallChipHostContext } from '../../modules/types'
-import { useSoftphone, type SoftphoneOptions } from '../useSoftphone'
+import {
+  useSoftphone,
+  type DialActionError,
+  type PhoneFailureCode,
+  type SoftphoneOptions,
+  type SoftphoneStopOptions,
+} from '../useSoftphone'
 
 const ACTIVE_PHASES = new Set(['ringing', 'calling', 'in-call'])
+
+export interface TelephonyCallChipHandle extends AppCallChipHandle {
+  stop: (options?: SoftphoneStopOptions) => Promise<void>
+}
 
 /**
  * Application-owned factory for the header call chip (design D3).
@@ -22,7 +32,7 @@ const ACTIVE_PHASES = new Set(['ringing', 'calling', 'in-call'])
 export function createCallChip(
   context: AppCallChipHostContext,
   softphoneOptions: Partial<SoftphoneOptions> = {},
-): AppCallChipHandle {
+): TelephonyCallChipHandle {
   const scope = effectScope(true)
   let lookupController: AbortController | null = null
 
@@ -40,16 +50,45 @@ export function createCallChip(
     const callerCard = ref<CallChipCallerCard | null>(null)
     const callerCardLoading = ref(false)
     let lastLookedUpNumber: string | null = null
+    let lookupSeq = 0
+
+    function isExternalNumber(number: string): boolean {
+      return number.startsWith('+')
+    }
 
     function saveContactLinkFor(phoneNumber: string): string | null {
-      if (!context.can('customers.manage')) return null
-      return `/customers/new?phone=${encodeURIComponent(phoneNumber)}&returnTo=${encodeURIComponent(context.currentPath())}`
+      if (!isExternalNumber(phoneNumber) || !context.can('customers.manage')) return null
+      const currentPath = context.currentPath()
+      const base = `/customers/new?phone=${encodeURIComponent(phoneNumber)}`
+      return currentPath === '/customers' || currentPath.startsWith('/customers?') || currentPath.startsWith('/customers#')
+        ? `${base}&returnTo=${encodeURIComponent(currentPath)}`
+        : base
+    }
+
+    function translateFailure(code: PhoneFailureCode | null): string | null {
+      if (!code) return null
+      switch (code) {
+        case 'connection_closed': return context.t('telephony.chip.failure.connectionClosed')
+        case 'registration_failed': return context.t('telephony.chip.failure.registrationFailed')
+        case 'renewal_failed': return context.t('telephony.chip.failure.renewalFailed')
+        case 'start_failed': return context.t('telephony.chip.failure.startFailed')
+        case 'call_failed': return context.t('telephony.chip.failure.callFailed')
+      }
+    }
+
+    function translateDialError(error: DialActionError): string | null {
+      if (!error) return null
+      return error === 'unavailable'
+        ? context.t('telephony.chip.phoneNotReady')
+        : context.t('telephony.chip.invalidNumber')
     }
 
     async function lookupCaller(number: string) {
       lookupController?.abort()
       const controller = new AbortController()
       lookupController = controller
+      const seq = ++lookupSeq
+      callerCard.value = null
       callerCardLoading.value = true
       try {
         const result = await context.$api('/api/v1/telephony/lookup', {
@@ -57,7 +96,7 @@ export function createCallChip(
           schema: TelephonyLookupSchema,
           signal: controller.signal,
         })
-        if (controller.signal.aborted) return
+        if (controller.signal.aborted || seq !== lookupSeq) return
         const tz = context.me.value?.tz
         callerCard.value = {
           partnerName: result.partner?.name ?? null,
@@ -73,7 +112,7 @@ export function createCallChip(
           saveContactTo: result.partner === null ? saveContactLinkFor(result.number) : null,
         }
       } catch (error) {
-        if ((error as { name?: string } | null)?.name === 'AbortError' || controller.signal.aborted) return
+        if ((error as { name?: string } | null)?.name === 'AbortError' || controller.signal.aborted || seq !== lookupSeq) return
         callerCard.value = {
           partnerName: null,
           companyName: null,
@@ -82,7 +121,7 @@ export function createCallChip(
           saveContactTo: saveContactLinkFor(number),
         }
       } finally {
-        if (lookupController === controller) {
+        if (seq === lookupSeq) {
           callerCardLoading.value = false
         }
       }
@@ -92,6 +131,7 @@ export function createCallChip(
       () => [phone.state.phase, phone.state.remote] as const,
       ([phase, remote]) => {
         if (!ACTIVE_PHASES.has(phase) || !remote) {
+          lookupSeq += 1
           lookupController?.abort()
           lookupController = null
           callerCard.value = null
@@ -101,6 +141,14 @@ export function createCallChip(
         }
         if (remote !== lastLookedUpNumber) {
           lastLookedUpNumber = remote
+          if (!isExternalNumber(remote)) {
+            lookupSeq += 1
+            lookupController?.abort()
+            lookupController = null
+            callerCard.value = null
+            callerCardLoading.value = false
+            return
+          }
           void lookupCaller(remote)
         }
       },
@@ -112,7 +160,7 @@ export function createCallChip(
       remote: phone.state.remote,
       registeredAs: phone.state.registeredAs,
       since: phone.state.since,
-      failure: phone.state.failure,
+      failure: translateFailure(phone.state.failure),
       hasExtension: phone.state.hasExtension,
       isLeader: phone.state.isLeader,
       muted: phone.state.muted,
@@ -160,16 +208,10 @@ export function createCallChip(
       answer: () => phone.answer(),
       reject: () => phone.reject(),
       hangUp: () => phone.hangUp(),
-      call: (raw) => {
-        const error = phone.call(raw)
-        return error ? context.t('telephony.chip.invalidNumber') : null
-      },
+      call: raw => translateDialError(phone.call(raw)),
       toggleMute: () => phone.toggleMute(),
       toggleHold: () => phone.toggleHold(),
-      transfer: (raw) => {
-        const error = phone.transfer(raw)
-        return error ? context.t('telephony.chip.invalidNumber') : null
-      },
+      transfer: raw => translateDialError(phone.transfer(raw)),
       sendDtmf: digit => phone.sendDtmf(digit),
       retry: () => { void phone.retry() },
     }
@@ -181,10 +223,10 @@ export function createCallChip(
 
   return {
     seam: built.seam,
-    stop: async () => {
+    stop: async (stopOptions?: SoftphoneStopOptions) => {
       lookupController?.abort()
       lookupController = null
-      await built.phone.stop()
+      await built.phone.stop(stopOptions)
       scope.stop()
     },
   }

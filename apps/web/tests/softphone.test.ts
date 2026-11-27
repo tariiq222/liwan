@@ -12,7 +12,7 @@ import {
 } from '../app/composables/useSoftphone'
 import { createCallChip } from '../app/composables/telephony/createCallChip'
 import { useCallChipHost } from '../app/composables/useCallChipHost'
-import { runSessionTeardown } from '../app/utils/sessionTeardown'
+import { restoreSessionTeardown, runSessionTeardown } from '../app/utils/sessionTeardown'
 
 const SESSION_GRANT: TelephonySession = {
   wsUrl: 'wss://pbx.example.sa/ws',
@@ -94,11 +94,12 @@ class FakeRtcSession extends FakeEmitter {
   })
   mute = vi.fn((_opts?: any) => { this.emit('muted') })
   unmute = vi.fn((_opts?: any) => { this.emit('unmuted') })
-  hold = vi.fn(() => { this.emit('hold') })
-  unhold = vi.fn(() => { this.emit('unhold') })
+  hold = vi.fn(() => { this.emit('hold', { originator: 'local' }); return true })
+  unhold = vi.fn(() => { this.emit('unhold', { originator: 'local' }); return true })
   sendDTMF = vi.fn()
-  refer = vi.fn((_target: string, opts?: { eventHandlers?: Record<string, (e?: any) => void> }) => {
+  refer = vi.fn((_target: string, opts?: { eventHandlers?: Record<string, (e?: any) => void> }): unknown => {
     this.lastReferOpts = opts
+    return {}
   })
   lastReferOpts?: { eventHandlers?: Record<string, (e?: any) => void> }
   constructor(remoteUser = '+966501234567') {
@@ -480,9 +481,221 @@ describe('useSoftphone', () => {
     expect($api).toHaveBeenCalledTimes(2)
     const ua = jssip.agents[0]!
     expect(ua.setCalls).toContainEqual(['password', 'pw-2'])
+    expect(ua.setCalls.some(([key]) => key === 'register_expires')).toBe(false)
     expect(ua.registerCalls).toBe(1)
 
     await phone.stop()
+  })
+
+  it('rejects a second incoming call with 486 while busy without disturbing the active call, and refuses concurrent call()', async () => {
+    const storage = new FakeStorage()
+    const hub = new FakeBroadcastHub()
+    const jssip = createFakeJsSip()
+    const ringtone = createFakeRingtone()
+    const $api = vi.fn(async (_path: string, opts?: any) => (opts?.method === 'DELETE' ? { revoked: true } : SESSION_GRANT))
+
+    const phone = useSoftphone({
+      $api,
+      identity: { userId: 7, companyId: 1 },
+      loadLibrary: async () => jssip.lib,
+      createChannel: name => hub.open(name),
+      storage,
+      ringtone,
+      tabId: 'tab-busy',
+      registerUnload: () => () => {},
+    })
+
+    await phone.register()
+    const ua = jssip.agents[0]!
+
+    const first = ua.simulateIncoming('+966501234567')
+    phone.answer()
+    expect(phone.state.phase).toBe('in-call')
+    expect(phone.state.remote).toBe('+966501234567')
+    const startsBefore = ringtone.starts
+
+    // Second incoming call while active must be rejected with 486 without touching current call or ringtone.
+    const second = ua.simulateIncoming('+966559998877')
+    expect(second.terminate).toHaveBeenCalledWith({ status_code: 486, reason_phrase: 'Busy Here' })
+    expect(phone.state.phase).toBe('in-call')
+    expect(phone.state.remote).toBe('+966501234567')
+    expect(ringtone.starts).toBe(startsBefore)
+
+    // Outgoing call while busy returns 'unavailable' and never touches UA.
+    expect(phone.call('+966551112233')).toBe('unavailable')
+    expect(ua.outgoingCalls).toHaveLength(0)
+
+    // Original call still hangs up normally.
+    phone.hangUp()
+    expect(first.terminate).toHaveBeenCalledTimes(1)
+    expect(phone.state.phase).toBe('registered')
+
+    await phone.stop()
+  })
+
+  it('ignores remote hold/unhold events, checks hold/unhold boolean returns, and guards refer() false & stale callbacks', async () => {
+    const storage = new FakeStorage()
+    const hub = new FakeBroadcastHub()
+    const jssip = createFakeJsSip()
+    const $api = vi.fn(async (_path: string, opts?: any) => (opts?.method === 'DELETE' ? { revoked: true } : SESSION_GRANT))
+
+    const phone = useSoftphone({
+      $api,
+      identity: { userId: 7, companyId: 1 },
+      loadLibrary: async () => jssip.lib,
+      createChannel: name => hub.open(name),
+      storage,
+      ringtone: createFakeRingtone(),
+      tabId: 'tab-hold-refer',
+      registerUnload: () => () => {},
+    })
+
+    await phone.register()
+    const ua = jssip.agents[0]!
+
+    const call1 = ua.simulateIncoming('+966501234567')
+    phone.answer()
+
+    // Remote hold/unhold must not corrupt local held state.
+    call1.emit('hold', { originator: 'remote' })
+    expect(phone.state.held).toBe(false)
+    call1.emit('hold', { originator: 'local' })
+    expect(phone.state.held).toBe(true)
+    call1.emit('unhold', { originator: 'remote' })
+    expect(phone.state.held).toBe(true)
+    call1.emit('unhold', { originator: 'local' })
+    expect(phone.state.held).toBe(false)
+
+    // hold()/unhold() returning false must leave state.held untouched.
+    call1.hold.mockReturnValueOnce(false)
+    phone.toggleHold()
+    expect(phone.state.held).toBe(false)
+
+    phone.toggleHold()
+    expect(phone.state.held).toBe(true)
+
+    call1.unhold.mockReturnValueOnce(false)
+    phone.toggleHold()
+    expect(phone.state.held).toBe(true)
+
+    // refer() returning false resets transferring and records transferError='failed'.
+    call1.refer.mockReturnValueOnce(false)
+    expect(phone.transfer('1002')).toBeNull()
+    expect(phone.state.transferring).toBe(false)
+    expect(phone.state.transferError).toBe('failed')
+
+    // Stale refer callback after call ends / newer call starts must not corrupt state.
+    expect(phone.transfer('1002')).toBeNull()
+    const staleHandlers = call1.lastReferOpts!.eventHandlers!
+    phone.hangUp()
+    expect(phone.state.phase).toBe('registered')
+    staleHandlers.requestFailed?.({ cause: 'LateFailure' })
+    expect(phone.state.transferError).toBeNull()
+
+    const call2 = ua.simulateIncoming('+966559998877')
+    phone.answer()
+    staleHandlers.failed?.({ cause: 'VeryLateFailure' })
+    expect(phone.state.transferError).toBeNull()
+    expect(call2.terminate).not.toHaveBeenCalled()
+
+    await phone.stop()
+  })
+
+  it('guards concurrent connectSession/retry with connectGeneration, terminates activeSession on disconnect/registrationFailed, and emits structured failure codes', async () => {
+    const storage = new FakeStorage()
+    const hub = new FakeBroadcastHub()
+    const jssip = createFakeJsSip()
+    const pendingResolvers: Array<(grant: TelephonySession) => void> = []
+    const $api = vi.fn(async (_path: string, opts?: any) => {
+      if (opts?.method === 'DELETE') return { revoked: true }
+      return new Promise<TelephonySession>(resolve => { pendingResolvers.push(resolve) })
+    })
+
+    const phone = useSoftphone({
+      $api,
+      identity: { userId: 7, companyId: 1 },
+      loadLibrary: async () => jssip.lib,
+      createChannel: name => hub.open(name),
+      storage,
+      ringtone: createFakeRingtone(),
+      tabId: 'tab-gen',
+      registerUnload: () => () => {},
+    })
+
+    const p1 = phone.register()
+    const p2 = phone.retry()
+    expect(pendingResolvers).toHaveLength(2)
+
+    // Resolve the second request first, then the stale first request.
+    pendingResolvers[1]!(SESSION_GRANT)
+    pendingResolvers[0]!(SESSION_GRANT)
+    await Promise.all([p1, p2])
+    await flush()
+
+    // Only one JsSIP.UA was constructed; the stale attempt was discarded.
+    expect(jssip.agents).toHaveLength(1)
+    const ua = jssip.agents[0]!
+
+    // Active call during disconnect must be terminated, renewalTimer cleared, and failure code set.
+    const active = ua.simulateIncoming('+966501234567')
+    phone.answer()
+    ua.emit('disconnected')
+    expect(active.terminate).toHaveBeenCalledTimes(1)
+    expect(phone.state.phase).toBe('failed')
+    expect(phone.state.failure).toBe('connection_closed')
+
+    // Renewal timer was cleared so advancing timers triggers no renewal API call.
+    const callsBeforeAdvance = $api.mock.calls.length
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect($api.mock.calls.length).toBe(callsBeforeAdvance)
+
+    // registrationFailed emits structured 'registration_failed' code.
+    ua.emit('registrationFailed', { cause: 'Rejected' })
+    expect(phone.state.phase).toBe('failed')
+    expect(phone.state.failure).toBe('registration_failed')
+
+    await phone.stop()
+  })
+
+  it('releases lease silently without triggering sibling failover when receiving a remote teardown message', async () => {
+    const storage = new FakeStorage()
+    const hub = new FakeBroadcastHub()
+    const jssip = createFakeJsSip()
+    const $api = vi.fn(async (_path: string, opts?: any) => (opts?.method === 'DELETE' ? { revoked: true } : SESSION_GRANT))
+
+    const makeTab = (tabId: string) => useSoftphone({
+      $api,
+      identity: { userId: 7, companyId: 1 },
+      loadLibrary: async () => jssip.lib,
+      createChannel: name => hub.open(name),
+      storage,
+      ringtone: createFakeRingtone(),
+      tabId,
+      registerUnload: () => () => {},
+    })
+
+    const leader = makeTab('tab-leader')
+    const followerInitiator = makeTab('tab-logout')
+    const followerBystander = makeTab('tab-bystander')
+
+    await leader.register()
+    await followerInitiator.register()
+    await followerBystander.register()
+
+    expect(leader.state.isLeader).toBe(true)
+    expect(jssip.agents).toHaveLength(1)
+
+    // Follower initiates logout teardown -> leader must stop and release lease WITHOUT broadcasting leader-released.
+    await followerInitiator.stop({ revoke: true, notifyTeardown: true, releaseFailover: false })
+    await flush()
+
+    expect(leader.state.isLeader).toBe(false)
+    expect(followerBystander.state.isLeader).toBe(false)
+    expect(jssip.agents).toHaveLength(1)
+    expect(storage.getItem('liwan-softphone-leader:7:1')).toBeNull()
+
+    await leader.stop({ revoke: false, notifyTeardown: false, releaseFailover: false })
+    await followerBystander.stop({ revoke: false, notifyTeardown: false, releaseFailover: false })
   })
 
   it('revokes session on stop and swallows errors so logout is never blocked', async () => {
@@ -559,13 +772,14 @@ describe('createCallChip & useCallChipHost lifecycle', () => {
       throw new Error(`unexpected api call: ${path}`)
     })
 
+    let currentPath = '/calls?state=answered'
     const handle = createCallChip(
       {
         $api,
         t: key => key,
         me,
         can: cap => (cap === 'customers.manage' ? canManageCustomers : true),
-        currentPath: () => '/calls?state=answered',
+        currentPath: () => currentPath,
       },
       {
         loadLibrary: async () => jssip.lib,
@@ -595,14 +809,22 @@ describe('createCallChip & useCallChipHost lifecycle', () => {
     await flush()
     expect(handle.seam.state.value.callerCard).toBeNull()
 
-    // Unknown caller with customers.manage
+    // Unknown external caller on a non-/customers path omits returnTo.
     ua.simulateIncoming('+966559876543')
     await flush()
     expect(handle.seam.state.value.callerCard).toMatchObject({
       partnerName: null,
       number: '+966559876543',
-      saveContactTo: '/customers/new?phone=%2B966559876543&returnTo=%2Fcalls%3Fstate%3Danswered',
+      saveContactTo: '/customers/new?phone=%2B966559876543',
     })
+
+    // Unknown external caller while on /customers?q=sara appends returnTo.
+    handle.seam.actions.reject()
+    await flush()
+    currentPath = '/customers?q=sara'
+    ua.simulateIncoming('+966559876543')
+    await flush()
+    expect(handle.seam.state.value.callerCard?.saveContactTo).toBe('/customers/new?phone=%2B966559876543&returnTo=%2Fcustomers%3Fq%3Dsara')
 
     // Unknown caller without customers.manage
     handle.seam.actions.reject()
@@ -611,6 +833,115 @@ describe('createCallChip & useCallChipHost lifecycle', () => {
     ua.simulateIncoming('+966559876543')
     await flush()
     expect(handle.seam.state.value.callerCard?.saveContactTo).toBeNull()
+
+    // Internal extension skips /api/v1/telephony/lookup and never offers saveContactTo.
+    handle.seam.actions.reject()
+    await flush()
+    canManageCustomers = true
+    const lookupCallsBefore = $api.mock.calls.filter(([path]) => path === '/api/v1/telephony/lookup').length
+    ua.simulateIncoming('1002')
+    await flush()
+    expect($api.mock.calls.filter(([path]) => path === '/api/v1/telephony/lookup').length).toBe(lookupCallsBefore)
+    expect(handle.seam.state.value.callerCard).toBeNull()
+
+    // Dial/transfer unavailable error translates to telephony.chip.phoneNotReady, distinct from invalidNumber.
+    expect(handle.seam.actions.call('bad')).toBe('telephony.chip.invalidNumber')
+    expect(handle.seam.actions.call('1002')).toBe('telephony.chip.phoneNotReady')
+    expect(handle.seam.actions.transfer('1002')).toBe('telephony.chip.phoneNotReady')
+
+    // Failure codes are translated through telephony.chip.failure.* keys (never raw English strings).
+    ua.emit('disconnected')
+    await flush()
+    expect(handle.seam.state.value.failure).toBe('telephony.chip.failure.connectionClosed')
+    ua.emit('registrationFailed', { cause: 'Rejected' })
+    await flush()
+    expect(handle.seam.state.value.failure).toBe('telephony.chip.failure.registrationFailed')
+
+    await handle.stop()
+  })
+
+  it('clears callerCard immediately on remote change and ignores stale out-of-order lookup responses', async () => {
+    const storage = new FakeStorage()
+    const hub = new FakeBroadcastHub()
+    const jssip = createFakeJsSip()
+    const me = Vue.ref({
+      id: 7,
+      tz: 'Asia/Riyadh',
+      company: { id: 1 },
+      capabilities: ['telephony.use', 'customers.manage'],
+    })
+    const lookupResolvers = new Map<string, (value: any) => void>()
+    const $api = vi.fn(async (path: string, opts?: any) => {
+      if (path === '/api/v1/telephony/session' && opts?.method === 'POST') return SESSION_GRANT
+      if (path === '/api/v1/telephony/session' && opts?.method === 'DELETE') return { revoked: true }
+      if (path === '/api/v1/telephony/lookup') {
+        return new Promise((resolve) => {
+          lookupResolvers.set(opts.query.number, resolve)
+        })
+      }
+      throw new Error(`unexpected api call: ${path}`)
+    })
+
+    const handle = createCallChip(
+      {
+        $api,
+        t: key => key,
+        me,
+        can: () => true,
+        currentPath: () => '/calls',
+      },
+      {
+        loadLibrary: async () => jssip.lib,
+        createChannel: name => hub.open(name),
+        storage,
+        ringtone: createFakeRingtone(),
+        registerUnload: () => () => {},
+      },
+    )
+
+    await flush()
+    const ua = jssip.agents[0]!
+
+    // First call lookup resolves normally.
+    ua.simulateIncoming('+966501111111')
+    await flush()
+    lookupResolvers.get('+966501111111')!({
+      number: '+966501111111',
+      partner: { id: 1, name: 'المتصل الأول', isCompany: false, company: null },
+      calls: [],
+    })
+    await flush()
+    expect(handle.seam.state.value.callerCard?.partnerName).toBe('المتصل الأول')
+
+    // End first call, start second call (pending lookup), then end and start third call.
+    handle.seam.actions.reject()
+    await flush()
+    ua.simulateIncoming('+966502222222')
+    await flush()
+    expect(handle.seam.state.value.callerCard).toBeNull()
+
+    handle.seam.actions.reject()
+    await flush()
+    ua.simulateIncoming('+966503333333')
+    await flush()
+
+    // Stale response for #2 resolves AFTER #3 started — must be ignored.
+    lookupResolvers.get('+966502222222')!({
+      number: '+966502222222',
+      partner: { id: 2, name: 'متصل قديم', isCompany: false, company: null },
+      calls: [],
+    })
+    await flush()
+    expect(handle.seam.state.value.callerCard).toBeNull()
+
+    // Current response for #3 resolves and updates callerCard.
+    lookupResolvers.get('+966503333333')!({
+      number: '+966503333333',
+      partner: { id: 3, name: 'المتصل الثالث', isCompany: false, company: null },
+      calls: [],
+    })
+    await flush()
+    expect(handle.seam.state.value.callerCard?.partnerName).toBe('المتصل الثالث')
 
     await handle.stop()
   })
@@ -694,6 +1025,96 @@ describe('createCallChip & useCallChipHost lifecycle', () => {
     expect(host.seam.value).toBeNull()
     expect(jssip.agents[1]!.stopped).toBe(true)
 
+    // Failed company switch recovery: restoreSessionTeardown remounts the call chip cleanly.
+    await restoreSessionTeardown()
+    await flush()
+    expect(host.seam.value).not.toBeNull()
+    expect(jssip.agents).toHaveLength(3)
+
     mounted.unmount()
+  })
+
+  it('layout unmount releases leadership to sibling tabs without revoking the server session or broadcasting teardown', async () => {
+    const storage = new FakeStorage()
+    const hub = new FakeBroadcastHub()
+    const jssip = createFakeJsSip()
+    const $api = vi.fn(async (_path: string, opts?: any) => (opts?.method === 'DELETE' ? { revoked: true } : SESSION_GRANT))
+
+    const me = Vue.ref<any>({
+      id: 7,
+      company: { id: 1 },
+      capabilities: ['telephony.use'],
+      platform: { readable_features: ['telephony.enabled'], writable_features: ['telephony.enabled'] },
+    })
+    const hydrated = Vue.ref(true)
+
+    const renderer = Vue.createRenderer({
+      patchProp: () => {},
+      insert: () => {},
+      remove: () => {},
+      createElement: () => ({}),
+      createText: () => ({}),
+      createComment: () => ({}),
+      setText: () => {},
+      setElementText: () => {},
+      parentNode: () => null,
+      nextSibling: () => null,
+    })
+
+    const mountTab = (tabId: string) => {
+      let host!: ReturnType<typeof useCallChipHost>
+      const app = renderer.createApp({
+        setup() {
+          host = useCallChipHost({
+            surface: {
+              capability: 'telephony.use',
+              load: async () => ({
+                createCallChip: ctx => createCallChip(ctx, {
+                  loadLibrary: async () => jssip.lib,
+                  createChannel: name => hub.open(name),
+                  storage,
+                  tabId,
+                  ringtone: createFakeRingtone(),
+                  registerUnload: () => () => {},
+                }),
+              }),
+            },
+            context: {
+              $api,
+              t: key => key,
+              me,
+              can: () => true,
+              currentPath: () => '/calls',
+            },
+            hydrated,
+            client: true,
+          })
+          return () => Vue.h('div')
+        },
+      })
+      app.mount({ nodeType: 1 } as any)
+      return { app, getHost: () => host }
+    }
+
+    const tabA = mountTab('host-tab-a')
+    await flush()
+    const tabB = mountTab('host-tab-b')
+    await flush()
+
+    expect(tabA.getHost().seam.value?.state.value.isLeader).toBe(true)
+    expect(tabB.getHost().seam.value?.state.value.isLeader).toBe(false)
+    expect(jssip.agents).toHaveLength(1)
+
+    // Unmounting tab A's layout must NOT DELETE /api/v1/telephony/session and must let tab B take over leadership.
+    tabA.app.unmount()
+    await flush()
+    await flush()
+
+    expect($api).not.toHaveBeenCalledWith('/api/v1/telephony/session', expect.objectContaining({ method: 'DELETE' }))
+    expect(tabB.getHost().seam.value?.state.value.isLeader).toBe(true)
+    expect(jssip.agents).toHaveLength(2)
+
+    tabB.app.unmount()
+    await flush()
   })
 })

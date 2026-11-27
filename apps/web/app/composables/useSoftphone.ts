@@ -13,12 +13,25 @@ import type { ZodType } from 'zod'
 
 export type PhonePhase = 'idle' | 'connecting' | 'registered' | 'ringing' | 'calling' | 'in-call' | 'failed'
 
+export type PhoneFailureCode =
+  | 'connection_closed'
+  | 'registration_failed'
+  | 'renewal_failed'
+  | 'start_failed'
+  | 'call_failed'
+
+export interface SoftphoneStopOptions {
+  revoke?: boolean
+  notifyTeardown?: boolean
+  releaseFailover?: boolean
+}
+
 export interface PhoneState {
   phase: PhonePhase
   remote: string | null
   registeredAs: string | null
   since: number | null
-  failure: string | null
+  failure: PhoneFailureCode | null
   hasExtension: boolean
   isLeader: boolean
   muted: boolean
@@ -300,6 +313,8 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
   let localTerminating = false
   let stopped = false
   let hadGrantedSession = false
+  let connectGeneration = 0
+  let renewGeneration = 0
   const attachedSessions = new WeakSet<object>()
 
   function resolveIdentity(): SoftphoneIdentity | null {
@@ -338,7 +353,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     broadcastState()
   }
 
-  function clearCallFields(nextPhase?: PhonePhase, failure: string | null = null) {
+  function clearCallFields(nextPhase?: PhonePhase, failure: PhoneFailureCode | null = null) {
     ringtone.stop()
     detachAudio()
     activeSession = null
@@ -419,6 +434,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
   }
 
   function stopUaOnly() {
+    connectGeneration += 1
     ringtone.stop()
     detachAudio()
     if (renewalTimer) clearTimeout(renewalTimer)
@@ -432,6 +448,18 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     }
   }
 
+  function failUa(code: PhoneFailureCode) {
+    if (renewalTimer) clearTimeout(renewalTimer)
+    renewalTimer = null
+    const current = activeSession
+    activeSession = null
+    localTerminating = true
+    if (current) {
+      try { current.terminate() } catch {}
+    }
+    clearCallFields('failed', code)
+  }
+
   function scheduleRenewal(expiresInSeconds: number) {
     if (renewalTimer) clearTimeout(renewalTimer)
     const delayMs = Math.max((expiresInSeconds - RENEWAL_LEAD_SECONDS) * 1000, MIN_RENEWAL_MS)
@@ -442,9 +470,11 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
 
   async function renewSession() {
     if (stopped || !state.isLeader) return
+    const myConnectGen = connectGeneration
+    const myRenewGen = ++renewGeneration
     try {
       const nextGrant = await $api('/api/v1/telephony/session', { method: 'POST', schema: TelephonySessionSchema })
-      if (stopped || !state.isLeader) return
+      if (stopped || !state.isLeader || myConnectGen !== connectGeneration || myRenewGen !== renewGeneration) return
       hadGrantedSession = true
       currentGrant = nextGrant
       sipHost = new URL(nextGrant.wsUrl).hostname
@@ -452,13 +482,12 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
         try {
           ua.set?.('authorization_user', nextGrant.authUsername)
           ua.set?.('password', nextGrant.password)
-          ua.set?.('register_expires', nextGrant.expiresInSeconds)
           if (typeof ua.register === 'function') ua.register()
         } catch {}
       }
       scheduleRenewal(nextGrant.expiresInSeconds)
     } catch (error) {
-      if (stopped || !state.isLeader) return
+      if (stopped || !state.isLeader || myConnectGen !== connectGeneration || myRenewGen !== renewGeneration) return
       if (isNotFoundError(error)) {
         stopUaOnly()
         applyState({
@@ -482,7 +511,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       }
       applyState({
         phase: 'failed',
-        failure: error instanceof Error ? error.message : 'session renewal failed',
+        failure: 'renewal_failed',
       })
     }
   }
@@ -520,13 +549,13 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       applyState({ muted: false })
     })
 
-    session.on?.('hold', () => {
-      if (activeSession !== session) return
+    session.on?.('hold', (event: any) => {
+      if (activeSession !== session || event?.originator !== 'local') return
       applyState({ held: true })
     })
 
-    session.on?.('unhold', () => {
-      if (activeSession !== session) return
+    session.on?.('unhold', (event: any) => {
+      if (activeSession !== session || event?.originator !== 'local') return
       applyState({ held: false })
     })
 
@@ -544,7 +573,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       clearCallFields(ua?.isRegistered?.() ? 'registered' : 'idle', null)
       // Remote failure on an active attempt reports only if UA itself is no longer registered.
       if (!ua?.isRegistered?.() && event?.cause) {
-        applyState({ phase: 'failed', failure: `call failed: ${event.cause}` })
+        applyState({ phase: 'failed', failure: 'call_failed' })
       }
     })
   }
@@ -552,6 +581,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
   async function connectSession() {
     if (stopped || !state.isLeader) return
     stopUaOnly()
+    const gen = ++connectGeneration
     applyState({
       phase: 'connecting',
       failure: null,
@@ -566,13 +596,13 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
 
     try {
       const granted = await $api('/api/v1/telephony/session', { method: 'POST', schema: TelephonySessionSchema })
-      if (stopped || !state.isLeader) return
+      if (stopped || !state.isLeader || gen !== connectGeneration) return
       hadGrantedSession = true
       currentGrant = granted
       sipHost = new URL(granted.wsUrl).hostname
 
       const JsSIP = await loadLibrary()
-      if (stopped || !state.isLeader) return
+      if (stopped || !state.isLeader || gen !== connectGeneration) return
 
       const socket = new JsSIP.WebSocketInterface(granted.wsUrl)
       const agent = new JsSIP.UA({
@@ -595,15 +625,15 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
         })
       })
 
-      agent.on('registrationFailed', (event: any) => {
+      agent.on('registrationFailed', () => {
         if (ua !== agent) return
-        clearCallFields('failed', `registration failed: ${event?.cause ?? 'unknown'}`)
+        failUa('registration_failed')
       })
 
       agent.on('disconnected', () => {
         if (ua !== agent || stopped) return
         if (state.phase !== 'idle') {
-          clearCallFields('failed', 'the connection closed')
+          failUa('connection_closed')
         }
       })
 
@@ -611,6 +641,10 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
         if (ua !== agent) return
         const incoming = event?.session
         if (!incoming) return
+        if (event.originator === 'remote' && (activeSession || isBusy.value)) {
+          try { incoming.terminate({ status_code: 486, reason_phrase: 'Busy Here' }) } catch {}
+          return
+        }
         activeSession = incoming
         localTerminating = false
         attachSessionHandlers(incoming)
@@ -633,7 +667,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       agent.start()
       scheduleRenewal(granted.expiresInSeconds)
     } catch (error) {
-      if (stopped || !state.isLeader) return
+      if (stopped || !state.isLeader || gen !== connectGeneration) return
       if (isNotFoundError(error)) {
         // 404 means this user has no assigned extension: stay quietly idle, never enter failed or retry.
         currentGrant = null
@@ -653,7 +687,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       }
       applyState({
         phase: 'failed',
-        failure: error instanceof Error ? error.message : 'the phone could not start',
+        failure: 'start_failed',
       })
     }
   }
@@ -716,7 +750,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     if (!msg || typeof msg !== 'object' || msg.tabId === tabId) return
 
     if (msg.type === 'teardown') {
-      void stop({ revoke: false, notifyTeardown: false })
+      void stop({ revoke: false, notifyTeardown: false, releaseFailover: false })
       return
     }
 
@@ -780,12 +814,15 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     const parsed = normalizeDialTarget(raw)
     if (!parsed.ok) return parsed.reason
 
+    if (isBusy.value) return 'unavailable'
+
     if (!state.isLeader) {
+      if (state.phase !== 'registered') return 'unavailable'
       broadcast({ type: 'cmd', tabId, action: 'call', arg: parsed.value })
       return null
     }
 
-    if (!ua?.isRegistered?.()) return 'unavailable'
+    if (!ua?.isRegistered?.() || activeSession) return 'unavailable'
     const host = sipHost || ua._configuration?.uri?.host || ''
     const targetUri = `sip:${parsed.value}@${host}`
     const iceServers = currentGrant?.iceServers ?? []
@@ -875,11 +912,13 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     }
     if (!activeSession) return
     if (state.held) {
-      activeSession.unhold?.()
-      applyState({ held: false })
+      if (activeSession.unhold?.() === true) {
+        applyState({ held: false })
+      }
     } else {
-      activeSession.hold?.()
-      applyState({ held: true })
+      if (activeSession.hold?.() === true) {
+        applyState({ held: true })
+      }
     }
   }
 
@@ -888,37 +927,49 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     if (!parsed.ok) return parsed.reason
 
     if (!state.isLeader) {
+      if (state.phase !== 'in-call') return 'unavailable'
       broadcast({ type: 'cmd', tabId, action: 'transfer', arg: parsed.value })
       return null
     }
 
-    if (!activeSession || state.phase !== 'in-call') return 'unavailable'
+    const session = activeSession
+    if (!session || state.phase !== 'in-call') return 'unavailable'
     const host = sipHost || ua?._configuration?.uri?.host || ''
     const targetUri = `sip:${parsed.value}@${host}`
 
     applyState({ transferring: true, transferError: null })
     try {
-      activeSession.refer?.(targetUri, {
+      if (typeof session.refer !== 'function') {
+        applyState({ transferring: false, transferError: 'failed' })
+        return null
+      }
+      const started = session.refer(targetUri, {
         eventHandlers: {
           requestSucceeded() {
+            if (activeSession !== session) return
             applyState({ transferring: false, transferError: null })
           },
           requestFailed(event: any) {
-            applyState({ transferring: false, transferError: event?.cause ? String(event.cause) : 'transfer_failed' })
+            if (activeSession !== session) return
+            applyState({ transferring: false, transferError: event?.cause ? String(event.cause) : 'failed' })
           },
           accepted() {
+            if (activeSession !== session) return
             applyState({ transferring: false, transferError: null })
           },
           failed(event: any) {
-            applyState({ transferring: false, transferError: event?.cause ? String(event.cause) : 'transfer_failed' })
+            if (activeSession !== session) return
+            applyState({ transferring: false, transferError: event?.cause ? String(event.cause) : 'failed' })
           },
         },
       })
-    } catch (error) {
-      applyState({
-        transferring: false,
-        transferError: error instanceof Error ? error.message : 'transfer_failed',
-      })
+      if (started === false && activeSession === session) {
+        applyState({ transferring: false, transferError: 'failed' })
+      }
+    } catch {
+      if (activeSession === session) {
+        applyState({ transferring: false, transferError: 'failed' })
+      }
     }
     return null
   }
@@ -954,8 +1005,12 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
     }
   }
 
-  async function stop(stopOptions: { revoke?: boolean; notifyTeardown?: boolean } = {}): Promise<void> {
-    const { revoke = true, notifyTeardown = revoke } = stopOptions
+  async function stop(stopOptions: SoftphoneStopOptions = {}): Promise<void> {
+    const {
+      revoke = true,
+      notifyTeardown = revoke,
+      releaseFailover = !notifyTeardown,
+    } = stopOptions
     const wasLeader = state.isLeader
     const shouldRevoke = revoke && (hadGrantedSession || (state.hasExtension && !wasLeader))
     stopped = true
@@ -967,7 +1022,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
       broadcast({ type: 'teardown', tabId })
     }
     if (wasLeader) {
-      releaseLease(!notifyTeardown)
+      releaseLease(releaseFailover)
     }
 
     if (channel) {
@@ -1002,7 +1057,7 @@ export function useSoftphone(options: SoftphoneOptions = {}) {
   }
 
   if (getCurrentInstance()) {
-    onBeforeUnmount(() => { void stop({ revoke: false, notifyTeardown: false }) })
+    onBeforeUnmount(() => { void stop({ revoke: false, notifyTeardown: false, releaseFailover: true }) })
   }
 
   return {

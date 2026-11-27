@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/vue-query'
 import type { Me } from '@liwan/contracts'
 import { clearAiSessionState } from '../utils/aiDraft'
 import { clearChatDrafts } from '../utils/chatDrafts'
-import { runSessionTeardown } from '../utils/sessionTeardown'
+import { hasSessionTeardown, restoreSessionTeardown, runSessionTeardown } from '../utils/sessionTeardown'
 import { useAiConversation } from './useAiConversation'
 
 /**
@@ -16,9 +16,14 @@ export function useSignOut() {
   const { me } = useMe()
   return async (): Promise<boolean> => {
     const navPreferenceKey = `liwan-nav:${me.value?.id ?? 'anonymous'}`
+    let toreDown = false
     try {
-      await runSessionTeardown()
+      if (hasSessionTeardown()) {
+        await runSessionTeardown()
+        toreDown = true
+      }
       await $fetch('/api/auth/logout', { method: 'POST', body: {} })
+      toreDown = false
       sessionStorage.removeItem(navPreferenceKey)
       clearAiSessionState()
       clearChatDrafts()
@@ -34,6 +39,7 @@ export function useSignOut() {
       return true
     } catch {
       await refreshNuxtData('me')
+      if (toreDown) await restoreSessionTeardown()
       return false
     }
   }

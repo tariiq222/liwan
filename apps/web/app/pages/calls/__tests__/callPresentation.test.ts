@@ -110,4 +110,11 @@ describe('the two call pages', () => {
     expect(detail).toContain('callParty(data)')
     expect(detail).toContain('data.user?.name')
   })
+
+  it('detail: gates the listen button on hydration/busy and resets recording state on route id change', () => {
+    expect(detail).toContain('const hydrated = useHydrated()')
+    expect(detail).toContain(':disabled="!hydrated || busy"')
+    expect(detail).toContain('watch(id,')
+    expect(detail).toContain('if (busy.value) return')
+  })
 })

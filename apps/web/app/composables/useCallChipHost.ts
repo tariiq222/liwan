@@ -5,6 +5,26 @@ import type { AppCallChipHandle, AppCallChipHostContext, AppCallChipSurface } fr
 import { canReach } from '../utils/accessPolicy'
 import { registerSessionTeardown } from '../utils/sessionTeardown'
 
+export interface CallChipStopOptions {
+  revoke?: boolean
+  notifyTeardown?: boolean
+  releaseFailover?: boolean
+}
+
+const SESSION_TEARDOWN_OPTIONS: CallChipStopOptions = {
+  revoke: true,
+  notifyTeardown: true,
+  releaseFailover: false,
+}
+
+const UNMOUNT_STOP_OPTIONS: CallChipStopOptions = {
+  revoke: false,
+  notifyTeardown: false,
+  releaseFailover: true,
+}
+
+type StopHandleWithOptions = (options?: CallChipStopOptions) => Promise<void>
+
 export interface CallChipHostOptions {
   surface?: AppCallChipSurface | undefined
   context?: AppCallChipHostContext
@@ -18,6 +38,10 @@ export interface CallChipHostOptions {
  * The layout mounts this once: it discovers the surface through `callChipSurface()` (importing no application code),
  * lazily loads the application's factory once hydrated and authorized, provides the `CALL_CHIP` seam, and tears it
  * down immediately on capability loss, user/company change, sign-out, company switch, or layout unmount.
+ *
+ * Layout unmount releases tab leadership for sibling failover without revoking the server session or broadcasting
+ * session teardown; only session-ending transitions (logout, company switch, capability/identity loss) revoke and
+ * broadcast teardown.
  */
 export function useCallChipHost(options: CallChipHostOptions = {}) {
   const surface = 'surface' in options ? options.surface : callChipSurface()
@@ -47,26 +71,31 @@ export function useCallChipHost(options: CallChipHostOptions = {}) {
   let activeHandle: AppCallChipHandle | null = null
   let activeKey: string | null = null
   let generation = 0
+  let disposed = false
 
-  async function teardown() {
+  async function stopHandle(handle: AppCallChipHandle, stopOptions: CallChipStopOptions) {
+    await (handle.stop as StopHandleWithOptions)(stopOptions)
+  }
+
+  async function teardown(stopOptions: CallChipStopOptions = SESSION_TEARDOWN_OPTIONS) {
     generation += 1
     activeKey = null
     seam.value = null
     const current = activeHandle
     activeHandle = null
-    if (current) await current.stop()
+    if (current) await stopHandle(current, stopOptions)
   }
 
   async function mountFor(identityKey: string) {
-    if (!surface) return
+    if (!surface || disposed) return
     const myGen = ++generation
     activeKey = identityKey
     try {
       const module = await surface.load()
-      if (myGen !== generation) return
+      if (myGen !== generation || disposed) return
       const handle = module.createCallChip(context)
-      if (myGen !== generation) {
-        await handle.stop()
+      if (myGen !== generation || disposed) {
+        await stopHandle(handle, { revoke: false, notifyTeardown: false, releaseFailover: false })
         return
       }
       activeHandle = handle
@@ -79,32 +108,41 @@ export function useCallChipHost(options: CallChipHostOptions = {}) {
     }
   }
 
-  const unregisterTeardown = registerSessionTeardown(teardown)
+  async function sync() {
+    if (disposed || !isClient) return
+    const ready = hydrated.value
+    const allowed = canUse.value
+    const userId = context.me.value?.id ?? null
+    const companyId = context.me.value?.company.id ?? null
+
+    if (!ready || !allowed || userId === null || companyId === null) {
+      if (activeHandle || activeKey !== null || seam.value) await teardown(SESSION_TEARDOWN_OPTIONS)
+      return
+    }
+    const nextKey = `${userId}:${companyId}`
+    if (activeKey === nextKey) return
+    if (activeHandle || activeKey !== null) await teardown(SESSION_TEARDOWN_OPTIONS)
+    if (!disposed && hydrated.value && canUse.value && context.me.value?.id === userId && context.me.value?.company.id === companyId) {
+      await mountFor(nextKey)
+    }
+  }
+
+  const unregisterTeardown = registerSessionTeardown({
+    teardown: () => teardown(SESSION_TEARDOWN_OPTIONS),
+    restore: () => sync(),
+  })
 
   const stopWatch = watch(
     () => [hydrated.value, canUse.value, context.me.value?.id ?? null, context.me.value?.company.id ?? null] as const,
-    ([ready, allowed, userId, companyId]) => {
-      if (!isClient) return
-      if (!ready || !allowed || userId === null || companyId === null) {
-        if (activeHandle || activeKey !== null || seam.value) void teardown()
-        return
-      }
-      const nextKey = `${userId}:${companyId}`
-      if (activeKey === nextKey && activeHandle) return
-      void (async () => {
-        if (activeHandle || activeKey !== null) await teardown()
-        if (hydrated.value && canUse.value && context.me.value?.id === userId && context.me.value?.company.id === companyId) {
-          await mountFor(nextKey)
-        }
-      })()
-    },
+    () => { void sync() },
     { immediate: true },
   )
 
   function dispose() {
+    disposed = true
     stopWatch()
     unregisterTeardown()
-    return teardown()
+    return teardown(UNMOUNT_STOP_OPTIONS)
   }
 
   if (getCurrentInstance()) {
