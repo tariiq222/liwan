@@ -1818,7 +1818,6 @@
     "orders": {
       "title": "Orders",
       "empty": "No orders yet",
-      "emptyDescription": "Carts customers send and orders the team builds appear here.",
       "panelEmpty": "There are no orders in this conversation",
       "create": "New order",
       "cartTitle": "Order cart",
@@ -1827,6 +1826,12 @@
       "unknownProduct": "Not in the catalog",
       "wasPrice": "Was {price}",
       "unknownWarning": "The cart has a product that is not in the catalog. Remove it before creating the order.",
+      "columns": {
+        "order": "Order",
+        "customer": "Customer",
+        "date": "Date"
+      },
+      "footer": "{shown} of 1 order | {shown} of {total} orders",
       "state": {
         "cart": "Cart",
         "ordered": "Order",
