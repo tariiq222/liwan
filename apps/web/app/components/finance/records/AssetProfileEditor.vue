@@ -5,13 +5,16 @@ import AccountPicker from '../AccountPicker.vue'
 import { useCreateSetupAssetProfile, usePatchSetupAssetProfile, useSetupJournals } from '@/composables/finance/useFinanceRecords'
 import { assetProfileCreate, assetProfileDraft, assetProfilePatch, assetProfileValid } from './recordForms'
 
-// The inline form of an asset profile: the depreciation method and the accounts and journal its entries are booked in. Once an
+// The form of an asset profile: the depreciation method and the accounts and journal its entries are booked in. Once an
 // asset uses the profile its accounts, journal and method are fixed (the server says so); the name and the disposal accounts can change.
 const props = defineProps<{ profile?: FinanceAssetProfile }>()
 const emit = defineEmits<{ done: []; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const draft = reactive(assetProfileDraft(props.profile))
+const initial = JSON.stringify(draft)
+const submitted = ref(false)
+const dirty = computed(() => !submitted.value && JSON.stringify(draft) !== initial)
 const failure = ref<unknown>(null)
 const { mutateAsync: create, isPending: creating } = useCreateSetupAssetProfile()
 const { mutateAsync: patch, isPending: patching } = usePatchSetupAssetProfile()
@@ -19,12 +22,13 @@ const pending = computed(() => creating.value || patching.value)
 const valid = computed(() => assetProfileValid(draft))
 const journals = useSetupJournals({ archived: 'false', type: 'general', limit: 100, offset: 0 })
 const journalItems = computed(() => (journals.data.value?.items ?? []).map(journal => ({ value: journal.id, label: `${journal.code} ${journal.name}` })))
-const methodItems = (['linear', 'degressive'] as const).map(value => ({ value, label: t(`financeRecords.assetProfiles.methods.${value}`) }))
-const timeItems = (['year', 'number'] as const).map(value => ({ value, label: t(`financeRecords.assetProfiles.times.${value}`) }))
-const periodItems = (['month', 'quarter', 'year'] as const).map(value => ({ value, label: t(`financeRecords.assetProfiles.periods.${value}`) }))
+const methodItems = computed(() => (['linear', 'degressive'] as const).map(value => ({ value, label: t(`financeRecords.assetProfiles.methods.${value}`) })))
+const timeItems = computed(() => (['year', 'number'] as const).map(value => ({ value, label: t(`financeRecords.assetProfiles.times.${value}`) })))
+const periodItems = computed(() => (['month', 'quarter', 'year'] as const).map(value => ({ value, label: t(`financeRecords.assetProfiles.periods.${value}`) })))
 
 async function submit() {
   if (!hydrated.value || pending.value || !valid.value) return
+  failure.value = null
   try {
     if (props.profile) {
       const changes = assetProfilePatch(props.profile, draft)
@@ -32,12 +36,15 @@ async function submit() {
     } else {
       await create(assetProfileCreate(draft))
     }
+    submitted.value = true
+    await nextTick()
     emit('done')
   } catch (error) { failure.value = error }
 }
 </script>
 
 <template>
+  <SharedUnsavedChanges :dirty="dirty" />
   <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-asset-profile-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
     <div class="liwan-auto-grid">
@@ -78,9 +85,11 @@ async function submit() {
         <AccountPicker id="finance-record-asset-profile-min" v-model="draft.minAccountId" :aria-label="t('financeRecords.assetProfiles.form.minAccount')" />
       </UFormField>
     </div>
-    <div class="flex flex-wrap justify-end gap-2">
-      <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
-      <UButton type="submit" color="primary" :disabled="!hydrated || !valid" :loading="pending" :label="t('app.save')" data-testid="finance-record-asset-profile-save" />
-    </div>
+    <SharedFormActions>
+      <div class="ms-auto flex items-center gap-2">
+        <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
+        <UButton type="submit" color="primary" :disabled="!hydrated || !valid" :loading="pending" :label="t(props.profile ? 'app.saveChanges' : 'app.create')" data-testid="finance-record-asset-profile-save" />
+      </div>
+    </SharedFormActions>
   </UForm>
 </template>

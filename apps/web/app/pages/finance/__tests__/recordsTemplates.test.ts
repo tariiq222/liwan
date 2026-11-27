@@ -2,8 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// The setup record pages (chart of accounts, journals, taxes, payment terms) stay on their templates. This is a source guard,
-// not a behaviour test.
+// The setup record pages (chart of accounts, journals, taxes, payment terms, asset profiles) stay on their templates.
+// This is a source guard, not a behaviour test.
 const app = resolve(import.meta.dirname, '../../..')
 const locales = resolve(app, '../i18n/locales')
 const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
@@ -16,7 +16,11 @@ function sources(dir: string): string[] {
   })
 }
 
-const PAGES = ['accounts', 'journals', 'taxes', 'payment-terms'].map(name => `pages/settings/apps/finance/${name}.vue`)
+const RESOURCES = ['accounts', 'journals', 'taxes', 'payment-terms', 'asset-profiles'] as const
+const LIST_PAGES = RESOURCES.map(name => `pages/settings/apps/finance/${name}/index.vue`)
+const CREATE_PAGES = RESOURCES.map(name => `pages/settings/apps/finance/${name}/new.vue`)
+const EDIT_PAGES = RESOURCES.map(name => `pages/settings/apps/finance/${name}/[id]/edit.vue`)
+const PAGES = [...LIST_PAGES, ...CREATE_PAGES, ...EDIT_PAGES]
 const FILES = [...PAGES, ...sources('components/finance/records'), 'composables/finance/useFinanceRecords.ts']
 
 function leafKeys(value: unknown, prefix = ''): string[] {
@@ -26,9 +30,33 @@ function leafKeys(value: unknown, prefix = ''): string[] {
 const locale = (code: string) => JSON.parse(readFileSync(resolve(locales, `${code}/finance-records.json`), 'utf8')) as Record<string, unknown>
 
 describe('the finance setup record pages stay on their templates', () => {
-  it.each(PAGES)('%s is a settings page with a forbidden state', (file) => {
+  it.each(LIST_PAGES)('%s is a list page with a create link and forbidden state', (file) => {
     const source = read(file)
-    for (const needle of ['<SharedSettingsPage', '<SharedPageHeader', '<SharedForbiddenState', 'can(\'finance.']) expect(source, needle).toContain(needle)
+    for (const needle of ['<SharedListPage', ':create-to="allowed && canManage ?', 'returnToQuery', '<SharedForbiddenState', "can('finance."]) {
+      expect(source, needle).toContain(needle)
+    }
+    expect(source).not.toContain('<SharedSettingsPage')
+    expect(source).not.toContain('<SharedPageHeader')
+  })
+
+  it.each(CREATE_PAGES)('%s renders the list backdrop and route-backed create panel', (file) => {
+    const source = read(file)
+    for (const needle of ['<SharedListPage', 'hide-header', 'background', '<SharedCreatePanel', '<SharedForbiddenState', 'safeReturnTo', "can('finance."]) {
+      expect(source, needle).toContain(needle)
+    }
+  })
+
+  it.each(EDIT_PAGES)('%s renders an edit page with a form section and forbidden state', (file) => {
+    const source = read(file)
+    for (const needle of ['<SharedPageContainer', '<SharedPageHeader', '<SharedPageState', '<SharedFormSection', 'panel', '<SharedForbiddenState', 'safeReturnTo', "can('finance."]) {
+      expect(source, needle).toContain(needle)
+    }
+  })
+
+  it('guards shared payment terms as read only on the edit route', () => {
+    const source = read('pages/settings/apps/finance/payment-terms/[id]/edit.vue')
+    expect(source).toContain('?.shared')
+    expect(source).toContain('financeRecords.paymentTerms.sharedReadOnly')
   })
 
   it.each([
@@ -36,16 +64,27 @@ describe('the finance setup record pages stay on their templates', () => {
     ['JournalsSection', "can('finance.journals.manage')"],
     ['TaxesSection', "can('finance.taxes.manage')"],
     ['PaymentTermsSection', "can('finance.payment_terms.manage')"],
-  ])('%s is a record section with the shared list parts and its manage capability', (name, capability) => {
+    ['AssetProfilesSection', "can('finance.assets.manage')"],
+  ])('%s is a list card with the shared list parts and its manage capability', (name, capability) => {
     const source = read(`components/finance/records/${name}.vue`)
-    for (const needle of ['<SharedRecordSection variant="panel"', 'useRecordList', '<RecordsFilters', '<SharedDataTable', ' bare', '#mobile-row', '<SharedRowActions', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', '<RecordArchiveConfirm', capability]) {
+    for (const needle of ['<SharedListCard', 'defineProps<{ background?: boolean }>', 'useRecordList', '<RecordsFilters', '<SharedDataTable', ' bare', '#mobile-row', '<SharedRowActions', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', '<RecordArchiveConfirm', 'returnToQuery', capability]) {
       expect(source, needle).toContain(needle)
     }
+    expect(source).not.toContain('<SharedRecordSection')
+    expect(source).not.toMatch(/Editor\.vue/)
   })
 
-  it.each(['AccountEditor', 'JournalEditor', 'TaxEditor', 'PaymentTermEditor'])('%s waits for hydration and shows the server error', (name) => {
+  it('embeds the filter bar in the list card', () => {
+    const source = read('components/finance/records/RecordsFilters.vue')
+    expect(source).toContain('<SharedFilterBar embedded')
+    expect(source).not.toContain('<SharedFilterBar inline')
+  })
+
+  it.each(['AccountEditor', 'JournalEditor', 'TaxEditor', 'PaymentTermEditor', 'AssetProfileEditor'])('%s uses unsaved changes, form actions, hydration guard and server errors', (name) => {
     const source = read(`components/finance/records/${name}.vue`)
-    for (const needle of ['color="error" variant="subtle"', 'saveErrorMessage', ':disabled="!hydrated']) expect(source, needle).toContain(needle)
+    for (const needle of ['<SharedUnsavedChanges', '<SharedFormActions', 'color="error" variant="subtle"', 'saveErrorMessage', ':disabled="!hydrated', 'app.saveChanges', 'app.create']) {
+      expect(source, needle).toContain(needle)
+    }
   })
 
   it('confirms an archive inline', () => {

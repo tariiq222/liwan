@@ -5,13 +5,16 @@ import { useCreateSetupAccount, usePatchSetupAccount } from '@/composables/finan
 import { ACCOUNT_TYPES } from '../accounting/accountListParams'
 import { accountCreate, accountDraft, accountPatch, accountValid } from './recordForms'
 
-// The inline form of the chart of accounts: a new account, or the code, name, type, reconciliation and currency of an existing
+// The form of the chart of accounts: a new account, or the code, name, type, reconciliation and currency of an existing
 // one. An account that has journal items keeps its type; the server refuses the change and says why.
 const props = defineProps<{ account?: FinanceAccount }>()
 const emit = defineEmits<{ done: []; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const draft = reactive(accountDraft(props.account))
+const initial = JSON.stringify(draft)
+const submitted = ref(false)
+const dirty = computed(() => !submitted.value && JSON.stringify(draft) !== initial)
 const failure = ref<unknown>(null)
 const { mutateAsync: create, isPending: creating } = useCreateSetupAccount()
 const { mutateAsync: patch, isPending: patching } = usePatchSetupAccount()
@@ -21,6 +24,7 @@ const typeItems = computed(() => ACCOUNT_TYPES.map(type => ({ value: type, label
 
 async function submit() {
   if (!hydrated.value || pending.value || !valid.value) return
+  failure.value = null
   try {
     if (props.account) {
       const changes = accountPatch(props.account, draft)
@@ -28,12 +32,15 @@ async function submit() {
     } else {
       await create(accountCreate(draft))
     }
+    submitted.value = true
+    await nextTick()
     emit('done')
   } catch (error) { failure.value = error }
 }
 </script>
 
 <template>
+  <SharedUnsavedChanges :dirty="dirty" />
   <UForm :state="draft" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-record-account-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeRecords.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
     <div class="liwan-auto-grid">
@@ -51,9 +58,11 @@ async function submit() {
       </UFormField>
       <USwitch v-model="draft.reconcile" :label="t('financeRecords.accounts.form.reconcile')" :disabled="!hydrated" />
     </div>
-    <div class="flex flex-wrap justify-end gap-2">
-      <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
-      <UButton type="submit" color="primary" :disabled="!hydrated || !valid" :loading="pending" :label="t('app.save')" data-testid="finance-record-account-save" />
-    </div>
+    <SharedFormActions>
+      <div class="ms-auto flex items-center gap-2">
+        <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
+        <UButton type="submit" color="primary" :disabled="!hydrated || !valid" :loading="pending" :label="t(props.account ? 'app.saveChanges' : 'app.create')" data-testid="finance-record-account-save" />
+      </div>
+    </SharedFormActions>
   </UForm>
 </template>

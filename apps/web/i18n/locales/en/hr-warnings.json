@@ -129,20 +129,11 @@
     "types": {
       "title": "Warning types",
       "hint": "A higher severity number means a more serious warning. Archived types stay on past warnings and cannot be chosen for new ones.",
-      "emptyTitle": "No warning types",
-      "emptyHint": "Add the first type, for example a verbal warning with severity 1.",
       "name": "Name",
       "namePlaceholder": "For example: Written warning",
       "severity": "Severity",
-      "add": "Add type",
-      "save": "Save",
-      "archive": "Archive",
-      "restore": "Restore",
-      "archived": "Archived",
-      "nameRequired": "The type name is required.",
       "conflict": "This type changed while you were editing. Reload to see the latest list.",
-      "reload": "Reload types",
-      "saveError": "Could not save the warning type"
+      "reload": "Reload types"
     }
   }
 }

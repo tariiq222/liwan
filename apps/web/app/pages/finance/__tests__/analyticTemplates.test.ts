@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FinanceAnalyticAccountListSchema, FinanceAnalyticPlanListSchema, FinanceAnalyticReportLineListSchema, FinanceAnalyticReportSchema } from '@liwan/contracts'
+import { FinanceAnalyticAccountListSchema, FinanceAnalyticAccountSchema, FinanceAnalyticPlanListSchema, FinanceAnalyticPlanSchema, FinanceAnalyticReportLineListSchema, FinanceAnalyticReportSchema } from '@liwan/contracts'
 import { financeAnalyticPreviewData } from '../../../../e2e/finance-analytic-ui-preview-data.mjs'
 
 // The analytic cards of the finance settings page and the cost center report stay on their templates. This is a source guard, not a behaviour test.
@@ -17,8 +17,16 @@ function sources(dir: string): string[] {
   })
 }
 
+const ANALYTIC_PAGES = [
+  'pages/settings/apps/finance/analytic-plans/new.vue',
+  'pages/settings/apps/finance/analytic-plans/[id]/edit.vue',
+  'pages/settings/apps/finance/analytic-accounts/new.vue',
+  'pages/settings/apps/finance/analytic-accounts/[id]/edit.vue',
+]
+
 const FILES = [
   ...sources('components/finance/analytic'),
+  ...ANALYTIC_PAGES,
   'components/finance/reports/AnalyticTable.vue',
   'composables/finance/useFinanceAnalytic.ts',
 ]
@@ -32,15 +40,24 @@ const locale = (code: string) => JSON.parse(readFileSync(resolve(locales, `${cod
 describe('the finance analytic pages stay on their templates', () => {
   it.each([
     ['pages/settings/apps/finance/index.vue', ['<SharedSettingsPage', '<AnalyticPlansSection', '<AnalyticAccountsSection', 'id="analytic"', "shows('analytic')"]],
-    ['components/finance/analytic/AnalyticPlansSection.vue', ['<SharedRecordSection variant="list"', '<SharedRowActions', '<SharedPageState', '<SharedEmptyState', 'canWritePlan(can', 'mustChooseParent(can)']],
-    ['components/finance/analytic/AnalyticPlanEditor.vue', ['color="error" variant="subtle"', 'saveErrorMessage', ':disabled="!hydrated']],
-    ['components/finance/analytic/AnalyticAccountsSection.vue', ['<SharedRecordSection variant="panel"', 'useRouteListFilters', '<SharedFilterBar', '<SharedDataTable', ' bare', '#mobile-row', '<SharedRowActions', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', "can('finance.analytic.manage')"]],
-    ['components/finance/analytic/AnalyticAccountEditor.vue', ['color="error" variant="subtle"', 'saveErrorMessage', ':disabled="!hydrated']],
+    ['components/finance/analytic/AnalyticPlansSection.vue', ['<SharedRecordSection variant="list"', '<SharedRowActions', '<SharedPageState', '<SharedEmptyState', 'canWritePlan(can', 'mustChooseParent(can)', '/settings/apps/finance/analytic-plans/new', '/edit']],
+    ['components/finance/analytic/AnalyticPlanEditor.vue', ['color="error" variant="subtle"', 'saveErrorMessage', ':disabled="!hydrated', '<SharedUnsavedChanges', '<SharedFormActions']],
+    ['components/finance/analytic/AnalyticAccountsSection.vue', ['<SharedRecordSection variant="flat"', '<SharedListCard', 'useRouteListFilters', '<SharedFilterBar embedded', '<SharedDataTable', ' bare', '#mobile-row', '<SharedRowActions', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', "can('finance.analytic.manage')", '/settings/apps/finance/analytic-accounts/new', '/edit']],
+    ['components/finance/analytic/AnalyticAccountEditor.vue', ['color="error" variant="subtle"', 'saveErrorMessage', ':disabled="!hydrated', '<SharedUnsavedChanges', '<SharedFormActions']],
     ['components/finance/analytic/AnalyticArchiveConfirm.vue', ['<SharedInlineConfirm']],
+    ['pages/settings/apps/finance/analytic-plans/new.vue', ['<SharedCreatePanel', '<AnalyticPlanEditor', '<SharedForbiddenState', "can('finance.analytic.manage')", "can('finance.analytic.read')", 'safeReturnTo']],
+    ['pages/settings/apps/finance/analytic-plans/[id]/edit.vue', ['<SharedPageContainer', '<SharedPageHeader', '<SharedFormSection', 'panel', '<AnalyticPlanEditor', '<SharedForbiddenState', 'canWritePlan(can', 'useFinanceAnalyticPlan', 'safeReturnTo']],
+    ['pages/settings/apps/finance/analytic-accounts/new.vue', ['<SharedCreatePanel', '<AnalyticAccountEditor', '<SharedForbiddenState', "can('finance.analytic.manage')", "can('finance.analytic.read')", 'safeReturnTo']],
+    ['pages/settings/apps/finance/analytic-accounts/[id]/edit.vue', ['<SharedPageContainer', '<SharedPageHeader', '<SharedFormSection', 'panel', '<AnalyticAccountEditor', '<SharedForbiddenState', "can('finance.analytic.manage')", 'useFinanceAnalyticAccount', 'safeReturnTo']],
     ['components/finance/reports/AnalyticTable.vue', ['<SharedDataTable bare', '#mobile-row', '#footer', 'amountColumn', 'Money', 'accountToggleTo']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)
+  })
+
+  it('navigates to dedicated create/edit routes instead of rendering inline editors in the list sections', () => {
+    expect(read('components/finance/analytic/AnalyticPlansSection.vue')).not.toContain('AnalyticPlanEditor')
+    expect(read('components/finance/analytic/AnalyticAccountsSection.vue')).not.toContain('AnalyticAccountEditor')
   })
 
   it('draws no hand-made table, skeleton, dialog, native confirm or physical-direction class', () => {
@@ -60,7 +77,7 @@ describe('the finance analytic pages stay on their templates', () => {
   })
 
   it('has no KPI strip on the settings page', () => {
-    for (const file of ['pages/settings/apps/finance/index.vue', ...sources('components/finance/analytic')]) expect(read(file), file).not.toContain('SharedKpiStrip')
+    for (const file of ['pages/settings/apps/finance/index.vue', ...ANALYTIC_PAGES, ...sources('components/finance/analytic')]) expect(read(file), file).not.toContain('SharedKpiStrip')
   })
 })
 
@@ -89,7 +106,9 @@ describe('the analytic preview data', () => {
 
   it('serves plans, cost centers, the report and its lines, all satisfying the contracts', () => {
     expect(FinanceAnalyticPlanListSchema.parse(all('/api/v1/finance/analytic-plans')).total).toBe(3)
+    expect(FinanceAnalyticPlanSchema.parse(serve('/api/v1/finance/analytic-plans/2')).id).toBe(2)
     expect(FinanceAnalyticAccountListSchema.parse(all('/api/v1/finance/analytic-accounts', '?archived=true')).total).toBe(2)
+    expect(FinanceAnalyticAccountSchema.parse(serve('/api/v1/finance/analytic-accounts/5')).id).toBe(5)
     const report = FinanceAnalyticReportSchema.parse(serve('/api/v1/finance/reports/analytic', '?date_from=2026-10-01&date_to=2026-10-31'))
     expect(report.totals.net).toBe(report.totals.income - report.totals.expense)
     for (const row of report.accounts) {

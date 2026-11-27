@@ -19,8 +19,10 @@ const PLAN_LIMIT = 100
 export const financeAnalyticKeys = {
   all: ['finance', 'analytic'] as const,
   plans: ['finance', 'analytic', 'plans'] as const,
+  plan: (id: number) => ['finance', 'analytic', 'plans', id] as const,
   costCenterOptions: ['finance', 'analytic', 'cost-center-options'] as const,
   accounts: (params: AnalyticAccountParams) => ['finance', 'analytic', 'accounts', params] as const,
+  account: (id: number) => ['finance', 'analytic', 'accounts', 'item', id] as const,
   lines: (params: AnalyticLineParams) => ['finance', 'reports', 'analytic', 'lines', params] as const,
 }
 
@@ -34,6 +36,15 @@ export function useFinanceAnalyticPlans(enabled: MaybeRefOrGetter<boolean> = tru
   })
 }
 
+export function useFinanceAnalyticPlan(id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => financeAnalyticKeys.plan(toValue(id) ?? 0)),
+    enabled: computed(() => toValue(enabled) && toValue(id) !== null),
+    queryFn: () => $api(`/api/v1/finance/analytic-plans/${toValue(id)}`, { schema: FinanceAnalyticPlanSchema }),
+  })
+}
+
 export function useFinanceAnalyticAccounts(params: MaybeRefOrGetter<AnalyticAccountParams>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
@@ -41,6 +52,15 @@ export function useFinanceAnalyticAccounts(params: MaybeRefOrGetter<AnalyticAcco
     enabled: computed(() => toValue(enabled)),
     placeholderData: keepPreviousData,
     queryFn: () => $api('/api/v1/finance/analytic-accounts', { query: { ...toValue(params) }, schema: FinanceAnalyticAccountListSchema }),
+  })
+}
+
+export function useFinanceAnalyticAccount(id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => financeAnalyticKeys.account(toValue(id) ?? 0)),
+    enabled: computed(() => toValue(enabled) && toValue(id) !== null),
+    queryFn: () => $api(`/api/v1/finance/analytic-accounts/${toValue(id)}`, { schema: FinanceAnalyticAccountSchema }),
   })
 }
 

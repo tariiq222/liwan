@@ -33,7 +33,7 @@ async function archiveProcess() {
 </script>
 
 <template>
-  <SharedFormSection panel :title="t('hr.leaveApproval.title')" :description="t('hr.leaveApproval.hint')">
+  <SharedRecordSection variant="panel" :title="t('hr.leaveApproval.title')" :description="t('hr.leaveApproval.hint')">
     <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('hr.leaveApproval.saveError')" :description="message" />
     <template v-if="approval.process">
       <ol class="space-y-3">
@@ -51,5 +51,5 @@ async function archiveProcess() {
       <SharedInlineConfirm v-if="confirming" color="primary" :title="t('hr.leaveApproval.defaultConfirm')" :description="t('hr.leaveApproval.defaultHint')" :confirm-label="t('hr.leaveApproval.confirm')" :cancel-label="t('hr.leaveApproval.cancel')" :pending="isPending" @confirm="useDefault" @cancel="confirming = false" />
       <UButton v-else-if="approval.can_manage" class="mt-3" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :label="t('hr.leaveApproval.default')" data-testid="hr-leave-approval-default" @click="confirming = true" />
     </template>
-  </SharedFormSection>
+  </SharedRecordSection>
 </template>

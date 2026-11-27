@@ -38,7 +38,7 @@ describe('the finance governance pages stay on their templates', () => {
   it.each([
     ['pages/settings/apps/finance/index.vue', ['<ClosingView', 'id="closing"', "shows('closing')", '<ZatcaView', 'id="zatca"', "shows('zatca')", '<SettingsPreviewCard', '<AuditPreview', "shows('audit')"]],
     ['components/finance/governance/AuditPreview.vue', ['<SettingsPreviewList', "can('finance.audit.read')"]],
-    ['pages/settings/apps/finance/audit.vue', ['<SharedSettingsPage', '<SharedPageHeader', "kind: 'count'"]],
+    ['pages/settings/apps/finance/audit.vue', ['<SharedListPage', "kind: 'count'"]],
     ['components/finance/governance/ClosingYears.vue', ['<SharedRecordSection', '<SharedDataTable', ' bare', '#mobile-row', '<SharedStatusBadge']],
     ['components/finance/governance/ClosingPreview.vue', ['variant="action"', '<SharedInlineConfirm', 'color="error" variant="subtle"', '<SharedDataTable', ' bare', '#mobile-row', "can('finance.closing.manage')", "can('finance.setup.manage')"]],
     ['components/finance/governance/ZatcaBacklog.vue', ['<SharedMetricTile', 'density="compact"']],
