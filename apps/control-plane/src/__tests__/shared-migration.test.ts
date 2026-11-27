@@ -35,14 +35,17 @@ it('registers isolated shared queue storage as version six', async () => {
   await migrate(f.pool)
   expect(f.query.mock.calls.map(([s]) => s)).toContain('INSERT INTO schema_migrations(version) VALUES(6)')
 })
-it('registers backup authority as version seven and orders as version eight', async () => {
+it('registers backup authority as version seven and version eight as a no-op without creating Package-6 order objects', async () => {
   const f = fixture([1, 2, 3, 4, 5, 6])
   await migrate(f.pool)
-  const sql = f.query.mock.calls.map(([s]) => s)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
   expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(7)')
-  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(8)')
-  expect(sql.some(s => String(s).includes('shared_backups'))).toBe(true)
-  expect(sql.some(s => String(s).includes('shared_orders'))).toBe(true)
+  expect(sql.some(s => s.includes('shared_backups'))).toBe(true)
+  const mark8 = sql.indexOf('INSERT INTO schema_migrations(version) VALUES(8)')
+  expect(mark8).toBeGreaterThan(0)
+  const body8 = sql[mark8 - 1]!
+  expect(body8).not.toMatch(/CREATE\s+(TABLE|INDEX|FUNCTION|TRIGGER)|ALTER\s+TABLE/i)
+  expect(body8).not.toMatch(/shared_orders|shared_payment_events|shared_orders_idempotency|shared_order_identity|shared_order_quote_immutable/)
 })
 it('does not apply version five twice', async () => {
   const f = fixture([1, 2, 3, 4, 5])
@@ -278,8 +281,7 @@ it('registers version eighty-two once and drops the retired Track A package obje
   const sql = f.query.mock.calls.map(([s]) => String(s))
   expect(sql.filter((s) => s === 'INSERT INTO schema_migrations(version) VALUES(82)')).toHaveLength(1)
   const mark82 = sql.indexOf('INSERT INTO schema_migrations(version) VALUES(82)')
-  // The file is sent as one batch, and the run commits right after its ledger row: it has no transaction control of its own.
-  expect(sql.slice(mark82, mark82 + 2)).toEqual(['INSERT INTO schema_migrations(version) VALUES(82)', 'COMMIT'])
+  expect(sql.at(-1)).toBe('COMMIT')
   const body82 = sql[mark82 - 1]!
   expect(body82).not.toMatch(/\b(COMMIT|ROLLBACK)\b/i)
   // Exactly the two guards: no tenant still pinned, and no job payload still carrying the retired authority.
@@ -300,4 +302,32 @@ it('registers version eighty-two once and drops the retired Track A package obje
   const g = fixture([...applied, 82])
   await migrate(g.pool)
   expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(82)')
+})
+it('registers version eighty-three once and drops the retired Package-6 sandbox order objects without CASCADE', async () => {
+  const applied = Array.from({ length: 82 }, (_, i) => i + 1).filter((v) => v !== 40 && v !== 41)
+  const f = fixture(applied)
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => String(s))
+  expect(sql.filter((s) => s === 'INSERT INTO schema_migrations(version) VALUES(83)')).toHaveLength(1)
+  const mark83 = sql.indexOf('INSERT INTO schema_migrations(version) VALUES(83)')
+  // The file is sent as one batch, and the run commits right after its ledger row: it has no transaction control of its own.
+  expect(sql.slice(mark83, mark83 + 2)).toEqual(['INSERT INTO schema_migrations(version) VALUES(83)', 'COMMIT'])
+  const body83 = sql[mark83 - 1]!
+  expect(body83).not.toMatch(/\b(COMMIT|ROLLBACK)\b/i)
+  // Exactly the two guards: no rows left in shared_payment_events or shared_orders.
+  expect(body83.match(/RAISE EXCEPTION/g)).toHaveLength(2)
+  expect(body83).toContain('FROM shared_payment_events')
+  expect(body83).toContain('FROM shared_orders')
+  // The guards precede the drops, so a refusal leaves every object in place.
+  expect(body83.indexOf('END $$;')).toBeLessThan(body83.indexOf('DROP TABLE IF EXISTS'))
+  for (const statement of [
+    'DROP TABLE IF EXISTS shared_payment_events',
+    'DROP TRIGGER IF EXISTS shared_order_identity ON shared_orders',
+    'DROP FUNCTION IF EXISTS shared_order_quote_immutable()',
+    'DROP TABLE IF EXISTS shared_orders',
+  ]) expect(body83).toContain(statement)
+  expect(body83).not.toMatch(/\bCASCADE\b/i)
+  const g = fixture([...applied, 83])
+  await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(83)')
 })

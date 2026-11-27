@@ -1,10 +1,8 @@
 // Package-7 live evidence: the complete shared-SaaS acceptance journey on
 // real PostgreSQL, one synthetic tenant end to end:
-// order (immutable quote) -> sandbox payment -> exactly one provision job ->
-// fenced effect in the tenant database -> active tenant
-// (activation itself is covered by the onboarding suites) -> paid order reconciled to
-// 'provisioned' -> verified backup -> approved restore into a NEW target
-// database with readback verification.
+// registry -> idempotent provision -> fenced worker effect -> active tenant
+// (activation itself is covered by the onboarding suites) -> verified backup ->
+// approved restore into a NEW target database with readback + audit.
 // Gated on CONTROL_TEST_DATABASE_URL; never touches odoo19 or any real
 // payment network. This is local acceptance evidence, not a launch approval.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -16,13 +14,13 @@ import { createHash, randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { migrate } from '../db.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
+import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob } from '../shared/job-worker.js'
 import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
-import { createSharedOrder, applyPaymentEvent, provisionPaidOrder, reconcilePaidOrder } from '../shared/shared-order.js'
 import { createTenantBackup, restoreBackupToNewTarget } from '../shared/shared-backup.js'
 import { insertRestoreApproval } from './helpers/restore-approval.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
-import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorAccount } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
@@ -43,7 +41,6 @@ else describe('shared SaaS full journey', () => {
   const issuer = vendorActorIssuer('live-gate-installation')
   const actor = { issuer, actorUid: 7 }
   const tenantId = randomUUID()
-  const quote = { schemaVersion: 1, currency: 'SAR', billingCycle: 'yearly', priceMinorUnits: 1080000, taxMinorUnits: 162000, catalogVersion: 'live-v1', catalogTier: 'core' }
   let backupRoot = ''
   let registryPath = ''
 
@@ -55,13 +52,13 @@ else describe('shared SaaS full journey', () => {
     await migrate(pool)
     await ensureTenantDatabases(pool, scratchDatabases)
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
-    await pool.query('TRUNCATE shared_payment_events, shared_orders, shared_restore_approvals, shared_backups CASCADE')
+    await pool.query('TRUNCATE shared_restore_approvals, shared_backups CASCADE')
     await pool.query('TRUNCATE tenants, catalog_entries CASCADE')
     await pool.query('TRUNCATE vendor_accounts CASCADE')
     await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
     await vendorAccount(pool, ['customer_success', 'operations'], 7)
-    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,true)',
+    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,\'live-v1\',\'core\',true)',
       [tenantId, 'Journey tenant', 'journey-tenant'])
     const source = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))
     await pool.query('INSERT INTO catalog_entries(id,version,status,solution,source_sha256,published_at) VALUES($1,\'live-v1\',\'published\',$2,$3,now())',
@@ -76,29 +73,24 @@ else describe('shared SaaS full journey', () => {
   })
   afterAll(async () => { await pool.end() })
 
-  it('walks order -> payment -> provision -> backup -> restore with every gate holding', async () => {
-    // 1. Order with an immutable quote.
-    const order = await createSharedOrder(pool, { controlTenantId: tenantId, idempotencyKey: 'journey-' + randomUUID(), quote })
-    expect(order.replay).toBe(false)
-    // 2. Sandbox payment confirms exactly once.
-    const payment = await applyPaymentEvent(pool, { orderId: order.orderId, providerEvent: { eventId: 'evt_' + randomUUID(), kind: 'payment_intent.succeeded' } })
-    expect(payment.status).toBe('paid')
-    // 3. Exactly one provision job, converging on retry.
-    const provisioned = await provisionPaidOrder(pool, { orderId: order.orderId, actor })
-    const again = await provisionPaidOrder(pool, { orderId: order.orderId, actor })
-    expect(again.jobId).toBe(provisioned.jobId)
-    // 4. Fenced effect in the tenant database.
-    const result = await runSharedJob(pool, provisioned.jobId, adapter)
+  it('walks registry -> idempotent provision -> backup -> restore with every gate holding', async () => {
+    // 1. Exactly one provision job, converging on retry.
+    const requestId = randomUUID()
+    const first = await enqueueSharedJob(pool, tenantId, actor, { schemaVersion: 1, operation: 'provision', requestId }, 'Journey provision')
+    const again = await enqueueSharedJob(pool, tenantId, actor, { schemaVersion: 1, operation: 'provision', requestId }, 'Journey provision')
+    expect(first.replay).toBe(false)
+    expect(again.replay).toBe(true)
+    expect(again.id).toBe(first.id)
+    // 2. Fenced effect in the tenant database.
+    const result = await runSharedJob(pool, first.id, adapter)
     if (result.state !== 'verified') throw new Error(`journey provision not verified: ${result.state}`)
-    // 6-7. Activation is reconcileOdooOnboardings (covered by its own suites); this journey starts from an active tenant.
+    // 3. Activation is reconcileOdooOnboardings (covered by its own suites); this journey starts from an active tenant.
     await pool.query("UPDATE tenants SET status='active',health_checked_at=now() WHERE id=$1", [tenantId])
     expect((await pool.query('SELECT status FROM tenants WHERE id=$1', [tenantId])).rows[0].status).toBe('active')
-    // 8. The paid order reconciles to 'provisioned' — no paid_not_ready.
-    expect((await reconcilePaidOrder(pool, order.orderId)).status).toBe('provisioned')
-    // 9. Verified backup of the active tenant.
+    // 4. Verified backup of the active tenant.
     const backup = await createTenantBackup(pool, connect, { controlTenantId: tenantId, backupRoot, createdBy: `${issuer}:7` })
     expect(backup.databaseSha256).toMatch(/^[a-f0-9]{64}$/)
-    // 10. Approved restore into the NEW target, consumed once, readback-verified.
+    // 5. Approved restore into the NEW target, consumed once, readback-verified.
     const approvalId = await insertRestoreApproval(pool, { backupId: backup.backupId, controlTenantId: tenantId, targetDatabase: restoreTarget, actor })
     const restored = await restoreBackupToNewTarget(pool, connect, { approvalId: approvalId, actor })
     expect(restored.applied).toBe(true)
@@ -113,6 +105,6 @@ else describe('shared SaaS full journey', () => {
     const completedAudit = (await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='shared_restore.completed' AND subject=$1", [approvalId])).rows[0].count
     expect(Number(backupAudit)).toBe(1)
     expect(Number(completedAudit)).toBe(1)
-    console.log('Journey complete: order->payment->provision->backup->restore all gated and audited on live SQL. Synthetic upstream; no real Odoo/ACL/TLS/payment-network claim, not a launch approval.')
+    console.log('Journey complete: registry->provision->backup->restore all gated and audited on live SQL. Synthetic upstream; no real Odoo/ACL/TLS/payment-network claim, not a launch approval.')
   })
 })

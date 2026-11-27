@@ -740,9 +740,6 @@
         "shared_onboarding": {
           "reserved": "حجز مساحة عميل مشتركة"
         },
-        "shared_order": {
-          "created": "إنشاء طلب مشترك بعرض سعر ثابت"
-        },
         "shared_restore": {
           "completed": "اكتمال الاستعادة المشتركة"
         },

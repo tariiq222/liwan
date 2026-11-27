@@ -15,6 +15,15 @@ async function expectNoTrackAObjects(pool: Pool) {
   expect(objects.rows[0]).toEqual({ package_table: null, revision_table: null, index: null, column: 0, triggers: 0, functions: 0 })
 }
 
+/** Nothing the old version 8 created for the retired Package-6 sandbox orders: tables, index, trigger and function. */
+async function expectNoPackage6OrderObjects(pool: Pool) {
+  const objects = await pool.query(`SELECT to_regclass('shared_orders') AS orders_table, to_regclass('shared_payment_events') AS payment_events_table,
+    to_regclass('shared_orders_idempotency') AS index,
+    (SELECT count(*)::int FROM pg_trigger WHERE NOT tgisinternal AND tgname='shared_order_identity') AS triggers,
+    (SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=current_schema() AND p.proname='shared_order_quote_immutable') AS functions`)
+  expect(objects.rows[0]).toEqual({ orders_table: null, payment_events_table: null, index: null, triggers: 0, functions: 0 })
+}
+
 if (!url) describe.skip('admin schema (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('admin schema', () => {
   const pool = new Pool({ connectionString: url })
@@ -32,6 +41,9 @@ else describe('admin schema', () => {
   })
   it('keeps no remnant of the retired Track A packages', async () => {
     await expectNoTrackAObjects(pool)
+  })
+  it('keeps no remnant of the retired Package-6 sandbox orders', async () => {
+    await expectNoPackage6OrderObjects(pool)
   })
   it('stores emails case-insensitively unique', async () => {
     await pool.query("TRUNCATE vendor_accounts CASCADE")
@@ -52,7 +64,11 @@ else describe('admin schema', () => {
 if (!url) describe.skip('schema_082 removes the retired Track A packages (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('schema_082 removes the retired Track A packages', () => {
   let database = ''
-  let pool: Pool
+  let pool: Pool | undefined
+  const activePool = () => {
+    if (!pool) throw new Error('scratch database pool was not initialized')
+    return pool
+  }
   const adminUrl = (() => { const u = new URL(url); u.pathname = '/postgres'; return u.toString() })()
 
   beforeEach(async () => {
@@ -64,61 +80,74 @@ else describe('schema_082 removes the retired Track A packages', () => {
     pool = new Pool({ connectionString: databaseUrl.toString(), max: 4 })
   })
   afterEach(async () => {
-    await pool?.end()
-    const admin = new Pool({ connectionString: adminUrl })
-    try { await admin.query(`DROP DATABASE IF EXISTS ${database}`) } finally { await admin.end() }
+    const current = pool
+    pool = undefined
+    const db = database
+    database = ''
+    try {
+      if (current) await current.end()
+    } finally {
+      if (db) {
+        const admin = new Pool({ connectionString: adminUrl })
+        try { await admin.query(`DROP DATABASE IF EXISTS ${db}`) } finally { await admin.end() }
+      }
+    }
   })
 
-  const applied = async () => (await pool.query('SELECT count(*)::int AS n FROM schema_migrations WHERE version=82')).rows[0].n as number
+  const applied = async () => (await activePool().query('SELECT count(*)::int AS n FROM schema_migrations WHERE version=82')).rows[0].n as number
 
   it('leaves a fresh database with no Track A object and records version 82 once', async () => {
-    await migrate(pool)
-    await expectNoTrackAObjects(pool)
+    const p = activePool()
+    await migrate(p)
+    await expectNoTrackAObjects(p)
     expect(await applied()).toBe(1)
-    await migrate(pool)
+    await migrate(p)
     expect(await applied()).toBe(1)
   })
 
   it('refuses while tenants still reference a package revision, and succeeds once they no longer do', async () => {
-    await migrate(pool)
-    await pool.query('ALTER TABLE tenants ADD COLUMN package_revision_id uuid')
+    const p = activePool()
+    await migrate(p)
+    await p.query('ALTER TABLE tenants ADD COLUMN package_revision_id uuid')
     const pinned = [randomUUID(), randomUUID()]
-    for (const id of pinned) await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,package_revision_id) VALUES($1,'Pinned tenant','saas','shared_managed',$2,false,$3)", [id, `pinned-${id}`, randomUUID()])
-    await pool.query('DELETE FROM schema_migrations WHERE version=82')
-    await expect(migrate(pool)).rejects.toThrow(/2 tenant\(s\) still reference a retired Track A package revision.*migrate again/)
+    for (const id of pinned) await p.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,package_revision_id) VALUES($1,'Pinned tenant','saas','shared_managed',$2,false,$3)", [id, `pinned-${id}`, randomUUID()])
+    await p.query('DELETE FROM schema_migrations WHERE version=82')
+    await expect(migrate(p)).rejects.toThrow(/2 tenant\(s\) still reference a retired Track A package revision.*migrate again/)
     // The refusal rolls back the whole run: the stand-in is intact and nothing is recorded.
     expect(await applied()).toBe(0)
-    expect((await pool.query('SELECT count(*)::int AS n FROM tenants WHERE package_revision_id IS NOT NULL')).rows[0].n).toBe(2)
-    await pool.query('UPDATE tenants SET package_revision_id=NULL')
-    await migrate(pool)
+    expect((await p.query('SELECT count(*)::int AS n FROM tenants WHERE package_revision_id IS NOT NULL')).rows[0].n).toBe(2)
+    await p.query('UPDATE tenants SET package_revision_id=NULL')
+    await migrate(p)
     expect(await applied()).toBe(1)
-    await expectNoTrackAObjects(pool)
-    expect((await pool.query('SELECT count(*)::int AS n FROM tenants WHERE id=ANY($1)', [pinned])).rows[0].n).toBe(2)
+    await expectNoTrackAObjects(p)
+    expect((await p.query('SELECT count(*)::int AS n FROM tenants WHERE id=ANY($1)', [pinned])).rows[0].n).toBe(2)
   })
 
   it('refuses while a job payload still carries packageAuthority, and succeeds once the key is gone', async () => {
-    await migrate(pool)
+    const p = activePool()
+    await migrate(p)
     const tenant = randomUUID(), slug = `t${tenant.replaceAll('-', '')}`, job = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Pinned job tenant','saas','shared_managed',$2,false)", [tenant, `job-${tenant}`])
-    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)', [tenant, slug, `${slug}.tracka.test`, `liwan_scratch_${slug}`])
-    await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,'tracka:guard',$3,$4,'tracka-test',1,'Guard probe')", [job, tenant, { operation: 'provision', packageAuthority: { schemaVersion: 2 } }, 'a'.repeat(64)])
-    await pool.query('DELETE FROM schema_migrations WHERE version=82')
-    await expect(migrate(pool)).rejects.toThrow(/1 shared_jobs row\(s\) still carry packageAuthority in payload.*migrate again/)
+    await p.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Pinned job tenant','saas','shared_managed',$2,false)", [tenant, `job-${tenant}`])
+    await p.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)', [tenant, slug, `${slug}.tracka.test`, `liwan_scratch_${slug}`])
+    await p.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,'tracka:guard',$3,$4,'tracka-test',1,'Guard probe')", [job, tenant, { operation: 'provision', packageAuthority: { schemaVersion: 2 } }, 'a'.repeat(64)])
+    await p.query('DELETE FROM schema_migrations WHERE version=82')
+    await expect(migrate(p)).rejects.toThrow(/1 shared_jobs row\(s\) still carry packageAuthority in payload.*migrate again/)
     expect(await applied()).toBe(0)
-    expect((await pool.query("SELECT payload ? 'packageAuthority' AS carries FROM shared_jobs WHERE id=$1", [job])).rows[0].carries).toBe(true)
+    expect((await p.query("SELECT payload ? 'packageAuthority' AS carries FROM shared_jobs WHERE id=$1", [job])).rows[0].carries).toBe(true)
     // Probe-row cleanup in this test only; shared_jobs rows are immutable and digest-bound in production.
-    await pool.query('ALTER TABLE shared_jobs DISABLE TRIGGER shared_job_identity')
-    await pool.query("UPDATE shared_jobs SET payload=payload-'packageAuthority' WHERE id=$1", [job])
-    await pool.query('ALTER TABLE shared_jobs ENABLE TRIGGER shared_job_identity')
-    await migrate(pool)
+    await p.query('ALTER TABLE shared_jobs DISABLE TRIGGER shared_job_identity')
+    await p.query("UPDATE shared_jobs SET payload=payload-'packageAuthority' WHERE id=$1", [job])
+    await p.query('ALTER TABLE shared_jobs ENABLE TRIGGER shared_job_identity')
+    await migrate(p)
     expect(await applied()).toBe(1)
-    await expectNoTrackAObjects(pool)
+    await expectNoTrackAObjects(p)
   })
 
   it('drops every object of a database that applied the old version 11, without CASCADE', async () => {
-    await migrate(pool)
+    const p = activePool()
+    await migrate(p)
     // The dependency edges of the old version 11: the column's foreign key and index, each trigger's function, the child table.
-    await pool.query(`
+    await p.query(`
       CREATE TABLE commercial_packages (id uuid PRIMARY KEY);
       CREATE TABLE package_revisions (id uuid PRIMARY KEY, package_id uuid NOT NULL REFERENCES commercial_packages(id));
       ALTER TABLE tenants ADD COLUMN package_revision_id uuid REFERENCES package_revisions(id);
@@ -128,15 +157,152 @@ else describe('schema_082 removes the retired Track A packages', () => {
       CREATE FUNCTION protect_tenant_package() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
       CREATE TRIGGER tenant_package_guard BEFORE INSERT OR UPDATE ON tenants FOR EACH ROW EXECUTE FUNCTION protect_tenant_package();
     `)
-    await pool.query('INSERT INTO commercial_packages(id) VALUES($1)', [randomUUID()])
-    await pool.query('INSERT INTO package_revisions(id,package_id) VALUES($1,(SELECT id FROM commercial_packages))', [randomUUID()])
+    await p.query('INSERT INTO commercial_packages(id) VALUES($1)', [randomUUID()])
+    await p.query('INSERT INTO package_revisions(id,package_id) VALUES($1,(SELECT id FROM commercial_packages))', [randomUUID()])
     // No tenant used a package: the column held nothing but NULLs.
     const tenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Legacy tenant','saas','shared_managed',$2,false)", [tenant, `legacy-${tenant}`])
-    await pool.query('DELETE FROM schema_migrations WHERE version=82')
-    await migrate(pool)
+    await p.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Legacy tenant','saas','shared_managed',$2,false)", [tenant, `legacy-${tenant}`])
+    await p.query('DELETE FROM schema_migrations WHERE version=82')
+    await migrate(p)
     expect(await applied()).toBe(1)
-    await expectNoTrackAObjects(pool)
-    expect((await pool.query('SELECT count(*)::int AS n FROM tenants WHERE id=$1', [tenant])).rows[0].n).toBe(1)
+    await expectNoTrackAObjects(p)
+    expect((await p.query('SELECT count(*)::int AS n FROM tenants WHERE id=$1', [tenant])).rows[0].n).toBe(1)
+  })
+})
+
+/**
+ * schema_083 removes the retired Package-6 sandbox orders from a database that applied the old version 8.
+ * That version no longer creates them, so each case rebuilds the old object graph on its own fresh scratch
+ * database and runs the real `migrate()` there: the suite's shared database is never altered.
+ */
+if (!url) describe.skip('schema_083 removes the retired Package-6 sandbox orders (requires CONTROL_TEST_DATABASE_URL)', () => {})
+else describe('schema_083 removes the retired Package-6 sandbox orders', () => {
+  let database = ''
+  let pool: Pool | undefined
+  const activePool = () => {
+    if (!pool) throw new Error('scratch database pool was not initialized')
+    return pool
+  }
+  const adminUrl = (() => { const u = new URL(url); u.pathname = '/postgres'; return u.toString() })()
+
+  beforeEach(async () => {
+    database = `liwan_control_scratch_pkg6${randomUUID().slice(0, 8).replace(/-/g, '')}`
+    const admin = new Pool({ connectionString: adminUrl })
+    try { await admin.query(`CREATE DATABASE ${database}`) } finally { await admin.end() }
+    const databaseUrl = new URL(url)
+    databaseUrl.pathname = `/${database}`
+    pool = new Pool({ connectionString: databaseUrl.toString(), max: 4 })
+  })
+  afterEach(async () => {
+    const current = pool
+    pool = undefined
+    const db = database
+    database = ''
+    try {
+      if (current) await current.end()
+    } finally {
+      if (db) {
+        const admin = new Pool({ connectionString: adminUrl })
+        try { await admin.query(`DROP DATABASE IF EXISTS ${db}`) } finally { await admin.end() }
+      }
+    }
+  })
+
+  const applied = async () => (await activePool().query('SELECT count(*)::int AS n FROM schema_migrations WHERE version=83')).rows[0].n as number
+
+  const createLegacySchema008 = async () => {
+    await activePool().query(`
+      CREATE TABLE shared_orders (
+        id uuid PRIMARY KEY,
+        control_tenant_id uuid NOT NULL REFERENCES tenants(id),
+        idempotency_key text NOT NULL,
+        quote jsonb NOT NULL,
+        status text NOT NULL CHECK (status IN ('pending','paid','cancelled','paid_not_ready','provisioned')),
+        payment_attempts bigint NOT NULL DEFAULT 0 CHECK (payment_attempts >= 0),
+        provision_job_id uuid,
+        created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+        paid_at timestamptz
+      );
+      CREATE UNIQUE INDEX shared_orders_idempotency ON shared_orders(idempotency_key);
+      CREATE FUNCTION shared_order_quote_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'orders are permanent'; END IF;
+        RETURN NEW;
+      END; $$;
+      CREATE TRIGGER shared_order_identity BEFORE UPDATE OR DELETE ON shared_orders
+        FOR EACH ROW EXECUTE FUNCTION shared_order_quote_immutable();
+      CREATE TABLE shared_payment_events (
+        event_id text NOT NULL,
+        order_id uuid NOT NULL REFERENCES shared_orders(id),
+        kind text NOT NULL CHECK (kind IN ('payment_intent.succeeded','payment_intent.payment_failed','payment_intent.canceled')),
+        payload jsonb NOT NULL,
+        first_seen timestamptz NOT NULL DEFAULT clock_timestamp(),
+        PRIMARY KEY (event_id)
+      );
+    `)
+  }
+
+  it('leaves a fresh database with no Package-6 order object and records version 83 once', async () => {
+    const p = activePool()
+    await migrate(p)
+    await expectNoPackage6OrderObjects(p)
+    expect(await applied()).toBe(1)
+    await migrate(p)
+    expect(await applied()).toBe(1)
+  })
+
+  it('refuses while shared_orders still has a row, and succeeds once it is cleared', async () => {
+    const p = activePool()
+    await migrate(p)
+    await createLegacySchema008()
+    const tenant = randomUUID(), order = randomUUID()
+    await p.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Order tenant','saas','shared_managed',$2,false)", [tenant, `order-${tenant}`])
+    await p.query("INSERT INTO shared_orders(id,control_tenant_id,idempotency_key,quote,status) VALUES($1,$2,'pkg6-guard','{}'::jsonb,'pending')", [order, tenant])
+    await p.query('DELETE FROM schema_migrations WHERE version=83')
+    await expect(migrate(p)).rejects.toThrow(/1 row\(s\) still exist in the retired Package-6 sandbox table.*shared_order_identity.*migrate again/)
+    expect(await applied()).toBe(0)
+    expect((await p.query('SELECT count(*)::int AS n FROM shared_orders WHERE id=$1', [order])).rows[0].n).toBe(1)
+    await p.query('ALTER TABLE shared_orders DISABLE TRIGGER shared_order_identity')
+    await p.query('DELETE FROM shared_orders')
+    await p.query('ALTER TABLE shared_orders ENABLE TRIGGER shared_order_identity')
+    await migrate(p)
+    expect(await applied()).toBe(1)
+    await expectNoPackage6OrderObjects(p)
+    expect((await p.query('SELECT count(*)::int AS n FROM tenants WHERE id=$1', [tenant])).rows[0].n).toBe(1)
+  })
+
+  it('refuses while shared_payment_events still has a row, and succeeds once it is cleared', async () => {
+    const p = activePool()
+    await migrate(p)
+    await createLegacySchema008()
+    const tenant = randomUUID(), order = randomUUID()
+    await p.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Event tenant','saas','shared_managed',$2,false)", [tenant, `event-${tenant}`])
+    await p.query("INSERT INTO shared_orders(id,control_tenant_id,idempotency_key,quote,status) VALUES($1,$2,'pkg6-event-guard','{}'::jsonb,'paid')", [order, tenant])
+    await p.query("INSERT INTO shared_payment_events(event_id,order_id,kind,payload) VALUES('evt_guard',$1,'payment_intent.succeeded','{}'::jsonb)", [order])
+    await p.query('DELETE FROM schema_migrations WHERE version=83')
+    await expect(migrate(p)).rejects.toThrow(/migration 83 refuses to drop shared_payment_events: 1 row\(s\) still exist.*migrate again/)
+    expect(await applied()).toBe(0)
+    expect((await p.query("SELECT count(*)::int AS n FROM shared_payment_events WHERE event_id='evt_guard'")).rows[0].n).toBe(1)
+    await p.query('DELETE FROM shared_payment_events')
+    await p.query('ALTER TABLE shared_orders DISABLE TRIGGER shared_order_identity')
+    await p.query('DELETE FROM shared_orders')
+    await p.query('ALTER TABLE shared_orders ENABLE TRIGGER shared_order_identity')
+    await migrate(p)
+    expect(await applied()).toBe(1)
+    await expectNoPackage6OrderObjects(p)
+    expect((await p.query('SELECT count(*)::int AS n FROM tenants WHERE id=$1', [tenant])).rows[0].n).toBe(1)
+  })
+
+  it('drops every object of a database that applied the old version 8, without CASCADE', async () => {
+    const p = activePool()
+    await migrate(p)
+    await createLegacySchema008()
+    const tenant = randomUUID()
+    await p.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Legacy empty order tenant','saas','shared_managed',$2,false)", [tenant, `legacy-empty-${tenant}`])
+    await p.query('DELETE FROM schema_migrations WHERE version=83')
+    await migrate(p)
+    expect(await applied()).toBe(1)
+    await expectNoPackage6OrderObjects(p)
+    expect((await p.query('SELECT count(*)::int AS n FROM tenants WHERE id=$1', [tenant])).rows[0].n).toBe(1)
   })
 })

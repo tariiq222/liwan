@@ -37,7 +37,7 @@ import { vendorActorIssuer } from '../admin-auth/grants.js'
 const url = process.env.CONTROL_TEST_DATABASE_URL
 // Indexes 0..9 belong to the other live suites (shared-fenced-adapter and
 // shared-provision-lifecycle use 0-1, shared-backup-restore 0-6,
-// shared-journey 0-9, shared-order-payment 7-8); this file owns 10..25.
+// shared-journey 0-9); this file owns 10..25.
 const scratchDatabases = url ? tenantDatabaseNames(26, url).slice(10) : []
 const sourceDatabase = scratchDatabases[0] ?? ''
 const targetDatabase = scratchDatabases[1] ?? ''
@@ -149,7 +149,7 @@ else describe('shared restore queue', () => {
     await migrate(pool)
     await ensureTenantDatabases(pool, scratchDatabases)
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
-    await pool.query('TRUNCATE shared_payment_events, shared_orders, shared_restore_approvals, shared_backups CASCADE')
+    await pool.query('TRUNCATE shared_restore_approvals, shared_backups CASCADE')
     await pool.query('TRUNCATE tenants, catalog_entries CASCADE')
     await pool.query('TRUNCATE vendor_accounts CASCADE')
     await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')
