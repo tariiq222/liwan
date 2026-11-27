@@ -42,7 +42,19 @@
       "lines": "Lines",
       "routing": "Routing",
       "extensions": "Extensions",
-      "recording": "Recording"
+      "recording": "Recording",
+      "recordingHint": "Control call recording policy, caller announcement, and retention period.",
+      "policy": "Recording policy",
+      "policyHint": "Choose when incoming and outgoing calls are recorded.",
+      "recordingAlways": "Record all calls",
+      "recordingOnDemand": "On demand",
+      "recordingOff": "Off",
+      "announcement": "Recording announcement",
+      "announcementHint": "Play an audio notice to the caller before recording starts (required when recording all calls).",
+      "retention": "Retention (days)",
+      "retentionHint": "Recordings are removed automatically after this period.",
+      "saved": "Settings saved",
+      "save": "Save"
     },
     "chip": {
       "label": "Call",

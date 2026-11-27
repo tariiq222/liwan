@@ -516,6 +516,9 @@
       },
       "products": {
         "description": "The product and service catalogue and their prices."
+      },
+      "telephony": {
+        "description": "Company calls, recordings, and links to customers and employees."
       }
     }
   }
