@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MAX_STORAGE_STEP_MB, parseCount, planDraftFromView, priceRowErrors, storageStepsAligned, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitDraftError, MAX_STORAGE_STEP_MB, parseCount, planDraftFromView, priceRowErrors, storageStepsAligned, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
 import { latinDigits } from '@/utils/digits'
 import { MB_PER_GB } from '@/utils/storage'
 import { defaultPolicyId, policyOptions, policyTaxText } from './policySelection'
@@ -73,7 +73,7 @@ const errors = computed(() => {
   if (unitPriceMissing.value) e.unitPrices = t('vendor.pricing.prices.cadenceMissing')
   if (parseCount(draft.included_extra_branches) === null) e.free = req
   if (priceRowErrors(draft.extra_branch_prices).some(Boolean)) e.branchPrices = t('vendor.pricing.prices.invalid')
-  try { limitFromDraft(draft.extra_branches_limit) } catch { e.branchLimit = t('vendor.pricing.limit.required') }
+  const branchLimitError = limitDraftError(draft.extra_branches_limit, t, 'vendor.pricing.limit.required'); if (branchLimitError) e.branchLimit = branchLimitError
   // The AI budget is a non-negative integer or unlimited; an unreadable value stops the save with a clear message.
   for (const key of AI_LIMIT_KEYS) {
     const limit = draft.ai_limits[key]

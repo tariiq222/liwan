@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Quote } from '@liwan/commercial-contracts'
 import { ownerOnlyAccess } from '@/utils/ownerOnly'
-import { commercialErrorKey, commercialFailure } from '@/utils/vendorCommercial'
+import { commercialErrorKey, commercialFailure, LimitAboveMax } from '@/utils/vendorCommercial'
 import { customerQuoteBody, customersReturnTo, termsOnly, termsPayload, type TermsDraft } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ capability: 'vendor.pricing.manage' })
@@ -32,7 +32,7 @@ async function save(draft: TermsDraft) {
   try {
     const rev = await api.saveTerms(termsPayload(id.value, draft))
     saved.value = rev.id; resetKey.value++; await nextTick(); await refreshNuxtData()
-  } catch (cause) { saveError.value = commercialFailure(cause).code === 'unknown' && cause instanceof Error && cause.message.startsWith('invalid_') ? { code: 'invalid' } : cause } finally { busy.value = false }
+  } catch (cause) { saveError.value = commercialFailure(cause).code === 'unknown' && (cause instanceof LimitAboveMax || (cause instanceof Error && cause.message.startsWith('invalid_'))) ? { code: 'invalid' } : cause } finally { busy.value = false }
 }
 </script>
 <template>

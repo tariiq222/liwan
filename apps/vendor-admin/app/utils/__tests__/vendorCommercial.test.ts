@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionBlockedReason, appName, isEditable, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, LimitAboveMax, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, MAX_LIMIT, minorToInput, parseCount, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
+import { actionBlockedReason, appName, isEditable, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, LimitAboveMax, limitDraftError, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, MAX_LIMIT, minorToInput, parseCount, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
 
 const rid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const release = { id: rid(1), version: '1', source_digest: 'a'.repeat(64), artifact_digest: 'a'.repeat(64), applications: [
@@ -62,6 +62,18 @@ describe('limit tri-state', () => {
   it('round-trips null, 0, n and missing', () => {
     expect(limitToDraft(null).mode).toBe('unlimited'); expect(limitToDraft(0).mode).toBe('none')
     expect(limitToDraft(7)).toEqual({ mode: 'number', value: '7' }); expect(limitToDraft(undefined).mode).toBe('')
+  })
+  it("names the maximum for a limit above it and the form's own message for any other refusal", () => {
+    const t = (key: string, params?: Record<string, unknown>) => (params ? `${key} ${JSON.stringify(params)}` : key)
+    expect(limitDraftError({ mode: 'number', value: String(MAX_LIMIT) }, t, 'vendor.pricing.limit.required')).toBeUndefined()
+    expect(limitDraftError({ mode: 'none', value: '' }, t, 'vendor.pricing.limit.invalid')).toBeUndefined()
+    for (const otherKey of ['vendor.pricing.limit.required', 'vendor.pricing.limit.invalid'])
+      expect(limitDraftError({ mode: 'number', value: String(MAX_LIMIT + 1) }, t, otherKey), otherKey).toBe(`vendor.pricing.limit.aboveMax {"max":${MAX_LIMIT}}`)
+    for (const [draft, otherKey] of [
+      [undefined, 'vendor.pricing.limit.required'], [{ mode: '', value: '' }, 'vendor.pricing.limit.required'],
+      [{ mode: 'number', value: '' }, 'vendor.pricing.limit.invalid'], [{ mode: 'number', value: '0' }, 'vendor.pricing.limit.invalid'],
+      [{ mode: 'number', value: '1.5' }, 'vendor.pricing.limit.invalid'], [{ mode: 'number', value: '1,5' }, 'vendor.pricing.limit.invalid'],
+    ] as const) expect(limitDraftError(draft, t, otherKey), otherKey).toBe(otherKey)
   })
 })
 describe('prices', () => {

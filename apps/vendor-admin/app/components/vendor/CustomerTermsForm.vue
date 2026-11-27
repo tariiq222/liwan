@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { commercialErrorKey, commercialFailure, fieldIssue, limitFromDraft, parseCount, parseVendorMoneyInput } from '@/utils/vendorCommercial'
+import { commercialErrorKey, commercialFailure, fieldIssue, limitDraftError, parseCount, parseVendorMoneyInput } from '@/utils/vendorCommercial'
 import { emptyTermsDraft, hasTermsOverride, type TermsDraft } from '@/utils/vendorSubscriptions'
 const props = withDefaults(defineProps<{ busy?: boolean; previewing?: boolean; error?: unknown; resetKey?: number; canSave?: boolean; canPreview?: boolean }>(), { busy: false, previewing: false, resetKey: 0, canSave: true, canPreview: true })
 const emit = defineEmits<{ preview: [draft: TermsDraft]; save: [draft: TermsDraft]; cancel: [] }>()
@@ -14,14 +14,14 @@ const serverIssue = (field: string) => { const code = fieldIssue(failure.value, 
 const dis = computed(() => !hydrated.value || props.busy)
 const unitItems = computed(() => [{ label: t('commercial.pricing.cadence.month', { count: 1 }), value: 'month' }, { label: t('commercial.pricing.cadence.year', { count: 1 }), value: 'year' }])
 const limitItems = computed(() => [{ label: t('vendor.pricing.limit.unlimited'), value: 'unlimited' }, { label: t('vendor.pricing.limit.none'), value: 'none' }, { label: t('vendor.pricing.limit.number'), value: 'number' }])
-const limitError = (l: TermsDraft['extraBranchesLimit']) => { if (!l.mode) return undefined; try { limitFromDraft(l); return undefined } catch { return t('vendor.pricing.limit.invalid') } }
 const errors = computed(() => {
   const e: Record<string, string> = {}
   const bad = t('vendor.customers.terms.invalidValue')
   if (draft.basePrice.trim() && (parseVendorMoneyInput(draft.basePrice) === null || !draft.baseUnit || (parseCount(draft.baseCount, 12) ?? 0) < 1)) e.base = bad
   if (draft.includedExtraBranches.trim() && parseCount(draft.includedExtraBranches) === null) e.free = bad
   if (draft.extraBranchPrice.trim() && (parseVendorMoneyInput(draft.extraBranchPrice) === null || !draft.extraBranchUnit || (parseCount(draft.extraBranchCount, 12) ?? 0) < 1)) e.branchPrice = bad
-  const branchLimitError = limitError(draft.extraBranchesLimit); if (branchLimitError) e.branchLimit = branchLimitError
+  // A blank choice inherits the plan's limit; any other must parse.
+  const branchLimitError = draft.extraBranchesLimit.mode ? limitDraftError(draft.extraBranchesLimit, t, 'vendor.pricing.limit.invalid') : undefined; if (branchLimitError) e.branchLimit = branchLimitError
   if (draft.termMonths.trim() && (parseCount(draft.termMonths, 120) ?? 0) < 1) e.term = bad
   if (draft.reason.trim().length < 3) e.reason = t('vendor.pricing.reasonRequired')
   return e

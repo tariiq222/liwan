@@ -98,7 +98,7 @@ describe('/catalog/apps/[app]: one application', () => {
     expect(src).not.toMatch(/['"`]\/bundles\b/)
   })
 
-  it('wires the inline VendorAppPricingEditor and refreshes catalog and usage data after publish', () => {
+  it('wires the inline VendorAppPricingEditor', () => {
     expect(src).toContain('data-testid="catalog-app-settings"')
     expect(src).toContain('useHydrated()')
     expect(src).toContain(':disabled="addonsUnavailable || !hydrated || editorBusy"')
@@ -106,8 +106,6 @@ describe('/catalog/apps/[app]: one application', () => {
     expect(src).toContain('@busy="editorBusy = $event"')
     expect(src).toContain('@working-draft="workingDraftCreated = $event !== null"')
     expect(src).toContain('onPricingCancel(workingDraftCreated.value)')
-    expect(src).toContain('refreshNuxtData()')
-    expect(src).toContain('refreshUsage()')
   })
 })
 
@@ -150,6 +148,7 @@ async function appPage(options: { hydrated?: boolean, reducedMotion?: boolean } 
     listBundles: vi.fn(async () => ({ items: fixtures.bundles.items, total: fixtures.bundles.total })),
     listPlans: vi.fn(async () => ({ items: [], total: 0 })),
   }
+  const refreshNuxtData = vi.fn(async () => {})
   const page = await mountPage('catalog/apps/[app].vue', {
     isEditable, lifecycleBadge, limitLabel, catalogDiff, parseFeature, catalogLabel, tierLabel, currentCatalogVersion, bundlesWithApp, plansUsingBundles,
     formatBusinessDate, cadenceLabel, formatCommercialMoney,
@@ -158,12 +157,12 @@ async function appPage(options: { hydrated?: boolean, reducedMotion?: boolean } 
     useHydrated: () => Vue.ref(options.hydrated ?? true),
     useVendorCommercial: () => api,
     useVendorCatalogVersions: () => ({ load: async () => ({ data: Vue.ref(fixtures.catalogVersions.items), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }) }),
-    refreshNuxtData: vi.fn(async () => {}),
+    refreshNuxtData,
     createError: (error: unknown) => error,
     window: { matchMedia: () => ({ matches: options.reducedMotion ?? false }) },
   })
   mounted.push(page)
-  return { page, params }
+  return { page, params, refreshNuxtData }
 }
 
 /** What the last render handed the inline editor and the header button: their props and the listeners wired to the page. */
@@ -247,5 +246,37 @@ describe('/catalog/apps/[app]: the inline pricing editor, mounted', () => {
     reduced.page.state.editorAnchor.value = anchor
     await reduced.page.state.toggleEditor()
     expect(anchor.scrollIntoView).toHaveBeenLastCalledWith({ behavior: 'auto', block: 'start' })
+  })
+
+  it('closes the editor, clears draft state, and refreshes both Nuxt data and usage on done', async () => {
+    const { page, refreshNuxtData } = await appPage()
+    await page.state.toggleEditor()
+    const editor = editorOf(await paint(page))!
+    editor.onWorkingDraft(fixtures.bundles.items[1])
+    editor.onBusy(true)
+    expect(page.state.workingDraftCreated.value).toBe(true)
+    expect(page.state.editorBusy.value).toBe(true)
+
+    await editorOf(await paint(page))!.onDone()
+    expect(page.state.editorOpen.value).toBe(false)
+    expect(page.state.editorBusy.value).toBe(false)
+    expect(page.state.workingDraftCreated.value).toBe(false)
+    expect(editorOf(await paint(page))).toBeUndefined()
+    expect(refreshNuxtData).toHaveBeenCalledTimes(1)
+    expect(page.state.refreshUsage).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears draft state and refreshes both Nuxt data and usage on reload while keeping the editor open', async () => {
+    const { page, refreshNuxtData } = await appPage()
+    await page.state.toggleEditor()
+    editorOf(await paint(page))!.onWorkingDraft(fixtures.bundles.items[1])
+    expect(page.state.workingDraftCreated.value).toBe(true)
+
+    await editorOf(await paint(page))!.onReload()
+    expect(page.state.workingDraftCreated.value).toBe(false)
+    expect(page.state.editorOpen.value).toBe(true)
+    expect(editorOf(await paint(page))).toBeDefined()
+    expect(refreshNuxtData).toHaveBeenCalledTimes(1)
+    expect(page.state.refreshUsage).toHaveBeenCalledTimes(1)
   })
 })

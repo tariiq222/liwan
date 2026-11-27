@@ -112,6 +112,16 @@ export function limitLabel(value: number | null | undefined, t: (key: string) =>
   if (value === 0) return t('vendor.pricing.limit.none')
   return key === STORAGE_LIMIT_KEY ? formatStorageMb(value) : String(value)
 }
+/**
+ * A form's message for a limit draft: nothing when it parses, the allowed maximum when the value is a whole number
+ * above it, else the form's own `otherKey`. A form never names LimitAboveMax itself.
+ */
+export function limitDraftError(draft: LimitDraft | undefined, t: (key: string, params?: Record<string, unknown>) => string, otherKey: string): string | undefined {
+  try { limitFromDraft(draft); return undefined }
+  catch (cause) {
+    return cause instanceof LimitAboveMax ? t('vendor.pricing.limit.aboveMax', { max: MAX_LIMIT }) : t(otherKey)
+  }
+}
 export function limitsFromDrafts(drafts: Record<string, LimitDraft>, keys: string[]): CapacityMap {
   return Object.fromEntries(keys.map(key => [key, limitFromDraft(drafts[key])]))
 }
