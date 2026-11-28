@@ -144,6 +144,29 @@ class TestRecordingRetention(LiwanTelephonyCase):
         self.assertEqual(self.expire(), 1)
         self.assertEqual(missed.recording_state, 'expired')
 
+    def test_one_refused_call_id_does_not_stop_the_batch(self):
+        """The agent refuses a whole delete request for one id outside its call-id rule: that row is reported and
+        skipped, and every other recording past retention still expires."""
+        refused = self.recorded_call('1764 000/1', days_ago=RETENTION_DAYS + 90)
+        expired = self.recorded_call('1764200008.1')
+        with self.assertLogs(CRON_LOGGER, level='WARNING') as logs:
+            self.assertEqual(self.expire(), 1)
+        self.assertEqual((refused.recording_state, expired.recording_state), ('available', 'expired'))
+        self.assertEqual(self.sent, [('POST', f'{AGENT_URL}{DELETE_RECORDINGS_PATH}', ['1764200008.1'])])
+        self.assertIn('1764 000/1', logs.output[0])
+
+    def test_a_missing_settings_record_skips_the_run_with_one_warning(self):
+        """A database whose installed settings record is gone answers no traceback every night: one warning, no run."""
+        self.patch(
+            type(self.env['liwan.telephony.settings']), '_liwan_current', lambda model: model.browse(),
+        )
+        call = self.recorded_call('1764200009.1')
+        with self.assertLogs(CRON_LOGGER, level='WARNING') as logs:
+            self.assertEqual(self.expire(), 0)
+        self.assertEqual(len(logs.output), 1, logs.output)
+        self.assertEqual(call.recording_state, 'available')
+        self.assertEqual(self.sent, [])
+
     def test_no_agent_leaves_every_recording_available(self):
         self.env['ir.config_parameter'].sudo().set_param('liwan.telephony.agent_url', '')
         call = self.recorded_call('1764200006.1')

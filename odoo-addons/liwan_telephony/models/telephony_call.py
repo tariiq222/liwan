@@ -36,6 +36,10 @@ ORDERED_LADDERS = {'state': STATE_PROGRESS, 'recording_state': RECORDING_PROGRES
 RECORDING_READY = 'ready'
 # E.164: a plus, a country code that does not start with zero, and at most fifteen digits in all.
 E164 = re.compile(r'^\+[1-9][0-9]{6,14}$')
+# The call key the agent accepts, and the only one its recording delete route deletes: one letter or digit, then up
+# to 127 of them or dot, underscore and dash (``CALL_ID`` in ``apps/pbx-agent/src/pbx_agent/signing.py``). Both sides
+# read one rule, so an event the agent could never delete a recording for is refused before it is stored.
+LINKEDID_PATTERN = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}')
 # The country a number without a country prefix is read in, when the call's company names none.
 DEFAULT_PHONE_COUNTRY = 'base.sa'
 TIMESTAMP_FIELDS = ('started_at', 'answered_at', 'ended_at')

@@ -4,8 +4,8 @@ long the recordings are kept.
 
 Recording is a tenant-level control, because the effect is: one ``liwan_recording_config`` row in the pbx database and
 one dialplan read one policy for the whole Odoo database. ``data/telephony_settings.xml`` installs the one record at the
-declared defaults, and only a manager of the root company changes it. The agent is told a new policy on save, and the
-retention cron is what removes the files.
+declared defaults, and only a manager of the root company changes it. The agent is told a new policy once the save is
+committed, and the retention cron is what removes the files.
 """
 import logging
 
@@ -22,6 +22,7 @@ DEFAULT_RECORDING_POLICY = 'off'
 DEFAULT_RECORDING_ANNOUNCEMENT = True
 DEFAULT_RETENTION_DAYS = 90
 RECORDING_CONFIG_PATH = '/recording/config'
+MANAGE_CAPABILITY = 'telephony.manage'
 
 
 class LiwanTelephonySettings(models.Model):
@@ -46,28 +47,42 @@ class LiwanTelephonySettings(models.Model):
 
     @api.model
     def _liwan_current(self):
-        """The database's one settings record, installed with the declared defaults by ``data/telephony_settings.xml``."""
-        return self.env.ref('liwan_telephony.telephony_settings')
+        """The database's one settings record, installed with the declared defaults by
+        ``data/telephony_settings.xml``, or an empty recordset when that record is missing."""
+        return self.env.ref('liwan_telephony.telephony_settings', raise_if_not_found=False)
 
-    def _liwan_push_agent(self):
-        """Tell the agent this database's recording policy, once.
+    def _liwan_queue_agent_push(self):
+        """Queue telling the agent this database's recording policy, once this transaction has committed.
 
-        A non-2xx answer is a logged warning and not a rollback: the row is the record of the choice the manager
-        made, and the agent keeps the previous policy until the next save pushes this one again. The retention cron
-        retries only the disk side, never this push.
+        The pbx must never hold a policy Odoo rolled back, so the request leaves after the commit: the pbx may lag
+        Odoo by one save and never lead it. A push that fails is a logged warning naming the database, the row keeps
+        the choice the manager made, and the next save sends the saved policy again.
         """
         self.ensure_one()
+        database = self.env.cr.dbname
         agent = self.env['liwan.telephony.agent']
-        if not agent._liwan_is_configured():
+        config = agent._liwan_config()
+        if not (config[0] and config[1]):
             return
-        try:
-            agent._liwan_request('PUT', RECORDING_CONFIG_PATH, {
-                'database': self.env.cr.dbname,
-                'policy': self.recording_policy,
-                'announce': self.recording_announcement,
-            })
-        except ApiError as error:
-            _logger.warning(
-                'liwan_telephony: the agent did not take the recording policy of database %s: %s',
-                self.env.cr.dbname, error.message,
-            )
+        payload = {
+            'database': database,
+            'policy': self.recording_policy,
+            'announce': self.recording_announcement,
+        }
+
+        def push():
+            # The configuration was read inside the transaction, so the hook needs no ORM and no second cursor.
+            try:
+                agent._liwan_request('PUT', RECORDING_CONFIG_PATH, payload, config=config)
+            except ApiError as error:
+                _log_failed_push(database, error.message)
+            except Exception as error:  # noqa: BLE001 - a postcommit hook must not raise after the commit
+                _log_failed_push(database, type(error).__name__)
+
+        self.env.cr.postcommit.add(push)
+
+
+def _log_failed_push(database, reason):
+    _logger.warning(
+        'liwan_telephony: the agent did not take the recording policy of database %s: %s', database, reason,
+    )

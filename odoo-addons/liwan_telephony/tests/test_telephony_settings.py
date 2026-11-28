@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for copyright and licensing details.
 """The recording settings page (design 4.4, 8): what a read answers before and after a save, who may save, what a
-write refuses, and the one push the agent receives.
+write refuses, and the one push the agent receives once the write is committed.
 
 The policy is the database's: one record every company reads, changed only by a manager of the root company.
 """
@@ -9,6 +9,7 @@ import json
 import urllib.error
 from pathlib import Path
 
+from odoo import SUPERUSER_ID, api
 from odoo.fields import Command
 from odoo.tests import TransactionCase, new_test_user, tagged
 
@@ -30,14 +31,18 @@ from odoo.addons.liwan_telephony.models.agent_client import (
 from odoo.addons.liwan_telephony.models.feature_registry import EVENTS_FEATURE
 
 SETTINGS = '/api/v1/telephony/settings'
+SWITCH_COMPANY = '/api/v1/me/company'
+SETTINGS_LOGGER = 'odoo.addons.liwan_telephony.models.telephony_settings'
 BRANCH_PHONE_USER = 'telephony_branch_phone_user'
 BRANCH_MANAGER = 'telephony_branch_manager'
+ROOT_GRANTED_BRANCH_MANAGER = 'telephony_root_granted_branch_manager'
 BRANCH_PASSWORD = 'telephony_branch_pass_123'
 DEFAULTS = {'recordingPolicy': 'off', 'recordingAnnouncement': True, 'recordingRetentionDays': 90}
 SAVED = {'recordingPolicy': 'always', 'recordingAnnouncement': False, 'recordingRetentionDays': 30}
+SAVED_MODEL = {'recording_policy': 'always', 'recording_announcement': False, 'recording_retention_days': 30}
 BRANCH_VALUES = {'recordingPolicy': 'off', 'recordingAnnouncement': True, 'recordingRetentionDays': 3650}
 MIGRATIONS = Path(__file__).parents[1] / 'migrations' / '19.0.1.2.0'
-# The version whose settings were one row per company.
+# The version whose settings were one row per company, and whose recording state still offered ``pending``.
 PER_COMPANY_VERSION = '19.0.1.1.0'
 
 
@@ -129,7 +134,43 @@ class TestTelephonySettings(LiwanTelephonyCase):
         assert_refused(self, self.api('PATCH', SETTINGS, json=BRANCH_VALUES), 403, 'forbidden')
         self.assert_saved_values(SAVED)
 
-    def test_a_save_tells_the_agent_once_and_a_failure_keeps_the_write(self):
+    def test_a_branch_manager_with_the_root_membership_alone_cannot_save_at_the_root(self):
+        """``telephony.manage`` held in a branch is not the database manager's capability.
+
+        The gate accepts a capability held in any company of the current company's branch scope, so a user whose only
+        grant is in a branch, and whose memberships include the root, could switch the current company to the root and
+        write the tenant-wide policy. The write needs the capability in the root company itself.
+        """
+        self.assertEqual(self.api('PATCH', SETTINGS, json=SAVED).status_code, 200)
+        root = self.env.company
+        branch = self.env['res.company'].create({'name': 'Telephony policy branch', 'parent_id': root.id})
+        user = new_test_user(
+            self.env, login=ROOT_GRANTED_BRANCH_MANAGER, password=BRANCH_PASSWORD,
+            name='Branch Manager At Root', groups='liwan_core.group_employee',
+            company_id=branch.id, company_ids=[Command.set([branch.id, root.id])],
+        )
+        self.env['liwan.access.assignment'].sudo().create({
+            'user_id': user.id,
+            'role_id': self.env.ref('liwan_telephony.role_telephony_manager').id,
+            'company_id': branch.id,
+        })
+        self.authenticate(ROOT_GRANTED_BRANCH_MANAGER, BRANCH_PASSWORD)
+        switched = self.api('POST', SWITCH_COMPANY, json={'company_id': root.id})
+        self.assertEqual(switched.status_code, 200, switched.text)
+        assert_refused(self, self.api('PATCH', SETTINGS, json=BRANCH_VALUES), 403, 'forbidden')
+        self.assert_saved_values(SAVED)
+
+    def test_a_missing_settings_record_answers_404(self):
+        """A database whose installed record is gone answers a structured 404, not a 500 with a traceback."""
+        self.patch(
+            type(self.env['liwan.telephony.settings']), '_liwan_current', lambda model: model.browse(),
+        )
+        refused = self.api('GET', SETTINGS)
+        self.assertEqual((refused.status_code, refused.json()['code']), (404, 'not_found'))
+
+    def test_a_save_queues_one_push_that_leaves_after_the_commit(self):
+        """Under ``HttpCase`` a request's test cursor drops post-commit hooks, so the route is shown to queue the push
+        and the queue itself is run here: nothing reaches the agent inside the transaction, exactly one push after."""
         self.set_agent()
         sent = []
 
@@ -140,6 +181,10 @@ class TestTelephonySettings(LiwanTelephonyCase):
         self.patch_agent(record)
         saved = self.api('PATCH', SETTINGS, json=SAVED)
         self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertEqual(sent, [])
+        self.saved_row()._liwan_queue_agent_push()
+        self.assertEqual(sent, [])
+        self.env.cr.postcommit.run()
         self.assertEqual(len(sent), 1)
         method, url, payload, headers = sent[0]
         self.assertEqual((method, url), ('PUT', f'{AGENT_URL}/recording/config'))
@@ -150,17 +195,47 @@ class TestTelephonySettings(LiwanTelephonyCase):
             _liwan_sign_reverse(AGENT_KEY, headers[TIMESTAMP_HEADER], 'PUT', '/recording/config', payload),
         )
 
+    def test_a_rolled_back_save_never_reaches_the_agent(self):
+        """The push is a post-commit hook: a transaction that rolls back carries neither the write nor the request."""
+        self.set_agent()
+        sent = []
+        self.patch_agent(lambda method, url, payload, headers: sent.append((method, url, payload)) or {'ok': True})
+        cursor = self.registry.cursor()
+        try:
+            env = api.Environment(cursor, SUPERUSER_ID, {'allowed_company_ids': [self.env.company.id]})
+            settings = env['liwan.telephony.settings']._liwan_current()
+            settings.write(SAVED_MODEL)
+            settings._liwan_queue_agent_push()
+            self.assertEqual(sent, [])
+            cursor.rollback()
+        finally:
+            cursor.close()
+        self.env.cr.postcommit.run()
+        self.assertEqual(sent, [])
+        self.env.invalidate_all()
+        self.assert_saved_values(DEFAULTS)
+
+    def test_a_failed_push_is_a_warning_naming_the_database_and_keeps_the_write(self):
+        self.set_agent()
+
         def fail(method, url, payload, headers):
             reason = 'agent down'
             raise urllib.error.URLError(reason)
 
         self.patch_agent(fail)
-        kept = self.api('PATCH', SETTINGS, json={'recordingPolicy': 'off', 'recordingRetentionDays': 14})
-        self.assertEqual(
-            (kept.status_code, kept.json()),
-            (200, {'recordingPolicy': 'off', 'recordingAnnouncement': False, 'recordingRetentionDays': 14}),
-        )
-        self.assertEqual(self.api('GET', SETTINGS).json(), kept.json())
+        settings = self.saved_row()
+        settings.write(SAVED_MODEL)
+        settings._liwan_queue_agent_push()
+        with self.assertLogs(SETTINGS_LOGGER, level='WARNING') as logs:
+            self.env.cr.postcommit.run()
+        self.assertIn(self.env.cr.dbname, logs.output[0])
+        # The row is the record of the manager's choice; the agent keeps the previous policy until the next save.
+        self.assert_saved_values(SAVED)
+        sent = []
+        self.patch_agent(lambda method, url, payload, headers: sent.append(json.loads(payload)) or {'ok': True})
+        settings._liwan_queue_agent_push()
+        self.env.cr.postcommit.run()
+        self.assertEqual(sent, [{'database': self.env.cr.dbname, 'policy': 'always', 'announce': False}])
 
 
 def load_migration(name):
@@ -222,3 +297,22 @@ class TestTelephonySettingsMigration(TransactionCase):
         self.post.migrate(self.env.cr, False)
         self.assertTrue(self.has_company_column())
         self.assertEqual(self.settings.search_count([]), 2)
+
+    def test_a_recording_state_the_selection_dropped_becomes_none(self):
+        """A database that stored the removed ``pending`` value would raise ``KeyError`` in the ladder on the next
+        event and be refused by the contract enum: the migration states the same thing ``none`` does."""
+        self.env.flush_all()
+        call = self.env['liwan.telephony.call'].create({
+            'linkedid': '1764300000.1', 'direction': 'in', 'state': 'ringing',
+        })
+        self.env.cr.execute("UPDATE liwan_telephony_call SET recording_state = 'pending' WHERE id = %s", [call.id])
+        migration = load_migration('post-reset-pending-recording-state')
+        migration.migrate(self.env.cr, False)
+        self.assertEqual(self.stored_recording_state(call), 'pending')
+        migration.migrate(self.env.cr, PER_COMPANY_VERSION)
+        self.assertEqual(self.stored_recording_state(call), 'none')
+
+    def stored_recording_state(self, call):
+        """The column itself: the ORM cannot name a value outside the field's selection."""
+        self.env.cr.execute('SELECT recording_state FROM liwan_telephony_call WHERE id = %s', [call.id])
+        return self.env.cr.fetchone()[0]

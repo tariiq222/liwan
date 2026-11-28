@@ -361,6 +361,16 @@ class TestTelephonyEvents(LiwanTelephonyEventsCase):
         self.assertEqual(raw.status_code, 400)
         self.assertFalse(self.env['liwan.telephony.event'].search([('event_id', '=', 'x')]))
 
+    def test_a_linkedid_outside_the_agents_call_id_rule_answers_422_and_stores_nothing(self):
+        """The agent refuses a whole recording delete for one call id outside its own rule, so such an id would
+        block every retention run from then on: it is refused on arrival, by the same rule."""
+        base = self.make_envelope('bad-linkedid')
+        for linkedid in ('1764 000/1', 'call#1', 'a/b', 'x' * 129, ' 1764.1'):
+            result = self.post_event({**base, 'call': {**base['call'], 'linkedid': linkedid}})
+            self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'), linkedid)
+            self.assertEqual(result.json()['field'], 'linkedid', linkedid)
+            self.assertFalse(self.call_of(linkedid))
+
     def test_concurrent_duplicate_event_receipt_returns_already_applied(self):
         # Pre-seed the receipt and hide it from the pre-check (simulating a REPEATABLE READ race) so PostgreSQL
         # raises a real UniqueViolation (23505) on Event.create inside the savepoint.
