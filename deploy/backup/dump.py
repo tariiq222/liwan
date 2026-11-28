@@ -71,15 +71,6 @@ def validate_container_command(name: str | None) -> str:
     return command
 
 
-def validate_container_output(target: str) -> str:
-    """An absolute, non-traversing output path inside the container."""
-    require(target != '-', 'pg_dump output must not be "-"; omit output_file to stream to stdout')
-    out = Path(target)
-    require(out.is_absolute(), 'pg_dump output path must be absolute')
-    require('..' not in out.parts, 'pg_dump output path must not traverse')
-    return str(out)
-
-
 def build_pg_dump_argv(
     *,
     pg_dump: str | None = None,
@@ -95,14 +86,13 @@ def build_pg_dump_argv(
     ``container=True`` builds the same archive command for a process inside the database
     container: the command is a bare name on that container's ``PATH`` (or an absolute path
     inside it, and it may be omitted), so it need not exist on the machine building the argv.
-    Omit ``output_file`` to stream the archive to stdout without ``-f``. An explicit output
-    must be an absolute, non-traversing path inside the container; ``-`` is a literal file
-    name and is refused. The host form requires an existing local binary and an absolute
-    output file.
+    It streams the archive to stdout without ``-f`` and refuses any ``output_file``. The host
+    form requires an existing local binary and an absolute output file.
     """
     if container:
         dump_command = validate_container_command(pg_dump)
-        out = None if output_file is None else validate_container_output(output_file)
+        require(output_file is None, 'container pg_dump streams to stdout; omit output_file')
+        out = None
     else:
         require(pg_dump is not None, 'pg_dump is required')
         dump_command = str(validate_existing_file(pg_dump, what='pg_dump'))

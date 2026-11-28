@@ -1722,30 +1722,21 @@ class TestDump(PipelineCase):
         )
         self.assertEqual(argv, ['pg_dump', '-Fc', '--serializable-deferrable', '--no-password',
                                 '-d', 'liwan_scratch', '-h', 'db', '-U', 'postgres'])
-        self.assertNotIn('-f', argv)
-        self.assertNotIn('-', argv)
+        explicit = build_pg_dump_argv(
+            pg_dump='/usr/local/bin/pg_dump', db_name='liwan_scratch', container=True,
+        )
+        self.assertEqual(explicit[0], '/usr/local/bin/pg_dump')
+        self.assertNotIn('-f', explicit)
 
-    def test_the_container_form_accepts_an_absolute_output_path(self):
-        # A path inside the container is accepted as it is; the machine building the argv need not hold it.
-        for target in ('/tmp/out.dump', '/dev/stdout', '/dev/stderr'):
-            with self.subTest(target=target):
-                explicit = build_pg_dump_argv(
-                    pg_dump='/usr/local/bin/pg_dump', db_name='liwan_scratch', output_file=target, container=True,
-                )
-                self.assertEqual((explicit[0], explicit[explicit.index('-f') + 1]),
-                                 ('/usr/local/bin/pg_dump', target))
+    def test_the_container_form_refuses_any_output_file(self):
+        for target in ('-', '', 'dump', '/tmp/out.dump', '/dev/stdout', '/dev/stderr', '/tmp/x/../y'):
+            with self.subTest(target=target), self.assertRaises(BackupError):
+                build_pg_dump_argv(db_name='liwan_scratch', output_file=target, container=True)
 
-    def test_the_container_form_refuses_a_literal_dash_output_file(self):
-        with self.assertRaises(BackupError):
-            build_pg_dump_argv(db_name='liwan_scratch', output_file='-', container=True)
-
-    def test_the_container_form_refuses_a_command_or_output_that_could_escape_the_shipped_line(self):
+    def test_the_container_form_refuses_a_command_that_could_escape_the_shipped_line(self):
         for command in ('', ' pg_dump', 'pg dump', 'pg_dump; rm -rf /', '../pg_dump', '/usr/../pg_dump', 3):
             with self.subTest(command=command), self.assertRaises(BackupError):
                 build_pg_dump_argv(pg_dump=command, db_name='liwan_scratch', container=True)
-        for target in ('dump', '/tmp/x/../y', ''):
-            with self.subTest(target=target), self.assertRaises(BackupError):
-                build_pg_dump_argv(db_name='liwan_scratch', output_file=target, container=True)
 
 
 class TestSnapshot(PipelineCase):
