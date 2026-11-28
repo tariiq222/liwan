@@ -82,7 +82,7 @@ describe('TelephonyCallSchema', () => {
   })
 
   it('accepts a call still running and an internal call without a remote number', () => {
-    const running = { ...CALL, state: 'answered', endedAt: null, durationSeconds: null, recordingState: 'pending' }
+    const running = { ...CALL, state: 'answered', endedAt: null, durationSeconds: null, recordingState: 'none' }
     expect(TelephonyCallSchema.parse(running).durationSeconds).toBeNull()
     expect(TelephonyCallSchema.parse({ ...CALL, direction: 'internal', remoteNumber: null }).remoteNumber).toBeNull()
     expect(TelephonyCallSchema.parse({ ...CALL, partner: null, user: null, extension: null }).partner).toBeNull()
@@ -94,7 +94,9 @@ describe('TelephonyCallSchema', () => {
       expect(() => TelephonyCallSchema.parse({ ...CALL, remoteNumber: number })).toThrow()
     }
     expect(() => TelephonyCallSchema.parse({ ...CALL, state: 'in_progress' })).toThrow()
-    expect(() => TelephonyCallSchema.parse({ ...CALL, recordingState: 'deleted' })).toThrow()
+    for (const recordingState of ['pending', 'deleted']) {
+      expect(() => TelephonyCallSchema.parse({ ...CALL, recordingState })).toThrow()
+    }
   })
 
   it('rejects a datetime that is not an ISO UTC string with a Z', () => {

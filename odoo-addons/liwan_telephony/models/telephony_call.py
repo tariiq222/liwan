@@ -21,12 +21,17 @@ STATES = (
     ('rejected', 'Rejected'), ('failed', 'Failed'), ('ended', 'Ended'),
 )
 RECORDING_STATES = (
-    ('none', 'None'), ('pending', 'Pending'), ('available', 'Available'), ('expired', 'Expired'),
+    ('none', 'None'), ('available', 'Available'), ('expired', 'Expired'),
 )
 # How far a call has moved. A late event never returns a finished call to ringing.
 STATE_PROGRESS = {'ringing': 0, 'answered': 1, 'ended': 2, 'missed': 2, 'rejected': 2, 'failed': 2}
 # The states at the end of the ladder: a call that reached one has no more events to come.
-TERMINAL_STATES = tuple(state for state, progress in STATE_PROGRESS.items() if progress >= 2)
+TERMINAL_STATES = tuple(state for state, progress in STATE_PROGRESS.items() if progress == max(STATE_PROGRESS.values()))
+# How far a recording has moved. The file exists once the call's legs ended, and a recording the retention run
+# deleted never comes back: a retried or reconciled ``ready`` event finds no file on disk.
+RECORDING_PROGRESS = {'none': 0, 'available': 1, 'expired': 2}
+# The fields that only move one way, each with its ladder: a value at the top of its ladder is final.
+ORDERED_LADDERS = {'state': STATE_PROGRESS, 'recording_state': RECORDING_PROGRESS}
 # The one value of ``call.recording`` the agent sends: the recording file exists once the call's legs ended.
 RECORDING_READY = 'ready'
 # E.164: a plus, a country code that does not start with zero, and at most fifteen digits in all.
@@ -46,6 +51,11 @@ def parse_iso_timestamp(value):
     if parsed.tzinfo is not None:
         parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
     return parsed.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def moves_forward(current, incoming, ladder):
+    """Whether ``incoming`` may replace ``current`` on ``ladder``: never behind it, and never over a final value."""
+    return ladder[current] < max(ladder.values()) and ladder[incoming] >= ladder[current]
 
 
 class LiwanTelephonyCall(models.Model):
@@ -126,7 +136,8 @@ class LiwanTelephonyCall(models.Model):
         """The field values one agent event sets on the call of ``direction`` it names, in ``company``.
 
         Only what the event carries is returned, so the first event that carries a value sets it and a later one
-        never erases it. The state is written as it came: ``_liwan_apply`` keeps a call from moving backwards.
+        never erases it. The state and the recording state are written as they came: ``_liwan_apply`` owns the
+        ordering that keeps them from moving backwards.
         """
         call = event['call']
         values = {'direction': direction, 'state': call['state']}
@@ -156,14 +167,14 @@ class LiwanTelephonyCall(models.Model):
     def _liwan_apply(self, values):
         """Write an event onto this call without letting it move backwards or forget what it knows.
 
-        The direction and the company were decided by the first event, the start and the remote number by the first
-        event that carried them, and the extension number stays once an extension is linked.
+        The state and the recording state only move one way, and their last values are final: a late, retried or
+        reconciled event leaves a finished call finished and an expired recording expired. The direction and the
+        company were decided by the first event, the start and the remote number by the first event that carried them,
+        and the extension number stays once an extension is linked.
         """
-        if 'state' in values and (
-            STATE_PROGRESS[self.state] >= 2
-            or STATE_PROGRESS[values['state']] < STATE_PROGRESS[self.state]
-        ):
-            del values['state']
+        for name, ladder in ORDERED_LADDERS.items():
+            if name in values and not moves_forward(self[name], values[name], ladder):
+                del values[name]
         for name in ('direction', 'remote_number', 'started_at'):
             if self[name]:
                 values.pop(name, None)

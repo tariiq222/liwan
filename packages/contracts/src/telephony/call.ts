@@ -9,7 +9,7 @@ import {
 
 export const TelephonyCallDirectionSchema = z.enum(['in', 'out', 'internal'])
 export const TelephonyCallStateSchema = z.enum(['ringing', 'answered', 'missed', 'rejected', 'failed', 'ended'])
-export const TelephonyRecordingStateSchema = z.enum(['none', 'pending', 'available', 'expired'])
+export const TelephonyRecordingStateSchema = z.enum(['none', 'available', 'expired'])
 
 /**
  * One call of the log. `linkedid` is Asterisk's key of the call, so the record is created and updated by it and never
