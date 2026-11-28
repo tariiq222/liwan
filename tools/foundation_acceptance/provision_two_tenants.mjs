@@ -190,6 +190,7 @@ try {
     LIWAN_CLI_INVENTORY: join(runDir, 'inventory.json'), LIWAN_CLI_STATE_DIR: join(runDir, 'operator'), LIWAN_REPOSITORY_ROOT: sourceRoot }
   let workerEnv = controlEnv
   let mailOrigin
+  let signInvitationAccept
   if (commercial) {
     const name = `${project}-mail`
     const mailImage = command('mailpit-image', 'docker', ['image', 'inspect', '--format', '{{.Id}}', 'axllent/mailpit:latest'])
@@ -212,9 +213,25 @@ try {
     record('private invitation effect certificate created', command('effect-certificate', 'openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes',
       '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1']).ok)
     chmodSync(key, 0o600)
+    const customerIssuer = 'foundation-customer'
+    const customerServiceKey = secret()
     Object.assign(controlEnv, {
       LIWAN_PAYMENT_PROVIDER: 'simulator', LIWAN_PAYMENT_RETURN_ORIGINS: `https://*.${domainSuffix}`,
       LIWAN_PAYMENT_PROSPECT_ORIGIN: `https://app.${domainSuffix}`, INTERNAL_EFFECT_KEY: secret(),
+      CUSTOMER_COMMERCIAL_ISSUER: customerIssuer, CUSTOMER_COMMERCIAL_SERVICE_KEY: customerServiceKey,
+    })
+    signInvitationAccept = tenantId => ({
+      'x-liwan-tenant': tenantId,
+      'x-liwan-client-ip': '127.0.0.1',
+      ...signServiceRequest({
+        method: 'POST',
+        path: '/v1/invitations/accept',
+        body: `liwan-invitation-accept:${tenantId}\n127.0.0.1\n`,
+        actor: 'anonymous',
+        anonymous: true,
+        issuer: customerIssuer,
+        key: customerServiceKey,
+      }),
     })
     workerEnv = { ...controlEnv, INTERNAL_EFFECT_HOST: '127.0.0.1', INTERNAL_EFFECT_PORT: String(effectPort),
       INTERNAL_EFFECT_TLS_CERT: cert, INTERNAL_EFFECT_TLS_KEY: key, LIWAN_MAIL_SMTP_HOST: '127.0.0.1',
@@ -261,7 +278,8 @@ try {
   const imported = admin(['catalog-import', version, 'Foundation acceptance catalog'])
   const catalogId = imported.stdout.trim().split('\n').at(-1)
   record('catalog imported', imported.ok && /^[0-9a-f-]{36}$/.test(catalogId))
-  for (const action of ['validate', 'publish']) { await stepUp(); record(`catalog ${action}`, (await send(`/v1/catalog/${catalogId}/${action}`, { body: { reason: 'Foundation acceptance catalog' } })).status === 200) }
+  await stepUp()
+  record('catalog publish', (await send(`/v1/catalog/${catalogId}/publish`, { body: { reason: 'Foundation acceptance catalog' } })).status === 200)
   const ca = compose(['exec', '-T', 'proxy', 'cat', '/data/caddy/pki/authorities/local/root.crt']).stdout
   record('private local CA exported', ca.includes('BEGIN CERTIFICATE'))
   const edge = (host, path, options = {}) => edgeRequest(host, path, { ...options, port: httpsPort, ca })
@@ -277,7 +295,7 @@ try {
       if (!result.ok) throw new Error('commercial order readback failed')
       return JSON.parse(result.stdout)
     }
-    const tenant = await commercialJourney({ send, stepUp, version, readOrder, edge, controlOrigin: `http://127.0.0.1:${controlPort}`, mailOrigin, record })
+    const tenant = await commercialJourney({ send, stepUp, version, readOrder, edge, controlOrigin: `http://127.0.0.1:${controlPort}`, mailOrigin, record, signInvitationAccept })
     tenants.push(tenant)
     record('isolated restore services healthy', compose(['up', '--detach', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '300', 'restore-db', 'restore-odoo']).ok)
     const restoreRequest = (...args) => {

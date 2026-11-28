@@ -57,7 +57,7 @@ unknown host. A source/image that cannot bootstrap this way fails acceptance;
 the harness does not postpone guard startup or insert a fake tenant.
 
 Provisioning uses the supported development-only vendor owner CLI, signed dev
-login/step-up routes, catalog import/validate/publish, tenant creation and the
+login/step-up routes, catalog import/publish, tenant creation and the
 real `worker:shared`. It waits for the product's `active` state, reads back the
 published database/filestore binding, independently checks each physical
 database and filestore, and uses the worker-generated admin credentials.
