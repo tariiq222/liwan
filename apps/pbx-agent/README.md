@@ -155,10 +155,12 @@ listing are all refused with 404.
 Two siblings of the link share its signature and its one-row contract with Odoo (design 4.4).
 
 - **`PUT /recording/config`** (`{"database", "policy", "announce"}`) upserts the single `liwan_recording_config` row in
-  `pbx-db` in one transaction. The dialplan reads that row through Asterisk realtime on every call, so the push *is*
-  the policy: `always` records, `off` records nothing, and an unreadable row records nothing. The fixed `id = 1` keeps
-  the table one row, so a repeat push updates rather than contradicts. A failed write answers `502`, and Odoo keeps
-  the previous policy until the next save pushes the row again.
+  `pbx-db` in one transaction. The dialplan reads that row through Asterisk realtime on every call, as one
+  `REALTIME_HASH` snapshot of the record matched on its fixed `id`, and validates both fields from it: `always` with
+  `announce = t` records and plays the notice, `always` with `announce = f` records without it, `off` records nothing,
+  and a missing, incomplete or invalid row records nothing rather than reading a missing announcement as an
+  intentional "off". The fixed `id = 1` keeps the table one row, so a repeat push updates rather than contradicts. A
+  failed write answers `502`, and Odoo keeps the previous policy until the next save pushes the row again.
 - **`POST /recordings/delete`** (`{"database", "linkedids"}`) unlinks `<linkedid>.wav` for each call, through the same
   name rule and containment check the signed link uses, so a traversal, a symlink out and a directory named like a
   recording delete nothing. It deletes nothing under a call the stream still observes: a `linkedid` it saw within the
@@ -337,19 +339,21 @@ writes and the recording-policy row go directly to `pbx-db` through `pbx_db.py`,
 transactional connection.
 
 Verified once against an isolated stack, not against a company package: a pinned Asterisk 22.11 with the pinned
-PostgreSQL 16 on a private local network loaded the rendered dialplan unchanged, its extconfig read returned the
-seeded `liwan_recording_config` row, and one synthetic `Local/` call per case proved the four outcomes — seeded `off`
-records nothing and plays no notice, `always` with `announce = t` writes one non-empty WAV and plays the notice to the
-answering leg only, `always` with `announce = f` writes the same WAV and plays nothing, and an absent row records
-nothing. `REALTIME_FIELD()` therefore answers the two fields the dialplan compares against.
+PostgreSQL 16 on a private local network loaded the rendered `[record-call]` byte-identical to the repository's
+template and read the seeded row through extconfig. Five synthetic `Local/` calls settled the outcomes: the seeded
+`off` row records nothing and plays no notice; `always` with `announce = t` writes one non-empty WAV and plays the
+notice to the answering leg only; `always` with `announce = f` writes the same WAV and plays nothing; `always` with a
+NULL `announce` (constraint relaxed in the scratch database only) yields the snapshot `,1,always` and the call is
+skipped — no recording, no notice, so a missing announcement is not read as an intentional "off"; and an absent row
+records nothing. The run exited 0 and reported acceptance.
 
-Still not verified, and open until the phase-1 gate in the design (section 13): real SIP and WebRTC legs (that proof
-used synthetic `Local/` channels and a test-only config copy), the package running as production uid `10002` with its
-full Compose file, whether a call that is never answered leaves a file, which ARI events the package's dialplan
-actually produces (the spec allows falling back to AMI for the missing ones), that the event URL with
-`app=pbx-agent` is accepted, that the package writes comma-quoted CEL rows, the ARI health probe, that a MixMonitor
+Still not verified, and open until the phase-1 gate in the design (section 13): real SIP and WebRTC legs (that run
+drove synthetic `Local/` channels on a test-only config copy); the package running as production uid `10002` with its
+full Compose file; whether a call that is never answered leaves a file; which ARI events the package's dialplan
+actually produces (the spec allows falling back to AMI for the missing ones); that the event URL with
+`app=pbx-agent` is accepted; that the package writes comma-quoted CEL rows; the ARI health probe; that a MixMonitor
 file is closed by the time its channel's end event reaches the agent (the recording-ready event is sent on that
-ordering), streaming a real MixMonitor file, and the Odoo side of each contract, which `liwan_telephony` implements and
+ordering); streaming a real MixMonitor file; and the Odoo side of each contract, which `liwan_telephony` implements and
 which no real call has exercised yet.
 
 ## Decisions (where the spec is silent)

@@ -703,39 +703,40 @@ class AsteriskShape(unittest.TestCase):
         )
         self.assertIn('Dial(PJSIP/${DIAL_NUMBER}@trunk,60${RECORDING_ANNOUNCE_OPTION})', extensions)
 
-    def test_the_recording_policy_is_read_per_call_and_the_announcement_reaches_the_party_that_answers(self):
-        """The policy is the company's row in pbx-db, not a rendered global: the dialplan reads it through realtime and
-        records nothing when the lookup is empty. A leftover static policy, or the removed `on_demand` branch, would
-        let a stale env file decide the recording. The announcement cannot be a `Playback` here: this context runs
-        before `Dial`, when the called channel has not answered, so only the caller would hear it. It travels as Dial's
-        `A()` option, which Asterisk plays to the called party once the call is answered."""
+    def test_the_recording_policy_is_one_row_read_and_the_announcement_reaches_the_party_that_answers(self):
+        """The policy is the company's one row in pbx-db, read once per call. REALTIME_HASH() is one
+        ast_load_realtime_all() of that record (Asterisk 22 func_realtime.c), and HASH() exposes the fields of that one
+        snapshot, so policy and announce always come from the same read. Both are validated before anything is
+        recorded: only `always` records, and only `t` or `f` is a readable announce. The announcement cannot be a
+        `Playback` here: this context runs before `Dial`, when the called channel has not answered, so only the caller
+        would hear it. It travels as Dial's `A()` option, which Asterisk plays to the called party once the call is
+        answered."""
         with tempfile.TemporaryDirectory() as directory:
             extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
         block = extensions.split('\n[record-call]\n', 1)[1].split('\n[line-unavailable]\n', 1)[0]
         self.assertNotIn('RECORDING_POLICY', extensions)
         self.assertNotIn('on_demand', extensions)
         self.assertNotIn('RECORDING_REQUESTED', extensions)
-        # Fail closed: only `always` records, so an empty lookup falls to done. Each field is one single-field read,
-        # REALTIME_FIELD(family,fieldmatch,matchvalue,fieldname) (Asterisk 22), matched on the row's fixed id:
-        # REALTIME() returns delimited name/value pairs on a read and cannot answer this check.
-        self.assertIn('GotoIf($["${REALTIME_FIELD(liwan_recording_config,id,1,policy)}"!="always"]?done)', block)
-        self.assertIn('GotoIf($["${REALTIME_FIELD(liwan_recording_config,id,1,announce)}"!="t"]?start)', block)
-        self.assertEqual(
-            ['REALTIME_FIELD(liwan_recording_config,id,1,policy)',
-             'REALTIME_FIELD(liwan_recording_config,id,1,announce)'],
-            re.findall(r'REALTIME\w*\([^)]*\)', block),
-        )
-        announced = block.index('REALTIME_FIELD(liwan_recording_config,id,1,announce)')
+        self.assertNotIn('REALTIME_FIELD', extensions)
+        # Exactly one realtime read of the one row, and it is the native hash form that returns every field at once.
+        self.assertEqual(['REALTIME_HASH(liwan_recording_config,id,1)'], re.findall(r'REALTIME\w*\([^)]*\)', block))
+        self.assertIn('Set(HASH(RECORDING_CONFIG)=${REALTIME_HASH(liwan_recording_config,id,1)})', block)
+        # Both fields are validated before anything is recorded: only `always` records, and only `t` or `f` is a
+        # readable announce, so neither a missing row nor an unknown value can be taken as an intentional no-notice.
+        self.assertIn('GotoIf($["${HASH(RECORDING_CONFIG,policy)}"!="always"]?done)', block)
+        self.assertIn('GotoIf($["${HASH(RECORDING_CONFIG,announce)}"="f"]?start)', block)
+        self.assertIn('GotoIf($["${HASH(RECORDING_CONFIG,announce)}"!="t"]?done)', block)
+        # ClearHash before the read: a repeat on the same channel must not answer from the previous row's keys.
+        self.assertLess(block.index('ClearHash(RECORDING_CONFIG)'), block.index('REALTIME_HASH('))
+        announced = block.index('HASH(RECORDING_CONFIG,announce)')
         option = block.index('Set(RECORDING_ANNOUNCE_OPTION=,A(${RECORDING_ANNOUNCE_SOUND}))')
         monitor = block.index('MixMonitor(${RECORDINGS_DIR}/${CHANNEL(linkedid)}.wav,b)')
-        # The announcement option comes from the announce lookup, and the recorder still starts before `Dial`.
+        # The announcement option comes from the announce field, and the recorder still starts before `Dial`.
         self.assertLess(announced, option)
         self.assertLess(option, monitor)
         # Nothing is played into an unanswered channel, and no stale option survives into an unrecorded call.
         self.assertNotIn('Playback(', block)
-        cleared = block.index('Set(RECORDING_ANNOUNCE_OPTION=)')
-        policy = block.index('REALTIME_FIELD(liwan_recording_config,id,1,policy)')
-        self.assertLess(cleared, policy)
+        self.assertLess(block.index('Set(RECORDING_ANNOUNCE_OPTION=)'), block.index('HASH(RECORDING_CONFIG,policy)'))
         self.assertIn('RECORDING_ANNOUNCE_SOUND=liwan-recording-announcement', extensions)
 
     def test_every_dial_call_site_carries_the_recording_announcement_option(self):

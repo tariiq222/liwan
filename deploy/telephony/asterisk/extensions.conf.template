@@ -119,16 +119,18 @@ exten => s,1,NoOp(Inbound call from ${CALLERID(num)} to ${ARG1})
 
 ; The policy is the single row of `liwan_recording_config`, read through extconfig ([settings]) so the setting in the
 ; company's database decides it, tenant-wide, and this static dialplan carries no default: `always` records both
-; legs of a bridged call and `off` records nothing. Each field is a single-field read,
-; REALTIME_FIELD(family,fieldmatch,matchvalue,fieldname), matched on the row's fixed id; REALTIME() returns
-; delimited name/value pairs on a read, so it can never equal `always`. The two lookups are separate reads of
-; that one row, and the policy read alone decides the recording, so a change between them can only affect the
-; announcement of a call already being recorded. An empty lookup — no row, or the database unreachable — records
-; nothing, so no call is ever recorded without a configured policy. `announce` is a PostgreSQL boolean, whose
-; realtime value is `t` or `f`; when it is `t` the caller sets RECORDING_ANNOUNCE_OPTION to Dial's `A()`
-; argument, and each `Dial` in this file appends it to its timeout so Asterisk plays the file to the party that
-; answers. A `Playback` here would run before the called party has answered, so only the caller would hear it.
-; The option is cleared first, so a call this context does not record never carries a stale announcement. The
+; legs of a bridged call and `off` records nothing. The row is read once per call: REALTIME_HASH() is a single
+; ast_load_realtime_all() of the record matched on its fixed id, and HASH() exposes every field of that one snapshot,
+; so `policy` and `announce` always come from the same read and neither can be a value the other did not see. Both
+; fields are validated before MixMonitor runs: only `always` records, and only `t` or `f` is a readable announce. A
+; missing row, a database that is unreachable, a policy the schema does not allow and an announce that is absent,
+; empty or otherwise unknown therefore record nothing, so no call is ever recorded without a configured policy or
+; without the notice it may owe. ClearHash runs first, because HASH() keys live on the channel: a repeat on the same
+; channel starts from no keys and cannot answer from a previous row's fields. `announce` is a
+; PostgreSQL boolean, whose realtime value is `t` or `f`; when it is `t` the caller sets RECORDING_ANNOUNCE_OPTION to
+; Dial's `A()` argument, and each `Dial` in this file appends it to its timeout so Asterisk plays the file to the
+; party that answers. A `Playback` here would run before the called party has answered, so only the caller would hear
+; it. The option is cleared first, so a call this context does not record never carries a stale announcement. The
 ; file is named by the channel's linkedid, the call key every event is matched on (design 4.4, 4.5), read with
 ; CHANNEL(linkedid): there is no plain linkedid channel variable. The recorder starts before `Dial` so the file
 ; exists under the linkedid as recording begins and the recorder runs before the legs bridge, missing no audio;
@@ -136,8 +138,11 @@ exten => s,1,NoOp(Inbound call from ${CALLERID(num)} to ${ARG1})
 ; and whether that file is empty, is not verified here: the live acceptance run settles it (README).
 [record-call]
 exten => s,1,Set(RECORDING_ANNOUNCE_OPTION=)
- same => n,GotoIf($["${REALTIME_FIELD(liwan_recording_config,id,1,policy)}"!="always"]?done)
- same => n,GotoIf($["${REALTIME_FIELD(liwan_recording_config,id,1,announce)}"!="t"]?start)
+ same => n,ClearHash(RECORDING_CONFIG)
+ same => n,Set(HASH(RECORDING_CONFIG)=${REALTIME_HASH(liwan_recording_config,id,1)})
+ same => n,GotoIf($["${HASH(RECORDING_CONFIG,policy)}"!="always"]?done)
+ same => n,GotoIf($["${HASH(RECORDING_CONFIG,announce)}"="f"]?start)
+ same => n,GotoIf($["${HASH(RECORDING_CONFIG,announce)}"!="t"]?done)
  same => n,Set(RECORDING_ANNOUNCE_OPTION=,A(${RECORDING_ANNOUNCE_SOUND}))
  same => n(start),MixMonitor(${RECORDINGS_DIR}/${CHANNEL(linkedid)}.wav,b)
  same => n(done),Return()

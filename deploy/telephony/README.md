@@ -87,17 +87,32 @@ Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pi
 ## Recording policy and retention
 
 The policy is not an environment value and not a rendered global: it is the one row of `liwan_recording_config` in
-`pbx-db`, which the dialplan reads through extconfig on every call. Each value is one single-field read,
-`REALTIME_FIELD(liwan_recording_config,id,1,policy)` and `...announce`, matched on the row's fixed `id`: `REALTIME()`
-answers delimited name/value pairs on a read, so it cannot be compared to `always`. These lookups were proved on a
-pinned Asterisk 22.11 with the pinned PostgreSQL 16 on a private local network, not on a company package: the rendered
-dialplan loaded as it is (`core show dialplan record-call` shows the two `REALTIME_FIELD` reads), the extconfig read
-returned the seeded row (`1|off|t`), and one synthetic call per case settled the four outcomes — the seeded `off` row
-records nothing and plays no notice, `always` with `announce = t` writes one non-empty WAV and plays the notice to the
-answering leg only, `always` with `announce = f` writes the same WAV and plays nothing, and a deleted row records
-nothing (fail closed). What that proof does not cover: real SIP/WebRTC legs (the calls were synthetic `Local/` channels
-on a test-only config copy), the package running as production uid `10002` with its full Compose file, and whether a
-call that is never answered leaves a file — steps 1–6 under "Test with Linphone" are what settle those.
+`pbx-db`, which the dialplan reads through extconfig on every call. The row is read once per call, as one snapshot:
+`ClearHash(RECORDING_CONFIG)` first (the hash keys live on the channel, so a second call on the same channel never
+answers from the previous row), then `Set(HASH(RECORDING_CONFIG)=${REALTIME_HASH(liwan_recording_config,id,1)})`,
+matched on the row's fixed `id`. Both fields the dialplan needs come from that single read, so `policy` and `announce`
+cannot come from two saves, and cannot come from a read the other one did not see.
+
+Both fields are validated before `MixMonitor` runs: only `policy = always` records, and only `t` or `f` is a readable
+`announce`. An announcement value that is absent, empty or otherwise unknown is therefore not read as an intentional
+"off" — that would record the call silently — and the call is skipped instead, so no call is recorded without the
+notice it may owe. For the same reason a missing row, an unreachable `pbx-db` and a policy the schema does not allow
+all record nothing.
+
+This mechanism was accepted on an isolated stack, not on a company package: a pinned Asterisk 22.11 with the pinned
+PostgreSQL 16 on a private local network, where the rendered `[record-call]` was byte-identical to this repository's
+template of it (sha256 `6e2b4dee…`) and loaded unchanged (`core show dialplan record-call` shows all nine priorities,
+`ClearHash` and the single `REALTIME_HASH` read among them), and the extconfig read of the seeded row returned
+`1|off|t`. Five synthetic calls settled the outcomes: the seeded `off` row records nothing and plays no notice;
+`always` with `announce = t` writes one non-empty WAV (15724 bytes) and plays the notice to the answering leg only;
+`always` with `announce = f` writes the same WAV and plays nothing; `always` with a NULL `announce` (the column's
+`NOT NULL` dropped in the scratch database only) has the snapshot `,1,always`, so the call is skipped — no recording,
+no notice, which is the case that proves a missing announcement is not read as an intentional "off"; and an absent row
+records nothing (fail closed). The run exited 0 and reported acceptance.
+
+That run still cannot cover real SIP/WebRTC legs (it drives synthetic `Local/` channels on a test-only config copy),
+the package running as production uid `10002` with its full Compose file, or whether a call that is never answered
+leaves a file — steps 1–6 under "Test with Linphone" settle those.
 
 - **Who writes it.** `pbx-agent` on `PUT /recording/config`, which Odoo calls when a manager saves Settings >
   Applications > Telephony > Recording. The policy is one per Odoo database, so every company's calls in that database
@@ -116,10 +131,11 @@ call that is never answered leaves a file — steps 1–6 under "Test with Linph
   played. The recording starts before `Dial` so the file exists under the call's linkedid from the moment recording
   begins and the recorder runs when the legs bridge; `MixMonitor` with `b` records bridged audio only, so ringback is not in the file,
   and a `Playback` at that point would reach the caller only. **The prompt is not shipped, and no default exists:** the
-  pinned image contains no stock sounds at all (the proof above used a synthetic `beep` file it created itself), so
-  name the company's prompt with `LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND`, install it under
-  `/var/lib/asterisk/sounds` in the `<company>-telephony-asterisk-state` volume, and leave the setting off until it is
-  there; with the setting on and no file, `A()` has nothing to play. Whether a call that is never answered leaves a
+  pinned image carries no stock sounds, so name the company's prompt with `LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND`,
+  install it under `/var/lib/asterisk/sounds` in the `<company>-telephony-asterisk-state` volume, and leave the
+  setting off until it is there; with the setting on and no file, `A()` has nothing to play. The dialplan does not
+  paper that over by assuming "off": an `announce` it cannot read skips the recording, so a missing prompt is a
+  company obligation, not a silent fallback. Whether a call that is never answered leaves a
   file, and whether that file is empty, is not verified: the live run settles it by calling an unregistered extension
   while the policy is `always` (step 6 under "Test with Linphone").
 - **Retention.** The database's `recording_retention_days` (1 to 3650 days) is enforced by Odoo, not by a timer here:
