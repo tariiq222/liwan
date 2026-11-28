@@ -233,9 +233,12 @@ try {
         key: customerServiceKey,
       }),
     })
+    const backupPassphrase = join(runDir, 'backup.passphrase')
+    writePrivate(backupPassphrase, `${secret()}\n`)
     workerEnv = { ...controlEnv, INTERNAL_EFFECT_HOST: '127.0.0.1', INTERNAL_EFFECT_PORT: String(effectPort),
       INTERNAL_EFFECT_TLS_CERT: cert, INTERNAL_EFFECT_TLS_KEY: key, LIWAN_MAIL_SMTP_HOST: '127.0.0.1',
-      LIWAN_MAIL_SMTP_PORT: publishedPort(2525), LIWAN_MAIL_FROM: 'notifications@foundation.test', LIWAN_MAIL_REQUIRE_TLS: 'false' }
+      LIWAN_MAIL_SMTP_PORT: publishedPort(2525), LIWAN_MAIL_FROM: 'notifications@foundation.test', LIWAN_MAIL_REQUIRE_TLS: 'false',
+      LIWAN_BACKUP_PASSPHRASE_FILE: backupPassphrase }
     Object.assign(controlEnv, { INTERNAL_EFFECT_URL: `https://127.0.0.1:${effectPort}`, INTERNAL_EFFECT_CA: cert })
   }
   const api = startProcess('control-api', 'npm', ['-w', 'apps/control-plane', 'run', 'dev'], controlEnv)
