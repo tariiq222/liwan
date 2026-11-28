@@ -98,8 +98,9 @@ tests spawn it with pipes. Wire protocol, JSON lines on stdin and stdout:
 - in line 1 `{"effect": "<module name>"}` from the fixed map of the seven effects; in line 2 the request (at most 65536
   bytes, no `config` field, matching the effect's schema in `effect_schema.py`: only the keys the control plane sends,
   exact types and sizes, a strict full-match pattern for every identifier, and no `/`, backslash, NUL or `.`/`..`
-  value outside the named free-text fields (names, logins, the password, the issuer), except `compiler_version` which
-  may carry at most one `/` as a bounded ASCII data label; anything else is `request_invalid`
+  value outside the named free-text fields (names, logins, the password, the issuer) and the data-only
+  `compiler_version`, which is an integer or an ASCII label of at most 64 characters with at most one `/` and
+  every `/`-separated part starting with a letter or digit; anything else is `request_invalid`
   and no effect starts). The gate adds `config` from the file named by its own `LIWAN_SHARED_RUNTIME_CONFIG`.
   Later lines, such as `{"proceed": true}`, go to the effect.
   The peer keeps the connection open until the final line: stdin EOF means it hung up.

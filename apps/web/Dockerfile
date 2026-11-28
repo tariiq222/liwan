@@ -11,7 +11,8 @@ COPY . .
 # Nuxt proxy rules are compiled; runtime-only shared mode is insufficient.
 ARG LIWAN_TENANCY_MODE=dedicated
 ENV LIWAN_TENANCY_MODE=${LIWAN_TENANCY_MODE}
-RUN npm -w apps/web run build
+# The Nuxt build outgrows the default V8 heap; the raise is scoped to this step so the runtime image carries none.
+RUN NODE_OPTIONS=--max-old-space-size=4096 npm -w apps/web run build
 
 FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
 WORKDIR /app
