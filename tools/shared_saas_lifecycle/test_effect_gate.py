@@ -707,6 +707,19 @@ class RequestSchemaTests(unittest.TestCase):
             with self.subTest(effect=effect, index=index):
                 self.accepts(effect, request)
 
+    def test_subscription_compiler_version_accepts_data_labels_and_integers(self):
+        for value in ('commercial-compiler/5', 'commercial-compiler/2', 'commercial-compiler/4',
+                      '1', 'test', 'a' * 64, 0, 1, schema.MAX_SAFE_INTEGER):
+            with self.subTest(value=value):
+                self.accepts('subscription_effect', at(subscription_request(), ('entitlement', 'compiler_version'), value))
+
+    def test_subscription_compiler_version_refuses_invalid_labels_and_types(self):
+        for value in ('../x', 'a/..', 'commercial-compiler/..', '/commercial-compiler/5',
+                      'commercial-compiler/', 'commercial-compiler/5/extra', 'a\\b', 'a\x00b',
+                      '', '.', '..', 'a' * 65, -1, True, 'commercial-compiler/٥', schema.MAX_SAFE_INTEGER + 1):
+            with self.subTest(value=value):
+                self.refuses('subscription_effect', at(subscription_request(), ('entitlement', 'compiler_version'), value))
+
     def test_the_effects_are_exactly_the_gates(self):
         self.assertEqual(set(gate.EFFECTS), set(schema.SCHEMAS))
 
