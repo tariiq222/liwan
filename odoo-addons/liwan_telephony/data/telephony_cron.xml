@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- One run a day, as the system: it walks every company and expires the recordings past that company's own
+         retention window. It asks the agent once per company, for one bounded batch. -->
+    <record id="ir_cron_liwan_telephony_recording_retention" model="ir.cron">
+        <field name="name">Telephony: expire recordings past retention</field>
+        <field name="model_id" ref="model_liwan_telephony_cron"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_expire_recordings()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

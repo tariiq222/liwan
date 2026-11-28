@@ -2,13 +2,13 @@
 
 The per-company telephony agent of LiwanOS (design: `docs/superpowers/specs/2026-10-28-liwan-telephony-design.md`).
 One instance runs inside each company's telephony package. It is the only party that talks to Asterisk over ARI, the
-only writer of Asterisk's PJSIP realtime tables in `pbx-db`, the only party that writes recordings, and the only sender
-of call events to Odoo.
+only writer of Asterisk's realtime tables in `pbx-db` (the PJSIP ones and the dialplan's recording-policy row), the
+only party that writes and deletes recordings, and the only sender of call events to Odoo.
 
-It holds no Odoo code, imports nothing from Odoo and never opens an Odoo database. The whole contract with Odoo is
-two things: the signed `POST` to the events route (4.5) and the signed recording link (4.4). The agent does not
-derive the two company keys; the shared side derives them (12.6) and they reach this host as values or as a secret
-file.
+It holds no Odoo code, imports nothing from Odoo and never opens an Odoo database. Its call and recording contract
+with Odoo is four things: the signed `POST` to the events route (4.5), the signed recording link (4.4), the recording
+policy Odoo pushes on save (4.4), and the retention deletions Odoo asks for (4.4). The agent does not derive the two
+company keys; the shared side derives them (12.6) and they reach this host as values or as a secret file.
 
 ## What it does
 
@@ -20,6 +20,8 @@ file.
 - Reads Asterisk CEL on an interval and re-enqueues a completed call leg the queue never saw, so a call whose
   events were lost before the queue still reaches Odoo.
 - Serves one recording per signed link and refuses everything else with 404.
+- Writes the company's recording policy row the dialplan reads on every call, and deletes the recordings Odoo no
+  longer keeps.
 - Answers `GET /health` for the operator's monitor.
 
 ## Endpoints
@@ -33,9 +35,11 @@ file.
 | `/extensions/{extension}` | PUT | private (Odoo) | Validates an extension when `active: true` (no password opened until `/registration`), or disables it when `active: false` |
 | `/extensions/{extension}` | DELETE | private (Odoo) | Disables an extension and deletes its PJSIP `endpoint`, `aor`, and `auth` objects |
 | `/recordings/link` | POST | private (Odoo) | Mints a short-lived signed recording URL with bounded clock tolerance |
+| `/recording/config` | PUT | private (Odoo) | Writes the company's recording policy row (`always`/`off` plus the announcement flag) that the dialplan reads through Asterisk realtime; answers `{"applied": true}` |
+| `/recordings/delete` | POST | private (Odoo) | Deletes the recordings of up to 500 calls by `linkedid`, skipping a call the stream still has a leg of, and answers `{"deleted": [...], "missing": [...]}` |
 
 Caddy exposes only `/pbx/recordings/<token>` (GET) and the Asterisk WebSocket path to the internet; `/health` and the
-five Odoo routes are reachable only on the private network.
+seven Odoo routes are reachable only on the private network.
 
 The health route answers 200 while the process serves, and its `status` field is `ok` or `degraded`. It is
 `degraded` when ARI does not answer, when the event stream is not connected, when the recordings volume is below
@@ -94,8 +98,9 @@ Every attempt posts the same stored bytes, so the `event_id` never changes:
 
 ## Reverse-direction authentication (Odoo -> pbx-agent)
 
-Every private route called by Odoo (`/registration`, `/registration/{extension}`, `/extensions/{extension}`,
-`/recordings/link`) is authenticated with HMAC-SHA256 using the 32 raw bytes of `PBX_REVERSE_KEY`:
+Every private route Odoo calls — `/registration` (`POST` and `DELETE`), `/extensions/{extension}` (`PUT` and
+`DELETE`), `/recordings/link`, `/recording/config` and `/recordings/delete` — is authenticated with HMAC-SHA256 using
+the 32 raw bytes of `PBX_REVERSE_KEY`:
 
 - `X-Liwan-Telephony-Timestamp`: Unix epoch seconds ASCII decimal (`^[0-9]{1,20}$`), within `±300` seconds of `now`.
 - `X-Liwan-Telephony-Signature`: 64-character hex HMAC-SHA256 over
@@ -103,8 +108,10 @@ Every private route called by Odoo (`/registration`, `/registration/{extension}`
 - `X-Liwan-Telephony-Database`: the company database name; must match `PBX_DATABASE` (and any `database` field in a JSON body).
 
 Missing/malformed headers, stale/future timestamps, or invalid signatures answer `401` with no detail. A valid
-signature presenting another database answers `403`. Invalid extension numbers (not matching `^[0-9]{2,10}$`) answer
-`422`. `tests/test_signing.py` pins the shared reverse-signing vector so Odoo reproduces the exact bytes.
+signature presenting another database answers `403`. Invalid extension numbers (not matching `^[0-9]{2,10}$`) and a
+call id outside the recording-name rule answer `422`. A `pbx-db` write failure on `/recording/config` answers `502`
+instead of claiming the policy reached the dialplan. `tests/test_signing.py` pins the shared reverse-signing vector so
+Odoo reproduces the exact bytes.
 
 ## WebRTC sessions, password rotation with overlap, and TURN REST
 
@@ -143,6 +150,23 @@ token's `exp` is capped at `min(expires_at, now + 60)`. The agent verifies the s
 `PBX_RECORDINGS_DIR`; the resolved path must stay in that directory, so traversal, a symlink leaving the directory and
 listing are all refused with 404.
 
+## The recording policy, and deleting a recording
+
+Two siblings of the link share its signature and its one-row contract with Odoo (design 4.4).
+
+- **`PUT /recording/config`** (`{"database", "policy", "announce"}`) upserts the single `liwan_recording_config` row in
+  `pbx-db` in one transaction. The dialplan reads that row through Asterisk realtime on every call, so the push *is*
+  the policy: `always` records, `off` records nothing, and an unreadable row records nothing. The fixed `id = 1` keeps
+  the table one row, so a repeat push updates rather than contradicts. A failed write answers `502`, and Odoo keeps
+  the previous policy until the next save pushes the row again.
+- **`POST /recordings/delete`** (`{"database", "linkedids"}`) unlinks `<linkedid>.wav` for each call, through the same
+  name rule and containment check the signed link uses, so a traversal, a symlink out and a directory named like a
+  recording delete nothing. It never deletes under a live call: a `linkedid` the event stream still has a leg of is
+  left alone and appears in neither list, because its file is still being written and Odoo must keep serving it. Each
+  other id is `deleted`, or `missing` when there is no file — which a repeat of the same request reports again instead
+  of failing. A list over the cap (500) or a name outside the call-id rule answers `422`, and any other OS error
+  propagates so Odoo retries instead of being told a kept file is gone.
+
 ## Configuration
 
 Environment only, validated once at start; a missing or malformed value stops the boot with a one-line message that
@@ -158,7 +182,7 @@ names the variable and never its value.
 | `PBX_EVENTS_KEY` | with `PBX_REVERSE_KEY` | the derived events key, 64 hex characters |
 | `PBX_REVERSE_KEY` | with `PBX_EVENTS_KEY` | the derived reverse-direction key, 64 hex characters |
 | `PBX_KEYS_FILE` | alternative | a secret file with `events=<key>` and `reverse=<key>` lines; cannot be combined with the two variables |
-| `PBX_RECORDINGS_DIR` | yes | existing directory where MixMonitor writes `<linkedid>.wav`; the agent reads it for streaming and `/health` reports its free space. Retention deletion is not implemented yet, so this container needs no write access |
+| `PBX_RECORDINGS_DIR` | yes | existing directory where MixMonitor writes `<linkedid>.wav`; the agent reads it for streaming, deletes from it on Odoo's retention request, and `/health` reports its free space |
 | `PBX_RECORDINGS_MIN_FREE_BYTES` | no | free-space floor for the health report; default 536870912 (512 MiB) |
 | `PBX_ODOO_EVENTS_URL` | yes | full URL of the Odoo events route, for example `http://odoo:8069/api/v1/telephony/events` |
 | `PBX_LISTEN_HOST` | no | default `0.0.0.0` |
@@ -263,9 +287,8 @@ network.
 `Dockerfile` mirrors `apps/ai-service`: a hashed lock installed into its own prefix, a non-root user (`uid 10002`),
 `TZ=UTC`, and a `HEALTHCHECK` against `/health`. Two mounts are expected: a volume for the SQLite queue
 (`/var/lib/pbx-agent`), which this container writes, and the company's recordings storage (`/recordings`), which
-Asterisk writes and this container only reads today; retention deletion, which will need write access there, is not
-implemented yet. The recordings mount is the only volume that holds call audio, and Odoo never writes, lists or
-deletes anything there.
+Asterisk writes and this container reads and deletes from. The recordings mount is the only volume that holds call
+audio; Odoo never mounts it, and every deletion happens through the signed `/recordings/delete` request above.
 
 Both `requirements.txt` (runtime image) and `requirements-dev.txt` (CI and local development, including `httpx` for
 `TestClient` and `ruff`) are universal hashed locks targeting Python 3.12 (covering both Linux `python:3.12-slim` and
@@ -286,9 +309,12 @@ python3 -B -m unittest discover -s apps/pbx-agent/tests -p 'test_*.py' -v
 ```
 
 The tests cover the configuration gate, the event signature bytes and the shared vector, every recording-token case
-(valid, expired, another host, another call, another key, malformed, non-ASCII), traversal and symlink attempts,
-queue idempotency and per-request timestamps, backoff, pruning, transport failures (timeout, broken HTTP answer,
-refused connection), the ARI event URL, the ARI mapping, CEL parsing with quoted and unquoted comma rows, the
+(valid, expired, another host, another call, another key, malformed, non-ASCII), traversal and symlink attempts, the
+recording config push (signature, another company's database, strict body, one row under a repeat push, a failed write
+answering 502) and recording deletion (signature, strict and capped body, the file removed once and reported `missing`
+afterwards, a live call left alone, a name outside the call-id rule refused, a missing file reported without an
+error), queue idempotency and per-request timestamps, backoff, pruning, transport failures (timeout, broken HTTP
+answer, refused connection), the ARI event URL, the ARI mapping, CEL parsing with quoted and unquoted comma rows, the
 reconciliation pass including a call split across two passes, a call whose end event was lost, a leg that just
 ended and a leg past the six-hour bound, and the health report.
 
@@ -299,14 +325,16 @@ queue and retry semantics, per-request timestamps, transport failures, CEL parsi
 URL, health payload and worker liveness.
 
 The ARI client keeps only what the agent uses: the event stream, reachability, and one endpoint's state. PJSIP realtime
-writes go directly to `pbx-db` through `pbx_db.py`, verified offline against a fake transactional connection.
+writes and the recording-policy row go directly to `pbx-db` through `pbx_db.py`, verified offline against a fake
+transactional connection.
 
 Not verified, and open until the phase-1 gate in the design (section 13): a real Asterisk. That includes which ARI
 events the package's dialplan actually produces (the spec allows falling back to AMI for the missing ones), that the
 event URL with `app=pbx-agent` is accepted, that the package writes comma-quoted CEL rows, the ARI health probe,
 that a MixMonitor file is closed by the time its channel's end event reaches the agent (the recording-ready event is
-sent on that ordering), streaming a real MixMonitor file, and the Odoo side of both contracts, which belongs to
-`liwan_telephony` in phase 2.
+sent on that ordering), streaming a real MixMonitor file, that `REALTIME()` returns the policy row the dialplan
+expects, and the Odoo side of each contract, which `liwan_telephony` implements and which no real call has exercised
+yet.
 
 ## Decisions (where the spec is silent)
 

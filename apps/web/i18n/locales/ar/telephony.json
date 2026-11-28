@@ -55,7 +55,19 @@
       "extensionActive": "مفعّلة",
       "extensionInactive": "معطّلة",
       "extensionDisable": "تعطيل",
-      "extensionEnable": "تفعيل"
+      "extensionEnable": "تفعيل",
+      "recording": "التسجيل",
+      "recordingHint": "هل تُسجَّل مكالمات الشركة، وهل يسمع من يجيب تنبيه التسجيل، وكم يومًا يُحفظ التسجيل.",
+      "recordingPolicy": "سياسة التسجيل",
+      "recordingPolicyHint": "تُطبَّق على كل مكالمة جديدة في الشركة.",
+      "recordingPolicyAlways": "تسجيل دائم",
+      "recordingPolicyAlwaysHint": "تُسجَّل كل مكالمة يتم الرد عليها.",
+      "recordingPolicyOff": "بلا تسجيل",
+      "recordingPolicyOffHint": "لا تُسجَّل المكالمات.",
+      "recordingAnnouncement": "تنبيه التسجيل",
+      "recordingAnnouncementHint": "يسمع من يجيب على المكالمة تنبيه التسجيل فور ردّه.",
+      "recordingRetentionDays": "مدة الحفظ (أيام)",
+      "recordingRetentionDaysHint": "من يوم إلى 3650 يومًا؛ يحذف الوكيل التسجيل بعد هذه المدة."
     },
     "chip": {
       "label": "المكالمة",

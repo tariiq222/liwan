@@ -53,3 +53,15 @@ CREATE TABLE IF NOT EXISTS ps_endpoints (
     -- Read by the stock res_pjsip_mwi, whose load filters ps_endpoints by this column; no endpoint here has a mailbox.
     mailboxes TEXT
 );
+
+-- The company's recording policy: one row, written by pbx-agent when a manager saves the settings, read by the
+-- dialplan through extconfig ([settings]) on every call. `id` is fixed so a push is always an update and the table
+-- can never hold a second, contradicting policy. Seeded `off`, so a package whose policy was never set records
+-- nothing; the dialplan treats an empty lookup the same way.
+CREATE TABLE IF NOT EXISTS liwan_recording_config (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    policy TEXT NOT NULL CHECK (policy IN ('always', 'off')),
+    announce BOOLEAN NOT NULL
+);
+
+INSERT INTO liwan_recording_config (id, policy, announce) VALUES (1, 'off', TRUE) ON CONFLICT (id) DO NOTHING;

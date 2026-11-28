@@ -1,0 +1,5 @@
+{
+  "recordingAnnouncement": true,
+  "recordingPolicy": "always",
+  "recordingRetentionDays": 90
+}

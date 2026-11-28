@@ -1,6 +1,9 @@
 Local acceptance run: copy `env.example` to `env` (mode 600). Proves the stack starts, endpoints 101/102/103 and the
 trunk load, the dialplan loads, a call writes `<linkedid>.wav` and CEL rows, and the agent posts a signed event.
-Trunk, coturn and real media stay unproven.
+Trunk, coturn and real media stay unproven. The seeded recording policy is `off`, so set it to `always` before the call
+below or the call carries no audio file: through Settings > Applications > Telephony > Recording when this run has an
+Odoo with the package's agent configured, or directly in `pbx-db` when it does not:
+`docker compose exec pbx-db psql -U telephony_pbx -d telephony_pbx -c "UPDATE liwan_recording_config SET policy='always';"`.
 
 The base compose prepares its own volumes: the one-shot `volumes-init` service hands the recordings, CEL/log,
 Asterisk-state and agent-queue volumes to uid/gid 10002 before Asterisk and the agent start, so there is no manual

@@ -105,8 +105,8 @@ class Settings:
             msg = "PBX_DATABASE must be a database name: a letter, then lowercase letters, digits or underscore"
             raise SettingsError("PBX_DATABASE", msg)
 
-        # Read for streaming, and its free space is reported by /health. Nothing writes or deletes there yet:
-        # retention deletion is phase 4, so write access is not required of this container today.
+        # The recordings volume: Asterisk writes it, this container reads it and deletes from it on Odoo's request,
+        # and /health reports its free space.
         recordings_dir = _read_path(environ, "PBX_RECORDINGS_DIR")
         if not recordings_dir.is_dir():
             msg = "PBX_RECORDINGS_DIR must be an existing directory"

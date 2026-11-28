@@ -7,8 +7,10 @@ from . import (
     ir_http,
     res_company,
     telephony_call,
+    telephony_cron,
     telephony_event,
     telephony_extension,
     telephony_line,
     telephony_recording_access,
+    telephony_settings,
 )

@@ -1,9 +1,9 @@
-"""Where a call recording lives, how it is served, and how Odoo learns it exists (design 4.4).
+"""Where a call recording lives, how it is served, deleted, and how Odoo learns it exists (design 4.4).
 
 Asterisk's MixMonitor writes ``<linkedid>.wav`` into the mounted recordings directory. The only name this module
 accepts is that call id; the resolved file must stay directly inside the directory, so a traversal, a symlink out of
 the directory and a directory listing are all impossible. Once a call's legs are gone, the file's presence is what
-makes the agent tell Odoo the recording is ready.
+makes the agent tell Odoo the recording is ready, and the same rule is what lets Odoo delete that file by call id.
 """
 
 from __future__ import annotations
@@ -43,3 +43,20 @@ def announce_recording(queue: EventQueue, root: Path, ended: dict, *, now: float
     if recording_path(root, linkedid) is None:
         return None
     return queue.enqueue_for_recording(linkedid, recording_ready_event(ended, now=now), now=int(now))
+
+
+def delete_recording(root: Path, call_id: str) -> bool:
+    """Unlink ``call_id``'s recording; ``False`` when there is no file to delete.
+
+    ``recording_path`` owns both the name rule and the containment check, so a traversal, a symlink out of the
+    directory and a directory named like a recording delete nothing. A file that vanishes between the check and the
+    unlink is ``False``; any other OS error propagates, so Odoo retries instead of being told a kept file is gone.
+    """
+    path = recording_path(root, call_id)
+    if path is None:
+        return False
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return False
+    return True

@@ -1,0 +1,19 @@
+; Rendered by deploy/telephony/render.py from the company's env file. This file replaces the image's own
+; /etc/asterisk/modules.conf, so the autoload line it relies on stays here, and every module the image's file kept out
+; and this package still does not use keeps its `noload` line with the reason beside it.
+;
+; CDR is not this package's call-record source: CEL and the agent's event queue are, and the CSV CDR backend would
+; only write a second, unreconciled copy of every call that nothing reads. It stays unloaded.
+
+[modules]
+autoload=yes
+; A second CDR backend nothing reads (see above).
+noload=cdr_csv.so
+; HEP telemetry is not used, and the two loggers decline to load without it: an error at every start.
+noload=res_hep.so
+noload=res_hep_pjsip.so
+noload=res_hep_rtcp.so
+; No audio hardware for a console channel driver: autoload opens ALSA and logs its errors.
+noload=chan_console.so
+; No Nortel/UNISTIM phone reaches this package; the driver would only open an unused socket.
+noload=chan_unistim.so

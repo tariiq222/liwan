@@ -1,11 +1,11 @@
 """The HTTP surface and the lifecycle of the background work (design 2, 4.1, 4.4, 4.6).
 
-Two routes are public, ``GET /health`` and ``GET /pbx/recordings/<token>``, and five are called by Odoo alone on the
+Two routes are public, ``GET /health`` and ``GET /pbx/recordings/<token>``, and seven are called by Odoo alone on the
 company's private network: ``POST /registration``, ``DELETE /registration/{extension}``, ``PUT /extensions/{extension}``,
-``DELETE /extensions/{extension}`` and ``POST /recordings/link``. The ARI event stream, the delivery worker, the
-reconciliation pass and the session reaper are daemon threads started with the app and stopped with it. The ARI probe,
-the queue and the disk read the health report are pushed off the event loop, since each may wait on the network or on
-SQLite.
+``DELETE /extensions/{extension}``, ``POST /recordings/link``, ``PUT /recording/config`` and
+``POST /recordings/delete``. The ARI event stream, the delivery worker, the reconciliation pass and the session reaper
+are daemon threads started with the app and stopped with it. The ARI probe, the queue and the disk read the health
+report are pushed off the event loop, since each may wait on the network or on SQLite.
 
 A background pass that raises is logged by exception class and the worker keeps its tick: a dead worker thread would
 otherwise look exactly like a busy one, which is why the report carries a beat per worker.
@@ -57,19 +57,21 @@ def create_app(
     ari_client: AriClient | None = None,
     *,
     pbx_store: PbxStore | None = None,
+    ingest: AriIngest | None = None,
     clock: Callable[[], float] = time.time,
 ) -> FastAPI:
     """The HTTP surface.
 
-    ``ari_client`` and ``pbx_store`` replace the Asterisk ARI client and PostgreSQL PJSIP store so tests can drive
-    the routes and health probe without Asterisk or PostgreSQL; when omitted, the agent builds both from settings.
+    ``ari_client``, ``pbx_store`` and ``ingest`` replace the Asterisk ARI client, the PostgreSQL PJSIP store and the
+    live-stream writer so tests can drive the routes and health probe without Asterisk or PostgreSQL; when omitted,
+    the agent builds them from settings.
     """
     queue = EventQueue(settings.queue_path)
     ari = ari_client if ari_client is not None else AriClient(AriTransport(settings.ari_url, settings.ari_username, settings.ari_password))
     store = pbx_store if pbx_store is not None else PostgresPbxStore(settings.pbx_db_url)
     sessions = SessionManager(settings, store, clock=clock)
     state = ConnectionState()
-    ingest = AriIngest(
+    stream = ingest if ingest is not None else AriIngest(
         queue,
         database=settings.database,
         inbound_context=settings.inbound_context,
@@ -88,7 +90,7 @@ def create_app(
     reaper_liveness = Liveness(stale_after=REAP_STALE_SECONDS)
 
     def on_event(event: dict) -> None:
-        ingest.handle(event, now=clock())
+        stream.handle(event, now=clock())
 
     listener = AriListener(
         url=events_url(settings.ari_url, settings.ari_username, settings.ari_password),
@@ -133,7 +135,7 @@ def create_app(
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
-    register_odoo_routes(app, settings, sessions, clock=clock)
+    register_odoo_routes(app, settings, sessions, store, live_call=stream.live_call, clock=clock)
 
     @app.get("/health")
     async def health() -> dict:

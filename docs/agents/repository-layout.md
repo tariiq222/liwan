@@ -258,7 +258,7 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
 - `packages/contracts/src/<namespace>` holds the Zod wire contracts (current namespaces: `access`, `ai`,
   `appointments`, `auth`, `chat`, `common`, `crm`, `customers`, `documents`, `finance`, `helpdesk`, `hr`,
   `inbox`, `integrations`, `mail`, `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `products`,
-  `sales`, `storage`, `tasks`, `tenant-export`); each has a barrel re-exported from `src/index.ts`.
+  `sales`, `storage`, `tasks`, `telephony`, `tenant-export`); each has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
   PMO components live in `app/components/pmo/{projects,tasks}`, personal-task

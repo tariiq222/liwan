@@ -1,9 +1,9 @@
-"""Direct atomic PostgreSQL writer for Asterisk 22 PJSIP realtime tables (pbx-db).
+"""Direct atomic PostgreSQL writer for Asterisk 22 realtime tables (pbx-db).
 
-Asterisk 22's ``res_config_pgsql.so`` reads ``ps_auths``, ``ps_aors`` and ``ps_endpoints`` live from ``pbx-db``,
-making ``pbx-agent`` the sole writer. Writing directly inside one PostgreSQL transaction avoids Asterisk 22's
-unquoted ``100rel`` identifier bug in ARI dynamic config pushes and guarantees all-or-nothing updates without
-best-effort multi-step rollbacks.
+Asterisk 22's ``res_config_pgsql.so`` reads ``ps_auths``, ``ps_aors``, ``ps_endpoints`` and the dialplan's
+``liwan_recording_config`` row live from ``pbx-db``, making ``pbx-agent`` the sole writer. Writing directly inside one
+PostgreSQL transaction avoids Asterisk 22's unquoted ``100rel`` identifier bug in ARI dynamic config pushes and
+guarantees all-or-nothing updates without best-effort multi-step rollbacks.
 
 ``psycopg`` is imported lazily inside ``PostgresPbxStore`` methods so pure-Python unit tests run without a
 PostgreSQL driver installed on the host. No DSN, password or driver error message ever appears in logs,
@@ -76,13 +76,22 @@ DELETE_AOR_SQL = "DELETE FROM ps_aors WHERE id = %s"
 DELETE_AUTH_SQL = "DELETE FROM ps_auths WHERE id = %s"
 DELETE_ORPHAN_AUTHS_SQL = "DELETE FROM ps_auths WHERE id LIKE %s ESCAPE '\\'"
 
+# The dialplan's recording policy is one row everything reads through realtime: a fixed id makes every push an update,
+# so the table never holds a second, contradicting policy.
+UPSERT_RECORDING_CONFIG_SQL = (
+    "INSERT INTO liwan_recording_config (id, policy, announce) VALUES (1, %s, %s) "
+    "ON CONFLICT (id) DO UPDATE SET "
+    "policy = EXCLUDED.policy, "
+    "announce = EXCLUDED.announce"
+)
+
 
 class PbxStoreError(RuntimeError):
     """A failed pbx-db write. Never includes the DSN, credentials or database error text."""
 
 
 class PbxStore(Protocol):
-    """Storage boundary for Asterisk PJSIP realtime rows."""
+    """Storage boundary for Asterisk PJSIP realtime rows and the dialplan's recording policy row."""
 
     def upsert_extension_session(
         self,
@@ -114,6 +123,8 @@ class PbxStore(Protocol):
         auth_ids: Sequence[str],
     ) -> None: ...
 
+    def upsert_recording_config(self, *, policy: str, announce: bool) -> None: ...
+
 
 def _escape_like_prefix(value: str) -> str:
     """Escape SQL LIKE wildcards in an extension prefix for ``ESCAPE '\\'``."""
@@ -121,7 +132,7 @@ def _escape_like_prefix(value: str) -> str:
 
 
 class PostgresPbxStore:
-    """Atomic PostgreSQL writer for ``ps_auths``, ``ps_aors`` and ``ps_endpoints``."""
+    """Atomic PostgreSQL writer for ``ps_auths``, ``ps_aors``, ``ps_endpoints`` and ``liwan_recording_config``."""
 
     def __init__(
         self,
@@ -223,5 +234,13 @@ class PostgresPbxStore:
             for auth_id in auth_ids:
                 conn.execute(DELETE_AUTH_SQL, (auth_id,))
             conn.execute(DELETE_ORPHAN_AUTHS_SQL, (orphan_pattern,))
+
+        self._execute_transaction(write)
+
+    def upsert_recording_config(self, *, policy: str, announce: bool) -> None:
+        """Write the company's recording policy into the one row the dialplan reads through realtime."""
+
+        def write(conn: Any) -> None:
+            conn.execute(UPSERT_RECORDING_CONFIG_SQL, (policy, announce))
 
         self._execute_transaction(write)

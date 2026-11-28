@@ -55,7 +55,19 @@
       "extensionActive": "Active",
       "extensionInactive": "Inactive",
       "extensionDisable": "Disable",
-      "extensionEnable": "Enable"
+      "extensionEnable": "Enable",
+      "recording": "Recording",
+      "recordingHint": "Whether the company records its calls, whether the answering party hears the recording notice, and how long a recording is kept.",
+      "recordingPolicy": "Recording policy",
+      "recordingPolicyHint": "Applies to every new call in the company.",
+      "recordingPolicyAlways": "Always",
+      "recordingPolicyAlwaysHint": "Every answered call is recorded.",
+      "recordingPolicyOff": "Off",
+      "recordingPolicyOffHint": "Calls are not recorded.",
+      "recordingAnnouncement": "Recording announcement",
+      "recordingAnnouncementHint": "The answering party hears the recording notice once they answer.",
+      "recordingRetentionDays": "Retention (days)",
+      "recordingRetentionDaysHint": "1 to 3650 days: the agent deletes a recording after this many days."
     },
     "chip": {
       "label": "Call",

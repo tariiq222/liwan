@@ -119459,6 +119459,33 @@
         ],
         "type": "object"
       },
+      "TelephonyRecordingSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "recordingAnnouncement": {
+            "type": "boolean"
+          },
+          "recordingPolicy": {
+            "enum": [
+              "always",
+              "off"
+            ],
+            "type": "string"
+          },
+          "recordingRetentionDays": {
+            "maximum": 3650,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "recordingPolicy",
+          "recordingAnnouncement",
+          "recordingRetentionDays"
+        ],
+        "type": "object"
+      },
       "TelephonyRecordingStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -172885,6 +172912,84 @@
           ],
           "feature_operation": "write",
           "handler": "create_session",
+          "readonly": null,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/telephony/settings": {
+      "get": {
+        "operationId": "liwan_telephony.TelephonySettingsController.get_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The current company's settings, or its declared defaults while the page was never saved.",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_telephony.TelephonySettingsController.patch_settings.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_settings",
+        "tags": [
+          "liwan_telephony"
+        ],
+        "x-liwan": {
+          "addon": "liwan_telephony",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "telephony",
+          "controller": "TelephonySettingsController",
+          "feature_keys": [
+            "telephony.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_settings",
           "readonly": null,
           "route_type": "json2"
         }

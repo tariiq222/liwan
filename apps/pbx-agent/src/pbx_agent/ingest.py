@@ -11,6 +11,7 @@ be recording while one of its legs is up.
 
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING
 
 from pbx_agent.events import ari_call_event
@@ -25,7 +26,8 @@ if TYPE_CHECKING:
 class AriIngest:
     """The live stream's writer into the queue: each transition, the legs it finishes, and each finished call's recording.
 
-    Only the stream's thread calls ``handle``, so the leg count needs no lock of its own; the queue has one.
+    Only the stream's thread calls ``handle``; ``live_call`` is read from the routes' threads, so the leg count is
+    locked and the queue keeps its own lock.
     """
 
     def __init__(self, queue: EventQueue, *, database: str, inbound_context: str, recordings_dir: Path) -> None:
@@ -51,6 +53,10 @@ class AriIngest:
             if self._live.ended(call["linkedid"]):
                 announce_recording(self._queue, self._recordings_dir, payload, now=now)
 
+    def live_call(self, linkedid: str) -> bool:
+        """Whether the stream knows a leg of this call still up; a recording is not deleted under a live call."""
+        return self._live.live(linkedid)
+
 
 class _LiveLegs:
     """How many legs each call still has on the stream, counted from the channel events themselves.
@@ -60,16 +66,23 @@ class _LiveLegs:
     """
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._live: dict[str, int] = {}
 
     def started(self, linkedid: str) -> None:
-        self._live[linkedid] = self._live.get(linkedid, 0) + 1
+        with self._lock:
+            self._live[linkedid] = self._live.get(linkedid, 0) + 1
 
     def ended(self, linkedid: str) -> bool:
         """Count one ended leg; ``True`` when the call has none left."""
-        remaining = self._live.get(linkedid, 0) - 1
-        if remaining > 0:
-            self._live[linkedid] = remaining
-            return False
-        self._live.pop(linkedid, None)
-        return True
+        with self._lock:
+            remaining = self._live.get(linkedid, 0) - 1
+            if remaining > 0:
+                self._live[linkedid] = remaining
+                return False
+            self._live.pop(linkedid, None)
+            return True
+
+    def live(self, linkedid: str) -> bool:
+        with self._lock:
+            return self._live.get(linkedid, 0) > 0

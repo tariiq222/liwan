@@ -25,6 +25,8 @@ RECORDING_STATES = (
 )
 # How far a call has moved. A late event never returns a finished call to ringing.
 STATE_PROGRESS = {'ringing': 0, 'answered': 1, 'ended': 2, 'missed': 2, 'rejected': 2, 'failed': 2}
+# The states at the end of the ladder: a call that reached one has no more events to come.
+TERMINAL_STATES = tuple(state for state, progress in STATE_PROGRESS.items() if progress >= 2)
 # The one value of ``call.recording`` the agent sends: the recording file exists once the call's legs ended.
 RECORDING_READY = 'ready'
 # E.164: a plus, a country code that does not start with zero, and at most fifteen digits in all.
