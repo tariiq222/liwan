@@ -105,6 +105,9 @@ try {
   const { signServiceRequest } = await import(pathToFileURL(join(sourceRoot, 'packages/commercial-contracts/src/server.ts')).href)
   const dbPassword = secret()
   const mailAlias = 'odoo-mail'
+  // The one sender of both mail legs: the control-plane worker's SMTP below, and Odoo's own `email_from` through the
+  // stack's `ODOO_MAIL_SENDER`. Odoo composes no sign-in code while that is unset; the capture accepts any sender.
+  const foundationMailFrom = 'notifications@foundation.test'
   const controlDbPassword = secret()
   // The stack runs as the one stack definition: stack_render.py renders it from deploy/environments/local.env.example plus
   // the harness values below, and `docker compose config` resolves it into compose.yml for the control plane.
@@ -148,6 +151,7 @@ try {
     ...(commercial ? {
       LIWAN_RESTORE_ODOO_CONFIG: restoreOdooConfig,
       LIWAN_RESTORE_ALLOW: 'private_ranges 127.0.0.1 ::1',
+      ODOO_MAIL_SENDER: foundationMailFrom,
     } : {}),
     LIWAN_EDGE_BIND: '127.0.0.1', LIWAN_EDGE_HTTPS_PORT: String(httpsPort), LIWAN_EDGE_HTTP_PORT: String(httpPort),
     FOUNDATION_CONTROL_DB_PASSWORD: controlDbPassword, FOUNDATION_CONTROL_DB_PORT: String(controlDbPort),
@@ -190,6 +194,7 @@ try {
     LIWAN_CLI_INVENTORY: join(runDir, 'inventory.json'), LIWAN_CLI_STATE_DIR: join(runDir, 'operator'), LIWAN_REPOSITORY_ROOT: sourceRoot }
   let workerEnv = controlEnv
   let mailOrigin
+  let signInvitationAccept
   if (commercial) {
     const name = `${project}-mail`
     const mailImage = command('mailpit-image', 'docker', ['image', 'inspect', '--format', '{{.Id}}', 'axllent/mailpit:latest'])
@@ -212,13 +217,32 @@ try {
     record('private invitation effect certificate created', command('effect-certificate', 'openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes',
       '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1']).ok)
     chmodSync(key, 0o600)
+    const customerIssuer = 'foundation-customer'
+    const customerServiceKey = secret()
     Object.assign(controlEnv, {
       LIWAN_PAYMENT_PROVIDER: 'simulator', LIWAN_PAYMENT_RETURN_ORIGINS: `https://*.${domainSuffix}`,
       LIWAN_PAYMENT_PROSPECT_ORIGIN: `https://app.${domainSuffix}`, INTERNAL_EFFECT_KEY: secret(),
+      CUSTOMER_COMMERCIAL_ISSUER: customerIssuer, CUSTOMER_COMMERCIAL_SERVICE_KEY: customerServiceKey,
     })
+    signInvitationAccept = tenantId => ({
+      'x-liwan-tenant': tenantId,
+      'x-liwan-client-ip': '127.0.0.1',
+      ...signServiceRequest({
+        method: 'POST',
+        path: '/v1/invitations/accept',
+        body: `liwan-invitation-accept:${tenantId}\n127.0.0.1\n`,
+        actor: 'anonymous',
+        anonymous: true,
+        issuer: customerIssuer,
+        key: customerServiceKey,
+      }),
+    })
+    const backupPassphrase = join(runDir, 'backup.passphrase')
+    writePrivate(backupPassphrase, `${secret()}\n`)
     workerEnv = { ...controlEnv, INTERNAL_EFFECT_HOST: '127.0.0.1', INTERNAL_EFFECT_PORT: String(effectPort),
       INTERNAL_EFFECT_TLS_CERT: cert, INTERNAL_EFFECT_TLS_KEY: key, LIWAN_MAIL_SMTP_HOST: '127.0.0.1',
-      LIWAN_MAIL_SMTP_PORT: publishedPort(2525), LIWAN_MAIL_FROM: 'notifications@foundation.test', LIWAN_MAIL_REQUIRE_TLS: 'false' }
+      LIWAN_MAIL_SMTP_PORT: publishedPort(2525), LIWAN_MAIL_FROM: foundationMailFrom, LIWAN_MAIL_REQUIRE_TLS: 'false',
+      LIWAN_BACKUP_PASSPHRASE_FILE: backupPassphrase }
     Object.assign(controlEnv, { INTERNAL_EFFECT_URL: `https://127.0.0.1:${effectPort}`, INTERNAL_EFFECT_CA: cert })
   }
   const api = startProcess('control-api', 'npm', ['-w', 'apps/control-plane', 'run', 'dev'], controlEnv)
@@ -261,7 +285,8 @@ try {
   const imported = admin(['catalog-import', version, 'Foundation acceptance catalog'])
   const catalogId = imported.stdout.trim().split('\n').at(-1)
   record('catalog imported', imported.ok && /^[0-9a-f-]{36}$/.test(catalogId))
-  for (const action of ['validate', 'publish']) { await stepUp(); record(`catalog ${action}`, (await send(`/v1/catalog/${catalogId}/${action}`, { body: { reason: 'Foundation acceptance catalog' } })).status === 200) }
+  await stepUp()
+  record('catalog publish', (await send(`/v1/catalog/${catalogId}/publish`, { body: { reason: 'Foundation acceptance catalog' } })).status === 200)
   const ca = compose(['exec', '-T', 'proxy', 'cat', '/data/caddy/pki/authorities/local/root.crt']).stdout
   record('private local CA exported', ca.includes('BEGIN CERTIFICATE'))
   const edge = (host, path, options = {}) => edgeRequest(host, path, { ...options, port: httpsPort, ca })
@@ -277,7 +302,7 @@ try {
       if (!result.ok) throw new Error('commercial order readback failed')
       return JSON.parse(result.stdout)
     }
-    const tenant = await commercialJourney({ send, stepUp, version, readOrder, edge, controlOrigin: `http://127.0.0.1:${controlPort}`, mailOrigin, record })
+    const tenant = await commercialJourney({ send, stepUp, version, readOrder, edge, controlOrigin: `http://127.0.0.1:${controlPort}`, mailOrigin, record, signInvitationAccept })
     tenants.push(tenant)
     record('isolated restore services healthy', compose(['up', '--detach', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '300', 'restore-db', 'restore-odoo']).ok)
     const restoreRequest = (...args) => {

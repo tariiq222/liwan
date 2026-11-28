@@ -24,10 +24,14 @@ const REJECTED_TTL_MS = 5_000
 // The default assumes two Odoo HTTP workers: one stays available for verified application
 // work even while an unknown session probe stalls. Raise it only below the worker count.
 const MAX_CHECKS = readBoundedInteger(process.env, { name: 'NUXT_SESSION_CHECK_CONCURRENCY', fallback: 1, min: 1, max: 16 })
+// Cold Odoo workers load the tenant registry on their first request (~2s for the full addon
+// set), so the probe budget stays above that cold-start cost while bounded at the ordinary
+// upstream deadline so a stalled probe cannot hold the lane indefinitely.
+const PROBE_TIMEOUT_MS = readBoundedInteger(process.env, { name: 'NUXT_SESSION_CHECK_TIMEOUT_MS', fallback: 5_000, min: 1_000, max: 15_000 })
 // Probes beyond the lane wait in a bounded FIFO queue instead of failing at once, so
 // concurrent honest re-validations and a forged-cookie flood cannot starve each other.
 const MAX_WAITERS = 32
-const WAIT_MS = 2_000
+const WAIT_MS = PROBE_TIMEOUT_MS
 // Requests that may await one shared probe, the first included. Each holds a socket and a
 // partially buffered upload, so the coalesced probe window must not retain an unbounded number.
 const MAX_CONSUMERS_PER_PROBE = 16
@@ -148,7 +152,7 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
           })
         })
         const cancel = () => { request.destroy(); finish('timeout') }
-        const timer = setTimeout(cancel, 2000)
+        const timer = setTimeout(cancel, PROBE_TIMEOUT_MS)
         request.on('error', () => finish('unavailable'))
         request.end()
       })

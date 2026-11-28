@@ -17,7 +17,7 @@ const requireStatus = (response, status, description) => {
   return response.body
 }
 
-export async function commercialJourney({ send, stepUp, version, readOrder, edge, controlOrigin, mailOrigin, record }) {
+export async function commercialJourney({ send, stepUp, version, readOrder, edge, controlOrigin, mailOrigin, record, signInvitationAccept }) {
   const request = (path, body) => send(`/v1/commercial${path}`, { body })
   await stepUp()
   const release = requireStatus(await request('/catalog/releases', { catalog_version: version, reason }), 201, 'catalog release')
@@ -79,17 +79,17 @@ export async function commercialJourney({ send, stepUp, version, readOrder, edge
   }, 'first administrator invitation')
   const message = await fetch(new URL(`/api/v1/message/${mail.ID}`, mailOrigin), { signal: AbortSignal.timeout(3000) })
   assert.equal(message.status, 200)
-  const invitationLink = (await message.json()).Text.match(/https:\/\/[^\s<>]+\/invite\/accept\?token=[A-Za-z0-9_-]+/u)?.[0]
+  const invitationLink = (await message.json()).Text.match(/https:\/\/[^\s<>]+\/invite\/accept#token=[A-Za-z0-9_-]+/u)?.[0]
   assert.ok(invitationLink, 'captured invitation contains an acceptance link')
   const url = new URL(invitationLink)
   assert.equal(url.origin, `https://${active.host}`)
-  const token = url.searchParams.get('token')
+  const token = new URLSearchParams(url.hash.slice(1)).get('token')
   assert.ok(token)
   record('SMTP capture received the real invitation to the new tenant', true)
 
   const password = `Acceptance-${randomBytes(24).toString('hex')}`
   const accept = () => fetch(new URL('/v1/invitations/accept', controlOrigin), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, password }),
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...signInvitationAccept(active.tenant_id) }, body: JSON.stringify({ token, password }),
     signal: AbortSignal.timeout(230000),
   })
   assert.equal((await accept()).status, 200, 'accept invitation via the public control endpoint')
