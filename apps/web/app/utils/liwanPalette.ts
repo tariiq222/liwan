@@ -55,6 +55,7 @@ export const APP_TILES = {
   finance: { light: '#1f8a5b', dark: '#34b07a', action: '#166c47' },
   appointments: { light: '#8bb513', dark: '#9fca2a', action: '#557309' },
   helpdesk: { light: '#0e808c', dark: '#2a9aa8', action: '#0b6470' },
+  telephony: { light: '#8b46d9', dark: '#a66ef0', action: '#6b2eb8' },
 } as const
 
 /** Status badge text, kept apart from the indicator colour (dot, ring, soft fill): >= 4.5:1 on its own soft fill. */
