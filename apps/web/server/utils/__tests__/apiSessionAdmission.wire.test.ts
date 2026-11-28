@@ -173,6 +173,7 @@ it('rejects only the waiter beyond the bounded queue and leaks no lane state', a
 })
 
 it('answers 429 to a waiter whose wait expires and removes it from the queue', async () => {
+  vi.stubEnv('NUXT_SESSION_CHECK_TIMEOUT_MS', '1000')
   const wire = await fixture()
   const pending: Array<Promise<Response>> = []
   try {
@@ -183,8 +184,8 @@ it('answers 429 to a waiter whose wait expires and removes it from the queue', a
     await vi.waitFor(() => expect(wire.entered).toBe(2))
     const expired = wire.call('forged-c')
     pending.push(expired)
-    // The first probe hits its own 2s deadline, which was armed before forged-b queued, and
-    // hands the lane to forged-b; forged-c then waits its full 2s behind that probe and is rejected.
+    // The first probe hits its own 1s deadline, which was armed before forged-b queued, and
+    // hands the lane to forged-b; forged-c then waits its full 1s behind that probe and is rejected.
     const response = await expired
     expect(response.status).toBe(429)
     expect(ApiErrorSchema.parse((await response.json()).data)).toEqual(busyBody)
@@ -338,9 +339,40 @@ it('keeps as many verified sessions as the configured cache size and evicts the 
   } finally { await wire.close() }
 })
 
+it('allows a cold probe longer than two seconds within the default timeout', async () => {
+  const wire = await fixture()
+  try {
+    wire.hold()
+    const call = wire.call('verified-cold')
+    await vi.waitFor(() => expect(wire.held).toHaveLength(1))
+    await new Promise(resolve => setTimeout(resolve, 2_200))
+    wire.release()
+    const response = await call
+    expect([response.status, await response.text()]).toEqual([200, 'application'])
+    expect(wire.probes).toEqual(['session_id=verified-cold'])
+  } finally { await wire.close() }
+}, 10_000)
+
+it('fails a stalled probe with 503 without retrying once the configured timeout expires', async () => {
+  vi.stubEnv('NUXT_SESSION_CHECK_TIMEOUT_MS', '1000')
+  const wire = await fixture()
+  try {
+    wire.hold()
+    const response = await wire.call('verified-stalled')
+    expect(response.status).toBe(503)
+    expect(ApiErrorSchema.parse((await response.json()).data)).toEqual({
+      code: 'session_validation_unavailable',
+      message: 'Session validation is temporarily unavailable.',
+    })
+    expect(wire.probes).toEqual(['session_id=verified-stalled'])
+  } finally { await wire.close() }
+}, 10_000)
+
 it.each([
   ['NUXT_SESSION_CHECK_CACHE_SIZE', '63', '64 to 65536'], ['NUXT_SESSION_CHECK_CACHE_SIZE', '65537', '64 to 65536'],
   ['NUXT_SESSION_CHECK_CONCURRENCY', '0', '1 to 16'], ['NUXT_SESSION_CHECK_CONCURRENCY', '17', '1 to 16'], ['NUXT_SESSION_CHECK_CONCURRENCY', '-1', '1 to 16'],
+  ['NUXT_SESSION_CHECK_TIMEOUT_MS', '999', '1000 to 15000'], ['NUXT_SESSION_CHECK_TIMEOUT_MS', '15001', '1000 to 15000'], ['NUXT_SESSION_CHECK_TIMEOUT_MS', '1500.5', '1000 to 15000'],
+  ['NUXT_SESSION_CHECK_TIMEOUT_MS', 'five', '1000 to 15000'],
   ['NUXT_SESSION_CHECK_TTL_MS', '999', '1000 to 60000'], ['NUXT_SESSION_CHECK_TTL_MS', '60001', '1000 to 60000'], ['NUXT_SESSION_CHECK_TTL_MS', '1500.5', '1000 to 60000'],
   ['NUXT_SESSION_CHECK_TTL_MS', 'fifteen', '1000 to 60000'],
 ] as const)('refuses to load with %s set to "%s"', async (name, value, range) => {
