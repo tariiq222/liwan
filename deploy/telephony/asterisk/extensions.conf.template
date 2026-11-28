@@ -127,7 +127,8 @@ exten => s,1,NoOp(Inbound call from ${CALLERID(num)} to ${ARG1})
 ; record never carries a stale announcement. The file is named by the channel's linkedid, the call key every event is
 ; matched on (design 4.4, 4.5), read with CHANNEL(linkedid): there is no plain linkedid channel variable. The recorder
 ; starts before `Dial` so the file exists under the linkedid as recording begins and the recorder runs before the legs
-; bridge, missing no audio; `b` captures bridged audio only, so ringback is absent and a missed call records nothing.
+; bridge, missing no audio; `b` captures bridged audio only, so ringback is absent. Whether a call that is never answered
+; leaves a file, and whether that file is empty, is not verified here: the live acceptance run settles it (README).
 [record-call]
 exten => s,1,Set(RECORDING_ANNOUNCE_OPTION=)
  same => n,GotoIf($["${REALTIME(liwan_recording_config,1,policy)}"!="always"]?done)

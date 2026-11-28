@@ -103,7 +103,9 @@ The policy is not an environment value and not a rendered global: it is the one 
   `Dial` in the dialplan appends it to its timeout, so Asterisk plays the prompt to the party that answers. The
   recording starts before `Dial` so the file exists under the call's linkedid from the moment recording begins and the
   recorder runs when the legs bridge; `MixMonitor` with `b` records bridged audio only, so ringback is not in the file,
-  and a `Playback` at that point would reach the caller only. The sound is named by
+  and a `Playback` at that point would reach the caller only. Whether a call that is never answered leaves a file, and
+  whether that file is empty, is not verified here: the live acceptance run settles it by calling an unregistered
+  extension while the policy is `always` (step 6 under "Test with Linphone"). The sound is named by
   `LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND`; Asterisk ships no "being recorded" prompt, so install the company's prompt
   under `/var/lib/asterisk/sounds` in the `<company>-telephony-asterisk-state` volume, and leave the setting off
   until it is there.
@@ -242,6 +244,12 @@ port and RTP block published, which is why the acceptance env sets `MODE_B_DEVIC
    called party before the bridge, so the `b` option may leave it out of the WAV; the audio file proves the call, and
    103's ear proves the notice. A `Playback` before `Dial` would play the prompt before the called channel answered,
    when only the caller could hear it.
+6. **A call that is never answered.** With the policy `always`, call 102 from 101 while 102 is unregistered: the
+   endpoint exists, so `[internal]` runs `[record-call]` and `Dial` then ends with no answer, which is the case the
+   dialplan comment leaves open. Look in `.../telephony_recordings/monitor/` for the file named by that call's
+   `linkedid`: it must be absent, or present and clearly larger than a WAV header. The agent reports any file it finds
+   as `available`, so a few-kilobyte header-only file is the defect this step exists to catch. Record what you see;
+   an empty directory and a header-only file are different outcomes, and both settle the comment.
 
 ### Test with the test page
 
