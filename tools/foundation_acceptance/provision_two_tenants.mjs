@@ -105,6 +105,9 @@ try {
   const { signServiceRequest } = await import(pathToFileURL(join(sourceRoot, 'packages/commercial-contracts/src/server.ts')).href)
   const dbPassword = secret()
   const mailAlias = 'odoo-mail'
+  // The one sender of both mail legs: the control-plane worker's SMTP below, and Odoo's own `email_from` through the
+  // stack's `ODOO_MAIL_SENDER`. Odoo composes no sign-in code while that is unset; the capture accepts any sender.
+  const foundationMailFrom = 'notifications@foundation.test'
   const controlDbPassword = secret()
   // The stack runs as the one stack definition: stack_render.py renders it from deploy/environments/local.env.example plus
   // the harness values below, and `docker compose config` resolves it into compose.yml for the control plane.
@@ -148,6 +151,7 @@ try {
     ...(commercial ? {
       LIWAN_RESTORE_ODOO_CONFIG: restoreOdooConfig,
       LIWAN_RESTORE_ALLOW: 'private_ranges 127.0.0.1 ::1',
+      ODOO_MAIL_SENDER: foundationMailFrom,
     } : {}),
     LIWAN_EDGE_BIND: '127.0.0.1', LIWAN_EDGE_HTTPS_PORT: String(httpsPort), LIWAN_EDGE_HTTP_PORT: String(httpPort),
     FOUNDATION_CONTROL_DB_PASSWORD: controlDbPassword, FOUNDATION_CONTROL_DB_PORT: String(controlDbPort),
@@ -237,7 +241,7 @@ try {
     writePrivate(backupPassphrase, `${secret()}\n`)
     workerEnv = { ...controlEnv, INTERNAL_EFFECT_HOST: '127.0.0.1', INTERNAL_EFFECT_PORT: String(effectPort),
       INTERNAL_EFFECT_TLS_CERT: cert, INTERNAL_EFFECT_TLS_KEY: key, LIWAN_MAIL_SMTP_HOST: '127.0.0.1',
-      LIWAN_MAIL_SMTP_PORT: publishedPort(2525), LIWAN_MAIL_FROM: 'notifications@foundation.test', LIWAN_MAIL_REQUIRE_TLS: 'false',
+      LIWAN_MAIL_SMTP_PORT: publishedPort(2525), LIWAN_MAIL_FROM: foundationMailFrom, LIWAN_MAIL_REQUIRE_TLS: 'false',
       LIWAN_BACKUP_PASSPHRASE_FILE: backupPassphrase }
     Object.assign(controlEnv, { INTERNAL_EFFECT_URL: `https://127.0.0.1:${effectPort}`, INTERNAL_EFFECT_CA: cert })
   }
