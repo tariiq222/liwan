@@ -715,9 +715,17 @@ class AsteriskShape(unittest.TestCase):
         self.assertNotIn('RECORDING_POLICY', extensions)
         self.assertNotIn('on_demand', extensions)
         self.assertNotIn('RECORDING_REQUESTED', extensions)
-        # Fail closed: only `always` records, so an empty lookup falls to done.
-        self.assertIn('GotoIf($["${REALTIME(liwan_recording_config,1,policy)}"!="always"]?done)', block)
-        announced = block.index('REALTIME(liwan_recording_config,1,announce)')
+        # Fail closed: only `always` records, so an empty lookup falls to done. Each field is one single-field read,
+        # REALTIME_FIELD(family,fieldmatch,matchvalue,fieldname) (Asterisk 22), matched on the row's fixed id:
+        # REALTIME() returns delimited name/value pairs on a read and cannot answer this check.
+        self.assertIn('GotoIf($["${REALTIME_FIELD(liwan_recording_config,id,1,policy)}"!="always"]?done)', block)
+        self.assertIn('GotoIf($["${REALTIME_FIELD(liwan_recording_config,id,1,announce)}"!="t"]?start)', block)
+        self.assertEqual(
+            ['REALTIME_FIELD(liwan_recording_config,id,1,policy)',
+             'REALTIME_FIELD(liwan_recording_config,id,1,announce)'],
+            re.findall(r'REALTIME\w*\([^)]*\)', block),
+        )
+        announced = block.index('REALTIME_FIELD(liwan_recording_config,id,1,announce)')
         option = block.index('Set(RECORDING_ANNOUNCE_OPTION=,A(${RECORDING_ANNOUNCE_SOUND}))')
         monitor = block.index('MixMonitor(${RECORDINGS_DIR}/${CHANNEL(linkedid)}.wav,b)')
         # The announcement option comes from the announce lookup, and the recorder still starts before `Dial`.
@@ -726,7 +734,7 @@ class AsteriskShape(unittest.TestCase):
         # Nothing is played into an unanswered channel, and no stale option survives into an unrecorded call.
         self.assertNotIn('Playback(', block)
         cleared = block.index('Set(RECORDING_ANNOUNCE_OPTION=)')
-        policy = block.index('REALTIME(liwan_recording_config,1,policy)')
+        policy = block.index('REALTIME_FIELD(liwan_recording_config,id,1,policy)')
         self.assertLess(cleared, policy)
         self.assertIn('RECORDING_ANNOUNCE_SOUND=liwan-recording-announcement', extensions)
 

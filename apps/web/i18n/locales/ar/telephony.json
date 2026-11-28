@@ -65,7 +65,7 @@
       "recordingPolicyOff": "بلا تسجيل",
       "recordingPolicyOffHint": "لا تُسجَّل المكالمات في أي شركة.",
       "recordingAnnouncement": "تنبيه التسجيل",
-      "recordingAnnouncementHint": "يسمع من يجيب على المكالمة تنبيه التسجيل فور ردّه، في كل الشركات.",
+      "recordingAnnouncementHint": "يسمع من يجيب على المكالمة تنبيه التسجيل بعد ردّه، فقط عندما تكون السياسة «تسجيل دائم».",
       "recordingRetentionDays": "مدة الحفظ (أيام)",
       "recordingRetentionDaysHint": "من يوم إلى 3650 يومًا؛ يحذف الوكيل التسجيل بعد هذه المدة في كل الشركات.",
       "recordingForbidden": "لا يغيّر سياسة التسجيل إلا مدير الشركة الرئيسية، لأنها تسري على كل شركات قاعدة البيانات."

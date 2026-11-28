@@ -1,6 +1,6 @@
 ; Rendered by deploy/telephony/render.py from the company's env file (company {{COMPANY_ID}}).
-; Maps the realtime tables named in sorcery.conf, and the recording config row the dialplan reads with REALTIME(),
-; to the PostgreSQL connection in res_pgsql.conf.
+; Maps the realtime tables named in sorcery.conf, and the recording config row the dialplan reads field by field
+; with REALTIME_FIELD(), to the PostgreSQL connection in res_pgsql.conf.
 
 [settings]
 ps_endpoints => pgsql,telephony_pbx,ps_endpoints

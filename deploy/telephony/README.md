@@ -87,11 +87,22 @@ Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pi
 ## Recording policy and retention
 
 The policy is not an environment value and not a rendered global: it is the one row of `liwan_recording_config` in
-`pbx-db`, which the dialplan reads through extconfig on every call (`REALTIME(liwan_recording_config,1,policy)`).
+`pbx-db`, which the dialplan reads through extconfig on every call. Each value is one single-field read,
+`REALTIME_FIELD(liwan_recording_config,id,1,policy)` and `...announce`, matched on the row's fixed `id`: `REALTIME()`
+answers delimited name/value pairs on a read, so it cannot be compared to `always`. These lookups were proved on a
+pinned Asterisk 22.11 with the pinned PostgreSQL 16 on a private local network, not on a company package: the rendered
+dialplan loaded as it is (`core show dialplan record-call` shows the two `REALTIME_FIELD` reads), the extconfig read
+returned the seeded row (`1|off|t`), and one synthetic call per case settled the four outcomes — the seeded `off` row
+records nothing and plays no notice, `always` with `announce = t` writes one non-empty WAV and plays the notice to the
+answering leg only, `always` with `announce = f` writes the same WAV and plays nothing, and a deleted row records
+nothing (fail closed). What that proof does not cover: real SIP/WebRTC legs (the calls were synthetic `Local/` channels
+on a test-only config copy), the package running as production uid `10002` with its full Compose file, and whether a
+call that is never answered leaves a file — steps 1–6 under "Test with Linphone" are what settle those.
 
-- **Who writes it.** `pbx-agent` on `PUT /recording/config`, which Odoo calls when a manager of the root company saves
-  Settings > Applications > Telephony > Recording. The policy is one per Odoo database, so every company's calls in
-  that database follow it, and a manager of another company is refused (403). The fixed `id = 1` makes every push an
+- **Who writes it.** `pbx-agent` on `PUT /recording/config`, which Odoo calls when a manager saves Settings >
+  Applications > Telephony > Recording. The policy is one per Odoo database, so every company's calls in that database
+  follow it, and it belongs to the managers of the root company: the session must work in the root company and hold
+  `telephony.manage` there, and a capability held only in a branch is refused (403). The fixed `id = 1` makes every push an
   update, so the table cannot hold a second, contradicting policy, and Odoo's `liwan.telephony.settings` row is the
   record of what the manager chose.
 - **What it means.** `always` records both legs of a bridged call with `MixMonitor`; `off` records nothing. The lookup
@@ -99,22 +110,30 @@ The policy is not an environment value and not a rendered global: it is the one 
   without a configured policy. The seed row is `off`, which is why a package whose policy was never set records
   nothing.
 - **The announcement.** `announce` is the database's second setting, a PostgreSQL boolean whose realtime value is `t`
-  or `f`. When it is true, `[record-call]` sets `RECORDING_ANNOUNCE_OPTION` to Dial's `A(<sound>)` argument and every
-  `Dial` in the dialplan appends it to its timeout, so Asterisk plays the prompt to the party that answers. The
-  recording starts before `Dial` so the file exists under the call's linkedid from the moment recording begins and the
-  recorder runs when the legs bridge; `MixMonitor` with `b` records bridged audio only, so ringback is not in the file,
-  and a `Playback` at that point would reach the caller only. Whether a call that is never answered leaves a file, and
-  whether that file is empty, is not verified here: the live acceptance run settles it by calling an unregistered
-  extension while the policy is `always` (step 6 under "Test with Linphone"). The sound is named by
-  `LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND`; Asterisk ships no "being recorded" prompt, so install the company's prompt
-  under `/var/lib/asterisk/sounds` in the `<company>-telephony-asterisk-state` volume, and leave the setting off
-  until it is there.
+  or `f`. It only has an effect on a recorded call: when the policy is `always` and `announce` is `t`, `[record-call]`
+  sets `RECORDING_ANNOUNCE_OPTION` to Dial's `A(<sound>)` argument and every `Dial` in the dialplan appends it to its
+  timeout, so Asterisk plays the prompt to the party that answers, after it answers; with the policy `off` nothing is
+  played. The recording starts before `Dial` so the file exists under the call's linkedid from the moment recording
+  begins and the recorder runs when the legs bridge; `MixMonitor` with `b` records bridged audio only, so ringback is not in the file,
+  and a `Playback` at that point would reach the caller only. **The prompt is not shipped, and no default exists:** the
+  pinned image contains no stock sounds at all (the proof above used a synthetic `beep` file it created itself), so
+  name the company's prompt with `LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND`, install it under
+  `/var/lib/asterisk/sounds` in the `<company>-telephony-asterisk-state` volume, and leave the setting off until it is
+  there; with the setting on and no file, `A()` has nothing to play. Whether a call that is never answered leaves a
+  file, and whether that file is empty, is not verified: the live run settles it by calling an unregistered extension
+  while the policy is `always` (step 6 under "Test with Linphone").
 - **Retention.** The database's `recording_retention_days` (1 to 3650 days) is enforced by Odoo, not by a timer here:
   a daily `liwan.telephony.cron` run asks `pbx-agent` to delete the recordings of every company's calls past their
   window, one bounded batch per request, and marks `recording_state = expired` exactly the calls the agent reported
-  `deleted` or `missing`. The agent skips a call its ARI stream observed within the last 12 hours, and that set is
-  cleared on every stream reconnect, so the skip is bounded: a live call is not cut, and a lost end event cannot pin
-  a batch forever. Odoo asks again on the next run. A recording the agent still holds stays `available` and is logged.
+  `deleted` or `missing`. The recording's timestamp is the call's end; a finished call with no end time falls back to
+  the row's creation, never to a guess. The agent skips a call its ARI stream observed within the last 12 hours. That
+  set is the stream's memory of what it saw, never a fact about Asterisk, and every reconnect empties it: the skip
+  protects an *observed* live call, not any live call, so a call the stream has lost sight of can be deleted and the
+  loss costs at most one window instead of pinning retention forever. Odoo asks again on the next run. A call id the
+  agent's own call-id rule refuses is logged and skipped, and the batch it was selected in still runs — but the batch
+  is selected before that filter, so refused rows occupy its slots: enough of them can fill a batch and delay the rows
+  behind them to the next run. A recording the agent still holds stays `available` and is logged, and a batch asked
+  without a configured agent (or with the settings row missing) stays untouched and is never reported expired.
 - **No CDR copy.** `asterisk/modules.conf` (rendered from `asterisk/modules.conf.template`) replaces the one the image
   ships, so it keeps `autoload=yes` and adds a `noload` line per module this package must not load: `cdr_csv.so` (CEL
   and the agent's event queue are this package's call-record source, and the CSV CDR backend would only write a
@@ -210,9 +229,10 @@ Collect these before the first start. Anything missing below is a hard stop for 
    check `logrotate -d` on it (Docker's data root may not be `/var/lib/docker`). Without it the CSV grows without a cap;
    reconciliation still works, the file just keeps growing.
 7. **Recording.** A fresh package records nothing: the seeded policy is `off`. In Settings > Applications > Telephony >
-   Recording set the policy (and, if wanted, the announcement and the retention in days) with `telephony.manage`, and
-   make sure the package's agent URL and keys are already configured in Odoo — a save with no configured agent keeps
-   the setting and only logs that the push did not happen. For the announcement, put the prompt under
+   Recording set the policy (and, if wanted, the announcement and the retention in days) with `telephony.manage` of the
+   root company, and make sure the package's agent URL and keys are already configured in Odoo: with no configured
+   agent the save keeps the setting and pushes nothing to the pbx, and a failed push is a logged warning that does not
+   undo the save, so the setting alone does not prove the dialplan received it. For the announcement, put the prompt under
    `/var/lib/asterisk/sounds` in the `<company>-telephony-asterisk-state` volume under the name
    `LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND` before turning it on; nothing ships a "being recorded" file.
 

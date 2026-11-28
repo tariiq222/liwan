@@ -161,9 +161,10 @@ Two siblings of the link share its signature and its one-row contract with Odoo 
   the previous policy until the next save pushes the row again.
 - **`POST /recordings/delete`** (`{"database", "linkedids"}`) unlinks `<linkedid>.wav` for each call, through the same
   name rule and containment check the signed link uses, so a traversal, a symlink out and a directory named like a
-  recording delete nothing. It never deletes under a live call: a `linkedid` the stream observed within the last 12
-  hours (`LIVE_LEG_WINDOW_SECONDS`) is left alone and appears in neither list, because its file may still be written
-  and Odoo must keep serving it. That set is the stream's memory of what it saw, not a fact about Asterisk, so it is
+  recording delete nothing. It deletes nothing under a call the stream still observes: a `linkedid` it saw within the
+  last 12 hours (`LIVE_LEG_WINDOW_SECONDS`) is left alone and appears in neither list, because its file may still be
+  written and Odoo must keep serving it. That protection is bounded observation, not a guarantee: a call whose events
+  the stream missed, or any call across a reconnect, is not protected until the stream sees it again. That set is the stream's memory of what it saw, not a fact about Asterisk, so it is
   bounded both ways: an entry the stream has not proven active for 12 hours is dropped, and every established ARI
   connection empties the whole set, because each end event the outage swallowed is missing from it. A lost end event
   therefore costs retention one window, logged once per call (`live leg expired: call ...` on `pbx_agent.ingest`),
@@ -335,13 +336,21 @@ The ARI client keeps only what the agent uses: the event stream, reachability, a
 writes and the recording-policy row go directly to `pbx-db` through `pbx_db.py`, verified offline against a fake
 transactional connection.
 
-Not verified, and open until the phase-1 gate in the design (section 13): a real Asterisk. That includes which ARI
-events the package's dialplan actually produces (the spec allows falling back to AMI for the missing ones), that the
-event URL with `app=pbx-agent` is accepted, that the package writes comma-quoted CEL rows, the ARI health probe,
-that a MixMonitor file is closed by the time its channel's end event reaches the agent (the recording-ready event is
-sent on that ordering), streaming a real MixMonitor file, that `REALTIME()` returns the policy row the dialplan
-expects, and the Odoo side of each contract, which `liwan_telephony` implements and which no real call has exercised
-yet.
+Verified once against an isolated stack, not against a company package: a pinned Asterisk 22.11 with the pinned
+PostgreSQL 16 on a private local network loaded the rendered dialplan unchanged, its extconfig read returned the
+seeded `liwan_recording_config` row, and one synthetic `Local/` call per case proved the four outcomes — seeded `off`
+records nothing and plays no notice, `always` with `announce = t` writes one non-empty WAV and plays the notice to the
+answering leg only, `always` with `announce = f` writes the same WAV and plays nothing, and an absent row records
+nothing. `REALTIME_FIELD()` therefore answers the two fields the dialplan compares against.
+
+Still not verified, and open until the phase-1 gate in the design (section 13): real SIP and WebRTC legs (that proof
+used synthetic `Local/` channels and a test-only config copy), the package running as production uid `10002` with its
+full Compose file, whether a call that is never answered leaves a file, which ARI events the package's dialplan
+actually produces (the spec allows falling back to AMI for the missing ones), that the event URL with
+`app=pbx-agent` is accepted, that the package writes comma-quoted CEL rows, the ARI health probe, that a MixMonitor
+file is closed by the time its channel's end event reaches the agent (the recording-ready event is sent on that
+ordering), streaming a real MixMonitor file, and the Odoo side of each contract, which `liwan_telephony` implements and
+which no real call has exercised yet.
 
 ## Decisions (where the spec is silent)
 

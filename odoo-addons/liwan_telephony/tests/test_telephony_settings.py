@@ -306,10 +306,15 @@ class TestTelephonySettingsMigration(TransactionCase):
             'linkedid': '1764300000.1', 'direction': 'in', 'state': 'ringing',
         })
         self.env.cr.execute("UPDATE liwan_telephony_call SET recording_state = 'pending' WHERE id = %s", [call.id])
+        # The raw write bypasses the cache, which still holds the state ``create`` put there; drop it, otherwise the
+        # migration's write of ``none`` matches the cached value and is filtered out as a no-op.
+        call.invalidate_recordset(['recording_state'])
         migration = load_migration('post-reset-pending-recording-state')
         migration.migrate(self.env.cr, False)
         self.assertEqual(self.stored_recording_state(call), 'pending')
         migration.migrate(self.env.cr, PER_COMPANY_VERSION)
+        # The migration writes through the ORM, which defers the UPDATE to its flush; read the column only after it.
+        self.env['liwan.telephony.call'].flush_model(['recording_state'])
         self.assertEqual(self.stored_recording_state(call), 'none')
 
     def stored_recording_state(self, call):
