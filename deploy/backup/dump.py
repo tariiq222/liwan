@@ -36,7 +36,6 @@ DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
 PG_USER_RE = re.compile(r'[A-Za-z0-9_]+')
 # A command a database container runs: a bare name on its PATH or an absolute path inside it.
 CONTAINER_COMMAND_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.-]*$')
-CONTAINER_OUTPUT_TARGETS = ('-', '/dev/stdout', '/dev/stderr')
 PG_DUMP_COMMAND = 'pg_dump'
 
 
@@ -72,21 +71,11 @@ def validate_container_command(name: str | None) -> str:
     return command
 
 
-def validate_container_output(target: str) -> str:
-    """Where a container writes the archive: a stream the caller copies back, or a path inside it."""
-    if target in CONTAINER_OUTPUT_TARGETS:
-        return target
-    out = Path(target)
-    require(out.is_absolute(), 'pg_dump output path must be absolute')
-    require('..' not in out.parts, 'pg_dump output path must not traverse')
-    return str(out)
-
-
 def build_pg_dump_argv(
     *,
     pg_dump: str | None = None,
     db_name: str,
-    output_file: str,
+    output_file: str | None = None,
     pg_host: str | None = None,
     pg_port: str | None = None,
     pg_user: str | None = None,
@@ -96,21 +85,25 @@ def build_pg_dump_argv(
 
     ``container=True`` builds the same archive command for a process inside the database
     container: the command is a bare name on that container's ``PATH`` (or an absolute path
-    inside it, and it may be omitted), so it need not exist on the machine building the argv,
-    and the output may be ``-``/``/dev/stdout``/``/dev/stderr`` because the caller streams it
-    back. The host form is unchanged: an existing local binary and an absolute output file.
+    inside it, and it may be omitted), so it need not exist on the machine building the argv.
+    It streams the archive to stdout without ``-f`` and refuses any ``output_file``. The host
+    form requires an existing local binary and an absolute output file.
     """
     if container:
         dump_command = validate_container_command(pg_dump)
-        out = validate_container_output(output_file)
+        require(output_file is None, 'container pg_dump streams to stdout; omit output_file')
+        out = None
     else:
         require(pg_dump is not None, 'pg_dump is required')
         dump_command = str(validate_existing_file(pg_dump, what='pg_dump'))
+        require(bool(output_file), 'pg_dump output file is required')
         out_path = Path(output_file)
         require(out_path.is_absolute(), 'pg_dump output path must be absolute')
         out = str(out_path)
     db = validate_db_name(db_name)
-    argv = [dump_command, '-Fc', '--serializable-deferrable', '--no-password', '-d', db, '-f', out]
+    argv = [dump_command, '-Fc', '--serializable-deferrable', '--no-password', '-d', db]
+    if out is not None:
+        argv.extend(['-f', out])
     if pg_host:
         argv.extend(['-h', pg_host])
     if pg_port:
