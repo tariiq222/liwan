@@ -36,7 +36,7 @@ company keys; the shared side derives them (12.6) and they reach this host as va
 | `/extensions/{extension}` | DELETE | private (Odoo) | Disables an extension and deletes its PJSIP `endpoint`, `aor`, and `auth` objects |
 | `/recordings/link` | POST | private (Odoo) | Mints a short-lived signed recording URL with bounded clock tolerance |
 | `/recording/config` | PUT | private (Odoo) | Writes the company's recording policy row (`always`/`off` plus the announcement flag) that the dialplan reads through Asterisk realtime; answers `{"applied": true}` |
-| `/recordings/delete` | POST | private (Odoo) | Deletes the recordings of up to 500 calls by `linkedid`, skipping a call the stream still has a leg of, and answers `{"deleted": [...], "missing": [...]}` |
+| `/recordings/delete` | POST | private (Odoo) | Deletes the recordings of up to 500 calls by `linkedid`, skipping a call the stream observed within the last 12 hours, and answers `{"deleted": [...], "missing": [...]}` |
 
 Caddy exposes only `/pbx/recordings/<token>` (GET) and the Asterisk WebSocket path to the internet; `/health` and the
 seven Odoo routes are reachable only on the private network.
@@ -161,11 +161,16 @@ Two siblings of the link share its signature and its one-row contract with Odoo 
   the previous policy until the next save pushes the row again.
 - **`POST /recordings/delete`** (`{"database", "linkedids"}`) unlinks `<linkedid>.wav` for each call, through the same
   name rule and containment check the signed link uses, so a traversal, a symlink out and a directory named like a
-  recording delete nothing. It never deletes under a live call: a `linkedid` the event stream still has a leg of is
-  left alone and appears in neither list, because its file is still being written and Odoo must keep serving it. Each
-  other id is `deleted`, or `missing` when there is no file — which a repeat of the same request reports again instead
-  of failing. A list over the cap (500) or a name outside the call-id rule answers `422`, and any other OS error
-  propagates so Odoo retries instead of being told a kept file is gone.
+  recording delete nothing. It never deletes under a live call: a `linkedid` the stream observed within the last 12
+  hours (`LIVE_LEG_WINDOW_SECONDS`) is left alone and appears in neither list, because its file may still be written
+  and Odoo must keep serving it. That set is the stream's memory of what it saw, not a fact about Asterisk, so it is
+  bounded both ways: an entry the stream has not proven active for 12 hours is dropped, and every established ARI
+  connection empties the whole set, because each end event the outage swallowed is missing from it. A lost end event
+  therefore costs retention one window, logged once per call (`live leg expired: call ...` on `pbx_agent.ingest`),
+  instead of pinning the oldest retention batch and stopping retention for the company. Each other id is `deleted`, or
+  `missing` when there is no file — which a repeat of the same request reports again instead of failing. A list over
+  the cap (500) or a name outside the call-id rule answers `422`, and any other OS error propagates so Odoo retries
+  instead of being told a kept file is gone.
 
 ## Configuration
 
@@ -313,10 +318,12 @@ The tests cover the configuration gate, the event signature bytes and the shared
 recording config push (signature, another company's database, strict body, one row under a repeat push, a failed write
 answering 502) and recording deletion (signature, strict and capped body, the file removed once and reported `missing`
 afterwards, a live call left alone, a name outside the call-id rule refused, a missing file reported without an
-error), queue idempotency and per-request timestamps, backoff, pruning, transport failures (timeout, broken HTTP
-answer, refused connection), the ARI event URL, the ARI mapping, CEL parsing with quoted and unquoted comma rows, the
-reconciliation pass including a call split across two passes, a call whose end event was lost, a leg that just
-ended and a leg past the six-hour bound, and the health report.
+error), the live-leg window (a leg live up to the last second of the 12 hours, an entry past it dropped and logged
+once, an event refreshing an entry but never creating one, a second leg keeping the call live, a reconnect clearing
+the set and a leg seen after it live again), queue idempotency and per-request timestamps, backoff, pruning,
+transport failures (timeout, broken HTTP answer, refused connection), the ARI event URL, the ARI mapping, CEL
+parsing with quoted and unquoted comma rows, the reconciliation pass including a call split across two passes, a
+call whose end event was lost, a leg that just ended and a leg past the six-hour bound, and the health report.
 
 ## Verified, and not verified
 

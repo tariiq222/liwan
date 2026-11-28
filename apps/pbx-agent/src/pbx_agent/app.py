@@ -76,6 +76,7 @@ def create_app(
         database=settings.database,
         inbound_context=settings.inbound_context,
         recordings_dir=settings.recordings_dir,
+        clock=clock,
     )
     reconciler = Reconciler(
         queue,
@@ -96,6 +97,7 @@ def create_app(
         url=events_url(settings.ari_url, settings.ari_username, settings.ari_password),
         on_event=on_event,
         state=state,
+        on_connect=stream.stream_connected,
     )
 
     @asynccontextmanager

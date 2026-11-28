@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pbx_agent.app import create_app  # noqa: E402
 from pbx_agent.ari import AriClient  # noqa: E402
-from pbx_agent.ingest import AriIngest  # noqa: E402
+from pbx_agent.ingest import LIVE_LEG_WINDOW_SECONDS, AriIngest  # noqa: E402
 from pbx_agent.queue import EventQueue  # noqa: E402
 from pbx_agent.settings import Settings  # noqa: E402
 from pbx_agent.signing import (  # noqa: E402
@@ -415,6 +415,7 @@ class RecordingRoutesTest(unittest.TestCase):
             database="liwan_acme",
             inbound_context="from-trunk",
             recordings_dir=self.settings.recordings_dir,
+            clock=lambda: self.now,
         )
         stack = contextlib.ExitStack()
         self.addCleanup(stack.close)
@@ -548,6 +549,17 @@ class RecordingRoutesTest(unittest.TestCase):
         # Once the call has no leg left, the next request deletes the file.
         self.ingest.handle(channel_event("ChannelDestroyed", "1764049999.1"), now=self.now)
         self.assertEqual(self.delete(["1764049999.1"]).json(), {"deleted": ["1764049999.1"], "missing": []})
+        self.assertFalse(file.exists())
+
+    def test_delete_removes_the_recording_of_a_call_whose_leg_went_stale(self) -> None:
+        """A leg whose end event was lost must not pin the recording forever; past the window the call is dead."""
+        file = self.recording("1764049999.1")
+        self.ingest.handle(channel_event("ChannelCreated", "1764049999.1"), now=self.now)
+        self.assertEqual(self.delete(["1764049999.1"]).json(), {"deleted": [], "missing": []})
+        self.now += LIVE_LEG_WINDOW_SECONDS
+        answer = self.delete(["1764049999.1"], timestamp=int(self.now))
+        self.assertEqual(answer.status_code, 200, answer.text)
+        self.assertEqual(answer.json(), {"deleted": ["1764049999.1"], "missing": []})
         self.assertFalse(file.exists())
 
     def test_delete_refuses_a_name_outside_the_call_id_rule(self) -> None:
