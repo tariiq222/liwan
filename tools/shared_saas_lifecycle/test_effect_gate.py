@@ -723,7 +723,8 @@ class RequestSchemaTests(unittest.TestCase):
 
     def test_subscription_compiler_version_refuses_invalid_labels_and_types(self):
         for value in ('../x', 'a/..', 'commercial-compiler/..', '/commercial-compiler/5',
-                      'commercial-compiler/', 'commercial-compiler/5/extra', 'a\\b', 'a\x00b',
+                      'commercial-compiler/', 'commercial-compiler/5/extra', 'a//b',
+                      '-a', '_a', '.a', 'a\\b', 'a\x00b',
                       'a\nb', 'a\rb', 'a\tb', 'a\x1fb', 'a\x7fb',
                       '', '.', '..', 'a' * 65, -1, True, False, None, 1.0, 1.5,
                       'commercial-compiler/٥', schema.MAX_SAFE_INTEGER + 1):
