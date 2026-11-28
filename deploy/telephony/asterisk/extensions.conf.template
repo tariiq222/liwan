@@ -126,8 +126,8 @@ exten => s,1,NoOp(Inbound call from ${CALLERID(num)} to ${ARG1})
 ; party has answered, so only the caller would hear it. The option is cleared first, so a call this context does not
 ; record never carries a stale announcement. The file is named by the channel's linkedid, the call key every event is
 ; matched on (design 4.4, 4.5), read with CHANNEL(linkedid): there is no plain linkedid channel variable. The recorder
-; starts before `Dial` on purpose, so ringback and both legs of the bridged call are captured; the `b` option records
-; only while the call is bridged, so a missed call leaves no recording.
+; starts before `Dial` so the file exists under the linkedid as recording begins and the recorder runs before the legs
+; bridge, missing no audio; `b` captures bridged audio only, so ringback is absent and a missed call records nothing.
 [record-call]
 exten => s,1,Set(RECORDING_ANNOUNCE_OPTION=)
  same => n,GotoIf($["${REALTIME(liwan_recording_config,1,policy)}"!="always"]?done)
