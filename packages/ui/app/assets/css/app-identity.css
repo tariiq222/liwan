@@ -15,6 +15,7 @@
   --liwan-app-finance: #1f8a5b;
   --liwan-app-appointments: #8bb513;
   --liwan-app-helpdesk: #0e808c;
+  --liwan-app-telephony: #8b46d9;
   --liwan-app-crm-action: #2f62c9;
   --liwan-app-inbox-action: #15803d;
   --liwan-app-projects-action: #3d47b8;
@@ -22,6 +23,7 @@
   --liwan-app-finance-action: #166c47;
   --liwan-app-appointments-action: #557309;
   --liwan-app-helpdesk-action: #0b6470;
+  --liwan-app-telephony-action: #6b2eb8;
 }
 .dark {
   --liwan-ink: #f3f3f6;
@@ -33,6 +35,7 @@
   --liwan-app-finance: #34b07a;
   --liwan-app-appointments: #9fca2a;
   --liwan-app-helpdesk: #2a9aa8;
+  --liwan-app-telephony: #a66ef0;
 }
 
 [data-app="crm"] { --app-tile: var(--liwan-app-crm); --app-action: var(--liwan-app-crm-action); }
@@ -42,9 +45,10 @@
 [data-app="finance"] { --app-tile: var(--liwan-app-finance); --app-action: var(--liwan-app-finance-action); }
 [data-app="appointments"] { --app-tile: var(--liwan-app-appointments); --app-action: var(--liwan-app-appointments-action); }
 [data-app="helpdesk"] { --app-tile: var(--liwan-app-helpdesk); --app-action: var(--liwan-app-helpdesk-action); }
+[data-app="telephony"] { --app-tile: var(--liwan-app-telephony); --app-action: var(--liwan-app-telephony-action); }
 
 /* A paid application repaints the whole solid-primary family (buttons, create action, selected fills) in its button shade. */
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) {
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"], [data-app="telephony"]) {
   --app-tile-fg: #fff;
   --primary-solid: var(--app-action);
   --primary-solid-hover: color-mix(in srgb, var(--app-action) 86%, black);
@@ -67,13 +71,13 @@
   --ring: var(--app-accent);
   --chart-1: var(--app-accent);
 }
-:is(.dark, .dark *):is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) {
+:is(.dark, .dark *):is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"], [data-app="telephony"]) {
   --app-accent: var(--app-tile);
   --app-accent-text: color-mix(in srgb, var(--app-tile) 75%, white);
 }
 /* The primary progress bar and the keyboard focus outline take the application colour. */
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) [role="progressbar"] > [data-slot="indicator"].bg-primary { background-color: var(--app-accent); }
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) :focus-visible { outline-color: var(--app-accent); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"], [data-app="telephony"]) [role="progressbar"] > [data-slot="indicator"].bg-primary { background-color: var(--app-accent); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"], [data-app="telephony"]) :focus-visible { outline-color: var(--app-accent); }
 
 /* Shell tiles and tiles with their own app id choose a colour independently of the page.
    The paid app selectors outrank this default when the tile has a paid id. */
@@ -94,8 +98,8 @@
 }
 
 /* Settings and filters inside a paid application: an «on» toggle and the chosen segment take the application colour. */
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) button[role="switch"][data-state="checked"] { background-color: var(--app-accent); }
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) [data-slot="segmented-control"] [aria-pressed="true"] { color: var(--app-accent-text); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"], [data-app="telephony"]) button[role="switch"][data-state="checked"] { background-color: var(--app-accent); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"], [data-app="telephony"]) [data-slot="segmented-control"] [aria-pressed="true"] { color: var(--app-accent-text); }
 
 /* Global shell chrome (account menu) keeps Liwan ink regardless of the open application. */
 .approved-account-menu {

@@ -2,8 +2,8 @@ import type { AppManifest } from '../types'
 
 /**
  * The telephony application's web surface. Everything here is data: the shell discovers this file, so no navigation
- * or `nuxt.config.ts` change is needed (web-rules). `telephony.use` gates the call log; the settings page has one part,
- * the extensions, and it needs `telephony.manage`.
+ * or `nuxt.config.ts` change is needed (web-rules). `telephony.use` gates the call log; the settings page has two parts,
+ * the extensions and the recording settings, and both need `telephony.manage`.
  */
 const manifest: AppManifest = {
   id: 'telephony',
@@ -30,6 +30,7 @@ const manifest: AppManifest = {
     to: '/settings/apps/telephony',
     parts: [
       { id: 'extensions', labelKey: 'telephony.settings.extensions', icon: 'i-lucide-headset', capability: 'telephony.manage' },
+      { id: 'recording', labelKey: 'telephony.settings.recording', icon: 'i-lucide-mic', capability: 'telephony.manage' },
     ],
   },
 }

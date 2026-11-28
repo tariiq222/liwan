@@ -12,7 +12,7 @@ from pbx_agent.delivery import Delivery  # noqa: E402
 from pbx_agent.events import ari_call_event, iso_utc  # noqa: E402
 from pbx_agent.ingest import AriIngest  # noqa: E402
 from pbx_agent.queue import EventQueue  # noqa: E402
-from pbx_agent.recordings import announce_recording, recording_path  # noqa: E402
+from pbx_agent.recordings import announce_recording, delete_recording, recording_path  # noqa: E402
 from pbx_agent.signing import EVENT_SIGNATURE_HEADER, EVENT_TIMESTAMP_HEADER, event_signature  # noqa: E402
 
 KEY = bytes.fromhex("ab" * 32)
@@ -89,6 +89,47 @@ class RecordingPathTest(unittest.TestCase):
 
     def test_a_non_string_is_refused(self) -> None:
         self.assertIsNone(recording_path(self.root, None))
+
+
+class DeleteRecordingTest(unittest.TestCase):
+    """Deleting one call's recording through the same name rule and directory containment as serving it."""
+
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name) / "recordings"
+        self.root.mkdir()
+
+    def test_deleting_removes_only_that_call_file(self) -> None:
+        file = self.root / "1700000000.42.wav"
+        file.write_bytes(b"RIFF")
+        kept = self.root / "1700000000.43.wav"
+        kept.write_bytes(b"RIFF")
+        self.assertTrue(delete_recording(self.root, "1700000000.42"))
+        self.assertFalse(file.exists())
+        self.assertTrue(kept.exists())
+
+    def test_a_missing_file_is_not_deleted_and_is_not_an_error(self) -> None:
+        self.assertFalse(delete_recording(self.root, "1700000000.99"))
+
+    def test_a_traversal_attempt_deletes_nothing(self) -> None:
+        outside = Path(self.temporary.name) / "secret.wav"
+        outside.write_bytes(b"secret")
+        for call_id in ("../secret", "../../etc/passwd", "/etc/passwd", "a/b", ""):
+            self.assertFalse(delete_recording(self.root, call_id), call_id)
+        self.assertTrue(outside.exists())
+
+    def test_a_symlink_leaving_the_directory_is_refused(self) -> None:
+        outside = Path(self.temporary.name) / "outside.wav"
+        outside.write_bytes(b"secret")
+        (self.root / "1700000000.42.wav").symlink_to(outside)
+        self.assertFalse(delete_recording(self.root, "1700000000.42"))
+        self.assertTrue(outside.exists())
+
+    def test_a_directory_named_like_a_recording_is_refused(self) -> None:
+        (self.root / "1700000000.42.wav").mkdir()
+        self.assertFalse(delete_recording(self.root, "1700000000.42"))
+        self.assertTrue((self.root / "1700000000.42.wav").is_dir())
 
 
 class QueueCase(unittest.TestCase):

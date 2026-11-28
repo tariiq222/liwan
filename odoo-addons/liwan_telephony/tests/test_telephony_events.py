@@ -261,6 +261,32 @@ class TestTelephonyEvents(LiwanTelephonyEventsCase):
         self.assertEqual((call.state, call.recording_state), ('ended', 'available'))
         self.assertEqual(self.env['liwan.telephony.event'].search_count([('linkedid', '=', '1764050000.9')]), 2)
 
+    def test_a_ready_event_never_resurrects_an_expired_recording(self):
+        """The retention run deleted the file: a retried or reconciled ready event leaves the row expired, so the
+        recording route keeps answering not-found instead of minting a link to a file that is gone."""
+        set_feature(self, RECORDING_FEATURE)
+        self.post_event(self.make_envelope('rec-20', linkedid='1764050000.20', state='ended', recording='ready'))
+        call = self.call_of('1764050000.20')
+        call.recording_state = 'expired'
+        self.post_event(self.make_envelope('rec-21', linkedid='1764050000.20', state='ended', recording='ready'))
+        self.assertEqual((call.state, call.recording_state), ('ended', 'expired'))
+        # The call's own ladder keeps its guard in the same write: a late ringing event never reopens it.
+        self.post_event(self.make_envelope(
+            'rec-22', linkedid='1764050000.20', state='ringing', recording='ready', answered_at=None,
+        ))
+        refreshed = self.call_of('1764050000.20')
+        self.assertEqual((refreshed.state, refreshed.recording_state), ('ended', 'expired'))
+        self.authenticate('telephony_manager', MANAGER_PASSWORD)
+        refused = self.api('GET', f'{CALLS}/{call.id}/recording')
+        self.assertEqual((refused.status_code, refused.json()['code']), (404, 'not_found'))
+
+    def test_a_repeated_ready_event_keeps_an_available_recording_available(self):
+        """A retried or reconciled ready event of a call the retention run has not expired writes the same value."""
+        self.post_event(self.make_envelope('rec-30', linkedid='1764050000.30', state='ended', recording='ready'))
+        self.post_event(self.make_envelope('rec-31', linkedid='1764050000.30', state='ended', recording='ready'))
+        call = self.call_of('1764050000.30')
+        self.assertEqual((call.state, call.recording_state), ('ended', 'available'))
+
     def test_every_bad_proof_header_answers_403_without_a_traceback(self):
         good = self.event_headers(self.make_envelope('bad-1'))
         cases = [
@@ -334,6 +360,16 @@ class TestTelephonyEvents(LiwanTelephonyEventsCase):
         )
         self.assertEqual(raw.status_code, 400)
         self.assertFalse(self.env['liwan.telephony.event'].search([('event_id', '=', 'x')]))
+
+    def test_a_linkedid_outside_the_agents_call_id_rule_answers_422_and_stores_nothing(self):
+        """The agent refuses a whole recording delete for one call id outside its own rule, so such an id would
+        block every retention run from then on: it is refused on arrival, by the same rule."""
+        base = self.make_envelope('bad-linkedid')
+        for linkedid in ('1764 000/1', 'call#1', 'a/b', 'x' * 129, ' 1764.1'):
+            result = self.post_event({**base, 'call': {**base['call'], 'linkedid': linkedid}})
+            self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'), linkedid)
+            self.assertEqual(result.json()['field'], 'linkedid', linkedid)
+            self.assertFalse(self.call_of(linkedid))
 
     def test_concurrent_duplicate_event_receipt_returns_already_applied(self):
         # Pre-seed the receipt and hide it from the pre-check (simulating a REPEATABLE READ race) so PostgreSQL

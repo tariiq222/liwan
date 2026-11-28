@@ -122,7 +122,11 @@ class ConnectionState:
 
 
 class AriListener:
-    """The ARI event WebSocket: parsed events out, reconnecting with backoff, until the stop event is set."""
+    """The ARI event WebSocket: parsed events out, reconnecting with backoff, until the stop event is set.
+
+    ``on_connect`` runs once per connection, before its events: the stream starts a new view of the calls, and every
+    end event the outage swallowed is missing from what it saw before.
+    """
 
     def __init__(
         self,
@@ -131,11 +135,13 @@ class AriListener:
         on_event: Callable[[dict], None],
         state: ConnectionState,
         connect: Callable[[str], object] | None = None,
+        on_connect: Callable[[], None] | None = None,
     ) -> None:
         self._url = url
         self._on_event = on_event
         self._state = state
         self._connect = connect or _default_connect
+        self._on_connect = on_connect
 
     def run_forever(self, stop: threading.Event) -> None:
         delay = RECONNECT_MIN_SECONDS
@@ -153,6 +159,8 @@ class AriListener:
     def _session(self, stop: threading.Event) -> None:
         with self._connect(self._url) as socket:
             self._state.set(True)
+            if self._on_connect is not None:
+                self._on_connect()
             while not stop.is_set():
                 try:
                     message = socket.recv(timeout=RECEIVE_TIMEOUT_SECONDS)

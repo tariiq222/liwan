@@ -1,7 +1,9 @@
 ; Rendered by deploy/telephony/render.py from the company's env file (company {{COMPANY_ID}}).
-; Maps the PJSIP realtime tables named in sorcery.conf to the PostgreSQL connection in res_pgsql.conf.
+; Maps the realtime tables named in sorcery.conf, and the recording config row the dialplan reads as one record
+; with REALTIME_HASH(), to the PostgreSQL connection in res_pgsql.conf.
 
 [settings]
 ps_endpoints => pgsql,telephony_pbx,ps_endpoints
 ps_auths => pgsql,telephony_pbx,ps_auths
 ps_aors => pgsql,telephony_pbx,ps_aors
+liwan_recording_config => pgsql,telephony_pbx,liwan_recording_config

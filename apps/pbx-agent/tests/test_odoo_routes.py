@@ -11,6 +11,7 @@ import contextlib
 import hashlib
 import hmac
 import json
+import logging
 import sys
 import tempfile
 import unittest
@@ -25,6 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pbx_agent.app import create_app  # noqa: E402
 from pbx_agent.ari import AriClient  # noqa: E402
+from pbx_agent.ingest import LIVE_LEG_WINDOW_SECONDS, AriIngest  # noqa: E402
+from pbx_agent.queue import EventQueue  # noqa: E402
 from pbx_agent.settings import Settings  # noqa: E402
 from pbx_agent.signing import (  # noqa: E402
     DATABASE_HEADER,
@@ -373,6 +376,204 @@ class RoutesTest(unittest.TestCase):
         with TestClient(create_app(self.settings, AriClient(silent), pbx_store=FakePbxStore())) as client:
             self.assertFalse(client.get("/health").json()["ari"]["reachable"])
         self.assertEqual(silent.requests, [AriRequest("GET", "/asterisk/info", None, None)])
+
+
+def channel_event(kind: str, linkedid: str) -> dict:
+    """One ARI channel event of a call: the channel's own id, and the call's linkedid."""
+    return {
+        "type": kind,
+        "timestamp": "2026-11-25T09:01:00.000+0000",
+        "channel": {
+            "id": f"{linkedid}.1",
+            "linkedid": linkedid,
+            "name": f"PJSIP/{linkedid}.1",
+            "state": "Up",
+            "caller": {"number": "+966500000000"},
+            "connected": {"number": "1001"},
+            "dialplan": {"context": "from-trunk", "exten": "1001"},
+        },
+    }
+
+
+class RecordingRoutesTest(unittest.TestCase):
+    """The recording policy push and the recording deletion Odoo calls (design 4.4)."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        patcher = mock.patch("pbx_agent.app.AriListener.run_forever", side_effect=lambda stop: stop.wait())
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.root = Path(self.tmp.name)
+        self.now = float(NOW)
+        self.settings = make_settings(self.root)
+        self.store = FakePbxStore()
+        ingest_queue = EventQueue(self.root / "ingest.sqlite3")
+        self.addCleanup(ingest_queue.close)
+        self.ingest = AriIngest(
+            ingest_queue,
+            database="liwan_acme",
+            inbound_context="from-trunk",
+            recordings_dir=self.settings.recordings_dir,
+            clock=lambda: self.now,
+        )
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        app = create_app(self.settings, AriClient(FakeAri()), pbx_store=self.store, ingest=self.ingest, clock=lambda: self.now)
+        self.client = stack.enter_context(TestClient(app))
+
+    def recording(self, linkedid: str) -> Path:
+        path = self.settings.recordings_dir / f"{linkedid}.wav"
+        path.write_bytes(b"RIFF")
+        return path
+
+    def config(self, **overrides) -> dict:
+        payload = {"database": "liwan_acme", "policy": "always", "announce": True, **overrides}
+        return signed_request(self.client, "PUT", "/recording/config", payload=payload)
+
+    def delete(self, linkedids, **kwargs):
+        payload = {"database": "liwan_acme", "linkedids": list(linkedids)}
+        return signed_request(self.client, "POST", "/recordings/delete", payload=payload, **kwargs)
+
+    def raw_request(self, method: str, path: str, payload: dict, *, signed_method: str | None = None, signed_path: str | None = None):
+        """Send a body signed as if it were another method or path, keeping the sent method and path."""
+        raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        headers = reverse_headers(
+            KEY,
+            method=signed_method or method,
+            path=signed_path or path,
+            body=raw,
+            database="liwan_acme",
+            timestamp=NOW,
+        )
+        headers["Content-Type"] = "application/json"
+        return self.client.request(method, path, content=raw, headers=headers)
+
+    def test_config_route_requires_a_reverse_signed_request(self) -> None:
+        payload = {"database": "liwan_acme", "policy": "always", "announce": True}
+        self.assertEqual(self.client.put("/recording/config", json=payload).status_code, 401)
+        self.assertEqual(self.config().status_code, 200)
+        self.assertEqual(signed_request(self.client, "PUT", "/recording/config", payload=payload, key=OTHER).status_code, 401)
+        self.assertEqual(signed_request(self.client, "PUT", "/recording/config", payload=payload, timestamp=NOW - 301).status_code, 401)
+        self.assertEqual(signed_request(self.client, "PUT", "/recording/config", payload=payload, timestamp=NOW + 301).status_code, 401)
+        # The method and the path are inside the signature: a body signed as a POST or for another route is refused.
+        self.assertEqual(self.raw_request("PUT", "/recording/config", payload, signed_method="POST").status_code, 401)
+        self.assertEqual(self.raw_request("PUT", "/recording/config", payload, signed_path="/recordings/link").status_code, 401)
+
+    def test_config_route_refuses_another_company_database(self) -> None:
+        payload = {"database": "liwan_acme", "policy": "always", "announce": True}
+        self.assertEqual(signed_request(self.client, "PUT", "/recording/config", payload=payload, database="liwan_other").status_code, 403)
+        self.assertEqual(
+            signed_request(self.client, "PUT", "/recording/config", payload={**payload, "database": "liwan_other"}).status_code,
+            403,
+        )
+        self.assertEqual(self.store.calls, [])
+
+    def test_config_body_is_strict(self) -> None:
+        self.assertEqual(self.config(extra="x").status_code, 422)
+        self.assertEqual(self.config(policy="sometimes").status_code, 422)
+        self.assertEqual(self.config(policy=None).status_code, 422)
+        self.assertEqual(self.config(announce="yes").status_code, 422)
+        self.assertEqual(self.config(announce=1).status_code, 422)
+        # A database that is not this company's answers 403 like every other route; a non-string is a schema error.
+        self.assertEqual(self.config(database="").status_code, 403)
+        self.assertEqual(self.config(database=None).status_code, 422)
+        self.assertEqual(self.store.calls, [])
+
+    def test_config_upsert_twice_keeps_the_single_row(self) -> None:
+        first = self.config()
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(first.json(), {"applied": True})
+        second = self.config(policy="off", announce=False)
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(second.json(), {"applied": True})
+        self.assertEqual(self.store.recording_config, {1: {"policy": "off", "announce": False}})
+        self.assertEqual([name for name, _ in self.store.calls], ["upsert_recording_config", "upsert_recording_config"])
+
+    def test_config_write_failure_answers_502_without_claiming_it_applied(self) -> None:
+        store = FakePbxStore(fail_on={"upsert_recording_config"})
+        app = create_app(self.settings, AriClient(FakeAri()), pbx_store=store, ingest=self.ingest, clock=lambda: self.now)
+        with TestClient(app) as client:
+            payload = {"database": "liwan_acme", "policy": "always", "announce": True}
+            answer = signed_request(client, "PUT", "/recording/config", payload=payload)
+            self.assertEqual(answer.status_code, 502)
+            self.assertNotIn("applied", answer.text)
+
+    def test_delete_route_requires_a_reverse_signed_request_and_the_company_database(self) -> None:
+        payload = {"database": "liwan_acme", "linkedids": ["1764049999.1"]}
+        self.assertEqual(self.client.post("/recordings/delete", json=payload).status_code, 401)
+        self.assertEqual(signed_request(self.client, "POST", "/recordings/delete", payload=payload, key=OTHER).status_code, 401)
+        self.assertEqual(signed_request(self.client, "POST", "/recordings/delete", payload=payload, timestamp=NOW - 301).status_code, 401)
+        # Signed as the other recordings route: the path is inside the signature.
+        self.assertEqual(self.raw_request("POST", "/recordings/delete", payload, signed_path="/recordings/link").status_code, 401)
+        self.assertEqual(signed_request(self.client, "POST", "/recordings/delete", payload=payload, database="liwan_other").status_code, 403)
+        self.assertEqual(
+            signed_request(self.client, "POST", "/recordings/delete", payload={**payload, "database": "liwan_other"}).status_code,
+            403,
+        )
+
+    def test_delete_body_is_strict_and_capped(self) -> None:
+        self.assertEqual(self.delete([]).status_code, 422)
+        self.assertEqual(self.delete(["1764049999.1"] * 501).status_code, 422)
+        extra_key = {"database": "liwan_acme", "linkedids": ["1764049999.1"], "extra": "x"}
+        self.assertEqual(self.raw_request("POST", "/recordings/delete", extra_key).status_code, 422)
+        self.assertEqual(self.delete([123]).status_code, 422)
+        self.assertEqual(self.store.calls, [])
+
+    def test_delete_removes_the_file_it_reports_and_a_second_call_reports_it_missing(self) -> None:
+        first = self.recording("1764049999.1")
+        second = self.recording("1764049999.2")
+        with self.assertLogs("pbx_agent.odoo_routes", level=logging.INFO) as logs:
+            answer = self.delete(["1764049999.1", "1764049999.2", "1764049999.3", "1764049999.1"])
+        self.assertEqual(answer.status_code, 200, answer.text)
+        self.assertEqual(answer.json(), {"deleted": ["1764049999.1", "1764049999.2"], "missing": ["1764049999.3"]})
+        self.assertFalse(first.exists())
+        self.assertFalse(second.exists())
+        # One line per deletion, carrying the call id.
+        deleted_lines = [line for line in logs.output if "1764049999.1" in line or "1764049999.2" in line]
+        self.assertEqual(len(deleted_lines), 2, logs.output)
+        repeat = self.delete(["1764049999.1", "1764049999.2", "1764049999.3"])
+        self.assertEqual(repeat.status_code, 200)
+        self.assertEqual(repeat.json(), {"deleted": [], "missing": ["1764049999.1", "1764049999.2", "1764049999.3"]})
+
+    def test_delete_skips_a_live_call_and_keeps_its_file(self) -> None:
+        file = self.recording("1764049999.1")
+        self.ingest.handle(channel_event("ChannelCreated", "1764049999.1"), now=self.now)
+        with self.assertLogs("pbx_agent.odoo_routes", level=logging.INFO) as logs:
+            answer = self.delete(["1764049999.1"])
+        self.assertEqual(answer.status_code, 200, answer.text)
+        # Neither deleted nor missing: Odoo must leave the recording available.
+        self.assertEqual(answer.json(), {"deleted": [], "missing": []})
+        self.assertTrue(file.exists())
+        self.assertEqual(len([line for line in logs.output if "1764049999.1" in line]), 1, logs.output)
+        # Once the call has no leg left, the next request deletes the file.
+        self.ingest.handle(channel_event("ChannelDestroyed", "1764049999.1"), now=self.now)
+        self.assertEqual(self.delete(["1764049999.1"]).json(), {"deleted": ["1764049999.1"], "missing": []})
+        self.assertFalse(file.exists())
+
+    def test_delete_removes_the_recording_of_a_call_whose_leg_went_stale(self) -> None:
+        """A leg whose end event was lost must not pin the recording forever; past the window the call is dead."""
+        file = self.recording("1764049999.1")
+        self.ingest.handle(channel_event("ChannelCreated", "1764049999.1"), now=self.now)
+        self.assertEqual(self.delete(["1764049999.1"]).json(), {"deleted": [], "missing": []})
+        self.now += LIVE_LEG_WINDOW_SECONDS
+        answer = self.delete(["1764049999.1"], timestamp=int(self.now))
+        self.assertEqual(answer.status_code, 200, answer.text)
+        self.assertEqual(answer.json(), {"deleted": ["1764049999.1"], "missing": []})
+        self.assertFalse(file.exists())
+
+    def test_delete_refuses_a_name_outside_the_call_id_rule(self) -> None:
+        outside = self.settings.recordings_dir.parent / "secret.wav"
+        outside.write_bytes(b"secret")
+        for call_id in ("../secret", "../../etc/passwd", "/etc/passwd", "a/b", "a\\b", "", ".", ".."):
+            self.assertEqual(self.delete([call_id]).status_code, 422, call_id)
+        self.assertTrue(outside.exists())
+        self.assertEqual(list(self.settings.recordings_dir.iterdir()), [])
+
+    def test_delete_reports_a_missing_file_without_an_error(self) -> None:
+        answer = self.delete(["1764049999.1"])
+        self.assertEqual(answer.status_code, 200, answer.text)
+        self.assertEqual(answer.json(), {"deleted": [], "missing": ["1764049999.1"]})
 
 
 if __name__ == "__main__":

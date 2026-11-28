@@ -475,6 +475,50 @@ class TestAuthDocumentation(unittest.TestCase):
             self.operation('mystery')
 
 
+class TestMissingRecord404(unittest.TestCase):
+    """A path with no parameter can still answer 404 when what it addresses is the database's one record."""
+
+    def route(self, handler, methods=('GET', 'PATCH')):
+        return {
+            'docstring': '', 'addon': 'liwan_x', 'controller': 'C', 'handler': handler,
+            'paths': ['/api/v1/x/settings'], 'methods': list(methods), 'auth': 'user', 'http_type': 'json2',
+            'summary': '', 'readonly': False, 'api_handler': True,
+            'feature_keys': [], 'feature_operation': None,
+        }
+
+    def entry(self, routes):
+        return api_surface.build_document(routes, {})['paths']['/api/v1/x/settings']
+
+    def test_a_declared_singleton_documents_404_on_every_method(self):
+        with mock.patch.object(api_surface, 'SINGLETON_RECORD_404', {('liwan_x', 'settings')}):
+            entry = self.entry([self.route('settings')])
+        for method in ('get', 'patch'):
+            self.assertEqual(entry[method]['responses']['404'], {'$ref': '#/components/responses/NotFound'})
+
+    def test_an_undeclared_route_without_a_parameter_documents_no_404(self):
+        """No blanket 404: a route that did not declare a missing record keeps the 200/403/422 answer."""
+        entry = self.entry([self.route('settings')])
+        for method in ('get', 'patch'):
+            self.assertNotIn('404', entry[method]['responses'])
+
+    def test_a_declaration_that_matches_no_route_stops_the_generator(self):
+        """A renamed handler must fail loudly instead of silently dropping the documented answer."""
+        with mock.patch.object(api_surface, 'SINGLETON_RECORD_404', {('liwan_x', 'renamed')}):
+            with self.assertRaises(SystemExit) as raised:
+                api_surface.refuse_stale_singleton_declarations([self.route('settings')])
+        self.assertIn('liwan_x.renamed', str(raised.exception))
+
+    def test_the_declared_handlers_are_all_on_the_extracted_surface(self):
+        api_surface.refuse_stale_singleton_declarations(api_surface.extract_routes())
+
+    def test_the_telephony_settings_routes_document_404_on_get_and_patch(self):
+        """Both methods answer 404 `not_found` when the installed settings row is missing."""
+        document = api_surface.build_document(api_surface.extract_routes(), {})
+        entry = document['paths']['/api/v1/telephony/settings']
+        for method in ('get', 'patch'):
+            self.assertEqual(entry[method]['responses']['404'], {'$ref': '#/components/responses/NotFound'})
+
+
 class NestedPackageTests(unittest.TestCase):
     """A controller module inside a nested area package (spec §8.7) is parsed like a flat one."""
 

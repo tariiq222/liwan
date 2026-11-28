@@ -53,6 +53,8 @@ class FakePbxStore:
         self.auths: dict[str, dict[str, str]] = {}
         self.aors: dict[str, dict[str, object]] = {}
         self.endpoints: dict[str, dict[str, object]] = {}
+        # The dialplan's policy is one row with a fixed id: a second write updates it, never adds another.
+        self.recording_config: dict[int, dict[str, object]] = {}
 
     def _check_failure(self, op: str) -> None:
         if op in self.fail_on:
@@ -141,3 +143,9 @@ class FakePbxStore:
         prefix = f"{extension}_"
         for orphan in [key for key in self.auths if key.startswith(prefix)]:
             del self.auths[orphan]
+
+    def upsert_recording_config(self, *, policy: str, announce: bool) -> None:
+        payload: dict[str, object] = {"policy": policy, "announce": announce}
+        self.calls.append(("upsert_recording_config", payload))
+        self._check_failure("upsert_recording_config")
+        self.recording_config[1] = payload

@@ -25,6 +25,7 @@ EXPECTED = [
     'asterisk/extensions.conf',
     'asterisk/http.conf',
     'asterisk/logger.conf',
+    'asterisk/modules.conf',
     'asterisk/pjsip.conf',
     'asterisk/res_pgsql.conf',
     'asterisk/rtp.conf',
@@ -131,8 +132,7 @@ FIXED = {
     'LIWAN_TELEPHONY_EVENTS_KEY': 'events-key-value',
     'LIWAN_TELEPHONY_REVERSE_KEY': 'reverse-key-value',
     'LIWAN_TELEPHONY_LINE_STATE': 'available',
-    'LIWAN_TELEPHONY_RECORDING_POLICY': 'always',
-    'LIWAN_TELEPHONY_RECORDING_RETENTION_DAYS': '90',
+    'LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND': 'liwan-recording-announcement',
     'LIWAN_TELEPHONY_RECORDINGS_MIN_FREE_BYTES': '536870912',
     'LIWAN_TELEPHONY_RECONCILE_SECONDS': '300',
     'LIWAN_TELEPHONY_UNAVAILABLE_SOUND': 'ss-noservice',
@@ -222,7 +222,7 @@ class RenderedPackage(unittest.TestCase):
                     # The container's non-root Asterisk user reads its configuration; the 0700 directory is the boundary.
                     self.assertEqual(0o644, stat.S_IMODE(path.stat().st_mode), path)
             self.assertEqual(0o700, stat.S_IMODE(out.stat().st_mode))
-            self.assertTrue(stdout.splitlines()[-1].startswith('render: 17 files written to '), stdout)
+            self.assertTrue(stdout.splitlines()[-1].startswith('render: 18 files written to '), stdout)
             self.assertIn('secret-101-value', (out / 'postgres/02-seed.sql').read_text())
             self.assertIn('secret-103-value', (out / 'asterisk/pjsip.conf').read_text())
             self.assertIn('pbx-db-secret-value', (out / 'asterisk/res_pgsql.conf').read_text())
@@ -319,7 +319,7 @@ class RenderedPackage(unittest.TestCase):
             out = Path(directory) / 'package'
             code, stdout, error = run('--env', ENV_EXAMPLE, '--out', out)
             self.assertEqual((0, ''), (code, error))
-            self.assertTrue(stdout.splitlines()[-1].startswith('render: 17 files written to '))
+            self.assertTrue(stdout.splitlines()[-1].startswith('render: 18 files written to '))
 
     def test_pbx_db_password_refuses_missing_and_non_uri_safe_characters_without_leaking(self):
         lacking = {name: value for name, value in FIXED.items() if name != 'LIWAN_TELEPHONY_PBX_DB_PASSWORD'}
@@ -404,6 +404,37 @@ class RenderedPackage(unittest.TestCase):
                                      Path(directory) / 'package')
                 self.assertEqual(1, code)
                 self.assertIn(expected_name, error)
+
+    def test_the_removed_recording_keys_are_ignored_and_leave_no_trace(self):
+        """The policy and the retention period are company settings now. An env file that still carries them renders,
+        and neither the keys nor their values reach a rendered file: the renderer validates only what it writes."""
+        legacy = {**FIXED, 'LIWAN_TELEPHONY_RECORDING_POLICY': 'on_demand',
+                  'LIWAN_TELEPHONY_RECORDING_RETENTION_DAYS': 'not-a-number'}
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory) / 'package'
+            code, _, error = run('--env', write_env(directory, legacy), '--out', out)
+            self.assertEqual((0, ''), (code, error))
+            texts = [path.read_text() for path in out.rglob('*') if path.is_file() and path.suffix != '.html']
+        for text in texts:
+            self.assertNotIn('RECORDING_POLICY', text)
+            self.assertNotIn('RECORDING_RETENTION_DAYS', text)
+            self.assertNotIn('on_demand', text)
+
+    def test_the_announcement_sound_is_required_and_validated_like_its_sibling(self):
+        lacking = {name: value for name, value in FIXED.items()
+                   if name != 'LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND'}
+        with tempfile.TemporaryDirectory() as directory:
+            code, _, error = run('--env', write_env(directory, lacking), '--out', Path(directory) / 'package')
+            self.assertEqual(1, code)
+            self.assertIn('LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND', error)
+        for bad in ('a sound with spaces', 'prompt; not-a-sound'):
+            with self.subTest(bad=bad), tempfile.TemporaryDirectory() as directory:
+                code, _, error = run(
+                    '--env', write_env(directory, {**FIXED, 'LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND': bad}),
+                    '--out', Path(directory) / 'package',
+                )
+                self.assertEqual(1, code)
+                self.assertIn('LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND', error)
 
 
 class ComposeShape(unittest.TestCase):
@@ -656,11 +687,9 @@ class AsteriskShape(unittest.TestCase):
             self.assertNotIn('[trunk-registration]', address)
             self.assertIn('external_signaling_address=192.0.2.10', address)
 
-    def test_the_dialplan_records_by_linkedid_under_the_policy_and_answers_a_moving_line(self):
+    def test_the_dialplan_records_by_linkedid_under_the_company_policy_and_answers_a_moving_line(self):
         with tempfile.TemporaryDirectory() as directory:
-            extensions = (self.rendered(directory, LIWAN_TELEPHONY_RECORDING_POLICY='on_demand')
-                          / 'asterisk/extensions.conf').read_text()
-        self.assertIn('RECORDING_POLICY=on_demand', extensions)
+            extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
         self.assertIn('MixMonitor(${RECORDINGS_DIR}/${CHANNEL(linkedid)}.wav,b)', extensions)
         # `${linkedid}` is not an Asterisk variable; every recording would land in one file called `.wav`.
         self.assertNotIn('${linkedid}', extensions)
@@ -672,7 +701,55 @@ class AsteriskShape(unittest.TestCase):
             'GotoIf($["${DEVICE_STATE(PJSIP/${EXTEN})}"!="INVALID"]?internal,${EXTEN},1:check-length)',
             extensions,
         )
-        self.assertIn('Dial(PJSIP/${DIAL_NUMBER}@trunk,60)', extensions)
+        self.assertIn('Dial(PJSIP/${DIAL_NUMBER}@trunk,60${RECORDING_ANNOUNCE_OPTION})', extensions)
+
+    def test_the_recording_policy_is_one_row_read_and_the_announcement_reaches_the_party_that_answers(self):
+        """The policy is the company's one row in pbx-db, read once per call. REALTIME_HASH() is one
+        ast_load_realtime_all() of that record (Asterisk 22 func_realtime.c), and HASH() exposes the fields of that one
+        snapshot, so policy and announce always come from the same read. Both are validated before anything is
+        recorded: only `always` records, and only `t` or `f` is a readable announce. The announcement cannot be a
+        `Playback` here: this context runs before `Dial`, when the called channel has not answered, so only the caller
+        would hear it. It travels as Dial's `A()` option, which Asterisk plays to the called party once the call is
+        answered."""
+        with tempfile.TemporaryDirectory() as directory:
+            extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
+        block = extensions.split('\n[record-call]\n', 1)[1].split('\n[line-unavailable]\n', 1)[0]
+        self.assertNotIn('RECORDING_POLICY', extensions)
+        self.assertNotIn('on_demand', extensions)
+        self.assertNotIn('RECORDING_REQUESTED', extensions)
+        self.assertNotIn('REALTIME_FIELD', extensions)
+        # Exactly one realtime read of the one row, and it is the native hash form that returns every field at once.
+        self.assertEqual(['REALTIME_HASH(liwan_recording_config,id,1)'], re.findall(r'REALTIME\w*\([^)]*\)', block))
+        self.assertIn('Set(HASH(RECORDING_CONFIG)=${REALTIME_HASH(liwan_recording_config,id,1)})', block)
+        # Both fields are validated before anything is recorded: only `always` records, and only `t` or `f` is a
+        # readable announce, so neither a missing row nor an unknown value can be taken as an intentional no-notice.
+        self.assertIn('GotoIf($["${HASH(RECORDING_CONFIG,policy)}"!="always"]?done)', block)
+        self.assertIn('GotoIf($["${HASH(RECORDING_CONFIG,announce)}"="f"]?start)', block)
+        self.assertIn('GotoIf($["${HASH(RECORDING_CONFIG,announce)}"!="t"]?done)', block)
+        # ClearHash before the read: a repeat on the same channel must not answer from the previous row's keys.
+        self.assertLess(block.index('ClearHash(RECORDING_CONFIG)'), block.index('REALTIME_HASH('))
+        announced = block.index('HASH(RECORDING_CONFIG,announce)')
+        option = block.index('Set(RECORDING_ANNOUNCE_OPTION=,A(${RECORDING_ANNOUNCE_SOUND}))')
+        monitor = block.index('MixMonitor(${RECORDINGS_DIR}/${CHANNEL(linkedid)}.wav,b)')
+        # The announcement option comes from the announce field, and the recorder still starts before `Dial`.
+        self.assertLess(announced, option)
+        self.assertLess(option, monitor)
+        # Nothing is played into an unanswered channel, and no stale option survives into an unrecorded call.
+        self.assertNotIn('Playback(', block)
+        self.assertLess(block.index('Set(RECORDING_ANNOUNCE_OPTION=)'), block.index('HASH(RECORDING_CONFIG,policy)'))
+        self.assertIn('RECORDING_ANNOUNCE_SOUND=liwan-recording-announcement', extensions)
+
+    def test_every_dial_call_site_carries_the_recording_announcement_option(self):
+        """Every context that records calls plays the announcement to the answering party through the option that
+        `[record-call]` sets, so a new `Dial` that drops the variable silently loses the consent notice."""
+        with tempfile.TemporaryDirectory() as directory:
+            extensions = (self.rendered(directory) / 'asterisk/extensions.conf').read_text()
+        dials = [line for line in extensions.splitlines() if 'Dial(PJSIP/' in line]
+        self.assertEqual(3, len(dials), dials)
+        for line in dials:
+            with self.subTest(line=line):
+                self.assertRegex(line, r',\d+\$\{RECORDING_ANNOUNCE_OPTION\}\)$')
+                self.assertNotIn('A(', line)
 
     def test_from_extension_never_routes_short_offline_extensions_to_outbound_and_uses_fail_closed_guards(self):
         """An offline/unregistered short extension (2-6 digits, e.g. 102 or 911) must play line-unavailable and never
@@ -701,15 +778,17 @@ class AsteriskShape(unittest.TestCase):
         internal = extensions.split('\n[internal]\n', 1)[1].split('\n[outbound]\n', 1)[0]
         self.assertIn('exten => _X.,1,GotoIf($["${FILTER(0-9,${EXTEN})}"="${EXTEN}"]?allow:reject)', internal)
         self.assertIn('same => n(allow),NoOp(Internal call from ${CALLERID(num)} to ${EXTEN})', internal)
-        self.assertLess(internal.index('FILTER(0-9,${EXTEN})'), internal.index('Dial(PJSIP/${EXTEN},30)'))
+        self.assertLess(internal.index('FILTER(0-9,${EXTEN})'),
+                        internal.index('Dial(PJSIP/${EXTEN},30${RECORDING_ANNOUNCE_OPTION})'))
         self.assertIn('Set(__TRANSFER_CONTEXT=from-extension)', internal)
         dial_outbound = extensions.split('\n[dial-outbound]\n', 1)[1].split('\n[from-trunk]\n', 1)[0]
         self.assertIn('Set(__TRANSFER_CONTEXT=from-extension)', dial_outbound)
         self.assertLess(dial_outbound.index('__TRANSFER_CONTEXT=from-extension'),
-                        dial_outbound.index('Dial(PJSIP/${DIAL_NUMBER}@trunk,60)'))
+                        dial_outbound.index('Dial(PJSIP/${DIAL_NUMBER}@trunk,60${RECORDING_ANNOUNCE_OPTION})'))
         inbound = extensions.split('\n[inbound-call]\n', 1)[1].split('\n[record-call]\n', 1)[0]
         self.assertIn('Set(__TRANSFER_CONTEXT=from-extension)', inbound)
-        self.assertLess(inbound.index('__TRANSFER_CONTEXT=from-extension'), inbound.index('Dial(PJSIP/101,30)'))
+        self.assertLess(inbound.index('__TRANSFER_CONTEXT=from-extension'),
+                        inbound.index('Dial(PJSIP/101,30${RECORDING_ANNOUNCE_OPTION})'))
 
     def test_the_outbound_number_is_filtered_and_a_value_that_changes_is_refused_before_any_dial(self):
         """`_X.` and `_+X.` match `&`, `/`, or extra `+` after the first character. `_X.` accepts digits only (7+);
@@ -845,6 +924,25 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('bindport=8088', http)
         self.assertEqual(['5060', '8088'], compose['services']['asterisk']['expose'])
 
+    def test_the_rendered_module_loader_autoloads_and_unloads_the_modules_the_package_does_not_use(self):
+        """The rendered file replaces the one the image ships, so `autoload=yes` has to stay here or no module loads.
+        It also carries back the image's own exclusions and the modules that autoload into this package's way: the CSV
+        CDR backend (CEL and the agent's queue are the call-record source), the HEP loggers, and the console and
+        UNISTIM channel drivers of hardware no deployment has."""
+        self.assertIn(('asterisk/modules.conf', 'asterisk/modules.conf.template'), render.TEMPLATES)
+        with tempfile.TemporaryDirectory() as directory:
+            out = self.rendered(directory)
+            modules = (out / 'asterisk/modules.conf').read_text()
+            asterisk = yaml.safe_load((out / 'compose.yml').read_text())['services']['asterisk']
+        self.assertIn('[modules]', modules)
+        self.assertIn('autoload=yes', modules)
+        for name in ('cdr_csv', 'res_hep', 'res_hep_pjsip', 'res_hep_rtcp', 'chan_console', 'chan_unistim'):
+            with self.subTest(module=name):
+                self.assertIn(f'noload={name}.so', modules)
+        # CEL is the call-record source this package reads: it must autoload.
+        self.assertNotIn('noload=cel_custom.so', modules)
+        self.assertIn('./asterisk/modules.conf:/etc/asterisk/modules.conf:ro', asterisk['volumes'])
+
 
 class PjsipRealtime(unittest.TestCase):
     """PJSIP realtime configs (sorcery, extconfig, res_pgsql) and Postgres schema/seed files."""
@@ -871,7 +969,7 @@ class PjsipRealtime(unittest.TestCase):
             extconfig = (out / 'asterisk/extconfig.conf').read_text()
             res_pgsql = (out / 'asterisk/res_pgsql.conf').read_text()
         self.assertIn('[settings]', extconfig)
-        for table in ('ps_endpoints', 'ps_auths', 'ps_aors'):
+        for table in ('ps_endpoints', 'ps_auths', 'ps_aors', 'liwan_recording_config'):
             self.assertIn(f'{table} => pgsql,telephony_pbx,{table}', extconfig)
         self.assertIn('[general]', res_pgsql)
         self.assertNotIn('[telephony_pbx]', res_pgsql)
@@ -936,6 +1034,18 @@ class PjsipRealtime(unittest.TestCase):
         ):
             with self.subTest(column=column):
                 self.assertIn(column, schema)
+
+    def test_postgres_schema_declares_the_single_recording_config_row_seeded_off(self):
+        """One row, keyed by a fixed id, seeded `off`: the dialplan reads it through realtime and must never record a
+        call whose policy was never configured."""
+        with tempfile.TemporaryDirectory() as directory:
+            schema = (self.rendered(directory) / 'postgres/01-schema.sql').read_text()
+        self.assertIn('CREATE TABLE IF NOT EXISTS liwan_recording_config', schema)
+        self.assertIn('id INTEGER PRIMARY KEY CHECK (id = 1)', schema)
+        self.assertIn("policy TEXT NOT NULL CHECK (policy IN ('always', 'off'))", schema)
+        self.assertIn('announce BOOLEAN NOT NULL', schema)
+        self.assertIn("INSERT INTO liwan_recording_config (id, policy, announce) VALUES (1, 'off', TRUE)", schema)
+        self.assertIn('ON CONFLICT (id) DO NOTHING;', schema)
 
     def test_postgres_seed_is_idempotent_and_sql_escapes_passwords(self):
         tricky = "p'ass-101-o'clock"

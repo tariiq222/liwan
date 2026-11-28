@@ -5,4 +5,5 @@ from . import (
     telephony_lines,
     telephony_recordings,
     telephony_session,
+    telephony_settings,
 )

@@ -84,14 +84,15 @@ class LiwanTelephonyAgent(models.AbstractModel):
         return bool(base and key)
 
     @api.model
-    def _liwan_request(self, method, path, body=None, *, not_found_message=None):
+    def _liwan_request(self, method, path, body=None, *, not_found_message=None, config=None):
         """Send a signed request to the agent's ``path`` and return the JSON object it answered.
 
         503 ``unavailable`` when the deployment names no agent, the network fails or the agent answers 5xx, 404
         ``not_found`` when the agent answers 404, and 502 ``bad_gateway`` when the agent rejects the request with any
-        other 4xx or returns anything other than a JSON object.
+        other 4xx or returns anything other than a JSON object. ``config`` is the ``(base_url, key_hex)`` pair an
+        after-commit caller read before its transaction committed; the default reads the saved configuration.
         """
-        base, key = self._liwan_config()
+        base, key = config or self._liwan_config()
         if not base or not key:
             raise ApiError(503, 'unavailable', AGENT_NOT_CONFIGURED)
         verb = method.upper()

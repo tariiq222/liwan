@@ -43,7 +43,6 @@ PLACEHOLDER = re.compile(r'\{\{([A-Z0-9_]+)\}\}')
 COMPOSE_VARIABLE = re.compile(r'\$\{([A-Za-z_][A-Za-z0-9_]*):\?')
 BOOLEANS = {'true': True, 'false': False}
 AUTH_METHODS = ('ip', 'credentials')
-RECORDING_POLICIES = ('always', 'on_demand', 'off')
 LINE_STATES = ('available', 'moving')
 COMPANY_ID = re.compile(r'^[a-z][a-z0-9-]{1,30}$')
 DATABASE_NAME = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
@@ -57,6 +56,7 @@ TURN_URL = re.compile(r'^turns?:[^\s]+$')
 PBX_DB_PASSWORD = re.compile(r'^[A-Za-z0-9._~-]+$')
 # Every target file, in write order: the rendered config, then Compose. Paths are relative to the render directory.
 TEMPLATES = (
+    ('asterisk/modules.conf', 'asterisk/modules.conf.template'),
     ('asterisk/pjsip.conf', 'asterisk/pjsip.conf.template'),
     ('asterisk/extensions.conf', 'asterisk/extensions.conf.template'),
     ('asterisk/http.conf', 'asterisk/http.conf.template'),
@@ -264,6 +264,7 @@ def validate(env: dict[str, str], toggles: dict[str, bool]) -> None:
     pattern(env, 'LIWAN_TELEPHONY_ARI_USER', ARI_USER, 'letters, digits, "_" or "-" (it names a config section)')
     pattern(env, 'LIWAN_TELEPHONY_TRUNK_CODECS', CODECS, 'lowercase codec names separated by commas')
     pattern(env, 'LIWAN_TELEPHONY_UNAVAILABLE_SOUND', SOUND, 'a sound name or a path without spaces')
+    pattern(env, 'LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND', SOUND, 'a sound name or a path without spaces')
     pattern(env, 'LIWAN_TELEPHONY_TRUNK_DIAL_PREFIX', DIAL_PREFIX, 'only digits and "+" (or empty)')
     address = required(env, 'LIWAN_TELEPHONY_STATIC_ADDRESS')
     try:
@@ -272,10 +273,7 @@ def validate(env: dict[str, str], toggles: dict[str, bool]) -> None:
         raise RenderError(f'LIWAN_TELEPHONY_STATIC_ADDRESS must be an IPv4 address, not {address!r}') from None
     if required(env, 'LIWAN_TELEPHONY_LINE_STATE') not in LINE_STATES:
         raise RenderError(f'LIWAN_TELEPHONY_LINE_STATE must be one of {", ".join(LINE_STATES)}')
-    if required(env, 'LIWAN_TELEPHONY_RECORDING_POLICY') not in RECORDING_POLICIES:
-        raise RenderError(f'LIWAN_TELEPHONY_RECORDING_POLICY must be one of {", ".join(RECORDING_POLICIES)}')
     integer(env, 'LIWAN_TELEPHONY_TRUNK_PORT', 1, 65535)
-    integer(env, 'LIWAN_TELEPHONY_RECORDING_RETENTION_DAYS', 1, 3650)
     integer(env, 'LIWAN_TELEPHONY_RECORDINGS_MIN_FREE_BYTES', 0, 1 << 50)
     integer(env, 'LIWAN_TELEPHONY_RECONCILE_SECONDS', 30, 86400)
     integer(env, 'LIWAN_TELEPHONY_TURN_USER_QUOTA', 1, 64)

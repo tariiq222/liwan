@@ -10,6 +10,7 @@ import {
   TelephonyLineSchema,
   TelephonyLookupSchema,
   TelephonyRecordingLinkSchema,
+  TelephonyRecordingSettingsSchema,
   TelephonySessionRevokeSchema,
   TelephonySessionSchema,
 } from '../index'
@@ -81,7 +82,7 @@ describe('TelephonyCallSchema', () => {
   })
 
   it('accepts a call still running and an internal call without a remote number', () => {
-    const running = { ...CALL, state: 'answered', endedAt: null, durationSeconds: null, recordingState: 'pending' }
+    const running = { ...CALL, state: 'answered', endedAt: null, durationSeconds: null, recordingState: 'none' }
     expect(TelephonyCallSchema.parse(running).durationSeconds).toBeNull()
     expect(TelephonyCallSchema.parse({ ...CALL, direction: 'internal', remoteNumber: null }).remoteNumber).toBeNull()
     expect(TelephonyCallSchema.parse({ ...CALL, partner: null, user: null, extension: null }).partner).toBeNull()
@@ -93,7 +94,9 @@ describe('TelephonyCallSchema', () => {
       expect(() => TelephonyCallSchema.parse({ ...CALL, remoteNumber: number })).toThrow()
     }
     expect(() => TelephonyCallSchema.parse({ ...CALL, state: 'in_progress' })).toThrow()
-    expect(() => TelephonyCallSchema.parse({ ...CALL, recordingState: 'deleted' })).toThrow()
+    for (const recordingState of ['pending', 'deleted']) {
+      expect(() => TelephonyCallSchema.parse({ ...CALL, recordingState })).toThrow()
+    }
   })
 
   it('rejects a datetime that is not an ISO UTC string with a Z', () => {
@@ -275,5 +278,41 @@ describe('TelephonySessionRevokeSchema', () => {
     expect(TelephonySessionRevokeSchema.parse({ revoked: false })).toEqual({ revoked: false })
     expect(() => TelephonySessionRevokeSchema.parse({ revoked: 'true' })).toThrow()
     expect(() => TelephonySessionRevokeSchema.parse({ revoked: true, extension: '1001' })).toThrow()
+  })
+})
+
+describe('TelephonyRecordingSettingsSchema', () => {
+  const SETTINGS = { recordingPolicy: 'always', recordingAnnouncement: true, recordingRetentionDays: 90 }
+
+  it('accepts a recording policy, the announcement flag and a retention in days', () => {
+    expect(TelephonyRecordingSettingsSchema.parse(SETTINGS)).toEqual(SETTINGS)
+    expect(TelephonyRecordingSettingsSchema.parse({ ...SETTINGS, recordingPolicy: 'off', recordingAnnouncement: false })).toEqual({
+      recordingPolicy: 'off',
+      recordingAnnouncement: false,
+      recordingRetentionDays: 90,
+    })
+    for (const recordingRetentionDays of [1, 3650]) {
+      expect(TelephonyRecordingSettingsSchema.parse({ ...SETTINGS, recordingRetentionDays }).recordingRetentionDays).toBe(recordingRetentionDays)
+    }
+  })
+
+  it('rejects an unknown policy, a non-boolean announcement and an out-of-range retention', () => {
+    for (const recordingPolicy of ['internal', 'Always', '']) {
+      expect(() => TelephonyRecordingSettingsSchema.parse({ ...SETTINGS, recordingPolicy })).toThrow()
+    }
+    for (const recordingAnnouncement of ['true', 1, null]) {
+      expect(() => TelephonyRecordingSettingsSchema.parse({ ...SETTINGS, recordingAnnouncement })).toThrow()
+    }
+    for (const recordingRetentionDays of [0, -1, 3651, 30.5, '90', null]) {
+      expect(() => TelephonyRecordingSettingsSchema.parse({ ...SETTINGS, recordingRetentionDays })).toThrow()
+    }
+  })
+
+  it('rejects a missing field and an extra key', () => {
+    for (const field of ['recordingPolicy', 'recordingAnnouncement', 'recordingRetentionDays'] as const) {
+      const { [field]: _dropped, ...without } = SETTINGS
+      expect(() => TelephonyRecordingSettingsSchema.parse(without)).toThrow()
+    }
+    expect(() => TelephonyRecordingSettingsSchema.parse({ ...SETTINGS, extra: 1 })).toThrow()
   })
 })

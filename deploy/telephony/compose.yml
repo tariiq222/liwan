@@ -96,8 +96,9 @@ services:
       TZ: "UTC"
     volumes:
       # Rendered by deploy/telephony/render.py and read-only: a running PBX cannot rewrite its own configuration. The
-      # files the image ships for everything else (modules.conf, indications.conf, ...) stay in the image. The rendered
-      # files are 0644 inside the 0700 render directory, so this non-root process can read them.
+      # files the image ships for everything else (indications.conf, ...) stay in the image. The rendered files are
+      # 0644 inside the 0700 render directory, so this non-root process can read them.
+      - ./asterisk/modules.conf:/etc/asterisk/modules.conf:ro
       - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
       - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
       - ./asterisk/http.conf:/etc/asterisk/http.conf:ro
@@ -217,9 +218,9 @@ services:
       PBX_KEYS_FILE: ""
       PBX_ODOO_EVENTS_URL: "${LIWAN_TELEPHONY_EVENTS_URL:?}"
       # MixMonitor writes <linkedid>.wav into this directory on the shared recordings volume, mounted at /recordings
-      # below, which is the mount the agent image expects. Retention deleting from here is phase 4 (design 4.4); today
-      # the period is validated and nothing reads it, and only the free-space floor of the health report (4.6) reads
-      # the volume.
+      # below, which is the mount the agent image expects. The retention period is a company setting in Odoo whose cron
+      # deletes through the agent (design 4.4), so this package carries none; only the free-space floor of the health
+      # report (4.6) reads the volume here.
       PBX_RECORDINGS_DIR: /recordings/monitor
       PBX_RECORDINGS_MIN_FREE_BYTES: "${LIWAN_TELEPHONY_RECORDINGS_MIN_FREE_BYTES:?}"
       # The agent's durable queue (4.6) on its own company volume, and the CEL CSV Asterisk writes for reconciliation.
@@ -248,7 +249,7 @@ services:
       PBX_PJSIP_CONTEXT: "from-extension"
     volumes:
       # Asterisk's recordings volume, at the path the agent image expects (`/recordings`, apps/pbx-agent/README.md).
-      # Read-write: the agent serves a recording from monitor/; deleting it at the retention period is phase 4.
+      # Read-write: the agent serves a recording from monitor/ and deletes it at the company's retention period.
       - telephony_recordings:/recordings
       # The durable queue file: the image creates /var/lib/pbx-agent for its user, and the volume keeps it across a
       # recreate (design 4.6).

@@ -151,6 +151,20 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   `docs/superpowers/plans/2026-11-14-liwan-sales.md`.
 - `odoo-addons/liwan_chat` (application, rank 4) owns member-private chat over the native `discuss.channel`:
   conversations, messages, reactions and the `/api/v1/chat` routes, `chat.enabled` and the `chat.*` capabilities.
+- `odoo-addons/liwan_telephony` (Telephony, `/api/v1/telephony`, rank 4) depends on the foundation `liwan_api`
+  and stock `phone_validation` (the one phone normaliser), and on no other application. It owns the call record
+  `liwan.telephony.call` (one row per Asterisk `linkedid` and company, `unique(linkedid, company_id)`; the state and
+  the recording state only move one way and a final value is final), extensions, lines and their numbers, the
+  recording-listening audit, the machine event route `POST /api/v1/telephony/events` (`auth='telephony_events'`, HMAC
+  signed, idempotent on `event_id`) with its event user and its `tools/route_gate_allowlist.json` entry, and the
+  `/api/v1/telephony/{calls,lookup,session,extensions,lines,settings}` routes. It owns `telephony.enabled`,
+  `telephony.recording`, `telephony.queues`, `telephony.ivr` and the `telephony.extensions` limit, the `telephony.*`
+  capabilities, their groups and roles, the record rules, and the database's one recording settings row
+  `liwan.telephony.settings` (`_liwan_scope = 'tenant'`: any company reads it with `telephony.use`, only a
+  `telephony.manage` holder whose session works in the root company writes it) that it pushes to the agent after the
+  save commits, plus the daily `liwan.telephony.cron` retention run that asks the agent to delete the recordings past
+  the retention window. The PBX runtime itself is not in this addon: the packages are `deploy/telephony`, the agent
+  `apps/pbx-agent`, and the design is `docs/superpowers/specs/2026-10-28-liwan-telephony-design.md`.
 - `odoo-addons/liwan_document_service` (shared service, rank 3) owns document records, grants,
   branch isolation, OCA DMS storage, binary access and tenant export. Consumer modules supply
   the feature and record policy through `liwan.document._liwan_scope_predicate`.
@@ -258,7 +272,7 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
 - `packages/contracts/src/<namespace>` holds the Zod wire contracts (current namespaces: `access`, `ai`,
   `appointments`, `auth`, `chat`, `common`, `crm`, `customers`, `documents`, `finance`, `helpdesk`, `hr`,
   `inbox`, `integrations`, `mail`, `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `products`,
-  `sales`, `storage`, `tasks`, `tenant-export`); each has a barrel re-exported from `src/index.ts`.
+  `sales`, `storage`, `tasks`, `telephony`, `tenant-export`); each has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
   PMO components live in `app/components/pmo/{projects,tasks}`, personal-task

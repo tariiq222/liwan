@@ -340,6 +340,15 @@ def namespace_hint(path: str) -> str | None:
 
 WEBHOOK_AUTH_FALLBACK = "Authorized by the provider's webhook protocol, not by a LiwanOS session."
 
+# The handlers that answer 404 `not_found` on a path with no parameter, because what they address is the database's one
+# record rather than a path segment: here the recording settings row `data/telephony_settings.xml` installs. Declared one
+# route at a time, by addon and handler, so no unspecified route gains a 404 answer and a renamed handler stops the
+# generator instead of dropping the documented case.
+SINGLETON_RECORD_404 = frozenset({
+    ("liwan_telephony", "get_settings"),
+    ("liwan_telephony", "patch_settings"),
+})
+
 # What each route `auth` value really requires. `security` is the OpenAPI requirement list;
 # `description` is added to the operation when the requirement is not a declared scheme.
 AUTH_REQUIREMENTS = {
@@ -379,6 +388,22 @@ def auth_requirement(route: dict) -> dict:
         raise SystemExit(
             f"{route['addon']}.{route['handler']}: auth={route['auth']!r} has no entry in AUTH_REQUIREMENTS"
         ) from None
+
+
+def documents_missing_record(route: dict) -> bool:
+    """Whether this handler answers 404 for a missing record although its path names no parameter."""
+    return (route["addon"], route["handler"]) in SINGLETON_RECORD_404
+
+
+def refuse_stale_singleton_declarations(routes: list[dict]) -> None:
+    """Stop the generator when a declared handler is gone, so the answer is not silently undocumented again."""
+    handlers = {(route["addon"], route["handler"]) for route in routes}
+    stale = sorted(SINGLETON_RECORD_404 - handlers)
+    if stale:
+        raise SystemExit(
+            "api_surface: SINGLETON_RECORD_404 names no extracted route: %s"
+            % ", ".join("%s.%s" % pair for pair in stale)
+        )
 
 
 def operation_slug(path: str) -> str:
@@ -461,7 +486,7 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                     operation["security"] = requirement["security"]
                     operation["responses"]["403"] = {"$ref": "#/components/responses/Forbidden"}
                     operation["responses"]["422"] = {"$ref": "#/components/responses/Invalid"}
-                    if path_params:
+                    if path_params or documents_missing_record(route):
                         operation["responses"]["404"] = {"$ref": "#/components/responses/NotFound"}
                 else:
                     operation["security"] = requirement["security"]
@@ -611,6 +636,7 @@ def main() -> int:
     args = parser.parse_args()
 
     routes = extract_routes()
+    refuse_stale_singleton_declarations(routes)
     doc = build_document(routes, harvest_contracts())
     rendered = serialize(doc)
 

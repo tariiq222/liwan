@@ -7159,6 +7159,20 @@
       "handler": "lookup",
       "no_capability_reason": null
     },
+    "GET /api/v1/telephony/settings": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.use"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "get_settings",
+      "no_capability_reason": null
+    },
     "HEAD /api/v1/document-contexts/{kind}/{subject_id}/{document_id}/files/{file_id}/download": {
       "addon": "liwan_document_service",
       "auth": "user",
@@ -9201,6 +9215,20 @@
         "telephony.enabled"
       ],
       "handler": "patch_line",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/telephony/settings": {
+      "addon": "liwan_telephony",
+      "auth": "user",
+      "capability_keys": [
+        "telephony.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "telephony.enabled"
+      ],
+      "handler": "patch_settings",
       "no_capability_reason": null
     },
     "POST /api/v1/admin/branches": {

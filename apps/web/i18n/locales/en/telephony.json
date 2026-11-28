@@ -55,7 +55,20 @@
       "extensionActive": "Active",
       "extensionInactive": "Inactive",
       "extensionDisable": "Disable",
-      "extensionEnable": "Enable"
+      "extensionEnable": "Enable",
+      "recording": "Recording",
+      "recordingHint": "One policy for every company of the database: whether calls are recorded, whether the answering party hears the recording notice, and how long a recording is kept. Only the main company's managers can change it.",
+      "recordingPolicy": "Recording policy",
+      "recordingPolicyHint": "Applies to every new call in every company of the database.",
+      "recordingPolicyAlways": "Always",
+      "recordingPolicyAlwaysHint": "Every answered call is recorded, in every company.",
+      "recordingPolicyOff": "Off",
+      "recordingPolicyOffHint": "Calls are not recorded in any company.",
+      "recordingAnnouncement": "Recording announcement",
+      "recordingAnnouncementHint": "The answering party hears the recording notice after answering, only when the policy is Always.",
+      "recordingRetentionDays": "Retention (days)",
+      "recordingRetentionDaysHint": "1 to 3650 days: the agent deletes a recording after this many days, in every company.",
+      "recordingForbidden": "Only the main company's managers can change the recording policy, which applies to every company of the database."
     },
     "chip": {
       "label": "Call",

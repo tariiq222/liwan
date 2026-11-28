@@ -186,5 +186,33 @@ class ListenerTest(unittest.TestCase):
         self.assertFalse(any(attempts))
 
 
+    def test_an_established_connection_is_reported_and_a_refused_one_is_not(self) -> None:
+        """The stream's state is a guess after a reconnect, so each real connection gets one callback."""
+        stop = threading.Event()
+        state = ConnectionState()
+        connects: list[bool] = []
+        attempts = []
+
+        def connect(_url: str) -> FakeSocket:
+            attempts.append(state.connected)
+            if len(attempts) == 1:
+                raise ConnectionRefusedError("no asterisk")
+            return FakeSocket(['{"type": "ChannelCreated", "channel": {"id": "1.1"}}'])
+
+        def on_event(_event: dict) -> None:
+            stop.set()
+
+        listener = AriListener(
+            url="ws://ari:8088/ari/events",
+            on_event=on_event,
+            state=state,
+            connect=connect,
+            on_connect=lambda: connects.append(state.connected),
+        )
+        listener.run_forever(stop)
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(connects, [True])
+
+
 if __name__ == "__main__":
     unittest.main()

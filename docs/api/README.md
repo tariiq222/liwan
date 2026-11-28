@@ -40,9 +40,11 @@ No Odoo runtime is involved: routes are extracted statically (AST over
   specifies whether tenant lifecycle permits a read or write. Capability and
   record checks still apply. Other base routes are covered by
   `liwan_api/tests/test_feature_route_coverage.py`.
-- The shared error envelope (`LiwanError`: `{code, message, field?, details?}`)
-  with 403/404/422 responses on every authenticated JSON route, and the session
-  cookie security scheme (browser traffic is same-origin; no bearer tokens).
+- The shared error envelope (`LiwanError`: `{code, message, field?, details?}`), with 403/422 responses on every
+  authenticated JSON route, 404 on a route whose path names the record (the parameter it does not find) and on the
+  routes `SINGLETON_RECORD_404` in `tools/api_surface.py` declares as addressing the database's one record instead —
+  `/api/v1/telephony/settings` `GET` and `PATCH` answer 404 `not_found` when the installed settings row is missing —
+  and the session cookie security scheme (browser traffic is same-origin; no bearer tokens).
 - All contract schemas from `@liwan/contracts` under
   `components/schemas`, harvested live from the Zod sources.
 

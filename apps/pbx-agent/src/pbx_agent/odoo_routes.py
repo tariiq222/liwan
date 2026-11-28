@@ -9,22 +9,26 @@ reverse key before inspecting or validating any request payload:
 * ``PUT /extensions/{extension}`` enables (validation only; no password until ``/registration``) or disables an extension.
 * ``DELETE /extensions/{extension}`` disables an extension and removes its PJSIP objects.
 * ``POST /recordings/link`` returns a short-lived signed recording URL with bounded clock tolerance.
+* ``PUT /recording/config`` writes the company's recording policy row the dialplan reads through Asterisk realtime.
+* ``POST /recordings/delete`` deletes the recordings of the calls Odoo is retaining no longer, leaving a live call's file.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, ValidationError
 
 from pbx_agent.pbx_db import PbxStoreError
-from pbx_agent.recordings import recording_path
+from pbx_agent.recordings import delete_recording, recording_path
 from pbx_agent.signing import (
+    CALL_ID,
     DATABASE_HEADER,
     EVENT_SIGNATURE_HEADER,
     EVENT_TIMESTAMP_HEADER,
@@ -33,14 +37,20 @@ from pbx_agent.signing import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
+    from pathlib import Path
 
+    from pbx_agent.pbx_db import PbxStore
     from pbx_agent.sessions import SessionManager
     from pbx_agent.settings import Settings
+
+log = logging.getLogger(__name__)
 
 EXTENSION_NUMBER = re.compile(r"[0-9]{2,10}")
 LINK_SECONDS = 60
 LINK_CLOCK_TOLERANCE_SECONDS = 300
+# One request deletes the recordings of one retention pass; a larger list is refused rather than held in memory.
+MAX_RECORDING_DELETIONS = 500
 
 _ModelT = TypeVar("_ModelT", bound=BaseModel)
 
@@ -74,6 +84,21 @@ class LinkRequest(BaseModel):
     linkedid: str = Field(min_length=1, max_length=128)
     database: str = Field(min_length=1, max_length=64)
     expires_at: StrictInt
+
+
+class RecordingConfigRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    database: str = Field(min_length=1, max_length=64)
+    policy: Literal["always", "off"]
+    announce: StrictBool
+
+
+class RecordingDeleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    database: str = Field(min_length=1, max_length=64)
+    linkedids: list[str] = Field(min_length=1, max_length=MAX_RECORDING_DELETIONS)
 
 
 def _request_path(request: Request) -> str | None:
@@ -136,11 +161,40 @@ def _require_extension(extension: str) -> str:
     return extension
 
 
+def _require_call_ids(linkedids: list[str]) -> list[str]:
+    """The distinct call ids of a delete request, in request order; any name outside the call-id rule answers 422."""
+    if any(CALL_ID.fullmatch(linkedid) is None for linkedid in linkedids):
+        raise HTTPException(status_code=422)
+    return list(dict.fromkeys(linkedids))
+
+
+def _delete_recordings(root: Path, linkedids: Sequence[str], live_call: Callable[[str], bool]) -> tuple[list[str], list[str]]:
+    """Delete the recordings of the calls Odoo no longer keeps and report what happened to each.
+
+    A call the stream still has a leg of is left alone and reported in neither list: its recording is still being
+    written, and Odoo must keep it available. A call without a file is ``missing``, which a repeat of the same
+    request reports again instead of failing.
+    """
+    deleted: list[str] = []
+    missing: list[str] = []
+    for linkedid in linkedids:
+        if live_call(linkedid):
+            log.info("recording kept: call %s is live", linkedid)
+        elif delete_recording(root, linkedid):
+            log.info("recording deleted: call %s", linkedid)
+            deleted.append(linkedid)
+        else:
+            missing.append(linkedid)
+    return deleted, missing
+
+
 def register_odoo_routes(
     app: FastAPI,
     settings: Settings,
     sessions: SessionManager,
+    store: PbxStore,
     *,
+    live_call: Callable[[str], bool],
     clock: Callable[[], float] = time.time,
 ) -> None:
     """Mount all private Odoo -> pbx-agent routes on ``app``."""
@@ -225,3 +279,24 @@ def register_odoo_routes(
             "url": f"https://{settings.public_host}/pbx/recordings/{token}",
             "expiresInSeconds": token_exp - now_int,
         }
+
+    @app.put("/recording/config")
+    async def set_recording_config(request: Request) -> dict:
+        now = clock()
+        raw_body, header_db = await _verify_reverse(request, settings, now=now)
+        body = _parse_body(raw_body, RecordingConfigRequest, settings, header_db)
+        try:
+            await run_in_threadpool(store.upsert_recording_config, policy=body.policy, announce=body.announce)
+        except PbxStoreError as error:
+            # Odoo is told the policy did not reach the dialplan instead of being told it did.
+            raise HTTPException(status_code=502) from error
+        return {"applied": True}
+
+    @app.post("/recordings/delete")
+    async def delete_recordings(request: Request) -> dict:
+        now = clock()
+        raw_body, header_db = await _verify_reverse(request, settings, now=now)
+        body = _parse_body(raw_body, RecordingDeleteRequest, settings, header_db)
+        linkedids = _require_call_ids(body.linkedids)
+        deleted, missing = await run_in_threadpool(_delete_recordings, settings.recordings_dir, linkedids, live_call)
+        return {"deleted": deleted, "missing": missing}

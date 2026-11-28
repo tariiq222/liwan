@@ -32,6 +32,7 @@ from odoo.addons.liwan_api.controllers.common import (
 from odoo.addons.liwan_telephony.models.feature_registry import EVENTS_FEATURE
 from odoo.addons.liwan_telephony.models.telephony_call import (
     DIRECTIONS,
+    LINKEDID_PATTERN,
     RECORDING_READY,
     STATES,
     TIMESTAMP_FIELDS,
@@ -54,6 +55,7 @@ BAD_TIMESTAMP = 'A valid timestamp is required.'
 OUTSIDE_WINDOW = 'The request is outside the accepted clock window.'
 BAD_SIGNATURE = 'The signature does not match.'
 BAD_RECORDING = 'call.recording must be ready or absent.'
+BAD_LINKEDID = 'call.linkedid must be a call id: letters, digits, dot, underscore and dash.'
 BAD_DATABASE = 'The event database does not match this tenant.'
 
 
@@ -106,8 +108,8 @@ def _text(value):
 def _event(raw):
     """The agent's envelope, or 422 ``invalid`` when the body is not one.
 
-    An event carries an ``event_id`` and a ``call`` with a ``linkedid``, a known direction and state, and a string or
-    null for every party, time and the recording flag.
+    An event carries an ``event_id`` and a ``call`` with a ``linkedid`` the agent's own call-id rule accepts, a known
+    direction and state, and a string or null for every party, time and the recording flag.
     """
     try:
         payload = json.loads(raw)
@@ -121,6 +123,10 @@ def _event(raw):
     )
     if not well_formed:
         raise ApiError(422, 'invalid', 'An event with an event_id and a call are required.')
+    # The agent's delete route refuses a whole request for one id outside its call-id rule, so a stored id
+    # outside it could never have its recording deleted: the same rule is read here, before the call exists.
+    if LINKEDID_PATTERN.fullmatch(call['linkedid']) is None:
+        raise ApiError(422, 'invalid', BAD_LINKEDID, field='linkedid')
     database = payload.get('database')
     if not _text(database):
         raise ApiError(422, 'invalid', 'database must be a non-empty string.', field='database')

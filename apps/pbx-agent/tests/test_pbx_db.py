@@ -18,6 +18,7 @@ from pbx_agent.pbx_db import (  # noqa: E402
     UPSERT_AOR_SQL,
     UPSERT_AUTH_SQL,
     UPSERT_ENDPOINT_SQL,
+    UPSERT_RECORDING_CONFIG_SQL,
     PbxStoreError,
     PostgresPbxStore,
     _escape_like_prefix,
@@ -177,6 +178,26 @@ class PostgresPbxStoreTest(unittest.TestCase):
         # PostgreSQL standard_conforming_strings requires ESCAPE '\' to be a single backslash character.
         self.assertTrue(DELETE_ORPHAN_AUTHS_SQL.endswith("ESCAPE '\\'"))
         self.assertEqual(_escape_like_prefix("10_1%\\"), "10\\_1\\%\\\\")
+
+    def test_upsert_recording_config_writes_the_single_row_in_one_transaction(self) -> None:
+        conn = FakeConnection()
+        store = PostgresPbxStore(TEST_DSN, connect=lambda _dsn, **_kw: conn)
+        store.upsert_recording_config(policy="always", announce=True)
+        store.upsert_recording_config(policy="off", announce=False)
+
+        self.assertEqual(conn.transactions_started, 2)
+        self.assertEqual(conn.transactions_committed, 2)
+        self.assertTrue(conn.closed)
+        self.assertEqual(
+            conn.statements,
+            [
+                (UPSERT_RECORDING_CONFIG_SQL, ("always", True)),
+                (UPSERT_RECORDING_CONFIG_SQL, ("off", False)),
+            ],
+        )
+        # The dialplan reads one row with a fixed id, so every write updates it instead of adding another.
+        self.assertIn("liwan_recording_config (id, policy, announce) VALUES (1, %s, %s)", UPSERT_RECORDING_CONFIG_SQL)
+        self.assertIn("ON CONFLICT (id) DO UPDATE", UPSERT_RECORDING_CONFIG_SQL)
 
     def test_os_error_wraps_into_pbx_store_error_without_leaking_dsn_or_password(self) -> None:
         def broken_connect(_dsn: str, **_kw):

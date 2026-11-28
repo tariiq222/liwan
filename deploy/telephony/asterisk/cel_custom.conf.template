@@ -1,9 +1,9 @@
 ; Rendered by deploy/telephony/render.py from the company's env file.
 ; The one CEL CSV file the agent tails (PBX_CEL_PATH in compose.yml). Asterisk's CEL custom backend names each output
 ; after its section, and an absolute section name is used verbatim as the file path (res/cdrel_custom/config.c), so the
-; section below is the path the agent reads; the backend appends one newline-terminated record per event. The image
-; autoloads its modules (modules.conf.sample: autoload=yes), so cel_custom.so — which reads this file — and the
-; res_cdrel_custom.so it depends on are loaded without a modules.conf override.
+; section below is the path the agent reads; the backend appends one newline-terminated record per event. The package's
+; own modules.conf keeps autoload=yes, so cel_custom.so — which reads this file — and the res_cdrel_custom.so it
+; depends on are loaded.
 ;
 ; The columns are the agent's order (apps/pbx-agent/src/pbx_agent/cel.py, CEL_COLUMNS): eventtype, eventtime, cidname,
 ; cidnum, cidani, cidrdnis, ciddnid, exten, context, channame, appname, appdata, amaflags, accountcode, uniqueid,
