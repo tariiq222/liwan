@@ -2,12 +2,13 @@
 
 The gate forwards the worker's request to a process that is root-equivalent, so the request is validated here, before any
 effect module sees it: allowed keys only (nested objects too), exact types, bounded sizes, and a strict full-match pattern for
-every identifier. A string reaches the effect only through one of two kinds of check:
+every identifier. A string reaches the effect only through one of these kinds of check:
 
 - `pattern`: a full-match regular expression, and never a `/`, a backslash, a NUL, or a `.`/`..` path component, so no
   identifier can steer a path, a container name or a docker argument;
 - `free_text`: a name, a login, a password or an issuer (the explicit free-text fields): bounded length and no control
-  character; these only ever travel as JSON data into a script or a SQL literal.
+  character; these only ever travel as JSON data into a script or a SQL literal;
+- `compiler_version`: a bounded ASCII label with at most one slash, carried only as JSON data.
 
 The shapes mirror what the control plane sends (`apps/control-plane/src/shared/odoo-adapter.ts`, `admin-password-runner.ts`,
 `tenant-status-runner.ts`, `tenant-deletion-effects-runner.ts`, `packages/commercial-contracts/src/shared/provisioning.ts`). The effects
@@ -132,6 +133,17 @@ def shape(required, optional=None):
     return check
 
 
+# compiler_version is a data-only name/version label (e.g. commercial-compiler/5) serialized to JSON,
+# never a path, container name, or docker argument.
+_COMPILER_VERSION_PATTERN = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)?', re.ASCII)
+
+
+def _compiler_version_label(value):
+    if not isinstance(value, str) or len(value) > 64 or not _COMPILER_VERSION_PATTERN.fullmatch(value):
+        raise SchemaError
+    return value
+
+
 # ---- shared identifiers -------------------------------------------------------------------------------------------
 
 UUID_PATTERN = r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}'
@@ -147,7 +159,7 @@ FEATURE_KEY = pattern(r'[a-z][a-z0-9_.-]{0,127}', 128)
 HOST = pattern(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*', 253)
 DATE = pattern(r'\d{4}-\d{2}-\d{2}', 10)
 DATETIME = pattern(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})', 40)
-COMPILER_VERSION = either(integer(0, MAX_SAFE_INTEGER), pattern(r'[A-Za-z0-9._-]{1,64}', 64))
+COMPILER_VERSION = either(integer(0, MAX_SAFE_INTEGER), _compiler_version_label)
 BUSINESS_KEY = pattern(r'\["shared-v1","[a-z][a-z0-9_-]{0,62}","(?:provision|backup|restore)","(?:initial|' + UUID_PATTERN + r')"\]', 200)
 FEATURE_VALUE = either(boolean, literal(None), integer())
 
