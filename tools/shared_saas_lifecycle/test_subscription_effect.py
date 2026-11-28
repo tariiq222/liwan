@@ -124,6 +124,11 @@ class ValidationTests(unittest.TestCase):
     def test_valid(self):
         se.validate_reconfigure(make_request())
 
+    def test_string_compiler_version(self):
+        request = make_request()
+        request['entitlement']['compiler_version'] = 'commercial-compiler/5'
+        self.assertIs(se.validate_reconfigure(request), request)
+
     def test_bad_database(self):
         for db in ('odoo19', 'liwan_scratch_x', DB + ';'):
             self.bad(tenant={'database': db, 'host': 'a.test'})
