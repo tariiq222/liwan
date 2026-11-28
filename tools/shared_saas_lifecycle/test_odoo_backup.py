@@ -762,7 +762,9 @@ class ArtifactEncryptionTests(unittest.TestCase):
                                     'liwan-shared-test-effect-attempt0-dump', '--entrypoint', '/bin/sh'])
         self.assertEqual(args[9:13], ['db', '-c', odoo_backup.DUMP_SCRIPT, 'sh'])
         self.assertEqual(args[13:], ['pg_dump', '-Fc', '--serializable-deferrable', '--no-password',
-                                     '-d', self.DATABASE, '-f', '-', '-h', 'db', '-U', 'postgres'])
+                                     '-d', self.DATABASE, '-h', 'db', '-U', 'postgres'])
+        self.assertNotIn('-f', args[13:])
+        self.assertNotIn('-', args[13:])
         self.assertEqual(kwargs['destination'], destination)
         # The secret travels through the service environment: never a password flag, never a value.
         self.assertFalse({'-W', '--password'} & set(args))

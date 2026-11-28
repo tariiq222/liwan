@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import select
 import stat
 import sys
@@ -709,14 +710,24 @@ class RequestSchemaTests(unittest.TestCase):
 
     def test_subscription_compiler_version_accepts_data_labels_and_integers(self):
         for value in ('commercial-compiler/5', 'commercial-compiler/2', 'commercial-compiler/4',
-                      '1', 'test', 'a' * 64, 0, 1, schema.MAX_SAFE_INTEGER):
+                      '1', 'test', 'a' * 64, 'a' * 62 + '/5', 0, 1, schema.MAX_SAFE_INTEGER):
             with self.subTest(value=value):
                 self.accepts('subscription_effect', at(subscription_request(), ('entitlement', 'compiler_version'), value))
 
+    def test_subscription_compiler_version_accepts_current_contract_version(self):
+        root = Path(__file__).resolve().parents[2]
+        source = (root / 'packages/commercial-contracts/src/commercial/entitlements.ts').read_text(encoding='utf-8')
+        match = re.search(r"^export const COMPILER_VERSION = '([^']+)'", source, re.MULTILINE)
+        self.assertIsNotNone(match, 'COMPILER_VERSION export not found in entitlements.ts')
+        self.accepts('subscription_effect', at(subscription_request(), ('entitlement', 'compiler_version'), match.group(1)))
+
     def test_subscription_compiler_version_refuses_invalid_labels_and_types(self):
         for value in ('../x', 'a/..', 'commercial-compiler/..', '/commercial-compiler/5',
-                      'commercial-compiler/', 'commercial-compiler/5/extra', 'a\\b', 'a\x00b',
-                      '', '.', '..', 'a' * 65, -1, True, 'commercial-compiler/٥', schema.MAX_SAFE_INTEGER + 1):
+                      'commercial-compiler/', 'commercial-compiler/5/extra', 'a//b',
+                      '-a', '_a', '.a', 'a\\b', 'a\x00b',
+                      'a\nb', 'a\rb', 'a\tb', 'a\x1fb', 'a\x7fb',
+                      '', '.', '..', 'a' * 65, -1, True, False, None, 1.0, 1.5,
+                      'commercial-compiler/٥', schema.MAX_SAFE_INTEGER + 1):
             with self.subTest(value=value):
                 self.refuses('subscription_effect', at(subscription_request(), ('entitlement', 'compiler_version'), value))
 

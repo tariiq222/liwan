@@ -53,7 +53,6 @@ INTENT_NAME = 'backup-intent.json'
 INTENT_SERVICE = 'odoo'
 DB_SERVICE = 'db'
 DUMP_SCRIPT = 'set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; exec "$@"'
-DUMP_STDOUT = '-'
 
 
 
@@ -384,7 +383,7 @@ class BackupRunner(Runner):
         stay a single fact; the command runs inside the container through ``exec``, and the
         password reaches libpq through the service environment only.
         """
-        argv = build_dump_argv(db_name=self.database, output_file=DUMP_STDOUT, pg_host=DB_SERVICE,
+        argv = build_dump_argv(db_name=self.database, pg_host=DB_SERVICE,
                                pg_user=POSTGRES_ADMIN_ROLE, container=True)
         self.current_container = self.attempt_name('dump')
         self.stream(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
