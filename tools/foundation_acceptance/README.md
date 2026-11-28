@@ -36,10 +36,13 @@ qualifies for a public certificate, so Caddy issues it from its internal CA. In 
 mode the stack's `odoo-mail` relay (STARTTLS only) is replaced by a Mailpit container that
 answers to the `odoo-mail` name on the stack's internal mail network, so the first
 administrator's email code reaches the capture. `FOUNDATION_OUTPUT_DIR` selects an
-existing output parent (default: the operating system's temporary directory); a
-new private per-run directory is always created. The output parent and its
-ancestors must not be group- or world-writable (for example, avoid `/tmp`),
-because `effect_gate.py` enforces ancestor trust on runtime paths.
+existing output parent; the default is the operating system's temporary
+directory. A new private per-run directory is always created below it, and its
+parent and every ancestor must belong to the operator's account or root and not
+be group- or world-writable: `effect_gate.py` enforces that trust on the runtime
+paths inside the run directory, so the macOS default under `/private/var/folders`
+qualifies while `/tmp` on Linux does not, and there `FOUNDATION_OUTPUT_DIR` must
+name a private parent.
 
 Four free high loopback ports are chosen automatically. To pin reserved values,
 set `FOUNDATION_HTTPS_PORT`, `FOUNDATION_HTTP_PORT`, `FOUNDATION_CONTROL_PORT` and
