@@ -8,17 +8,25 @@ export async function signupFunnel(db: Pick<Pool, 'query'>, period: Period, now:
   const { start, end } = periodBounds(period)
   const { rows } = await db.query(`WITH cohorts AS (
     SELECT s.id AS subscription_id, t.customer_id,
-      CASE WHEN (r.snapshot#>>'{entitlement,features,crm.enabled}')::boolean THEN
-        CASE WHEN (r.snapshot#>>'{entitlement,features,inbox.enabled}')::boolean THEN 'both' ELSE 'crm' END
-        WHEN (r.snapshot#>>'{entitlement,features,inbox.enabled}')::boolean THEN 'inbox'
-      END AS selection
+      -- The apps every bundle the enrollment order lists selects. "C" sorts by code point, the order the contract
+      -- checks: the database collation sorts an underscore before a digit and would fail the answer's own parsing.
+      ARRAY(
+        SELECT DISTINCT (sel->>'app_id') COLLATE "C"
+        FROM jsonb_array_elements_text(r.snapshot->'bundle_revision_ids') AS bid
+        JOIN bundle_revisions br ON br.id = bid::uuid
+        CROSS JOIN LATERAL jsonb_array_elements(br.selections) AS sel
+        ORDER BY 1
+      ) AS apps
     FROM public_signup_trials t
     JOIN subscriptions s ON s.customer_id=t.customer_id
     JOIN orders o ON o.subscription_id=s.id AND o.kind='new' AND o.payment_state='not_required'
     JOIN subscription_revisions r ON r.id=o.target_revision_id
     WHERE t.requires_first_login AND o.created_at >= $1 AND o.created_at < $2 AND o.created_at <= $3
   ), milestones AS (
-    SELECT c.selection, started.deadline, paid.paid_at, renewal.due, renewal.renewed_at
+    SELECT
+      CASE WHEN cardinality(c.apps) = 0 THEN 'base' ELSE array_to_string(c.apps, '+') END AS selection,
+      c.apps,
+      started.deadline, paid.paid_at, renewal.due, renewal.renewed_at
     FROM cohorts c
     LEFT JOIN LATERAL (
       SELECT (a.metadata->>'trial_ends_at')::timestamptz AS deadline
@@ -40,17 +48,17 @@ export async function signupFunnel(db: Pick<Pool, 'query'>, period: Period, now:
         AND r.period_start >= paid.period_end AND i.issued_at <= $3 AND i.status<>'void' AND NOT o.cancelled
       ORDER BY r.period_start,i.issued_at,i.id LIMIT 1
     ) renewal ON true
-    WHERE c.selection IS NOT NULL
   )
-  SELECT options.selection,
-    count(m.selection)::int AS registered,
+  SELECT m.selection,
+    m.apps,
+    count(*)::int AS registered,
     count(*) FILTER (WHERE m.deadline IS NOT NULL)::int AS started,
     count(*) FILTER (WHERE m.deadline + interval '7 days' <= $3)::int AS conversion_eligible,
     count(*) FILTER (WHERE m.deadline + interval '7 days' <= $3 AND m.paid_at <= m.deadline + interval '7 days')::int AS converted,
     count(*) FILTER (WHERE m.due <= $3)::int AS renewal_eligible,
     count(*) FILTER (WHERE m.due <= $3 AND m.renewed_at <= m.due)::int AS renewed
-  FROM (VALUES ('crm'), ('inbox'), ('both')) options(selection)
-  LEFT JOIN milestones m ON m.selection=options.selection
-  GROUP BY options.selection ORDER BY options.selection`, [new Date(start), new Date(end), now])
+  FROM milestones m
+  GROUP BY m.selection, m.apps
+  ORDER BY m.selection COLLATE "C"`, [new Date(start), new Date(end), now])
   return rows
 }

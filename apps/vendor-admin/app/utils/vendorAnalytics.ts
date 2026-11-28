@@ -1,6 +1,6 @@
-import { ANALYTICS_MAX_DAYS, type AnalyticsFigure, type AnalyticsFigures, type Money } from '@liwan/commercial-contracts'
+import { ANALYTICS_MAX_DAYS, BUSINESS_TIME_ZONE, type AnalyticsFigure, type AnalyticsFigures, type Money, type SignupFunnelRow } from '@liwan/commercial-contracts'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { BUSINESS_TIME_ZONE } from '@liwan/commercial-contracts'
+import { tierLabel } from './catalogLabels'
 import { csvLiteral, toCsvTable } from './csv'
 
 export const PERIOD_PRESETS = ['month', 'quarter', 'year', 'custom'] as const
@@ -109,3 +109,13 @@ export const KPIS: readonly KpiSpec[] = [
 
 /** The headline figures at the top of the page. */
 export const HEADLINE_IDS: readonly string[] = ['mrr', 'arr', 'collected', 'activeCustomers']
+
+/** Readable label for a signup funnel row: the base-only label when `apps` is empty, else localized app names joined with ` + `. */
+export function signupFunnelLabel(
+  row: Pick<SignupFunnelRow, 'apps'>,
+  t: (key: string) => string,
+  te: (key: string) => boolean,
+): string {
+  if (row.apps.length === 0) return t('analytics.signupFunnel.apps.base')
+  return row.apps.map(id => tierLabel(id, undefined, t, te)).join(' + ')
+}
