@@ -46,6 +46,12 @@ const SAVED: SettingsWire = { recordingPolicy: 'always', recordingAnnouncement: 
 const POLICY_TAKEN = 'هذه السياسة غير معروفة'
 const FORBIDDEN = 'لا تملك صلاحية إدارة الاتصالات'
 
+/** The shipped Arabic copy, so a test reads the words the reader reads and not the key paths. */
+const MESSAGES = JSON.parse(readFileSync(new URL('../../../../../../i18n/locales/ar/telephony.json', import.meta.url).pathname, 'utf8')) as Record<string, any>
+const arCopy = (key: string): string => key.split('.').reduce<any>((node, part) => node?.[part], MESSAGES)
+const SCOPE = 'كل شركات قاعدة البيانات'
+const CHANGER = 'الشركة الرئيسية'
+
 /** vue-query as the card uses it: the query runs its function into refs, and the client's write lands in the same refs. */
 function fakeVueQuery() {
   const entries = new Map<unknown, { data: Vue.Ref<unknown>; error: Vue.Ref<unknown>; isLoading: Vue.Ref<boolean>; run: () => Promise<void> }>()
@@ -73,12 +79,13 @@ function fakeVueQuery() {
   return { useQuery, useQueryClient: () => ({ setQueryData }), setQueryData }
 }
 
-function loadCard($api: ReturnType<typeof vi.fn>, canEdit: boolean) {
+function loadCard($api: ReturnType<typeof vi.fn>, canEdit: boolean, t: (key: string) => string = key => key) {
   const query = fakeVueQuery()
   const modules: Record<string, unknown> = {
     'vue': Vue,
     '@tanstack/vue-query': query,
     '@liwan/contracts': { TelephonyRecordingSettingsSchema },
+    '@/composables/useApi': { ApiError },
     '@/composables/settings/useSettingsForm': { useSettingsForm },
   }
   const require = (specifier: string) => {
@@ -87,17 +94,17 @@ function loadCard($api: ReturnType<typeof vi.fn>, canEdit: boolean) {
   }
   const globals = {
     ref: Vue.ref, computed: Vue.computed, watch: Vue.watch,
-    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useApi: () => ({ $api }),
+    useI18n: () => ({ t }), useHydrated: () => Vue.ref(true), useApi: () => ({ $api }),
   }
   const exports: { default?: Vue.Component } = {}
   new Function('require', 'exports', ...Object.keys(globals), compiled)(require, exports, ...Object.values(globals))
 
   const card = Vue.defineComponent({
     inheritAttrs: false,
-    props: ['id', 'title', 'canEdit', 'dirty', 'message', 'onSave'],
+    props: ['id', 'title', 'description', 'canEdit', 'dirty', 'message', 'onSave'],
     setup(props, { slots }) {
       return () => Vue.h('form', {
-        'data-testid': 'card', 'data-id': props.id, 'data-title': props.title,
+        'data-testid': 'card', 'data-id': props.id, 'data-title': props.title, 'data-description': props.description,
         'data-dirty': props.dirty === true ? 'true' : 'false', 'data-message': props.message || '',
         'data-can-edit': props.canEdit === true ? 'true' : 'false',
       }, [Vue.h('button', { type: 'button', 'data-testid': 'save', onClick: () => props.onSave?.() }), slots.default?.()])
@@ -209,6 +216,18 @@ describe('the telephony recording settings card', () => {
     screen.app.unmount()
   })
 
+  it('states in its copy that the policy covers every company of the database and who may change it', async () => {
+    const screen = loadCard(server(SAVED), true, arCopy)
+    await settle(screen)
+    const description = field(screen.root, 'card').props['data-description']
+    expect(description).toBe(arCopy('telephony.settings.recordingHint'))
+    expect(description).toContain(SCOPE)
+    expect(description).toContain(CHANGER)
+    expect(byTestId(screen.root, `row-${arCopy('telephony.settings.recordingPolicy')}`)!.props['data-description']).toContain(SCOPE)
+    expect(field(screen.root, 'field-recording-retention-days').props['data-help']).toContain('كل الشركات')
+    screen.app.unmount()
+  })
+
   it('keeps the retention field inside the contract bounds', async () => {
     const screen = loadCard(server(SAVED), true)
     await settle(screen)
@@ -261,14 +280,21 @@ describe('the telephony recording settings card', () => {
     screen.app.unmount()
   })
 
-  it('shows a 403 refusal from the server in the card', async () => {
+  it('shows a 403 refusal as the scope rule, not a generic failure, and keeps the card read-only', async () => {
     const $api = server(SAVED)
-    const screen = loadCard($api, true)
+    const screen = loadCard($api, true, arCopy)
     await settle(screen)
     $api.mockRejectedValueOnce(new ApiError(403, 'forbidden', FORBIDDEN))
     setRetention(screen.root, 400)
     await save(screen.root, screen)
-    expect(field(screen.root, 'card').props['data-message']).toBe(FORBIDDEN)
+    expect(patches($api)).toHaveLength(1)
+    const message = field(screen.root, 'card').props['data-message']
+    expect(message).toBe(arCopy('telephony.settings.recordingForbidden'))
+    expect(message).toContain(CHANGER)
+    expect(field(screen.root, 'telephony-recording-policy').props['data-disabled']).toBe('true')
+    expect(field(screen.root, 'telephony-recording-announcement').props['data-disabled']).toBe('true')
+    expect(field(screen.root, 'telephony-recording-retention-days').props.disabled).toBe(true)
+    expect(field(screen.root, 'telephony-recording-retention-days').props.value).toBe(400)
     screen.app.unmount()
   })
 

@@ -9,7 +9,10 @@ from odoo.tests import tagged
 
 from .common import AGENT_KEY, AGENT_URL, LiwanTelephonyCase, set_feature
 from odoo.addons.liwan_telephony.models.feature_registry import EVENTS_FEATURE
-from odoo.addons.liwan_telephony.models.telephony_cron import DELETE_RECORDINGS_PATH
+from odoo.addons.liwan_telephony.models.telephony_cron import (
+    DELETE_RECORDINGS_PATH,
+    RETENTION_BATCH,
+)
 
 RETENTION_DAYS = 30
 CRON_LOGGER = 'odoo.addons.liwan_telephony.models.telephony_cron'
@@ -21,8 +24,7 @@ class TestRecordingRetention(LiwanTelephonyCase):
     def setUp(self):
         super().setUp()
         set_feature(self, EVENTS_FEATURE)
-        self.env['liwan.telephony.settings'].create({
-            'company_id': self.company.id,
+        self.env['liwan.telephony.settings']._liwan_current().write({
             'recording_policy': 'always',
             'recording_retention_days': RETENTION_DAYS,
         })
@@ -63,6 +65,41 @@ class TestRecordingRetention(LiwanTelephonyCase):
         # A second run asks nothing: nothing is available any more, so the run is idempotent.
         self.assertEqual(self.expire(), 0)
         self.assertEqual(len(self.sent), 1)
+
+    def test_one_run_asks_about_one_bounded_batch_however_many_recordings_are_past_retention(self):
+        """A database with more expired recordings than one batch keeps each request small: the rest wait a day."""
+        oldest = self.recorded_call('1764200100.1', days_ago=RETENTION_DAYS + 400)
+        for index in range(2, RETENTION_BATCH + 6):
+            self.recorded_call(f'1764200100.{index}', days_ago=RETENTION_DAYS + 1)
+        self.assertEqual(self.expire(), RETENTION_BATCH)
+        self.assertEqual(len(self.sent), 1)
+        self.assertEqual(len(self.sent[0][2]), RETENTION_BATCH)
+        # The oldest is in the batch: the run is ordered by end time, so nothing expires ahead of older rows.
+        self.assertIn(oldest.linkedid, self.sent[0][2])
+        self.assertEqual(self.env['liwan.telephony.call'].search_count([
+            ('recording_state', '=', 'available'),
+        ]), 5)
+        self.assertEqual(self.expire(), 5)
+        self.assertEqual(self.sent[-1][2], [
+            f'1764200100.{index}' for index in range(RETENTION_BATCH + 1, RETENTION_BATCH + 6)
+        ])
+
+    def test_every_company_expires_on_the_database_retention_window(self):
+        """The one policy binds the database: the branch's call expires in the same batch as the root company's."""
+        branch = self.env['res.company'].create({'name': 'Telephony retention branch'})
+        mine = self.recorded_call('1764200007.1')
+        theirs = self.env['liwan.telephony.call'].with_company(branch).create({
+            'linkedid': '1764200007.2',
+            'direction': 'out',
+            'state': 'ended',
+            'recording_state': 'available',
+            'started_at': fields.Datetime.now() - timedelta(days=RETENTION_DAYS + 1),
+            'ended_at': fields.Datetime.now() - timedelta(days=RETENTION_DAYS + 1),
+        })
+        self.assertEqual(self.expire(), 2)
+        self.assertEqual((mine.recording_state, theirs.recording_state), ('expired', 'expired'))
+        self.assertEqual(len(self.sent), 1)
+        self.assertEqual(sorted(self.sent[0][2]), ['1764200007.1', '1764200007.2'])
 
     def test_a_recording_inside_retention_is_left_available_and_never_asked_about(self):
         recent = self.recorded_call('1764200001.1', days_ago=RETENTION_DAYS - 1)

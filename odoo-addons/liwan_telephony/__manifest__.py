@@ -2,7 +2,7 @@
 {
     'name': 'liwan Telephony',
     'summary': 'liwan platform: the Telephony application — calls, extensions, lines and the machine event route',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -14,6 +14,7 @@
         'security/telephony_capability_groups.xml',
         'security/ir.model.access.csv',
         'security/telephony_rules.xml',
+        'data/telephony_settings.xml',
         'data/telephony_access_permissions.xml',
         'data/telephony_roles.xml',
         'data/telephony_events_user.xml',

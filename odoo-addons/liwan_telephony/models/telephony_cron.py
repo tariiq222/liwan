@@ -1,10 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Deleting the recordings a company no longer keeps (design 4.4).
+"""Deleting the recordings the database no longer keeps (design 4.4).
 
-The agent holds the audio; Odoo holds the policy and the row's state. A daily run per company asks the agent to delete
-one bounded batch of the company's recordings whose retention window has passed, and marks ``expired`` exactly the
-calls the agent reported deleted or missing. A recording the agent still considers active stays ``available`` and is
-reported, so the next run asks again rather than claiming a file the disk still holds.
+The agent holds the audio; Odoo holds the policy and the row's state. A daily run reads the database's one recording
+policy and asks the agent to delete one bounded batch of the recordings whose retention window has passed, then marks
+``expired`` exactly the calls the agent reported deleted or missing. A recording the agent still considers active stays
+``available`` and is reported, so the next run asks again rather than claiming a file the disk still holds.
 
 The recording's honest timestamp is the call's end: the file exists once the call's legs ended. A finished call that
 never recorded an end time falls back to the row's creation, never to a guess.
@@ -32,7 +32,7 @@ class LiwanTelephonyCron(models.AbstractModel):
 
     @api.model
     def _liwan_expire_recordings(self):
-        """Expire every company's recordings past its retention window; returns how many rows were expired.
+        """Expire the recordings past the database's retention window; returns how many rows were expired.
 
         The agent is the only one who can delete the file, so a deployment without one keeps its recordings rather
         than reporting an expiry that never happened on disk.
@@ -40,30 +40,18 @@ class LiwanTelephonyCron(models.AbstractModel):
         if not self.env['liwan.telephony.agent']._liwan_is_configured():
             _logger.warning(NO_AGENT)
             return 0
-        expired_total = 0
-        for company in self.env['res.company'].search([('active', '=', True)]):
-            expired_total += self._liwan_expire_company(company)
-        return expired_total
-
-    @api.model
-    def _liwan_expire_company(self, company):
-        """Ask the agent to delete one batch of ``company``'s expired recordings and mark what it confirmed."""
-        settings = self.env['liwan.telephony.settings']._liwan_for(company)
+        settings = self.env['liwan.telephony.settings']._liwan_current()
         cutoff = fields.Datetime.now() - timedelta(days=settings.recording_retention_days)
-        domain = [
-            ('company_id', '=', company.id),
+        calls = self.env['liwan.telephony.call'].search([
             ('recording_state', '=', 'available'),
             ('state', 'in', TERMINAL_STATES),
             '|',
             '&', ('ended_at', '!=', False), ('ended_at', '<', cutoff),
             '&', ('ended_at', '=', False), ('create_date', '<', cutoff),
-        ]
-        calls = self.env['liwan.telephony.call'].with_company(company).search(
-            domain, limit=RETENTION_BATCH, order='ended_at, id',
-        )
+        ], limit=RETENTION_BATCH, order='ended_at, id')
         if not calls:
             return 0
-        answer = self._liwan_delete(company, calls)
+        answer = self._liwan_delete(calls)
         if answer is None:
             return 0
         confirmed = self._liwan_confirmed(answer, calls)
@@ -73,13 +61,13 @@ class LiwanTelephonyCron(models.AbstractModel):
         still_active = calls - expired
         if still_active:
             _logger.warning(
-                'liwan_telephony: the agent still holds %s recording(s) of company %s past retention: %s',
-                len(still_active), company.id, ', '.join(still_active.mapped('linkedid')),
+                'liwan_telephony: the agent still holds %s recording(s) past retention: %s',
+                len(still_active), ', '.join(still_active.mapped('linkedid')),
             )
         return len(expired)
 
     @api.model
-    def _liwan_delete(self, company, calls):
+    def _liwan_delete(self, calls):
         """The agent's answer to deleting ``calls``' recordings, or None when it could not be read.
 
         A failed request leaves every one of them ``available``: the next run asks again, and nothing claims a
@@ -91,9 +79,7 @@ class LiwanTelephonyCron(models.AbstractModel):
                 'linkedids': calls.mapped('linkedid'),
             })
         except ApiError as error:
-            _logger.warning(
-                'liwan_telephony: deleting the recordings of company %s failed: %s', company.id, error.message,
-            )
+            _logger.warning('liwan_telephony: deleting the recordings past retention failed: %s', error.message)
             return None
 
     @api.model

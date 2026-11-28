@@ -1,9 +1,11 @@
 import { z } from 'zod'
 
 /**
- * The company's recording settings, field for field with the liwan_telephony settings serializer: whether calls are
+ * The database's recording settings, field for field with the liwan_telephony settings serializer: whether calls are
  * recorded, whether the party that answers hears the notice once it answers, and how many days the agent keeps a
- * recording before the retention cron deletes it. The retention bounds are the model's declared range.
+ * recording before the retention cron deletes it. One policy per Odoo database, because one phone system serves it: a
+ * `telephony.use` holder of any company reads it, and only a `telephony.manage` holder of the root company writes it.
+ * The retention bounds are the model's declared range.
  */
 export const TelephonyRecordingSettingsSchema = z.strictObject({
   recordingPolicy: z.enum(['always', 'off']),

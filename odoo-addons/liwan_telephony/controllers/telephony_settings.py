@@ -1,15 +1,16 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The recording settings of the current company (design 4.4, 8).
+"""The recording settings of the database (design 4.4, 8).
 
-Any phone user reads the policy; only ``telephony.manage`` writes it. A company that never saved the page answers the
-declared defaults, so the route never 404s. A write names the field it refuses: an unknown key, a wrong type and an
-out-of-range value each answer 422 ``invalid``. Saving tells the agent the new policy once; a failed push is logged and
-does not roll the write back.
+Any phone user reads the policy, whichever company they work in; only a ``telephony.manage`` holder whose company is
+the root company writes it, because the one pbx-db recording config row and the dialplan read one policy for the whole
+database. A write names the field it refuses: an unknown key, a wrong type and an out-of-range value each answer 422
+``invalid``. Saving tells the agent the new policy once; a failed push is logged and does not roll the write back.
 """
 from odoo import http
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
+    ApiError,
     api_handler,
     requires_capability,
     requires_feature,
@@ -50,6 +51,17 @@ def parse_settings(payload):
     return values
 
 
+def require_root_manager():
+    """403 ``forbidden`` unless the session works in the root company.
+
+    The policy binds every company of the database, so the ``telephony.manage`` of one branch company only reads it; the
+    capability itself is the route's ``requires_capability`` gate, which reads the current company.
+    """
+    root = request.env['liwan.entitlement.service']._liwan_profile().root_company_id
+    if request.env.company != root:
+        raise ApiError(403, 'forbidden', 'the recording policy belongs to the managers of the root company')
+
+
 class TelephonySettingsController(http.Controller):
 
     @http.route(SETTINGS, type='json2', auth='user', methods=['GET'], readonly=True)
@@ -57,24 +69,19 @@ class TelephonySettingsController(http.Controller):
     @requires_feature(EVENTS_FEATURE, operation='read')
     @requires_capability('telephony.use')
     def get_settings(self, **_):
-        """The current company's settings, or its declared defaults while the page was never saved."""
-        settings = request.env['liwan.telephony.settings']._liwan_for(request.env.company)
-        return dump_telephony_settings(settings)
+        """The database's recording policy: the values in effect for every company."""
+        return dump_telephony_settings(request.env['liwan.telephony.settings']._liwan_current())
 
     @http.route(SETTINGS, type='json2', auth='user', methods=['PATCH'])
     @api_handler
     @requires_feature(EVENTS_FEATURE, operation='write')
     @requires_capability('telephony.manage')
     def patch_settings(self, **payload):
+        require_root_manager()
         values = parse_settings(payload)
-        model = request.env['liwan.telephony.settings']
-        row = model._liwan_current()
+        settings = request.env['liwan.telephony.settings']._liwan_current()
         if values:
-            if row:
-                row.write(values)
-            else:
-                row = model.create({'company_id': request.env.company.id, **values})
-        # A saved row is pushed even when the save changed nothing: the agent may have missed an earlier push.
-        if row:
-            row._liwan_push_agent()
-        return dump_telephony_settings(row or model._liwan_for(request.env.company))
+            settings.write(values)
+        # A save is pushed even when it changed nothing: the agent may have missed an earlier push.
+        settings._liwan_push_agent()
+        return dump_telephony_settings(settings)

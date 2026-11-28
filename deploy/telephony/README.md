@@ -10,9 +10,9 @@ This package implements the per-company PBX runtime of `docs/superpowers/specs/2
 (sections 2, 3, 4, 11.2, 11.3, 12.3). It answers real calls with dynamic PJSIP realtime endpoints and per-session
 credentials, routes any existing PJSIP extension internally, supports SIP `REFER` blind transfers, dials out through the
 company's provider, receives inbound calls on extension 101, and records conversations under their `linkedid` when the
-company's recording policy says so. **A fresh package records nothing:** the policy row is seeded `off` and only a
-manager saving Settings > Applications > Telephony > Recording turns recording on (see "Recording policy and
-retention").
+database's recording policy says so. **A fresh package records nothing:** the policy row is seeded `off` and only a
+manager of the root company saving Settings > Applications > Telephony > Recording turns recording on (see "Recording
+policy and retention").
 
 ## Topology
 
@@ -89,25 +89,30 @@ Asterisk runs a hybrid PJSIP configuration backed by `pbx-db` (`postgres:16`, pi
 The policy is not an environment value and not a rendered global: it is the one row of `liwan_recording_config` in
 `pbx-db`, which the dialplan reads through extconfig on every call (`REALTIME(liwan_recording_config,1,policy)`).
 
-- **Who writes it.** `pbx-agent` on `PUT /recording/config`, which Odoo calls when a manager saves Settings >
-  Applications > Telephony > Recording. The fixed `id = 1` makes every push an update, so the table cannot hold a
-  second, contradicting policy, and Odoo's `liwan.telephony.settings` row is the record of what the manager chose.
+- **Who writes it.** `pbx-agent` on `PUT /recording/config`, which Odoo calls when a manager of the root company saves
+  Settings > Applications > Telephony > Recording. The policy is one per Odoo database, so every company's calls in
+  that database follow it, and a manager of another company is refused (403). The fixed `id = 1` makes every push an
+  update, so the table cannot hold a second, contradicting policy, and Odoo's `liwan.telephony.settings` row is the
+  record of what the manager chose.
 - **What it means.** `always` records both legs of a bridged call with `MixMonitor`; `off` records nothing. The lookup
   fails closed: an empty answer — no row, or `pbx-db` unreachable — records nothing, so no call is ever recorded
   without a configured policy. The seed row is `off`, which is why a package whose policy was never set records
   nothing.
-- **The announcement.** `announce` is the company's second setting, a PostgreSQL boolean whose realtime value is `t`
+- **The announcement.** `announce` is the database's second setting, a PostgreSQL boolean whose realtime value is `t`
   or `f`. When it is true, `[record-call]` sets `RECORDING_ANNOUNCE_OPTION` to Dial's `A(<sound>)` argument and every
   `Dial` in the dialplan appends it to its timeout, so Asterisk plays the prompt to the party that answers. The
-  recording starts before `Dial` on purpose (ringback and both legs are captured), so a `Playback` at that point would
-  reach the caller only. The sound is named by `LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND`; Asterisk ships no "being
-  recorded" prompt, so install the company's prompt under `/var/lib/asterisk/sounds` in the
-  `<company>-telephony-asterisk-state` volume, and leave the setting off until it is there.
-- **Retention.** The company's `recording_retention_days` (1 to 3650 days) is enforced by Odoo, not by a timer here:
-  a daily `liwan.telephony.cron` run asks `pbx-agent` to delete the recordings of that company's calls past their
+  recording starts before `Dial` so the file exists under the call's linkedid from the moment recording begins and the
+  recorder runs when the legs bridge; `MixMonitor` with `b` records bridged audio only, so ringback is not in the file,
+  and a `Playback` at that point would reach the caller only. The sound is named by
+  `LIWAN_TELEPHONY_RECORDING_ANNOUNCE_SOUND`; Asterisk ships no "being recorded" prompt, so install the company's prompt
+  under `/var/lib/asterisk/sounds` in the `<company>-telephony-asterisk-state` volume, and leave the setting off
+  until it is there.
+- **Retention.** The database's `recording_retention_days` (1 to 3650 days) is enforced by Odoo, not by a timer here:
+  a daily `liwan.telephony.cron` run asks `pbx-agent` to delete the recordings of every company's calls past their
   window, one bounded batch per request, and marks `recording_state = expired` exactly the calls the agent reported
-  `deleted` or `missing`. The agent skips a call whose leg is still up, so a live call is never cut; Odoo asks again
-  on the next run. A recording the agent still holds stays `available` and is logged.
+  `deleted` or `missing`. The agent skips a call its ARI stream observed within the last 12 hours, and that set is
+  cleared on every stream reconnect, so the skip is bounded: a live call is not cut, and a lost end event cannot pin
+  a batch forever. Odoo asks again on the next run. A recording the agent still holds stays `available` and is logged.
 - **No CDR copy.** `asterisk/modules.conf` (rendered from `asterisk/modules.conf.template`) replaces the one the image
   ships, so it keeps `autoload=yes` and adds a `noload` line per module this package must not load: `cdr_csv.so` (CEL
   and the agent's event queue are this package's call-record source, and the CSV CDR backend would only write a
@@ -158,8 +163,8 @@ database (the seed is `ON CONFLICT (id) DO NOTHING` and never overwrites an exis
 that volume must be removed before `docker compose up -d` (nothing in it is kept before release).
 
 The recording policy row follows the same rule: `postgres/01-schema.sql` seeds it `off` when the database is created,
-and from then on `pbx-agent` writes it, so changing the policy is a settings action in Odoo — never an env edit and
-never a re-render.
+and from then on `pbx-agent` writes it, so changing the policy — one per database, for every company's calls — is a
+settings action by a manager of the root company in Odoo, never an env edit and never a re-render.
 
 The first start runs `volumes-init` before anything else: it prepares the recordings, CEL/log, Asterisk-state and
 agent-queue volumes for uid/gid `10002` with only `CHOWN` and `DAC_OVERRIDE`, then exits. Asterisk and the agent then

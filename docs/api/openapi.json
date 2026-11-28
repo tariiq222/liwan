@@ -117852,7 +117852,6 @@
           "recordingState": {
             "enum": [
               "none",
-              "pending",
               "available",
               "expired"
             ],
@@ -118062,7 +118061,6 @@
                 "recordingState": {
                   "enum": [
                     "none",
-                    "pending",
                     "available",
                     "expired"
                   ],
@@ -118272,7 +118270,6 @@
           "recordingState": {
             "enum": [
               "none",
-              "pending",
               "available",
               "expired"
             ],
@@ -119281,7 +119278,6 @@
                 "recordingState": {
                   "enum": [
                     "none",
-                    "pending",
                     "available",
                     "expired"
                   ],
@@ -119490,7 +119486,6 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "none",
-          "pending",
           "available",
           "expired"
         ],
@@ -172936,7 +172931,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "The current company's settings, or its declared defaults while the page was never saved.",
+        "summary": "The database's recording policy: the values in effect for every company.",
         "tags": [
           "liwan_telephony"
         ],
